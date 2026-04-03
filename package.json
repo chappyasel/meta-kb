@@ -1,0 +1,15 @@
+{
+  "name": "meta-kb",
+  "version": "0.1.0",
+  "description": "A living, LLM-compiled knowledge base about building LLM knowledge bases.",
+  "type": "module",
+  "scripts": {
+    "compile": "bun run scripts/compile.ts",
+    "lint": "bun run scripts/lint.ts",
+    "test": "bun test"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "gray-matter": "^4.0.3"
+  }
+}
