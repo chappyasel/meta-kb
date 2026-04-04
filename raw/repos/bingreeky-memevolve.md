@@ -1,0 +1,185 @@
+---
+url: 'https://github.com/bingreeky/MemEvolve'
+type: repo
+author: bingreeky
+date: '2026-04-02'
+tags:
+  - agent-memory
+  - self-improving
+  - meta-learning
+  - memory-architecture-evolution
+  - dual-evolution
+  - Mem0
+  - semantic-working-memory
+  - adaptive-interfaces
+key_insight: >-
+  MemEvolve enables agents to not just update memory contents but evolve the
+  memory architecture itself through meta-evolution, allowing systems to
+  dynamically adapt their storage and retrieval interfaces rather than being
+  constrained by a fixed schema—this shifts memory systems from static
+  repositories to adaptive meta-learning substrates.
+stars: 201
+forks: 24
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 7
+  novelty: 9
+  signal_quality: 7
+  composite: 8.1
+  reason: >-
+    MemEvolve introduces a genuinely novel dual-evolution pattern where agents
+    evolve both memory content AND the memory architecture itself
+    (meta-evolution of the interface schema), directly relevant to agent memory
+    systems and self-improving loops with working Python implementation and
+    arXiv paper.
+---
+## MemEvolve
+
+> MemEvolve & EvolveLab
+
+### Stats
+
+| Metric | Value |
+|--------|-------|
+| Stars | 201 |
+| Forks | 24 |
+| Language | Python |
+| License | Apache-2.0 |
+| Last Updated | 2026-04-02 |
+
+### README (excerpt)
+
+<div align="center">
+
+# MemEvolve: Meta-Evolution of Agent Memory Systems
+
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![arXiv](https://img.shields.io/badge/arXiv-2512.18746-red.svg)]([https://arxiv.org](https://arxiv.org/abs/2512.18746))
+
+![](assets/framework.png)
+
+</div>
+
+## Introduction
+
+This repo is the official implementation of **MemEvolve: Meta-Evolution of Agent Memory Systems**.
+
+Traditional self-improving memory systems operate under a **fixed memory architecture**, where the memory interface Ω is predefined and remains static. Within this architecture, the agent iteratively populates and updates its memory base $M_t$ through interaction with the environment and task experiences. To transcend this limitation, we propose a **dual-evolution process** that jointly evolves the agent's memory base and its underlying memory architecture.
+
+Our framework, **MemEvolve**, enables both the memory content and the memory system itself to adapt and improve over time through meta-evolution, enabling more adaptive and resource-aware memory-driven reasoning.
+
+---
+
+## Setup
+
+### 1. Environment Setup
+
+```bash
+conda create -n memevolve python=3.10
+conda activate memevolve
+cd Flash-Searcher-main
+pip install -r requirements.txt
+```
+
+**Optional** (only if you need to use crawl4ai):
+```bash
+playwright install  # Install browser binaries for crawl4ai
+```
+
+### 2. Configure Environment Variables
+
+Copy `.env.example` to `.env` and fill in your API keys:
+
+```bash
+cp Flash-Searcher-main/.env.example Flash-Searcher-main/.env
+# Then edit Flash-Searcher-main/.env with your actual API keys
+```
+
+See `.env.example` for all available configuration options and their descriptions.
+
+> **Tip**: For better evolution quality, use stronger models like `claude-sonnet-4.5` or `gpt-5` for `ANALYSIS_MODEL` and `GENERATION_MODEL`.
+
+### 3. Dataset Preparation
+
+**GAIA**: Download from https://huggingface.co/datasets/gaia-benchmark/GAIA  
+- Use Feb 13, 2025 version (commit `897f2dfbb5c952b5c3c1509e648381f9c7b70316`)
+- Expected structure:
+  ```
+  ./data/gaia/validation/
+    ├── metadata.jsonl
+    ├── 076c8171-9b3b-49b9-a477-244d2a532826.xlsx
+    ├── 1f975693-876d-457b-a649-393859e79bf3.mp3
+    └── ... (various task files)
+  ```
+
+**WebWalkerQA**: Download from https://huggingface.co/datasets/callanwu/WebWalkerQA  
+- Place `main-00000-of-00001.jsonl` in `./data/webwalkerqa/`
+- Rename to `webwalkerqa_main.jsonl`
+- Run sampling script to generate subset:
+  ```bash
+  cd data/webwalkerqa
+  python sample_webwalkerqa.py
+  ```
+- Expected output: `./data/webwalkerqa/webwalkerqa_subset_170.jsonl`
+
+**xBench**: Download from https://github.com/xbench-ai/xbench-evals  
+- Use `DeepSearch-2505.csv` and rename to `DeepSearch.csv`
+- Expected path: `./data/xbench/DeepSearch.csv`
+
+---
+
+## EvolveLab
+
+EvolveLab is a Unified Codebase for Self-Evolving Memory.
+
+### Evaluate on Datasets
+
+**GAIA Dataset**:
+```bash
+python run_flash_searcher_mm_gaia.py \
+    --infile ./data/gaia/validation/metadata.jsonl \
+    --outfile ./gaia_output/lightweight_results.jsonl \
+    --memory_provider lightweight_memory \
+    --sample_num 20 \
+    --max_steps 40
+```
+
+**WebWalkerQA**:
+```bash
+python run_flash_searcher_webwalkerqa.py \
+    --infile ./data/webwalkerqa/webwalkerqa_subset_170.jsonl \
+    --outfile ./webwalkerqa_output/lightweight_results.jsonl \
+    --memory_provider lightweight_memory \
+    --sample_num 20 \
+    --max_steps 40
+```
+
+**xBench**:
+```bash
+python run_flash_searcher_mm_xbench.py \
+    --infile ./data/xbench/DeepSearch.csv \
+    --outfile ./xbench_output/lightweight_results.jsonl \
+    --memory_provider lightweight_memory \
+    --sample_num 20 \
+    --max_steps 40
+```
+
+### Key Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `--memory_provider` | Memory system to evaluate | `agent_kb`, `lightweight_memory`, `cerebra_fusion_memory` |
+| `--sample_num` | Number of tasks to sample | `20` (runs first 20 tasks) |
+| `--max_steps` | Maximum agent steps | `40` |
+| `--disable_memory_evolution` | Disable online memory evolution | Add flag to skip `take_in_memory` |
+
+MemEvolve includes **11 baseline memory systems** (reproduced from literature) and **2 evolved systems** (generated by our framework):
+
+| Memory System                  | Type     | Paper                                                      |Source|
+| ------------------------------ | -------- | ----------------------------------------------------------- |-|
+| `AGENT_KB`                     | Baseline | [Agent-KB](https://arxiv.org/abs/2507.06229)    | https://github.com/OPPO-PersonalAI/Agent-KB
+| `SKILLWEAVER`                  | Baseline | [SkillWeaver](https://arxiv.org/abs/2504.07079)  | https://github.com/OSU-NLP-Group/SkillWeaver
+| `MOBILEE`                      | Baseline | [Mobile-Agent-E](https://arxiv.org/abs/2501.11733)  | https://x-plug.github.io
+
+...(truncated)

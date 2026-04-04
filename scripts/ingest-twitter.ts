@@ -1,0 +1,433 @@
+#!/usr/bin/env bun
+/**
+ * Twitter/X ingestion script.
+ * Fetches tweets via Apify, extracts content + engagement, generates key_insight/tags.
+ * Recursively follows high-engagement replies and quote tweets.
+ * Auto-chains to GitHub scraper for discovered repo URLs.
+ *
+ * Usage:
+ *   bun run scripts/ingest-twitter.ts [url1] [url2] ...
+ *   bun run scripts/ingest-twitter.ts              # reads config/sources.json
+ */
+
+import { runApifyActor } from "./utils/apify.js";
+import { generateInsightAndTags } from "./utils/llm.js";
+import { writeRawSource, appendDiscoveredUrl } from "./utils/markdown-writer.js";
+import { slugify } from "./utils/slugify.js";
+import { getTweetText, getTweetId, getAuthorHandle, getTweetUrl } from "./utils/tweet.js";
+import { extractGithubUrls, extractUrls } from "./utils/url-extract.js";
+import { loadSeen, saveSeen, markSeen, normalizeUrl } from "./utils/dedup.js";
+import { loadSourceUrls } from "./utils/config.js";
+import { parseDate } from "./utils/date.js";
+import { ingestGithubRepo } from "./ingest-github.js";
+import { ingestArticles } from "./ingest-article.js";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
+import type { RawSourceFrontmatter, Engagement } from "./types.js";
+
+// ─── Tweet field extraction ────────────────────────────────────────────
+
+function getCreatedAt(tweet: Record<string, unknown>): string {
+  const raw = (tweet.createdAt as string) ?? (tweet.created_at as string) ?? "";
+  return parseDate(raw);
+}
+
+function getEngagement(tweet: Record<string, unknown>): Engagement {
+  // Try multiple field paths (Apify response shapes vary)
+  const legacy = tweet.legacy as Record<string, unknown> | undefined;
+  return {
+    likes:
+      (tweet.likeCount as number) ??
+      (legacy?.favorite_count as number) ??
+      (tweet.favorite_count as number) ??
+      0,
+    retweets:
+      (tweet.retweetCount as number) ??
+      (legacy?.retweet_count as number) ??
+      (tweet.retweet_count as number) ??
+      0,
+    views:
+      (tweet.viewCount as number) ??
+      (tweet.views_count as number) ??
+      0,
+  };
+}
+
+function isHighEngagement(engagement: Engagement): boolean {
+  return engagement.likes > 100 || engagement.retweets > 50;
+}
+
+// ─── URL extraction from Apify entities (expanded, not t.co) ────────────
+
+const SOCIAL_DOMAINS = new Set([
+  "twitter.com", "x.com", "pic.twitter.com", "t.co",
+  "linkedin.com", "lnkd.in", "youtube.com", "youtu.be",
+  "instagram.com", "facebook.com", "tiktok.com",
+]);
+
+/** Extract expanded URLs from Apify tweet entities (not regex on text). */
+function extractExpandedUrls(tweet: Record<string, unknown>): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+
+  // entities.urls contains expanded URLs (t.co → real URL)
+  const entities = tweet.entities as Record<string, unknown> | undefined;
+  const entityUrls = entities?.urls as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(entityUrls)) {
+    for (const u of entityUrls) {
+      const expanded = (u.expanded_url ?? u.url) as string | undefined;
+      if (!expanded || seen.has(expanded)) continue;
+      try {
+        const host = new URL(expanded).hostname.replace("www.", "");
+        if (SOCIAL_DOMAINS.has(host)) continue;
+      } catch { continue; }
+      seen.add(expanded);
+      urls.push(expanded);
+    }
+  }
+
+  // Also check quoted tweet entities
+  const quote = tweet.quote as Record<string, unknown> | undefined;
+  if (quote) {
+    const quoteEntities = quote.entities as Record<string, unknown> | undefined;
+    const quoteUrls = quoteEntities?.urls as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(quoteUrls)) {
+      for (const u of quoteUrls) {
+        const expanded = (u.expanded_url ?? u.url) as string | undefined;
+        if (!expanded || seen.has(expanded)) continue;
+        try {
+          const host = new URL(expanded).hostname.replace("www.", "");
+          if (SOCIAL_DOMAINS.has(host)) continue;
+        } catch { continue; }
+        seen.add(expanded);
+        urls.push(expanded);
+      }
+    }
+  }
+
+  return urls;
+}
+
+// ─── Image extraction + download ────────────────────────────────────────
+
+interface TweetImage {
+  url: string;        // Original media URL (media_url_https)
+  localPath: string;  // Relative path from repo root: raw/images/{slug}/{filename}
+  altText?: string;
+}
+
+function extractMediaUrls(tweet: Record<string, unknown>): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+
+  // Check both entities.media and extendedEntities.media (Apify returns either)
+  const collections = [
+    (tweet.extendedEntities as Record<string, unknown> | undefined)?.media,
+    (tweet.entities as Record<string, unknown> | undefined)?.media,
+  ];
+
+  for (const collection of collections) {
+    if (!Array.isArray(collection)) continue;
+    for (const media of collection as Array<Record<string, unknown>>) {
+      const url =
+        (media.media_url_https as string) ??
+        (media.media_url as string);
+      if (!url || seen.has(url)) continue;
+      // Only images, not videos
+      if (media.type === "video" || media.type === "animated_gif") continue;
+      seen.add(url);
+      urls.push(url);
+    }
+  }
+
+  // Also check top-level media array (some Apify response shapes)
+  const topMedia = tweet.media as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(topMedia)) {
+    for (const media of topMedia) {
+      const url =
+        (media.media_url_https as string) ??
+        (media.media_url as string) ??
+        (media.url as string);
+      if (!url || seen.has(url)) continue;
+      if (media.type === "video" || media.type === "animated_gif") continue;
+      // Filter to image URLs only
+      if (!/\.(jpg|jpeg|png|gif|webp)/i.test(url) && !url.includes("pbs.twimg.com")) continue;
+      seen.add(url);
+      urls.push(url);
+    }
+  }
+
+  return urls;
+}
+
+async function downloadImages(
+  mediaUrls: string[],
+  tweetSlug: string,
+): Promise<TweetImage[]> {
+  if (mediaUrls.length === 0) return [];
+
+  const imageDir = join("raw", "images", tweetSlug);
+  await mkdir(imageDir, { recursive: true });
+
+  const images: TweetImage[] = [];
+
+  for (let i = 0; i < mediaUrls.length; i++) {
+    const url = mediaUrls[i]!;
+    // Get highest quality version
+    const highQualityUrl = url.includes("?") ? url : `${url}?name=large`;
+
+    try {
+      const res = await fetch(highQualityUrl, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) {
+        console.warn(`    failed to download image: ${res.status} ${url}`);
+        continue;
+      }
+
+      const contentType = res.headers.get("content-type") ?? "image/jpeg";
+      const ext = contentType.includes("png") ? "png" : contentType.includes("gif") ? "gif" : "jpg";
+      const filename = mediaUrls.length === 1 ? `image.${ext}` : `image-${i + 1}.${ext}`;
+      const filePath = join(imageDir, filename);
+
+      await Bun.write(filePath, await res.arrayBuffer());
+
+      const relativePath = join("images", tweetSlug, filename);
+      images.push({ url, localPath: relativePath });
+      console.log(`    downloaded ${relativePath}`);
+    } catch (err) {
+      console.warn(`    failed to download image: ${err}`);
+    }
+  }
+
+  return images;
+}
+
+// ─── Main ingestion logic ───────────────────────────────────────────────
+
+interface IngestOptions {
+  depth?: number;
+  seen?: Set<string>;
+}
+
+export async function ingestTweets(
+  urls: string[],
+  opts: IngestOptions = {},
+): Promise<string[]> {
+  const { depth = 1 } = opts;
+  const seen = opts.seen ?? (await loadSeen());
+  const written: string[] = [];
+
+  // Build startUrls for Apify (check only, don't mark as seen yet)
+  const startUrls = urls
+    .filter((u) => !seen.has(normalizeUrl(u)))
+    .map((url) => ({ url }));
+
+  if (startUrls.length === 0) {
+    console.log("  all URLs already seen, skipping");
+    return written;
+  }
+
+  console.log(`\n[twitter] fetching ${startUrls.length} tweets via Apify...`);
+
+  const items = await runApifyActor("apidojo/twitter-scraper-lite", {
+    startUrls,
+    maxItems: startUrls.length * 10, // Extra for replies/quotes
+  });
+
+  for (const tweet of items) {
+    const tweetUrl = getTweetUrl(tweet);
+    const text = getTweetText(tweet);
+    if (!text) continue;
+
+    // Check if this is one of the original requested tweets or a reply/quote
+    const isOriginal = urls.some((u) => tweetUrl.includes(getTweetId(tweet)));
+    const engagement = getEngagement(tweet);
+
+    // For non-original tweets, only ingest if high engagement or has URLs
+    if (!isOriginal) {
+      const githubUrls = extractGithubUrls(text);
+      if (!isHighEngagement(engagement) && githubUrls.length === 0) continue;
+    }
+
+    if (markSeen(seen, tweetUrl)) continue;
+
+    const handle = getAuthorHandle(tweet);
+    console.log(`  processing tweet by @${handle} (${engagement.likes} likes)`);
+
+    // Include quoted tweet text for better LLM classification
+    const quote = tweet.quote as Record<string, unknown> | undefined;
+    const quoteText = quote ? getTweetText(quote) : "";
+    const llmInput = quoteText ? `${text}\n\n[Quoted tweet]: ${quoteText}` : text;
+    const { key_insight, tags } = await generateInsightAndTags(llmInput, "tweet");
+
+    // For RTs, credit the original author in frontmatter
+    const isRT = tweet.isRetweet === true;
+    const rtMatch = isRT ? text.match(/^RT @(\w+):/) : null;
+    const effectiveAuthor = rtMatch ? `@${rtMatch[1]}` : `@${handle}`;
+
+    const slug = slugify(`${handle}-${text.slice(0, 50)}`);
+
+    // Download images
+    const mediaUrls = extractMediaUrls(tweet);
+    const images = await downloadImages(mediaUrls, slug);
+
+    const frontmatter: RawSourceFrontmatter = {
+      url: tweetUrl,
+      type: "tweet",
+      author: effectiveAuthor,
+      date: getCreatedAt(tweet),
+      tags,
+      key_insight,
+      likes: engagement.likes,
+      retweets: engagement.retweets,
+      views: engagement.views,
+      ...(images.length > 0 && {
+        images: images.map((img) => img.localPath),
+      }),
+    };
+
+    const body = buildTweetBody(tweet, text, engagement, images);
+    const filePath = await writeRawSource("tweets", slug, frontmatter, body);
+    written.push(filePath);
+
+    // Auto-chain: extract expanded URLs from Apify entities and ingest linked content
+    const expandedUrls = extractExpandedUrls(tweet);
+    const githubChain: string[] = [];
+    const articleChain: string[] = [];
+
+    for (const url of expandedUrls) {
+      try {
+        const host = new URL(url).hostname.replace("www.", "");
+        if (host === "github.com") githubChain.push(url);
+        else articleChain.push(url);
+      } catch {}
+    }
+
+    // GitHub repos
+    for (const ghUrl of githubChain) {
+      try {
+        console.log(`  auto-chaining to GitHub: ${ghUrl}`);
+        const repoWritten = await ingestGithubRepo(ghUrl, {
+          depth: Math.min(depth, 1),
+          seen,
+          parentSource: tweetUrl,
+        });
+        written.push(...repoWritten);
+      } catch (err) {
+        console.warn(`  error auto-chaining to ${ghUrl}: ${err}`);
+      }
+    }
+
+    // Articles
+    if (articleChain.length > 0) {
+      try {
+        console.log(`  auto-chaining to ${articleChain.length} article(s): ${articleChain.join(", ")}`);
+        const articleWritten = await ingestArticles(articleChain, { seen });
+        written.push(...articleWritten);
+      } catch (err) {
+        console.warn(`  error auto-chaining to articles: ${err}`);
+      }
+    }
+  }
+
+  await saveSeen(seen);
+  return written;
+}
+
+function buildTweetBody(
+  tweet: Record<string, unknown>,
+  text: string,
+  engagement: Engagement,
+  images: TweetImage[] = [],
+): string {
+  const handle = getAuthorHandle(tweet);
+  const isRT = tweet.isRetweet === true;
+  const isQT = tweet.isQuote === true;
+  const quote = tweet.quote as Record<string, unknown> | undefined;
+
+  const lines: string[] = [];
+  lines.push(`## Tweet by @${handle}`);
+  lines.push("");
+
+  if (isRT) {
+    // For RTs, note the original author
+    const rtMatch = text.match(/^RT @(\w+):/);
+    if (rtMatch) {
+      lines.push(`> **Retweet of @${rtMatch[1]}**`);
+      lines.push("");
+    }
+  }
+
+  lines.push(text);
+  lines.push("");
+
+  // Include quoted tweet content if available
+  if (isQT && quote) {
+    const quoteHandle = (quote.author as Record<string, unknown>)?.userName as string ?? "unknown";
+    const quoteText = getTweetText(quote);
+    if (quoteText) {
+      lines.push("### Quoted Tweet");
+      lines.push("");
+      lines.push(`> **@${quoteHandle}:**`);
+      for (const line of quoteText.split("\n")) {
+        lines.push(`> ${line}`);
+      }
+      lines.push("");
+    }
+  }
+
+  lines.push("### Engagement");
+  lines.push("");
+  lines.push(`| Metric | Value |`);
+  lines.push(`|--------|-------|`);
+  lines.push(`| Likes | ${engagement.likes.toLocaleString()} |`);
+  lines.push(`| Retweets | ${engagement.retweets.toLocaleString()} |`);
+  if (engagement.views > 0) lines.push(`| Views | ${engagement.views.toLocaleString()} |`);
+  lines.push("");
+
+  // Images
+  if (images.length > 0) {
+    lines.push("### Images");
+    lines.push("");
+    for (const img of images) {
+      lines.push(`![](../${img.localPath})`);
+      lines.push("");
+    }
+  }
+
+  // Extract and list any URLs in the tweet (and quoted tweet)
+  const allText = quote ? text + " " + getTweetText(quote) : text;
+  const githubUrls = extractGithubUrls(allText);
+  if (githubUrls.length > 0) {
+    lines.push("### Referenced Repos");
+    lines.push("");
+    for (const url of githubUrls) {
+      lines.push(`- ${url}`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+// ─── CLI entry point ────────────────────────────────────────────────────
+
+async function main() {
+  let urls = process.argv.slice(2);
+
+  if (urls.length === 0) {
+    urls = await loadSourceUrls("tweet_urls");
+    console.log(`loaded ${urls.length} tweet URLs from config/sources.json`);
+  }
+
+  console.log(`\n=== Twitter Ingestion: ${urls.length} tweets ===\n`);
+
+  const seen = await loadSeen();
+  const written = await ingestTweets(urls, { seen });
+  await saveSeen(seen);
+
+  console.log(`\n=== Done: ${written.length} files written ===`);
+}
+
+if (import.meta.main) {
+  main().catch(console.error);
+}

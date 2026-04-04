@@ -3,3 +3,5 @@ build/
 .env
 dist/
 *.bun-build
+scripts/research/
+build/research/

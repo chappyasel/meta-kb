@@ -1,0 +1,401 @@
+---
+url: 'https://github.com/Michaelliv/napkin'
+type: repo
+author: Michaelliv
+date: '2026-04-04'
+tags:
+  - knowledge-bases
+  - agent-memory
+  - context-engineering
+  - markdown
+  - local-first
+  - BM25-search
+  - progressive-disclosure
+  - Obsidian
+  - agentic-memory
+key_insight: >-
+  napkin demonstrates that agents don't need embeddings or vector databases to
+  retrieve knowledge effectively—BM25 search on markdown with progressive
+  disclosure can match or exceed RAG systems while keeping memory local and
+  human-readable, which matters because it dramatically reduces infrastructure
+  complexity for agentic knowledge bases.
+stars: 264
+forks: 11
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 9
+  novelty: 8
+  signal_quality: 8
+  composite: 8.7
+  reason: >-
+    Napkin directly addresses agent memory/KB with a novel
+    BM25+progressive-disclosure approach that outperforms RAG on LongMemEval,
+    includes benchmarks, a working SDK, and a clear architecture—highly
+    actionable for practitioners building agentic knowledge systems without
+    vector infrastructure.
+---
+## napkin
+
+> 🧻 Knowledge system for agents. Local-first, file-based, progressively disclosed.
+
+### Stats
+
+| Metric | Value |
+|--------|-------|
+| Stars | 264 |
+| Forks | 11 |
+| Language | TypeScript |
+| License | MIT |
+| Last Updated | 2026-04-04 |
+
+### README
+
+# napkin
+
+🧻 Knowledge system for agents. Local-first, file-based, progressively disclosed.
+
+Every great idea started on a napkin.
+
+```bash
+npm install -g napkin-ai
+```
+
+---
+
+## Quick Start
+
+```bash
+# Initialize a vault
+napkin init --template coding
+
+# See what's in it
+napkin overview
+
+# Search for something
+napkin search "authentication"
+
+# Read a file
+napkin read "Architecture"
+
+# Write
+napkin create "Decision" --template Decision
+napkin append "Decision" "We chose Postgres."
+napkin daily append "- [ ] Review PR"
+```
+
+---
+
+## SDK
+
+napkin is also a library. No CLI, no stdout - just data:
+
+```typescript
+import { Napkin } from "napkin-ai";
+
+// Always works - creates bare vault if needed
+const n = new Napkin("/path/to/project");
+
+// Progressive disclosure
+const overview = n.overview();
+const results = n.search("authentication");
+const file = n.read("Architecture");
+
+// Write
+n.create({ name: "New Note", content: "# Hello" });
+n.append("New Note", "\nMore content");
+
+// Daily notes
+n.dailyEnsure();
+n.dailyAppend("- Met with team");
+
+// Everything else
+n.tags();
+n.tasks({ todo: true });
+n.linksBack("Architecture");
+n.outline("Architecture");
+n.properties();
+n.bookmarks();
+n.config();
+```
+
+Scaffold with a template:
+
+```typescript
+Napkin.scaffold("/path/to/project", { template: "coding" });
+Napkin.vaultTemplates(); // list available templates
+```
+
+All SDK methods return typed data and throw errors on failure. No `console.log`, no `process.exit`.
+
+---
+
+## Progressive Disclosure
+
+napkin is designed as a memory system for agents. Instead of dumping the full vault into context, it reveals information gradually:
+
+| Level | Command | Tokens | What it does |
+|-------|---------|--------|-------------|
+| 0 | `NAPKIN.md` | ~200 | Project context note |
+| 1 | `napkin overview` | ~1-2k | L0 + vault map with TF-IDF keywords |
+| 2 | `napkin search <query>` | ~2-5k | Ranked results with snippets |
+| 3 | `napkin read <file>` | ~5-20k | Full file content |
+
+## Benchmarks
+
+napkin includes agentic retrieval benchmarks in `bench/`. The headline result is [LongMemEval](https://arxiv.org/abs/2410.10813) (ICLR 2025), which tests long-term conversational memory across 500 questions.
+
+| Dataset | Sessions | pi + napkin | Best prior system | GPT-4o full context |
+|---------|----------|-------------|-------------------|---------------------|
+| Oracle | 1-6 | **92.0%** | 92.4% | 92.4% |
+| S | ~40 | **91.0%** | 86% | 64% |
+| M | ~500 | **83.0%** | 72% | n/a |
+
+Zero preprocessing. No embeddings, no graphs, no summaries. Just BM25 search on markdown files.
+
+See [`bench/README.md`](bench/README.md) for details and usage.
+
+---
+
+## Vault Structure
+
+`.napkin/` holds config. Content lives in the project directory alongside `.obsidian/`:
+
+```
+my-project/
+  .napkin/                  # napkin config
+    config.json             # Unified config (syncs to .obsidian/)
+  .obsidian/                # Obsidian config (auto-generated)
+  NAPKIN.md                 # Context note (Level 0)
+  decisions/                # Template-defined directories
+  architecture/
+  Templates/                # Note templates
+  src/                      # Your project (not in vault)
+```
+
+## Templates
+
+Scaffold a vault with a domain-specific structure:
+
+```bash
+napkin init --template coding    # decisions/, architecture/, guides/, changelog/
+napkin init --template company   # people/, projects/, runbooks/, infrastructure/
+napkin init --template product   # features/, roadmap/, research/, specs/, releases/
+napkin init --template personal  # people/, projects/, areas/, references/
+napkin init --template research  # papers/, concepts/, questions/, experiments/
+```
+
+Each template includes directory structure, `_about.md` files, Obsidian note templates, and a `NAPKIN.md` skeleton.
+
+---
+
+## For Agents
+
+Every command supports `--json` for structured output and `-q` for raw output:
+
+```bash
+napkin overview --json          # Structured vault map
+napkin search "auth" --json     # Ranked results as JSON
+napkin read "Note" -q           # Raw markdown, nothing else
+```
+
+---
+
+## CLI Reference
+
+### Global Flags
+
+| Flag | Description |
+|---|---|
+| `--json` | Output as JSON |
+| `-q, --quiet` | Suppress output |
+| `--vault <path>` | Vault path (default: auto-detect from cwd) |
+| `--copy` | Copy output to clipboard |
+
+### Core
+
+```bash
+napkin vault                          # Vault info
+napkin overview                       # Vault map with keywords
+napkin read <file>                    # Read file contents
+napkin create "Note" $'# Hello\nFirst note.'   # Create with content
+napkin append "Note" $'\n## Update\nNew info.'   # Append to file
+napkin prepend "Note" $'---\ntags: [new]\n---'   # Prepend frontmatter
+napkin move "Note" Archive            # Move to folder
+napkin rename "Note" "Renamed"        # Rename file
+napkin delete "Note"                  # Move to .trash
+napkin search "meeting"               # Ranked search with snippets
+napkin search "TODO" --no-snippets    # Files only
+echo "piped content" | napkin append "Note"  # Stdin support
+```
+
+### Files & Folders - `napkin file`
+
+```bash
+napkin file info <name>               # File info (path, size, dates)
+napkin file list                      # List all files
+napkin file list --ext md             # Filter by extension
+napkin file list --folder Projects    # Filter by folder
+napkin file folder <path>             # Folder info
+napkin file folders                   # List all folders
+napkin file outline "note"            # Heading tree
+napkin file wordcount "note"          # Word + character count
+```
+
+### Daily Notes - `napkin daily`
+
+```bash
+napkin daily today                    # Create today's daily note
+napkin daily path                     # Print daily note path
+napkin daily read                     # Print daily note contents
+napkin daily append "- [ ] Buy groceries"
+napkin daily prepend "## Morning"
+```
+
+### Tags - `napkin tag`
+
+```bash
+napkin tag list                       # List all tags
+napkin tag list --counts              # With occurrence counts
+napkin tag list --sort count          # Sort by frequency
+napkin tag info --name "project"      # Tag info
+napkin tag aliases                    # List all aliases
+```
+
+### Properties - `napkin property`
+
+```bash
+napkin property list                  # List all properties
+napkin property list --file "note"    # Properties for a file
+napkin property read --file "note" --name title
+napkin property set --file "note" --name status --value done
+napkin property remove --file "note" --name status
+```
+
+### Tasks - `napkin task`
+
+```bash
+napkin task list                      # List all tasks
+napkin task list --todo               # Incomplete only
+napkin task list --done               # Completed only
+napkin task list --daily              # Today's daily note tasks
+napkin task show --file "note" --line 3 --toggle
+```
+
+### Links - `napkin link`
+
+```bash
+napkin link out --file "note"         # Outgoing links
+napkin link back --file "note"        # Backlinks
+napkin link unresolved                # Broken links
+napkin link orphans                   # No incoming links
+napkin link deadends                  # No outgoing links
+```
+
+### Bases - `napkin base`
+
+```bash
+napkin base list                      # List .base files
+napkin base views --file "projects"   # List views
+napkin base query --file "projects"   # Query default view
+napkin base query --file "projects" --view "Active" --format csv
+napkin base create --file "projects" --name "New Item"
+```
+
+### Canvas - `napkin canvas`
+
+```bash
+napkin canvas list                    # List .canvas files
+napkin canvas read --file "Board"     # Dump canvas
+napkin canvas nodes --file "Board"    # List nodes
+napkin canvas create --file "Board"   # Create empty canvas
+napkin canvas add-node --file "Board" --type text --text "# Hello"
+napkin canvas add-edge --file "Board" --from abc1 --to def2
+napkin canvas remove-node --file "Board" --id abc1
+```
+
+### Templates - `napkin template`
+
+```bash
+napkin template list                  # List note templates
+napkin template read --name "Daily Note"
+napkin template insert --file "note" --name "Template"
+```
+
+### Bookmarks - `napkin bookmark`
+
+```bash
+napkin bookmark list                  # List bookmarks
+napkin bookmark add --file "note"     # Bookmark a file
+```
+
+### Config - `napkin config`
+
+```bash
+napkin config show                    # Show full config
+napkin config get --key search.limit  # Get a value
+napkin config set --key search.limit --value 50
+```
+
+### Graph - `napkin graph`
+
+```bash
+napkin graph                          # Interactive vault graph
+```
+
+Force-directed graph of vault notes and wikilinks. Click nodes to read content in a sidebar.
+
+---
+
+## File Resolution
+
+Files can be referenced two ways:
+- **By name** (wikilink-style): `"Active Projects"` - searches all `.md` files by basename
+- **By path**: `"Projects/Active Projects.md"` - exact path from vault root
+
+---
+
+## Architecture
+
+```
+src/
+  index.ts       # SDK exports: Napkin class + all types
+  sdk.ts         # Napkin class wrapping core modules
+  main.ts        # CLI entry (Commander) - thin wrapper
+  core/          # Pure logic, returns data, no stdout
+  commands/      # CLI wrappers: parse args → sdk → format + print
+  utils/         # Shared utilities (files, frontmatter, markdown, etc.)
+```
+
+Core modules never call `console.log`, `process.exit`, or import output utilities. They return typed data and throw errors. The CLI commands are thin wrappers that instantiate the SDK, call methods, and format the output.
+
+---
+
+## Pi Extensions
+
+napkin ships as a [pi](https://github.com/mariozechner/pi-coding-agent) package with two extensions:
+
+### napkin-context
+Injects the vault overview (Level 0 + Level 1) into the agent's system prompt on session start.
+
+### napkin-distill
+Forks the current session and spawns a sub-agent to distill knowledge into the vault. Runs in the background.
+
+```bash
+pi install npm:napkin-ai
+napkin config set --key distill.enabled --value true
+```
+
+---
+
+## Development
+
+```bash
+bun install
+bun run dev -- vault --json
+bun test
+bun run check
+```
+
+## License
+
+MIT

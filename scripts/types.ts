@@ -23,6 +23,16 @@ export interface RawSourceFrontmatter {
   stars?: number;
   forks?: number;
   points?: number;
+  // Media
+  images?: string[]; // Relative paths to downloaded images: ["images/{slug}/image.jpg"]
+}
+
+// ─── Engagement Metrics ────────────────────────────────────────────────
+
+export interface Engagement {
+  likes: number;
+  retweets: number;
+  views: number;
 }
 
 // ─── Taxonomy ───────────────────────────────────────────────────────────
