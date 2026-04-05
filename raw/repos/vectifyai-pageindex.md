@@ -17,6 +17,7 @@ key_insight: >-
   for retrieval—this matters for knowledge bases because it achieves semantic
   relevance rather than similarity, avoiding the lossy chunking and opaque
   embedding space that plague traditional RAG systems.
+deep_researched: 'deep/repos/vectifyai-pageindex.md'
 stars: 23899
 forks: 1982
 relevance_scores:

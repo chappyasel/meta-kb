@@ -9,6 +9,8 @@
     "ingest:github": "bun run scripts/ingest-github.ts",
     "ingest:arxiv": "bun run scripts/ingest-arxiv.ts",
     "ingest:article": "bun run scripts/ingest-article.ts",
+    "research": "bun run scripts/research.ts",
+    "diagrams": "bun run scripts/generate-diagrams.ts",
     "rescore": "bun run scripts/rescore-all.ts",
     "compile": "bun run scripts/compile.ts",
     "lint": "bun run scripts/lint.ts",

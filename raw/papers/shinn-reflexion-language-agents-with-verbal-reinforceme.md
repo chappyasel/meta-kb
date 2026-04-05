@@ -25,6 +25,7 @@ relevance_scores:
   novelty: 8
   signal_quality: 8
   composite: 7.7
+  deep_researched: 'deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md'
   reason: >-
     Reflexion directly implements a self-improving agent loop using episodic
     memory buffers and verbal reinforcement—a transferable pattern for both

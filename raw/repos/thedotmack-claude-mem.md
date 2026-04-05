@@ -30,6 +30,7 @@ relevance_scores:
     compression and reinjection—directly relevant to agent memory (Topic 2) and
     context engineering (Topic 3), with a novel approach of using Claude's own
     API for compression plus ChromaDB/SQLite for retrieval.
+deep_researched: 'deep/repos/thedotmack-claude-mem.md'
 language: TypeScript
 license: NOASSERTION
 ---

@@ -18,6 +18,7 @@ key_insight: >-
   costs compound across multi-turn agent interactions.
 stars: 13011
 forks: 1551
+deep_researched: 'deep/repos/memorilabs-memori.md'
 relevance_scores:
   topic_relevance: 9
   practitioner_value: 8

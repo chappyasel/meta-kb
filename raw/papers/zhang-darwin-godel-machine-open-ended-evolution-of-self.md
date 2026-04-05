@@ -24,6 +24,7 @@ relevance_scores:
   novelty: 10
   signal_quality: 9
   composite: 8.9
+  deep_researched: 'deep/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md'
   reason: >-
     DGM directly implements a self-improving loop where agents autonomously
     evolve their own code, memory management, context handling, and skill

@@ -25,6 +25,7 @@ relevance_scores:
   novelty: 8
   signal_quality: 9
   composite: 8.2
+  deep_researched: 'deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md'
   reason: >-
     GraphRAG is a directly relevant RAG alternative for knowledge bases that
     introduces a genuinely novel hierarchical graph-indexing approach to solve

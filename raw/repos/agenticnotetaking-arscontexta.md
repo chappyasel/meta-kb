@@ -24,6 +24,7 @@ key_insight: >-
   navigation maps from research principles, making subsequent sessions far more
   effective because the agent's thinking system is calibrated to the domain, not
   one-size-fits-all.
+deep_researched: deep/repos/agenticnotetaking-arscontexta.md
 stars: 2928
 forks: 187
 relevance_scores:

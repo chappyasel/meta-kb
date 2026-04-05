@@ -33,6 +33,7 @@ relevance_scores:
     widely-adopted implementation.
 language: JavaScript
 license: MIT
+deep_researched: deep/repos/affaan-m-everything-claude-code.md
 ---
 ## everything-claude-code
 

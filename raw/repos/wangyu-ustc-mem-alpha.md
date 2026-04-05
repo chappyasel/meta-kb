@@ -17,6 +17,7 @@ key_insight: >-
   agents to dynamically decide when to encode information into episodic,
   semantic, or core memory based on task feedback, fundamentally changing how
   knowledge bases should be built for agentic systems versus static retrieval.
+deep_researched: 'deep/repos/wangyu-ustc-mem-alpha.md'
 stars: 193
 forks: 17
 relevance_scores:

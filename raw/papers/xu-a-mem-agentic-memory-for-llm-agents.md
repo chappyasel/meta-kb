@@ -23,6 +23,7 @@ relevance_scores:
   novelty: 8
   signal_quality: 8
   composite: 8.4
+  deep_researched: 'deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md'
   reason: >-
     A-MEM directly addresses agent memory (Topic 2) with a novel
     Zettelkasten-inspired dynamic organization system that enables memory

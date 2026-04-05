@@ -19,6 +19,7 @@ key_insight: >-
   snapshots while real-world agent memory must track what was true when and why
   facts changed, which is essential for reliable context assembly in multi-turn
   interactions.
+deep_researched: 'deep/repos/getzep-graphiti.md'
 stars: 24473
 forks: 2433
 relevance_scores:

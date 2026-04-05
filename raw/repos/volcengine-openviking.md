@@ -18,6 +18,7 @@ key_insight: >-
   waste that plagues agent builders—enabling genuinely observable,
   self-improving agent memory that scales beyond simple RAG truncation.
 stars: 20813
+deep_researched: 'deep/repos/volcengine-openviking.md'
 forks: 1465
 relevance_scores:
   topic_relevance: 9

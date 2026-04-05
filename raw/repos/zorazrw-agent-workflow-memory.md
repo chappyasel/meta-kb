@@ -11,6 +11,7 @@ tags:
   - episodic-to-semantic
   - online-learning
   - skill-induction
+deep_researched: deep/repos/zorazrw-agent-workflow-memory.md
 key_insight: >-
   AWM demonstrates that agents can systematically induce and reuse workflow
   patterns from either offline examples or online experience, abstracting

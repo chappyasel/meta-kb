@@ -18,6 +18,7 @@ key_insight: >-
   process—enabling the agent to accumulate better instructions over time while
   maintaining human interpretability of the research strategy itself.
 stars: 65009
+deep_researched: 'deep/repos/karpathy-autoresearch.md'
 forks: 9258
 relevance_scores:
   topic_relevance: 8

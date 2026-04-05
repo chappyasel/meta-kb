@@ -20,6 +20,7 @@ key_insight: >-
   bases that improve agent behavior over time.
 stars: 20994
 forks: 1914
+deep_researched: 'deep/repos/supermemoryai-supermemory.md'
 relevance_scores:
   topic_relevance: 9
   practitioner_value: 8

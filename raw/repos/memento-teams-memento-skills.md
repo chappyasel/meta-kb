@@ -34,6 +34,7 @@ relevance_scores:
     (self-improving systems) with a production-ready Python framework, 916
     stars, and detailed architecture documentation.
 language: Python
+deep_researched: deep/repos/memento-teams-memento-skills.md
 ---
 ## Memento-Skills
 

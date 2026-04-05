@@ -18,6 +18,7 @@ key_insight: >-
   bootstrap specialized capabilities like efficient file editing or LSP
   integration without manual feature engineering.
 stars: 299
+deep_researched: 'deep/repos/maximerobeyns-self-improving-coding-agent.md'
 forks: 49
 relevance_scores:
   topic_relevance: 9

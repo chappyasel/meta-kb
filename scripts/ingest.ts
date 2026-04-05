@@ -12,6 +12,7 @@
  */
 
 import { classifyUrl } from "./utils/url-extract.js";
+import { isXArticleUrl } from "./utils/xquik.js";
 import { loadSeen, saveSeen } from "./utils/dedup.js";
 import { ingestTweets } from "./ingest-twitter.js";
 import { ingestGithubRepo } from "./ingest-github.js";
@@ -45,6 +46,11 @@ async function main() {
   const skipped: string[] = [];
 
   for (const url of urls) {
+    // X articles (x.com/i/article/...) are long-form posts, not tweets — route to article scraper
+    if (isXArticleUrl(url)) {
+      article.push(url);
+      continue;
+    }
     const classification = classifyUrl(url);
     switch (classification.type) {
       case "twitter":

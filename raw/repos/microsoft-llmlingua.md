@@ -11,6 +11,7 @@ tags:
   - token-optimization
   - inference-acceleration
   - kv-cache
+deep_researched: 'deep/repos/microsoft-llmlingua.md'
 key_insight: >-
   Prompt compression via selective token removal can reduce context size by up
   to 20x while maintaining accuracy, directly addressing the cost and latency

@@ -15,6 +15,7 @@ key_insight: >-
   state that survives across conversations—critical for building agents that
   genuinely learn and improve rather than resetting context each turn, making
   continual self-improvement feasible at scale.
+deep_researched: 'deep/repos/letta-ai-letta.md'
 stars: 21873
 forks: 2312
 relevance_scores:

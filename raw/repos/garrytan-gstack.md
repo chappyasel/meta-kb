@@ -34,6 +34,7 @@ relevance_scores:
     implementation that practitioners can fork and adapt.
 language: TypeScript
 license: MIT
+deep_researched: deep/repos/garrytan-gstack.md
 ---
 ## gstack
 

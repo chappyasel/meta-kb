@@ -4,105 +4,102 @@ type: project
 bucket: self-improving
 sources:
   - tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md
+  - tweets/hesamation-bro-created-a-skill-inspired-by-karpathy-s-autores.md
   - tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md
   - tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md
   - repos/human-agent-society-coral.md
   - repos/karpathy-autoresearch.md
   - repos/davebcn87-pi-autoresearch.md
-  - repos/jmilinovich-goal-md.md
   - repos/uditgoenka-autoresearch.md
-  - repos/alvinreal-awesome-autoresearch.md
+  - repos/jmilinovich-goal-md.md
   - articles/cameron-westland-autoresearch-is-reward-function-design.md
   - >-
     articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md
+  - repos/alvinreal-awesome-autoresearch.md
   - articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md
-related:
-  - Claude Code
-  - Andrej Karpathy
-  - Self-Improving Agent
-  - Research Orchestration
-last_compiled: '2026-04-04T21:15:02.194Z'
+  - deep/repos/bingreeky-memevolve.md
+  - repos/orchestra-research-ai-research-skills.md
+  - deep/repos/karpathy-autoresearch.md
+  - deep/repos/greyhaven-ai-autocontext.md
+  - deep/repos/davebcn87-pi-autoresearch.md
+  - deep/repos/jmilinovich-goal-md.md
+  - deep/repos/uditgoenka-autoresearch.md
+  - deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
+  - deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
+related: []
+last_compiled: '2026-04-05T05:22:39.546Z'
 ---
 # AutoResearch
 
 ## What It Is
 
-AutoResearch is a pattern and tooling ecosystem for autonomous agent-driven research loops, where AI agents iteratively explore a problem space—optimizing code, hyperparameters, or experimental configurations—without continuous human involvement. The concept spans a minimal reference implementation by Andrej Karpathy and the more structured CORAL multi-agent framework built on top of it.
+AutoResearch is a pattern and set of implementations for autonomous agent-driven optimization loops, most concretely instantiated by Andrej Karpathy as a minimal repo built around `nanochat` LLM training. The core mechanic: a human writes a prompt (`.md`), an AI agent iterates on code (`.py`) in a git feature branch, commits improvements when validation metrics improve, and runs without human involvement until stopped.
 
-The core loop: a human engineers a prompt describing the research objective, an agent autonomously runs experiments, commits improvements, and iterates—indefinitely in principle.
+The repo Karpathy published is ~630 lines of code: a single-GPU LLM training script paired with an agent prompt. Every dot in his published plots represents a complete 5-minute training run. The agent ran ~700 changes autonomously over roughly two days on a depth=12 model, found ~20 improvements that all transferred to a depth=24 model, and cut "Time to GPT-2" from 2.02 hours to 1.80 hours (~11%). These results are Karpathy's own measurements on his nanochat leaderboard, not independently validated, though the commit hash was shared publicly.
 
-## Origin and Key Demonstration
+CORAL (from Human-Agent-Society, 120 GitHub stars as of April 2026) generalizes this pattern into a production-weight infrastructure: multiple agents run in isolated git worktrees, share state through a `.coral/public/` directory symlinked into every worktree, and a manager process triggers heartbeat actions like "reflect" or "consolidate skills." It ships with Claude Code, Codex, and OpenCode runtimes, a web dashboard, and 17+ CLI commands.
 
-Karpathy's public experiment ran autoresearch on `nanochat` (a stripped-down LLM training codebase, ~630 lines, single-GPU) for ~2 days. The agent found ~20 independent improvements to validation loss on a depth=12 model. All improvements transferred to depth=24 models, and stacking them reduced "Time to GPT-2" on the leaderboard from **2.02 hours to 1.80 hours (~11% improvement)**.
+## Core Mechanism
 
-His framing: the human's job shifts from directly optimizing code to *engineering the agent's behavior via prompt design*. The bottleneck is prompt quality, not human iteration speed.
+**Karpathy's version** runs a single agent in a loop against a fixed evaluation metric. The human's only job is prompt engineering: write better instructions to get faster research progress. The agent reads experiment history, plans the next change, edits the training script, runs training, checks validation loss, and commits if it improves. Branch-based git history provides free experiment logging.
 
-[Source](../../raw/tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md) | [Source](../../raw/tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md)
+**CORAL's version** adds multi-agent parallelism and shared knowledge. Each agent gets its own `git worktree` branch (set up in `workspace/setup.py`). The `.coral/public/` directory holds three things: `attempts/` (scored commits), `notes/` (markdown with YAML frontmatter), and `skills/` (reusable code patterns with `SKILL.md`). Symlinking this directory into every worktree means agents see each other's findings with no sync overhead. The `hub/` module (`attempts.py`, `notes.py`, `skills.py`) handles CRUD, leaderboard ranking, and search against this shared state.
 
-## Architecture Summary
+The eval loop in CORAL runs through `coral/hooks/post_commit.py`: when an agent calls `uv run coral eval -m "description"`, it stages changes, commits, and invokes the grader in one shot. Graders subclass `TaskGrader` (in `coral/grader/task_grader.py`), implement `evaluate()`, and return either a float or a `ScoreBundle`. The manager process in `coral/agent/manager.py` watches for new attempts and can interrupt agents mid-run with heartbeat prompts.
 
-**Minimal version (Karpathy's reference repo):**
-- Single training script (`.py`) the agent modifies
-- Single prompt file (`.md`) the human controls
-- Agent works on a git feature branch, committing improvements as it finds them
-- Evaluation gate: lower validation loss after a fixed-duration run (5 minutes)
-- No orchestration overhead—just a loop and a metric
-
-**CORAL (multi-agent extension):**
-- Persistent shared knowledge store: `.coral/public/` holds `attempts`, `notes`, and `skills`
-- Multiple agents can build on each other's discoveries without synchronization overhead
-- Designed for scaling beyond single-agent bottlenecks
-- 120 GitHub stars, MIT license, Python
-
-[Source](../../raw/repos/human-agent-society-coral.md)
-
-## What's Unique
-
-- **Cascading validation**: discoveries on small models transfer to larger ones—validates that the agent is finding real signal, not overfitting to evaluation quirks
-- **Prompt-as-lever**: research velocity becomes a function of prompt engineering quality rather than researcher hours
-- **Git-native**: the agent's work history is transparent and auditable via commits
-- **Metric-gated**: any efficiently-evaluable metric can substitute for validation loss, making the pattern broadly applicable
+The task configuration is a YAML file pointing at a seed codebase and a grader module. Agents never see the grader source directly; they see only the task description in `CORAL.md` (generated by `coral/template/coral_md.py`) and the results of their `eval` calls.
 
 ## Key Numbers
 
-| Metric | Value |
-|--------|-------|
-| Improvement achieved | ~11% reduction in training time |
-| Agent runtime | ~2 days unattended |
-| Changes found | ~20, all additive |
-| CORAL stars | 120 |
-| Reference codebase size | ~630 lines |
+| Metric | Value | Source |
+|--------|-------|--------|
+| Karpathy's speed improvement | ~11% (2.02h → 1.80h Time to GPT-2) | Self-reported |
+| Agent changes evaluated | ~700 over ~2 days | Self-reported |
+| Validated improvements from round 1 | ~20 | Self-reported |
+| CORAL GitHub stars | 120 | GitHub, April 2026 |
+| Karpathy tweet views (packaged repo announcement) | ~11M | Twitter/X |
+| CORAL paper | arXiv:2604.01658 | April 2026 |
+
+The 11% improvement is self-reported but comes with a specific commit hash and a publicly reproducible leaderboard, which gives it more credibility than most benchmark claims. The CORAL paper's claims have not been independently replicated at time of writing.
 
 ## Strengths
 
-- Demonstrated real, transferable improvements on a non-trivial benchmark on a first attempt
-- Low infrastructure requirements for the minimal version
-- Human remains in control of objective framing without being in the optimization loop
-- CORAL adds multi-agent scaling without requiring tight synchronization
+The pattern genuinely works for problems with cheap, automated evaluation. Karpathy's experiment revealed several non-obvious bugs: QKnorm missing a scaling multiplier, missing regularization on Value Embeddings, overly conservative banded attention, misconfigured AdamW betas. These weren't found by two decades of manual tuning. An agent running 700 experiments in 48 hours covers search space that humans won't reach iteratively.
 
-## Limitations
+CORAL's shared knowledge store solves a real multi-agent problem. Without the `.coral/public/` symlink architecture, parallel agents duplicate work and can't build on each other's discoveries. The worktree isolation prevents agents from corrupting each other's working states while still sharing experiment results.
 
-- Requires a **cheap, fast, reliable evaluation signal**—works well for training loss, much harder for open-ended research tasks
-- Agent finds improvements within the space the prompt describes; novel research directions still require human framing
-- No published results on tasks beyond hyperparameter/architecture optimization
-- CORAL is early-stage (120 stars, alpha-labeled topics)
-- Transfer from small to large models isn't guaranteed to hold across all problem types
+The cascading validation approach (optimize on small model, transfer to large model) is practically important: it makes expensive experiments tractable by using cheap proxies, then validates transfers before committing to scale.
+
+## Critical Limitations
+
+**Concrete failure mode:** The agent has no mechanism to detect when it's in a local optimum versus making genuine progress. Karpathy's round 1 found real improvements, but there's no stopping criterion other than human interruption. An agent can run 700 experiments that all improve a proxy metric while the actual target metric stays flat or regresses, and the system won't flag this. The grader returns a score; it doesn't distinguish "you've converged" from "you're stuck on a plateau."
+
+**Unspoken infrastructure assumption:** The entire pattern assumes the evaluation is cheap enough to run hundreds of times. Karpathy's setup uses 5-minute training runs on a single GPU. CORAL's examples (TSP, circle packing, MNIST) are all fast to evaluate. For problems where a single evaluation takes hours or requires specialized hardware, the economics break down entirely. The system provides no built-in support for batching evaluations, approximating expensive evals with cheaper proxies, or managing GPU cluster resources. You need that infrastructure before running CORAL on real research problems.
+
+## When NOT to Use It
+
+Skip this if your evaluation metric takes more than ~30 minutes per run and you lack a cheaper proxy. The agent can't explore enough of the search space to find meaningful improvements.
+
+Skip this if your task requires understanding literature or external context that isn't encodable in the task description. The agent sees only its own experiment history and the task prompt; it has no mechanism to read papers, browse the web (CORAL's OpenCode config explicitly sets `webfetch: deny`, `websearch: deny`), or incorporate domain knowledge beyond what you write into the prompt.
+
+Skip this if correctness is safety-critical. Agents commit code that passes a grader, not code that a human has reviewed. On optimization tasks this is fine; in production systems it's not.
+
+## Unresolved Questions
+
+**Cost at scale:** Karpathy ran one agent for two days. CORAL supports `agents.count=N` with the warning "beware of your budget." There's no published cost estimate for running 10 agents for a week on a real research problem. At frontier model rates, this could easily exceed $10K for a non-trivial task.
+
+**Prompt engineering bottleneck:** The Karpathy framing is explicit that the human's job shifts from writing code to writing better prompts. What makes a good autoresearch prompt? There's no systematic answer yet. The repo suggests "comparing the research progress of different prompts, different agents" but provides no methodology.
+
+**Conflict resolution:** CORAL's worktree isolation prevents file conflicts, but two agents can independently discover the same improvement and waste API calls. The shared `notes/` and `skills/` directories mitigate this, but there's no deduplication mechanism in `hub/attempts.py` for semantically similar experiments.
+
+**Multi-round strategy:** Karpathy mentions "round 2" and parallel agents. CORAL supports `coral resume`. Neither specifies how to decide when to promote findings from small-scale optimization to larger-scale validation, or how to handle regressions when transferring between scales.
 
 ## Alternatives
 
-- [Claude Code](../projects/claude-code.md) — general coding agent; lacks the iterative experiment loop structure
-- AlphaEvolve / Codex — cited in CORAL's topic tags as related prior work
-- Standard HPO tools (Optuna, Ray Tune) — more structured but human-in-the-loop and not self-directing
+**Use CORAL** when you want production-grade multi-agent orchestration with a real shared knowledge store, web dashboard, and support for multiple agent runtimes (Claude Code, Codex, OpenCode).
 
-## Related Concepts
+**Use Karpathy's minimal repo** when you want to understand the pattern from scratch, have a single-GPU setup, and plan to customize heavily. The 630-line version is easier to modify than CORAL's layered architecture.
 
-- [Self-Improving Agent](../concepts/self-improving-agent.md)
-- [Research Orchestration](../concepts/research-orchestration.md)
+**Use OpenEvolve** (cited in CORAL's acknowledgements) if your problem is closer to program synthesis than hyperparameter optimization.
 
-## Related People
-
-- Andrej Karpathy — originated the public demonstration and reference implementation
-
----
-
-*Honest assessment: The 11% result is real and impressive for a naive first attempt. But the pattern currently excels at a narrow task class—optimizing within a well-defined, quickly-evaluable search space. Whether it scales to genuine open-ended research remains undemonstrated.*
+**Use standard hyperparameter search tools** (Optuna, Ray Tune, Weights & Biases sweeps) if your search space is well-defined and discrete. Those tools apply Bayesian optimization and have years of production hardening. AutoResearch agents earn their keep on open-ended search spaces where the agent needs to read experiment history and propose novel code changes, not on grid search over learning rate schedules.

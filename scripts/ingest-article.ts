@@ -18,6 +18,7 @@ import { loadSeen, saveSeen, markSeen, normalizeUrl } from "./utils/dedup.js";
 import { loadSourceUrls } from "./utils/config.js";
 import { parseDate } from "./utils/date.js";
 import { ingestGithubRepo } from "./ingest-github.js";
+import { isXArticleUrl, extractArticleId, fetchXArticle } from "./utils/xquik.js";
 import type { RawSourceFrontmatter } from "./types.js";
 
 // ─── Article fetching ─────────────────────────────────────────────────
@@ -144,6 +145,36 @@ export async function ingestArticles(
       }
 
       console.log(`\n[article] processing ${url}`);
+
+      // X Articles require Xquik API (authenticated content)
+      if (isXArticleUrl(url)) {
+        console.log(`  detected X article, using Xquik extraction...`);
+        try {
+          // Xquik needs the TWEET ID, not the article ID.
+          // If a tweetId was passed via opts, use it. Otherwise try the article ID as tweet ID.
+          const articleId = extractArticleId(url);
+          const tweetId = (opts as any).tweetId ?? articleId;
+          const article = await fetchXArticle(tweetId);
+          markSeen(seen, url);
+          const { key_insight, tags } = await generateInsightAndTags(article.bodyText, "article");
+          const frontmatter: RawSourceFrontmatter = {
+            url,
+            type: "article",
+            author: `@${article.authorHandle}`,
+            date: new Date().toISOString().split("T")[0]!,
+            tags,
+            key_insight,
+          };
+          const slug = slugify(`x-${article.authorHandle}-${article.title.slice(0, 50)}`);
+          const body = `## ${article.title}\n\n**Author:** ${article.author} (@${article.authorHandle})\n\n${article.bodyText}`;
+          const filePath = await writeRawSource("articles", slug, frontmatter, body);
+          written.push(filePath);
+        } catch (err) {
+          console.warn(`  ⚠ X article extraction failed: ${err}`);
+        }
+        continue;
+      }
+
       const meta = await fetchArticle(url);
 
       markSeen(seen, url);

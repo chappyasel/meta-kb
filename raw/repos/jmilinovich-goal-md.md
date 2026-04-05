@@ -11,6 +11,7 @@ tags:
   - fitness-functions
   - metric-construction
   - claude-md-pattern
+deep_researched: deep/repos/jmilinovich-goal-md.md
 key_insight: >-
   GOAL.md solves the measurement problem that blocks autonomous agent
   improvement—most real-world software domains lack natural metrics like loss,

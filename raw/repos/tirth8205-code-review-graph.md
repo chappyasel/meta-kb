@@ -19,6 +19,7 @@ key_insight: >-
   blast-radius dependencies at review time, Claude Code can reduce token
   consumption 6.8-49× by reading only affected files rather than the entire
   codebase—critical for monorepos where context window waste is most expensive.
+deep_researched: deep/repos/tirth8205-code-review-graph.md
 stars: 4176
 forks: 381
 relevance_scores:

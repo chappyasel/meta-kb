@@ -18,6 +18,7 @@ key_insight: >-
   each new model or use case. The 26% accuracy gain and 90% token reduction
   versus full-context demonstrate that selective memory retrieval is superior to
   naive RAG for production agent systems.
+deep_researched: 'deep/repos/mem0ai-mem0.md'
 stars: 51880
 forks: 5805
 relevance_scores:

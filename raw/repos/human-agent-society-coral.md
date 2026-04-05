@@ -18,6 +18,7 @@ key_insight: >-
   where knowledge reuse and continuous improvement are prerequisites for scaling
   agent capability.
 stars: 120
+deep_researched: 'deep/repos/human-agent-society-coral.md'
 forks: 14
 relevance_scores:
   topic_relevance: 10

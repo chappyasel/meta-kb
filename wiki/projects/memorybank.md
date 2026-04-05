@@ -1,73 +1,49 @@
----
-entity_id: memorybank
-type: project
-bucket: agent-memory
-sources:
-  - repos/zhongwanjun-memorybank-siliconfriend.md
-related:
-  - Agent Memory
-last_compiled: '2026-04-04T21:20:25.124Z'
----
 # MemoryBank
 
-## What It Is
+> A memory mechanism for LLMs inspired by the Ebbinghaus Forgetting Curve that selectively forgets or reinforces memories based on significance and time passage -- enabling natural memory evolution for long-term AI companionship.
 
-MemoryBank is a long-term memory mechanism for LLMs that simulates human-like memory dynamics, including selective forgetting and reinforcement. It was published alongside the paper [MemoryBank: Enhancing Large Language Models with Long-Term Memory](https://arxiv.org/pdf/2305.10250.pdf) and demonstrated through **SiliconFriend**, a companion AI application built on top of it.
+## What It Does
 
-The core idea: instead of treating all stored memories equally (as most RAG-style approaches do), MemoryBank applies Ebbinghaus forgetting curve dynamics—memories decay over time unless reinforced by repeated access or high-significance events.
+MemoryBank gives LLMs a human-like memory system where memories are not static records but dynamic entities that strengthen or decay over time. The system stores conversation history, summarizes key facts, and applies a forgetting curve mechanism that determines which memories persist and which fade. This enables the AI to maintain coherent personality models and conversation continuity across long-horizon interactions without unbounded context growth.
+
+SiliconFriend, built on MemoryBank, is a bilingual (Chinese/English) LLM chatbot designed for long-term AI companionship. It demonstrates empathic responses, relevant memory recall, and user personality understanding across extended interaction periods.
+
+## Architecture
+
+Three core mechanisms:
+
+- **Memory Storage**: Conversation history is stored and periodically summarized by the LLM into structured facts, similar to how humans consolidate episodic memories into semantic knowledge
+- **Ebbinghaus Forgetting Curve**: Each memory has a strength value that decays with time and strengthens with recall. Memories that are frequently accessed persist; memories that are never recalled gradually fade. Significance weighting ensures important memories decay more slowly
+- **Memory Retrieval**: At query time, the system retrieves relevant memories weighted by both semantic similarity and memory strength, naturally prioritizing memories that are both relevant and well-reinforced
+
+The system integrates with both closed-source (ChatGPT) and open-source models (ChatGLM, BELLE). SiliconFriend uses LoRA fine-tuning on 38K Chinese psychological dialog data for enhanced empathy.
 
 ## Key Numbers
 
-| Metric | Value |
-|---|---|
-| GitHub Stars | 419 |
-| Forks | 60 |
-| Language | Python |
-| License | MIT |
-
-## Architecture Summary
-
-MemoryBank operates across three functional layers:
-
-1. **Memory Storage** — Interactions and events are encoded and stored as discrete memory units, not raw conversation history.
-2. **Memory Updating** — A forgetting curve function modulates each memory's retrieval weight over time. Memories accessed frequently or flagged as significant are reinforced; others decay. This prevents unbounded context growth without naive truncation.
-3. **Retrieval & Synthesis** — At query time, relevant memories are retrieved by relevance and current weight, then synthesized into a user personality model that informs the LLM's response.
-
-The SiliconFriend demo applies this to multi-session companionship, where maintaining coherent user models across weeks or months is the primary challenge.
-
-## What's Unique
-
-Most [Agent Memory](../concepts/agent-memory.md) implementations treat memory as either full context (expensive, limited) or flat vector retrieval (no temporal weighting). MemoryBank's distinguishing feature is **time-aware memory decay**—the retrieval score for a memory is a function of both semantic relevance *and* how much it has faded since last reinforcement. This better models how human relationship knowledge actually works: preferences and personality traits matter more when they're recent or repeatedly confirmed.
+- **419 GitHub stars**, 60 forks
+- Written in Python, MIT licensed
+- 100 manually crafted probing questions for memory evaluation
+- Bilingual evaluation data (Chinese and English)
+- LoRA checkpoints available for ChatGLM and BELLE
+- Requires Tesla A100 80GB GPU for full operation
 
 ## Strengths
 
-- Addresses a real gap: long-horizon conversational coherence without unbounded context
-- Theoretically grounded in cognitive science (Ebbinghaus forgetting curve)
-- Produces evolving user personality models rather than static fact stores
-- MIT licensed, Python-based, reasonably accessible codebase
+- The Ebbinghaus forgetting curve provides a principled mechanism for memory management that avoids both unbounded growth (keeping everything) and arbitrary pruning (fixed TTL)
+- The approach mimics human memory behavior, creating more natural interactions in companionship scenarios where users expect the AI to remember important details and forget trivial ones
 
 ## Limitations
 
-- **Modest adoption**: 419 stars is limited for a research artifact; real-world production use cases are unclear
-- **Forgetting curve parameters** (decay rates, reinforcement thresholds) likely require tuning per domain—the paper doesn't offer robust guidance here
-- **Significance detection** for reinforcement is non-trivial; if the significance signal is noisy, the decay mechanism misfires
-- Companion/emotional AI framing may limit perceived applicability to more general agent use cases
-- No evidence of integration with mainstream agent frameworks (LangChain, LlamaIndex, etc.)
+- The forgetting curve parameters need tuning for different use cases -- companionship, customer support, and knowledge work have different memory persistence requirements
+- Relies on LLM calls for memory summarization (via OpenAI API), adding latency and cost
+- GPU requirements (A100 80GB) limit accessibility for individual developers
 
 ## Alternatives
 
-| Project | Approach |
-|---|---|
-| Naive RAG | Flat vector retrieval, no temporal weighting |
-| [Mem0](../projects/mem0.md) | Production-oriented memory layer, simpler decay model |
-| Full context window | No retrieval, just token limits |
-| MemGPT / Letta | Hierarchical memory with explicit paging |
+- [a-mem.md](a-mem.md) -- dynamic memory evolution through Zettelkasten-inspired interconnected networks rather than forgetting curves
+- [memevolve.md](memevolve.md) -- meta-evolution of the memory architecture itself, going beyond content-level forgetting
+- [mem0.md](mem0.md) -- multi-level memory without temporal decay, focusing on extraction and retrieval rather than selective forgetting
 
-## Source
+## Sources
 
-[Source](../../raw/repos/zhongwanjun-memorybank-siliconfriend.md)
-
-
-## Related
-
-- [Agent Memory](../concepts/agent-memory.md) — implements (0.8)
+- [zhongwanjun-memorybank-siliconfriend.md](../../raw/repos/zhongwanjun-memorybank-siliconfriend.md) -- "Inspired by the Ebbinghaus Forgetting Curve theory, MemoryBank incorporates a unique memory updating mechanism that mimics human-like memory behavior. This enables the AI to selectively forget or reinforce memories based on their significance and the passage of time."

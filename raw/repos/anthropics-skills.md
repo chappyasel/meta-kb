@@ -31,6 +31,7 @@ relevance_scores:
     skill loading—directly addressing core topics 3 and 4 (context engineering
     and agentic skills) with 110k stars and production-grade examples.
 language: Python
+deep_researched: deep/repos/anthropics-skills.md
 ---
 ## skills
 

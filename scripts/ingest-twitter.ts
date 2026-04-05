@@ -21,6 +21,7 @@ import { loadSourceUrls } from "./utils/config.js";
 import { parseDate } from "./utils/date.js";
 import { ingestGithubRepo } from "./ingest-github.js";
 import { ingestArticles } from "./ingest-article.js";
+import { isXArticleUrl, fetchXArticle } from "./utils/xquik.js";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { RawSourceFrontmatter, Engagement } from "./types.js";
@@ -78,8 +79,11 @@ function extractExpandedUrls(tweet: Record<string, unknown>): string[] {
       const expanded = (u.expanded_url ?? u.url) as string | undefined;
       if (!expanded || seen.has(expanded)) continue;
       try {
-        const host = new URL(expanded).hostname.replace("www.", "");
-        if (SOCIAL_DOMAINS.has(host)) continue;
+        const parsed = new URL(expanded);
+        const host = parsed.hostname.replace("www.", "");
+        // Allow x.com/i/article/ URLs through — these are long-form posts with real content
+        const isXArticle = (host === "x.com" || host === "twitter.com") && parsed.pathname.startsWith("/i/article/");
+        if (SOCIAL_DOMAINS.has(host) && !isXArticle) continue;
       } catch { continue; }
       seen.add(expanded);
       urls.push(expanded);
@@ -96,8 +100,10 @@ function extractExpandedUrls(tweet: Record<string, unknown>): string[] {
         const expanded = (u.expanded_url ?? u.url) as string | undefined;
         if (!expanded || seen.has(expanded)) continue;
         try {
-          const host = new URL(expanded).hostname.replace("www.", "");
-          if (SOCIAL_DOMAINS.has(host)) continue;
+          const parsed = new URL(expanded);
+          const host = parsed.hostname.replace("www.", "");
+          const isXArticle = (host === "x.com" || host === "twitter.com") && parsed.pathname.startsWith("/i/article/");
+          if (SOCIAL_DOMAINS.has(host) && !isXArticle) continue;
         } catch { continue; }
         seen.add(expanded);
         urls.push(expanded);
@@ -253,10 +259,41 @@ export async function ingestTweets(
     const handle = getAuthorHandle(tweet);
     console.log(`  processing tweet by @${handle} (${engagement.likes} likes)`);
 
+    // Check for X article links — if tweet is mostly just a link, fetch the article
+    // content and merge it into the tweet body
+    const expandedUrlsForArticle = extractExpandedUrls(tweet);
+    let articleContent = "";
+    let articleTitle = "";
+    const xArticleUrls = expandedUrlsForArticle.filter(isXArticleUrl);
+    if (xArticleUrls.length > 0) {
+      const tweetIdStr = getTweetId(tweet);
+      try {
+        console.log(`  detected X article link, fetching via Xquik...`);
+        const article = await fetchXArticle(tweetIdStr);
+        articleContent = article.bodyText;
+        articleTitle = article.title;
+        console.log(`  fetched article: "${articleTitle}" (${articleContent.length} chars)`);
+        // Mark article URLs as seen so they don't get re-ingested in auto-chain
+        for (const u of xArticleUrls) markSeen(seen, u);
+      } catch (err) {
+        console.warn(`  ⚠ X article extraction failed: ${err}`);
+      }
+    }
+
+    // Combine tweet text with article content for LLM classification
+    const fullText = articleContent ? `${text}\n\n## ${articleTitle}\n\n${articleContent}` : text;
+
+    // Skip tweets with < 50 words of actual content (after article enrichment)
+    const wordCount = fullText.replace(/https?:\/\/\S+/g, "").split(/\s+/).filter(Boolean).length;
+    if (wordCount < 50) {
+      console.log(`  skip (only ${wordCount} words of content after enrichment)`);
+      continue;
+    }
+
     // Include quoted tweet text for better LLM classification
     const quote = tweet.quote as Record<string, unknown> | undefined;
     const quoteText = quote ? getTweetText(quote) : "";
-    const llmInput = quoteText ? `${text}\n\n[Quoted tweet]: ${quoteText}` : text;
+    const llmInput = quoteText ? `${fullText}\n\n[Quoted tweet]: ${quoteText}` : fullText;
     const { key_insight, tags } = await generateInsightAndTags(llmInput, "tweet");
 
     // For RTs, credit the original author in frontmatter
@@ -264,7 +301,9 @@ export async function ingestTweets(
     const rtMatch = isRT ? text.match(/^RT @(\w+):/) : null;
     const effectiveAuthor = rtMatch ? `@${rtMatch[1]}` : `@${handle}`;
 
-    const slug = slugify(`${handle}-${text.slice(0, 50)}`);
+    const slug = articleTitle
+      ? slugify(`${handle}-${articleTitle.slice(0, 50)}`)
+      : slugify(`${handle}-${text.slice(0, 50)}`);
 
     // Download images
     const mediaUrls = extractMediaUrls(tweet);
@@ -285,16 +324,20 @@ export async function ingestTweets(
       }),
     };
 
-    const body = buildTweetBody(tweet, text, engagement, images);
+    const body = articleContent
+      ? buildTweetBody(tweet, text, engagement, images) + `\n\n---\n\n## ${articleTitle}\n\n${articleContent}`
+      : buildTweetBody(tweet, text, engagement, images);
     const filePath = await writeRawSource("tweets", slug, frontmatter, body);
     written.push(filePath);
 
     // Auto-chain: extract expanded URLs from Apify entities and ingest linked content
+    // (X article URLs already handled above, skip them here)
     const expandedUrls = extractExpandedUrls(tweet);
     const githubChain: string[] = [];
     const articleChain: string[] = [];
 
     for (const url of expandedUrls) {
+      if (isXArticleUrl(url)) continue; // already fetched and merged into tweet body
       try {
         const host = new URL(url).hostname.replace("www.", "");
         if (host === "github.com") githubChain.push(url);
@@ -317,11 +360,12 @@ export async function ingestTweets(
       }
     }
 
-    // Articles
+    // Articles (pass tweetId for X article extraction via Xquik)
     if (articleChain.length > 0) {
       try {
+        const tweetIdForChain = getTweetId(tweet);
         console.log(`  auto-chaining to ${articleChain.length} article(s): ${articleChain.join(", ")}`);
-        const articleWritten = await ingestArticles(articleChain, { seen });
+        const articleWritten = await ingestArticles(articleChain, { seen, tweetId: tweetIdForChain } as any);
         written.push(...articleWritten);
       } catch (err) {
         console.warn(`  error auto-chaining to articles: ${err}`);
