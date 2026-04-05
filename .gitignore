@@ -5,11 +5,8 @@ dist/
 *.bun-build
 scripts/research/
 build/research/
-wiki-api-backup/
-wiki-v2/
-wiki-claude-v2/
-wiki-codex-v2/
-wiki-claude/
-wiki-codex/
-build-v2/
+wiki-*/
+build-*/
+.superset/
 .tmp/
+og/

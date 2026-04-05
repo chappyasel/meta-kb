@@ -114,6 +114,11 @@ export interface WikiFrontmatter {
   sources: string[];
   related: string[];
   last_compiled: string;
+  // Progressive disclosure & staleness
+  abstract?: string;
+  source_date_range?: string; // "YYYY-MM-DD to YYYY-MM-DD"
+  newest_source?: string; // "YYYY-MM-DD"
+  staleness_risk?: "low" | "medium" | "high";
 }
 
 // ─── Landscape Table ────────────────────────────────────────────────────
@@ -129,4 +134,51 @@ export interface LandscapeRow {
   differentiator: string;
   language: string;
   entity_id: string;
+}
+
+// ─── Claims & Eval ─────────────────────────────────────────────────────
+
+export type ClaimType = "empirical" | "architectural" | "comparative" | "directional";
+export type ClaimConfidence = "verified" | "reported" | "inferred";
+
+export interface Claim {
+  id: string; // "claim-001"
+  content: string; // atomic verifiable statement
+  type: ClaimType;
+  confidence: ClaimConfidence;
+  source_refs: string[]; // raw/ paths cited in support
+  article_ref: string; // wiki bucket name, e.g. "agent-memory"
+  entity_refs: string[]; // entity IDs mentioned
+  temporal_scope: string | null; // "as of 2026-04" or null for timeless
+}
+
+export interface ClaimsFile {
+  version: number;
+  compiled_at: string;
+  total: number;
+  claims: Claim[];
+}
+
+export interface EvalResult {
+  claim_id: string;
+  verdict: "PASS" | "FAIL";
+  reason: string;
+}
+
+export interface EvalReport {
+  version: number;
+  compiled_at: string;
+  total_claims: number;
+  sample_size: number;
+  accuracy: number;
+  results: EvalResult[];
+  failures: Array<{
+    claim_id: string;
+    claim: string;
+    article_ref: string;
+    source_ref: string;
+    reason: string;
+  }>;
+  by_type: Record<string, { sampled: number; passed: number }>;
+  by_bucket: Record<string, { sampled: number; passed: number }>;
 }

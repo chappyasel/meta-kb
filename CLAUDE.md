@@ -26,8 +26,11 @@ bun run rescore                    # unscored only
 bun run rescore --force            # re-score everything
 bun run rescore --dry-run          # preview what would be scored
 
-# Compile wiki from raw sources (not yet implemented)
-bun run compile
+# Compile wiki from raw sources
+bun run compile                    # full 8-pass compilation
+bun run compile --from-pass=3a     # resume from synthesis articles
+bun run compile --from-pass=3c     # just claims + indexes + eval
+bun run compile --from-pass=7      # just self-eval
 
 # Tests
 bun test
@@ -51,10 +54,23 @@ raw/{tweets,repos,     Markdown files with YAML frontmatter (RawSourceFrontmatte
 build/                 Intermediate artifacts:
   seen-urls.json         Dedup set (seeded from raw/ frontmatter URLs)
   discovered-urls.jsonl  URLs found during ingestion for later review
+  source-index.json      Source metadata index
+  raw-entities.json      Pre-resolution entity mentions
+  entities.json          Canonical entities with article levels
+  graph.json             Knowledge graph (nodes, edges, clusters)
+  claims.json            Atomic claims extracted from synthesis articles
+  eval-report.json       Self-eval verification results
   research/              Discovery pipeline candidates
         │
         ▼
-wiki/                  Compiled output (concepts/, projects/, comparisons/, approaches/, indexes/)
+wiki/                  Compiled output:
+  ROOT.md                Agent-optimized topic index (<2K tokens)
+  field-map.md           Flagship overview connecting all 5 areas
+  {bucket}.md            5 synthesis articles with abstracts + staleness markers
+  projects/              Project reference cards with abstracts
+  concepts/              Concept explainers with abstracts
+  indexes/               Project, topic, missing coverage indexes
+  comparisons/           Landscape comparison table
 ```
 
 ### Ingestion Chain Behavior
@@ -91,8 +107,31 @@ Two-phase discovery system (gitignored, not committed):
 1. `discover.ts` — Finds candidates via conversation graph mining, topic search, and GitHub search. Outputs scored candidates to `build/research/`.
 2. `ingest-approved.ts` — Reads `build/research/approved.txt` (one URL per line) and ingests approved candidates into `raw/`.
 
+### Compilation Pipeline (scripts/compile.ts)
+
+8-pass pipeline, resumable via `--from-pass`:
+
+| Pass | Model | What |
+|------|-------|------|
+| 0 | — | Load & index all raw sources |
+| 1a | Haiku (×170, parallel) | Entity extraction per source |
+| 1b | Sonnet (×1) | Entity resolution & dedup |
+| 2 | Sonnet (×1) | Graph construction from co-occurrences |
+| 3a | Sonnet (×5, sequential) | Synthesis articles with abstracts + staleness markers |
+| 3b | Sonnet (×67, parallel) | Reference cards with abstracts |
+| 3c | Sonnet (×5, sequential) | Claim extraction from synthesis articles |
+| 4 | — | Field map, ROOT.md (template), indexes |
+| 5 | — | Mermaid diagrams + backlinks |
+| 6 | — | Changelog |
+| 7 | Haiku (×30, parallel) | Self-eval: verify claims against sources |
+
+Full article threshold: 3+ source refs AND 7.0+ relevance (both required).
+
 ## Key Design Decisions
 
 - **Never overwrite existing raw files.** `writeRawSource()` skips if file exists. To re-ingest, delete the file first.
+- **Claims are atomic.** Each claim in `build/claims.json` is one verifiable statement with source provenance, enabling automated quality verification.
+- **Progressive disclosure.** ROOT.md (<2K tokens) → abstracts in frontmatter → full articles → raw sources. Agents load minimum context needed.
+- **Self-eval as fitness function.** Pass 7 samples 30 claims and verifies against sources. Accuracy metric enables Karpathy-loop style prompt improvement across compilations.
 
 Runtime: **Bun** (uses `Bun.write`, `Bun.file`, `import.meta.main`). TypeScript with ESNext modules.

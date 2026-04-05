@@ -24,6 +24,8 @@
     "defuddle": "^0.15.0",
     "gray-matter": "^4.0.3",
     "linkedom": "^0.18.12",
+    "puppeteer": "^24.40.0",
+    "sharp": "^0.34.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {

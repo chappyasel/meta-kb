@@ -2,16 +2,18 @@
 /**
  * meta-kb compiler: raw/ → build/ → wiki/
  *
- * 6-pass pipeline:
+ * 8-pass pipeline:
  *   Pass 0:  Load & index all raw sources
  *   Pass 1a: Entity extraction (per-source, Haiku, parallel)
  *   Pass 1b: Entity resolution (single Sonnet call, merge/dedup)
  *   Pass 2:  Graph construction (co-occurring pairs, Sonnet)
  *   Pass 3a: Synthesis articles (one per bucket, Sonnet, sequential)
  *   Pass 3b: Reference cards (per-entity, Sonnet, parallel)
- *   Pass 4:  Field map + indexes + landscape table
+ *   Pass 3c: Claim extraction (per-synthesis, Sonnet, sequential)
+ *   Pass 4:  Field map + ROOT.md + indexes + landscape table
  *   Pass 5:  Mermaid diagrams + backlinks (local, no LLM)
  *   Pass 6:  Changelog (local diff)
+ *   Pass 7:  Self-eval (claim verification, Haiku, parallel)
  *
  * Usage:
  *   bun run compile                    # Full compilation
@@ -36,6 +38,10 @@ import type {
   GraphNode,
   GraphEdge,
   EdgeType,
+  Claim,
+  ClaimsFile,
+  EvalResult,
+  EvalReport,
 } from "./types.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────
@@ -562,6 +568,8 @@ WRITING RULES (non-negotiable):
 
 const SYNTHESIS_SYSTEM = `You are writing a landscape analysis for practitioners who build with LLM agents. This is NOT a catalog of projects. It's a synthesis that changes how practitioners THINK about this space.
 
+FIRST: Output a 1-2 sentence abstract inside <abstract></abstract> tags. The abstract states the main insight or shift this article documents — not "this article covers X" but the actual finding, e.g. "X has shifted from A to B because C." Maximum 300 characters. Then write the full article.
+
 Many sources have paths starting with "deep/" — these are deep research files containing source-code analysis, architecture details, design tradeoffs, failure modes, and verified benchmarks. When you draw implementation details from a source, cite its ACTUAL path (including "deep/" prefix if applicable). These deep sources are your primary material for specificity.
 
 Structure (use these exact ## headings):
@@ -607,6 +615,7 @@ Rules:
 - Include star counts when first mentioning a project as an adoption signal
 - After reporting benchmarks, assess credibility: self-reported, peer-reviewed, or verified in code
 - Be honest about limitations. Apply equal criticism to all projects.
+- When sources disagree on a fact, approach, or result, flag the disagreement explicitly. Format: "**Source conflict:** [Source A](../raw/...) claims X, while [Source B](../raw/...) claims Y." Do not silently pick one side. Let the reader see the contradiction and the evidence for each position.
 - Write as a practitioner talking to practitioners. No academic hedging.
 - Output 3000-5000 words of markdown.
 ${WRITING_STYLE}`;
@@ -634,6 +643,16 @@ async function generateSynthesisArticles(
     const bucketSources = (index.byBucket[bucket] ?? [])
       .sort((a, b) => b.relevance - a.relevance)
       .slice(0, 25); // Top 25 by relevance
+
+    // Compute staleness markers from source dates
+    const sourceDates = bucketSources
+      .map((s) => s.frontmatter.date)
+      .filter((d): d is string => !!d && d !== "unknown")
+      .sort();
+    const oldestDate = sourceDates[0] ?? "unknown";
+    const newestDate = sourceDates[sourceDates.length - 1] ?? "unknown";
+    const source_date_range = `${oldestDate} to ${newestDate}`;
+    const staleness_risk = computeStalenessRisk(newestDate);
 
     // Collect entities in this bucket
     const bucketEntities = entities.filter((e) => e.bucket === bucket);
@@ -680,19 +699,26 @@ ${edgeSummary}
 ${sourceContent}`,
       });
 
+      // Extract abstract from LLM output
+      const { abstract, body } = extractAbstract(text);
+
       // Add frontmatter
-      const frontmatter = {
+      const frontmatter: Record<string, unknown> = {
         title,
         type: "synthesis",
         bucket,
+        ...(abstract && { abstract }),
+        source_date_range,
+        newest_source: newestDate,
+        staleness_risk,
         sources: bucketSources.map((s) => s.path),
         entities: bucketEntities.map((e) => e.id),
         last_compiled: new Date().toISOString(),
       };
 
-      const output = matter.stringify(text, frontmatter);
+      const output = matter.stringify(body, frontmatter);
       await writeFile(join(WIKI_DIR, `${bucket}.md`), output);
-      console.log(`  ✓ ${title} (${text.split("\n").length} lines)`);
+      console.log(`  ✓ ${title} (${body.split("\n").length} lines)`);
     } catch (err) {
       console.error(`  ✗ Failed to generate ${title}: ${err}`);
     }
@@ -702,6 +728,8 @@ ${sourceContent}`,
 // ─── Pass 3b: Reference Cards ───────────────────────────────────────────
 
 const REFERENCE_CARD_SYSTEM = `Generate a reference card for a project, concept, or person in the LLM knowledge base space.
+
+FIRST: Output a 1-sentence abstract inside <abstract></abstract> tags. State what this entity does and its key differentiator in under 200 characters. Not marketing copy — a factual summary an agent can use to decide whether to read the full card. Then write the full reference card.
 
 Some sources include deep implementation analysis (architecture, design tradeoffs, failure modes, benchmarks from code). Use this depth — name specific files, functions, algorithms.
 
@@ -789,6 +817,9 @@ Source material:
 ${sourceContent || "No direct sources — write from general knowledge, mark claims as [unverified]."}`,
         });
 
+        // Extract abstract from LLM output
+        const { abstract, body } = extractAbstract(text);
+
         // Determine output directory
         const dir =
           entity.type === "project"
@@ -797,16 +828,17 @@ ${sourceContent || "No direct sources — write from general knowledge, mark cla
               ? "concepts"
               : "concepts"; // people go in concepts too for simplicity
 
-        const frontmatter = {
+        const frontmatter: Record<string, unknown> = {
           entity_id: entity.id,
           type: entity.type,
           bucket: entity.bucket,
+          ...(abstract && { abstract }),
           sources: entity.source_refs,
           related: neighbors.map((n) => n?.split(" (")[0] ?? ""),
           last_compiled: new Date().toISOString(),
         };
 
-        const output = matter.stringify(text, frontmatter);
+        const output = matter.stringify(body, frontmatter);
         await writeFile(join(WIKI_DIR, dir, `${entity.id}.md`), output);
       } catch (err) {
         console.warn(`  ⚠ Failed to generate card for ${entity.name}: ${err}`);
@@ -821,6 +853,100 @@ ${sourceContent || "No direct sources — write from general knowledge, mark cla
 
   await Promise.all(tasks);
   console.log(`  ✓ Generated ${completed} reference cards`);
+}
+
+// ─── Pass 3c: Claim Extraction ─────────────────────────────────────────
+
+const claimExtractionSchema = z.object({
+  claims: z.array(
+    z.object({
+      content: z.string().describe("A single, atomic, verifiable statement. One fact per claim."),
+      type: z.enum(["empirical", "architectural", "comparative", "directional"]),
+      confidence: z.enum(["verified", "reported", "inferred"]),
+      source_refs: z
+        .array(z.string())
+        .describe("Raw source paths cited near this claim, extracted from [Source](../raw/...) links. Use the path after 'raw/', e.g. 'repos/mem0ai-mem0.md' or 'deep/repos/getzep-graphiti.md'"),
+      entity_refs: z
+        .array(z.string())
+        .describe("Entity ID slugs mentioned in the claim, e.g. ['mem0', 'graphiti']"),
+      temporal_scope: z
+        .string()
+        .nullable()
+        .describe("'as of YYYY-MM' for time-sensitive claims (star counts, benchmarks, adoption), null for timeless architectural/definitional facts"),
+    }),
+  ),
+});
+
+const CLAIM_EXTRACTION_SYSTEM = `You are extracting atomic, verifiable claims from a synthesis article about LLM knowledge systems.
+
+Rules:
+1. Each claim is a SINGLE factual statement. Not a compound sentence. Not a summary paragraph.
+2. If a claim contains a number (benchmark score, star count, percentage), it is "empirical" or "comparative".
+3. If a claim describes how something is built (architecture, algorithm, data structure), it is "architectural".
+4. If a claim compares two things with evidence, it is "comparative".
+5. If a claim describes a field-level trend, convergence, or consensus synthesized from multiple sources, it is "directional". IMPORTANT: Extract at least 5-8 directional claims per article — these capture the synthesis-level insights (e.g. "The field has shifted from X to Y") that are the article's unique contribution.
+6. For confidence:
+   - "verified": you can see the specific evidence in the cited source text (a benchmark table, a code snippet, a direct quote). Use this when the article includes inline details clearly drawn from a deep/ source.
+   - "reported": the article cites a result but you cannot confirm the evidence exists in the source text (e.g., star counts, README-stated benchmarks). This is the DEFAULT for most project-level claims.
+   - "inferred": the article draws a conclusion that no single source states. Use this for directional claims and cross-source synthesis. Should be 10-20% of claims.
+7. For source_refs: extract the ACTUAL raw/ paths cited near this claim in the article. Look for [Source](../raw/...) links within the same paragraph or section. Extract the path after "raw/", e.g. "repos/mem0ai-mem0.md" or "deep/repos/getzep-graphiti.md". CRITICAL: Match each claim to the source that ACTUALLY contains its evidence, not just the nearest citation. If the claim mentions architectural details from a deep source, cite the deep/ path. If no source link is nearby, leave source_refs empty rather than guessing.
+8. For entity_refs: use the entity IDs (URL-safe slugs) of projects/concepts mentioned in the claim.
+9. For temporal_scope: set to "as of YYYY-MM" if the claim contains data that changes over time (star counts, benchmark rankings, adoption metrics). Set to null for architectural or definitional claims.
+10. Extract 25-40 claims per article. Aim for a mix: ~40% empirical, ~30% architectural, ~15% directional, ~15% comparative.`;
+
+async function extractClaims(index: SourceIndex): Promise<Claim[]> {
+  console.log("\n═══ Pass 3c: Claim Extraction (Sonnet, sequential) ═══");
+
+  const allClaims: Claim[] = [];
+  let claimCounter = 0;
+
+  for (const bucket of Object.keys(BUCKET_TITLES)) {
+    const articlePath = join(WIKI_DIR, `${bucket}.md`);
+    if (!existsSync(articlePath)) {
+      console.warn(`  ⚠ Synthesis article not found: ${bucket}.md`);
+      continue;
+    }
+
+    const raw = await readFile(articlePath, "utf-8");
+    const { content } = matter(raw);
+
+    try {
+      const { object } = await generateObject({
+        model: getProvider()("claude-sonnet-4-6"),
+        schema: claimExtractionSchema,
+        system: CLAIM_EXTRACTION_SYSTEM,
+        prompt: `Extract claims from this synthesis article.\n\nArticle: ${bucket}.md\nBucket: ${bucket}\n\n${content.slice(0, 30000)}`,
+      });
+
+      for (const claim of object.claims) {
+        claimCounter++;
+        allClaims.push({
+          id: `claim-${String(claimCounter).padStart(3, "0")}`,
+          content: claim.content,
+          type: claim.type,
+          confidence: claim.confidence,
+          source_refs: claim.source_refs,
+          article_ref: bucket,
+          entity_refs: claim.entity_refs,
+          temporal_scope: claim.temporal_scope,
+        });
+      }
+      console.log(`  ✓ ${bucket}: ${object.claims.length} claims extracted`);
+    } catch (err) {
+      console.warn(`  ⚠ Failed to extract claims from ${bucket}: ${err}`);
+    }
+  }
+
+  const claimsFile: ClaimsFile = {
+    version: 1,
+    compiled_at: new Date().toISOString(),
+    total: allClaims.length,
+    claims: allClaims,
+  };
+
+  await writeFile(join(BUILD_DIR, "claims.json"), JSON.stringify(claimsFile, null, 2));
+  console.log(`  Extracted ${allClaims.length} total claims from ${Object.keys(BUCKET_TITLES).length} articles`);
+  return allClaims;
 }
 
 // ─── Pass 4: Field Map + Indexes ────────────────────────────────────────
@@ -901,16 +1027,92 @@ ${Object.entries(graph.clusters).map(([k, v]) => `- ${v.label}: ${v.node_count} 
     console.error(`  ✗ Failed to generate field-map: ${err}`);
   }
 
+  // Generate ROOT.md (agent-optimized topic index, no LLM call)
+  {
+    const BUCKET_DESCRIPTIONS: Record<string, string> = {
+      "knowledge-bases": "compiled wikis, RAG, graph retrieval, vectorless approaches",
+      "agent-memory": "persistent memory, temporal KGs, episodic/semantic split",
+      "context-engineering": "CLAUDE.md, progressive disclosure, compression, context graphs",
+      "agent-systems": "SKILL.md, skill registries, harnesses, multi-agent orchestration",
+      "self-improving": "autoresearch, Karpathy loop, reflexion, skill accumulation",
+    };
+
+    const topProjects = entities
+      .filter((e) => e.type === "project" && e.article_level === "full")
+      .sort((a, b) => (b.relevance_composite ?? 0) - (a.relevance_composite ?? 0))
+      .slice(0, 12);
+
+    const topConcepts = entities
+      .filter((e) => (e.type === "concept" || e.type === "approach") && e.article_level === "full")
+      .sort((a, b) => (b.relevance_composite ?? 0) - (a.relevance_composite ?? 0))
+      .slice(0, 10);
+
+    const topicsSection = Object.entries(BUCKET_TITLES)
+      .map(([bucket, title]) => {
+        const srcCount = (index.byBucket[bucket] ?? []).length;
+        const desc = BUCKET_DESCRIPTIONS[bucket] ?? "";
+        return `${bucket} [synthesis, ${srcCount} sources]: ${desc} -> ${bucket}.md`;
+      })
+      .join("\n");
+
+    const projectsSection = topProjects
+      .map((p) => {
+        // Find the highest star count across all source refs for this entity
+        const maxStars = p.source_refs
+          .map((ref) => index.sources.find((s) => s.path === ref)?.frontmatter.stars)
+          .filter((s): s is number => typeof s === "number" && s > 0)
+          .sort((a, b) => b - a)[0];
+        const stars = maxStars ? `${maxStars}★` : "-";
+        const desc = p.description.length > 80 ? p.description.slice(0, 77) + "..." : p.description;
+        return `${p.id} [${p.bucket}, ${stars}, ${p.source_refs.length} refs]: ${desc} -> projects/${p.id}.md`;
+      })
+      .join("\n");
+
+    const conceptsSection = topConcepts
+      .map((c) => {
+        const desc = c.description.length > 80 ? c.description.slice(0, 77) + "..." : c.description;
+        return `${c.id} [${c.bucket}]: ${desc} -> concepts/${c.id}.md`;
+      })
+      .join("\n");
+
+    const rootBody = `# meta-kb ROOT
+
+## Topics
+${topicsSection}
+
+## Top Projects
+${projectsSection}
+
+## Key Concepts
+${conceptsSection}
+
+## Meta
+Field map: field-map.md | Graph: graph.html | Landscape: comparisons/landscape.md
+Last compiled: ${new Date().toISOString().split("T")[0]} | Sources: ${index.sources.length} | Entities: ${entities.length} | Edges: ${graph.edges.length}
+`;
+
+    const wordCount = rootBody.split(/\s+/).length;
+    const rootFrontmatter = {
+      type: "root",
+      version: 1,
+      compiled_at: new Date().toISOString(),
+      token_estimate: Math.ceil(wordCount * 1.3),
+      entities_total: entities.length,
+      sources_total: index.sources.length,
+    };
+
+    await writeFile(join(WIKI_DIR, "ROOT.md"), matter.stringify(rootBody, rootFrontmatter));
+    console.log(`  ✓ ROOT.md (~${Math.ceil(wordCount * 1.3)} tokens, ${topProjects.length} projects, ${topConcepts.length} concepts)`);
+  }
+
   // Generate deterministic indexes
   await mkdir(join(WIKI_DIR, "indexes"), { recursive: true });
   await mkdir(join(WIKI_DIR, "comparisons"), { recursive: true });
 
   // projects.md index
   const projects = entities.filter((e) => e.type === "project").sort((a, b) => (b.relevance_composite ?? 0) - (a.relevance_composite ?? 0));
-  const projectsIndex = `# Projects Index\n\n| Project | Bucket | Sources | Stars |\n|---|---|---|---|\n${projects.map((p) => {
-    const src = index.sources.find((s) => s.path === p.source_refs[0]);
-    const stars = src?.frontmatter.stars ?? "";
-    return `| [${p.name}](../projects/${p.id}.md) | ${p.bucket} | ${p.source_refs.length} | ${stars ? stars.toLocaleString() : "—"} |`;
+  const projectsIndex = `# Projects Index\n\n| Project | Bucket | Sources |\n|---|---|---|\n${projects.map((p) => {
+    return `| [${p.name}](../projects/${p.id}.md) | ${p.bucket} | ${p.source_refs.length} |`;
   }).join("\n")}`;
   await writeFile(join(WIKI_DIR, "indexes", "projects.md"), projectsIndex);
 
@@ -925,21 +1127,16 @@ ${Object.entries(graph.clusters).map(([k, v]) => `- ${v.label}: ${v.node_count} 
   await writeFile(join(WIKI_DIR, "indexes", "missing.md"), missingMd);
 
   // landscape.md comparison table
-  const repoEntities = projects.filter((p) => {
-    const src = index.sources.find((s) => s.path === p.source_refs[0]);
-    return src?.frontmatter.stars;
-  });
-  const landscapeTable = `# Landscape Comparison\n\nAll major projects at a glance.\n\n| Project | Bucket | Stars | Language | License | Description |\n|---|---|---|---|---|---|\n${repoEntities.map((p) => {
-    const src = index.sources.find((s) => s.path === p.source_refs[0]);
-    const fm = src?.frontmatter as any;
-    return `| [${p.name}](../projects/${p.id}.md) | ${p.bucket} | ${(fm?.stars ?? 0).toLocaleString()} | ${fm?.language ?? "—"} | ${fm?.license ?? "—"} | ${p.description.slice(0, 80)} |`;
+  const landscapeTable = `# Landscape Comparison\n\nAll major projects at a glance.\n\n| Project | Bucket | Description |\n|---|---|---|\n${projects.map((p) => {
+    const link = p.article_level !== "stub" ? `[${p.name}](../projects/${p.id}.md)` : p.name;
+    return `| ${link} | ${p.bucket} | ${p.description.slice(0, 80)} |`;
   }).join("\n")}`;
   await writeFile(join(WIKI_DIR, "comparisons", "landscape.md"), landscapeTable);
 
   console.log(`  ✓ indexes/projects.md (${projects.length} projects)`);
   console.log(`  ✓ indexes/topics.md (${concepts.length} topics)`);
   console.log(`  ✓ indexes/missing.md (${stubs.length} stubs)`);
-  console.log(`  ✓ comparisons/landscape.md (${repoEntities.length} rows)`);
+  console.log(`  ✓ comparisons/landscape.md (${projects.length} rows)`);
 }
 
 // ─── Pass 5: Mermaid + Backlinks ────────────────────────────────────────
@@ -1051,11 +1248,207 @@ async function generateChangelog(entities: Entity[], graph: KnowledgeGraph): Pro
   console.log("  ✓ CHANGELOG.md written");
 }
 
+// ─── Pass 7: Self-Eval ─────────────────────────────────────────────────
+
+const EVAL_SAMPLE_SIZE = 30;
+
+const evalVerificationSchema = z.object({
+  verdict: z.enum(["PASS", "FAIL"]),
+  reason: z.string().describe("1 sentence explaining the verdict"),
+});
+
+const EVAL_SYSTEM = `You are verifying whether a raw source supports a specific claim from a compiled wiki article.
+
+Your job: read the source text and determine if the source contains evidence for the claim.
+
+Rules:
+- For numerical claims (empirical/comparative): the source must contain the specific number or data point. A different number for the same metric is a FAIL.
+- For architectural claims: the source must describe the design element. Equivalent descriptions in different words are a PASS (e.g., "four-level pattern" and "Levels 0, 1, 2, 3" are the same thing).
+- For comparative claims: the source must contain evidence for the comparison.
+- For directional claims: the source must provide at least partial evidence for the trend.
+- Being about the same topic is NOT sufficient — the source must contain the specific evidence.
+- Reasonable paraphrasing is a PASS. Semantic equivalence counts. Only FAIL when the evidence is genuinely missing or contradicted.`;
+
+async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalReport> {
+  console.log("\n═══ Pass 7: Self-Eval (Haiku, parallel) ═══");
+
+  // Filter to claims with at least one source_ref
+  const verifiable = claims.filter((c) => c.source_refs.length > 0);
+  console.log(`  ${verifiable.length}/${claims.length} claims have source refs (verifiable)`);
+
+  // Stratified sampling: proportional by claim type
+  const byType = new Map<string, Claim[]>();
+  for (const c of verifiable) {
+    const arr = byType.get(c.type) ?? [];
+    arr.push(c);
+    byType.set(c.type, arr);
+  }
+
+  const sampled: Claim[] = [];
+  const targetSize = Math.min(EVAL_SAMPLE_SIZE, verifiable.length);
+
+  for (const [type, typeClaims] of byType) {
+    const proportion = typeClaims.length / verifiable.length;
+    const count = Math.max(1, Math.round(proportion * targetSize));
+    // Shuffle and take count
+    const shuffled = [...typeClaims].sort(() => Math.random() - 0.5);
+    sampled.push(...shuffled.slice(0, count));
+  }
+
+  // Trim to target size if proportional rounding overallocated
+  while (sampled.length > targetSize) sampled.pop();
+
+  console.log(`  Sampling ${sampled.length} claims (${[...byType.entries()].map(([t, c]) => `${t}: ${sampled.filter((s) => s.type === t).length}`).join(", ")})`);
+
+  // Verify each claim against its first source
+  const limit = pLimit(HAIKU_CONCURRENCY);
+  const results: EvalResult[] = [];
+  let completed = 0;
+
+  const verifyTasks = sampled.map((claim) =>
+    limit(async () => {
+      // Find the source in the index
+      const sourceRef = claim.source_refs[0];
+      const source = index.sources.find((s) => s.path === sourceRef);
+
+      if (!source) {
+        // Source not found in index — skip, don't count as FAIL
+        completed++;
+        return;
+      }
+
+      try {
+        const sourceContent = (source.frontmatter.key_insight + "\n\n" + source.body).slice(0, 6000);
+
+        const { object } = await generateObject({
+          model: getProvider()("claude-haiku-4-5"),
+          schema: evalVerificationSchema,
+          system: EVAL_SYSTEM,
+          prompt: `Claim: "${claim.content}"\nClaim type: ${claim.type}\nClaim confidence: ${claim.confidence}\n\nSource path: ${sourceRef}\nSource content:\n${sourceContent}`,
+        });
+
+        results.push({
+          claim_id: claim.id,
+          verdict: object.verdict,
+          reason: object.reason,
+        });
+      } catch (err) {
+        console.warn(`  ⚠ Failed to verify ${claim.id}: ${err}`);
+        // Skip on error, don't count as FAIL
+      }
+
+      completed++;
+      if (completed % 10 === 0) {
+        console.log(`  Pass 7: ${completed}/${sampled.length} verified`);
+      }
+    }),
+  );
+
+  await Promise.all(verifyTasks);
+
+  // Aggregate results
+  const passed = results.filter((r) => r.verdict === "PASS").length;
+  const failed = results.filter((r) => r.verdict === "FAIL").length;
+  const accuracy = results.length > 0 ? passed / results.length : 0;
+
+  // Breakdown by type
+  const byTypeReport: Record<string, { sampled: number; passed: number }> = {};
+  for (const [type] of byType) {
+    const typeSampled = results.filter((r) => {
+      const claim = sampled.find((s) => s.id === r.claim_id);
+      return claim?.type === type;
+    });
+    byTypeReport[type] = {
+      sampled: typeSampled.length,
+      passed: typeSampled.filter((r) => r.verdict === "PASS").length,
+    };
+  }
+
+  // Breakdown by bucket
+  const byBucketReport: Record<string, { sampled: number; passed: number }> = {};
+  for (const bucket of Object.keys(BUCKET_TITLES)) {
+    const bucketResults = results.filter((r) => {
+      const claim = sampled.find((s) => s.id === r.claim_id);
+      return claim?.article_ref === bucket;
+    });
+    if (bucketResults.length > 0) {
+      byBucketReport[bucket] = {
+        sampled: bucketResults.length,
+        passed: bucketResults.filter((r) => r.verdict === "PASS").length,
+      };
+    }
+  }
+
+  // Build failure details
+  const failures = results
+    .filter((r) => r.verdict === "FAIL")
+    .map((r) => {
+      const claim = sampled.find((s) => s.id === r.claim_id)!;
+      return {
+        claim_id: r.claim_id,
+        claim: claim.content,
+        article_ref: claim.article_ref,
+        source_ref: claim.source_refs[0],
+        reason: r.reason,
+      };
+    });
+
+  const report: EvalReport = {
+    version: 1,
+    compiled_at: new Date().toISOString(),
+    total_claims: claims.length,
+    sample_size: results.length,
+    accuracy: Math.round(accuracy * 1000) / 1000,
+    results,
+    failures,
+    by_type: byTypeReport,
+    by_bucket: byBucketReport,
+  };
+
+  await writeFile(join(BUILD_DIR, "eval-report.json"), JSON.stringify(report, null, 2));
+
+  // Append eval summary to CHANGELOG
+  const changelogPath = join(WIKI_DIR, "CHANGELOG.md");
+  if (existsSync(changelogPath)) {
+    const existing = await readFile(changelogPath, "utf-8");
+    const evalLine = `- **Self-eval:** ${results.length} claims sampled, ${passed} passed (${(accuracy * 100).toFixed(1)}% accuracy). Failures: ${failed}.`;
+    await writeFile(changelogPath, existing.trimEnd() + "\n" + evalLine + "\n");
+  }
+
+  console.log(`  ✓ Self-eval: ${passed}/${results.length} passed (${(accuracy * 100).toFixed(1)}% accuracy)`);
+  if (failures.length > 0) {
+    console.log(`  ✗ Failures:`);
+    for (const f of failures) {
+      console.log(`    ${f.claim_id} (${f.article_ref}): ${f.reason}`);
+    }
+  }
+
+  return report;
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────
+
+function extractAbstract(text: string): { abstract: string; body: string } {
+  const match = text.match(/<abstract>([\s\S]*?)<\/abstract>/);
+  if (!match) return { abstract: "", body: text };
+  const abstract = match[1].trim();
+  const body = text.replace(/<abstract>[\s\S]*?<\/abstract>\s*/, "").trim();
+  return { abstract, body };
+}
+
+function computeStalenessRisk(newestDate: string): "low" | "medium" | "high" {
+  if (!newestDate || newestDate === "unknown") return "high";
+  const newest = new Date(newestDate);
+  if (isNaN(newest.getTime())) return "high";
+  const daysSince = (Date.now() - newest.getTime()) / (1000 * 60 * 60 * 24);
+  if (daysSince < 30) return "low";
+  if (daysSince < 90) return "medium";
+  return "high";
+}
 
 function shouldRunPass(pass: string): boolean {
   if (!FROM_PASS) return true;
-  const order = ["0", "1a", "1b", "2", "3a", "3b", "4", "5", "6"];
+  const order = ["0", "1a", "1b", "2", "3a", "3b", "3c", "4", "5", "6", "7"];
   return order.indexOf(pass) >= order.indexOf(FROM_PASS);
 }
 
@@ -1068,7 +1461,7 @@ async function loadBuildArtifact<T>(filename: string): Promise<T> {
 
 async function main() {
   console.log("╔══════════════════════════════════════════════╗");
-  console.log("║        meta-kb compiler v0.1.0               ║");
+  console.log("║        meta-kb compiler v0.2.0               ║");
   console.log("╚══════════════════════════════════════════════╝");
   if (DRY_RUN) console.log("  [DRY RUN — no files will be written]");
   if (FROM_PASS) console.log(`  [Resuming from pass ${FROM_PASS}]`);
@@ -1077,6 +1470,7 @@ async function main() {
   let rawEntities: RawEntity[];
   let entities: Entity[];
   let graph: KnowledgeGraph;
+  let claims: Claim[];
 
   // Pass 0
   if (shouldRunPass("0")) {
@@ -1121,6 +1515,15 @@ async function main() {
     await generateReferenceCards(entities, graph, index);
   }
 
+  // Pass 3c
+  if (shouldRunPass("3c")) {
+    claims = await extractClaims(index);
+  } else {
+    const claimsFile = await loadBuildArtifact<ClaimsFile>("claims.json");
+    claims = claimsFile.claims;
+    console.log(`\n  [Skipped Pass 3c — loaded ${claims.length} claims from disk]`);
+  }
+
   // Pass 4
   if (shouldRunPass("4")) {
     await generateFieldMapAndIndexes(entities, graph, index);
@@ -1136,6 +1539,11 @@ async function main() {
     await generateChangelog(entities, graph);
   }
 
+  // Pass 7
+  if (shouldRunPass("7")) {
+    await runSelfEval(claims, index);
+  }
+
   const full = entities.filter((e) => e.article_level === "full").length;
   const stub = entities.filter((e) => e.article_level === "stub").length;
   console.log("\n════════════════════════════════════");
@@ -1143,6 +1551,7 @@ async function main() {
   console.log(`  Sources: ${index.sources.length}`);
   console.log(`  Entities: ${entities.length} (${full} full, ${stub} stub)`);
   console.log(`  Graph: ${graph.nodes.length} nodes, ${graph.edges.length} edges`);
+  console.log(`  Claims: ${claims.length}`);
   console.log("════════════════════════════════════\n");
 }
 
