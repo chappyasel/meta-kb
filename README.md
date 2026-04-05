@@ -53,6 +53,8 @@ The [compile-wiki skill](.claude/skills/compile-wiki/SKILL.md) orchestrates a 6-
 cp .env.example .env  # add your ANTHROPIC_API_KEY
 bun install
 bun run compile       # raw/ → build/ → wiki/
+bun run lint          # verify structural integrity
+bun run diagrams      # generate D2 + D3 visualizations
 ```
 
 Both paths produce the same output structure. Run both for a comparison diff between agent-native and deterministic compilation.
