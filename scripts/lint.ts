@@ -208,6 +208,64 @@ async function checkStubCoverage(): Promise<LintResult> {
   };
 }
 
+// ─── Slop Check ────────────────────────────────────────────────────────
+
+const SLOP_PATTERNS: { pattern: RegExp; label: string }[] = [
+  // Throat-clearing openers
+  { pattern: /Here's the thing:/gi, label: "throat-clearing: 'Here's the thing'" },
+  { pattern: /It turns out/gi, label: "throat-clearing: 'It turns out'" },
+  { pattern: /Let me be clear/gi, label: "throat-clearing: 'Let me be clear'" },
+  { pattern: /The uncomfortable truth is/gi, label: "throat-clearing: 'uncomfortable truth'" },
+  // Emphasis crutches
+  { pattern: /Full stop\./gi, label: "emphasis crutch: 'Full stop.'" },
+  { pattern: /Let that sink in/gi, label: "emphasis crutch: 'Let that sink in'" },
+  { pattern: /Make no mistake/gi, label: "emphasis crutch: 'Make no mistake'" },
+  // Binary contrast clichés
+  { pattern: /Not because .{5,40}\. Because /gi, label: "binary contrast: 'Not because X. Because Y'" },
+  { pattern: / isn't the problem\. /gi, label: "binary contrast: 'X isn't the problem'" },
+  // Business jargon
+  { pattern: /\bgame[- ]changer\b/gi, label: "jargon: 'game-changer'" },
+  { pattern: /\bdeep dive\b/gi, label: "jargon: 'deep dive'" },
+  { pattern: /\blean into\b/gi, label: "jargon: 'lean into'" },
+  { pattern: /\bnavigate (?:the |this |these )?(?:challenges?|complexit)/gi, label: "jargon: 'navigate challenges'" },
+  // Dramatic fragmentation
+  { pattern: /That's it\. That's the /gi, label: "dramatic fragmentation" },
+  // Vague declaratives
+  { pattern: /The implications are /gi, label: "vague declarative: 'implications are'" },
+  { pattern: /The stakes are /gi, label: "vague declarative: 'stakes are'" },
+  // False agency
+  { pattern: /the (?:decision|conversation|culture|market) (?:emerges?|shifts?|moves?|rewards?)/gi, label: "false agency" },
+  // Meta-commentary
+  { pattern: /In this section,? we'?ll/gi, label: "meta-commentary" },
+  { pattern: /As we'll see/gi, label: "meta-commentary" },
+  { pattern: /Let me walk you through/gi, label: "meta-commentary" },
+];
+
+async function checkSlop(wikiFiles: string[]): Promise<LintResult> {
+  const hits: string[] = [];
+
+  for (const file of wikiFiles) {
+    const raw = await readFile(file, "utf-8");
+    const { content } = matter(raw);
+    const rel = file.replace(WIKI_DIR + "/", "");
+
+    for (const { pattern, label } of SLOP_PATTERNS) {
+      pattern.lastIndex = 0; // reset regex state
+      const matches = content.match(pattern);
+      if (matches) {
+        hits.push(`${rel}: ${label} (${matches.length}x)`);
+      }
+    }
+  }
+
+  return {
+    check: "AI writing patterns (slop)",
+    status: hits.length === 0 ? "PASS" : hits.length <= 5 ? "WARN" : "FAIL",
+    count: hits.length,
+    details: hits.slice(0, 20),
+  };
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────
 
 async function main() {
@@ -225,6 +283,7 @@ async function main() {
     await checkGraphIntegrity(),
     await checkMissingArticles(),
     await checkStubCoverage(),
+    await checkSlop(wikiFiles),
   ];
 
   // Report

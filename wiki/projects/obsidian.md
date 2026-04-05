@@ -4,80 +4,93 @@ type: project
 bucket: knowledge-bases
 sources:
   - tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md
-  - tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md
   - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
-  - repos/agenticnotetaking-arscontexta.md
+  - tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md
+  - repos/kepano-obsidian-skills.md
   - repos/michaelliv-napkin.md
-related:
-  - Retrieval-Augmented Generation
-  - Agent Memory
-  - Personal Knowledge Management
-  - Self-Healing Knowledge Bases
-  - Knowledge Base Retrieval
-last_compiled: '2026-04-04T21:19:58.076Z'
+  - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
+  - deep/repos/agenticnotetaking-arscontexta.md
+  - deep/repos/kepano-obsidian-skills.md
+  - deep/repos/michaelliv-napkin.md
+related: []
+last_compiled: '2026-04-05T05:25:03.270Z'
 ---
 # Obsidian
 
 ## What It Is
 
-Obsidian is a personal knowledge management (PKM) application built on local markdown files. It renders `.md` files with bidirectional links (`[[wiki-style]]`), a graph view of note connections, and a plugin ecosystem. Files live on your filesystem—no proprietary database, no vendor lock-in.
+Obsidian is a desktop application for personal knowledge management built on a simple premise: your notes are plain markdown files stored locally, and the app adds a graph of bidirectional links on top. You own the files. Open them in any editor. No lock-in.
 
-In the AI/LLM context, Obsidian has emerged as a preferred IDE for LLM-maintained knowledge bases. Andrej Karpathy explicitly names it as the interface layer in his LLM wiki workflow: raw documents go into a `raw/` directory, an LLM compiles them into interlinked markdown articles, and Obsidian renders the result. [Source](../../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
+The core loop: write in markdown, link notes with `[[wikilinks]]`, navigate the resulting graph, extend behavior through plugins. That's most of what most users do with it.
 
-## What's Unique About It
+## Architectural Decisions
 
-- **Local-first**: All files are plain markdown on disk. Any tool—LLMs, scripts, grep—can read and write them without an API.
-- **Bidirectional links and backlinks**: `[[note-name]]` links are automatically tracked in both directions, which maps cleanly to the backlink structure LLMs generate when building wikis.
-- **Web Clipper extension**: Converts web articles to local `.md` files, feeding the ingest pipeline directly.
-- **Plugin ecosystem**: Community plugins extend it toward task management, spaced repetition, canvas views, and AI integration.
-- **Graph view**: Visual map of note connections—useful for auditing an LLM-built wiki for orphaned or over-connected nodes.
+**Local-first, file-based.** The vault is a directory of `.md` files. Obsidian reads and writes them directly. No proprietary database, no cloud sync required. This is the design choice that shapes everything else.
 
-## Role in LLM Knowledge Base Architectures
+**Plugin ecosystem.** A JavaScript plugin API lets community developers extend almost everything. The community plugin library has thousands of plugins. This is both the main strength and the main maintenance surface area.
 
-Obsidian functions as the **human-readable interface** in a two-layer system:
+**`.obsidian/` config directory.** All vault-specific settings, plugin configs, and hotkeys live in `.obsidian/` alongside your notes. This means vault config travels with the vault when you move it or share it.
 
-| Layer | Role |
-|-------|------|
-| `raw/` directory | Source documents (articles, papers, repos) |
-| LLM compiler | Synthesizes summaries, concepts, backlinks into wiki `.md` files |
-| Obsidian | Renders, navigates, and allows human editing of the wiki |
+**Separate sync layer.** Obsidian Sync is a paid add-on. Without it, you sync through whatever filesystem sync you already use (iCloud, Dropbox, git). The app doesn't care.
 
-The LLM writes files; Obsidian displays them. This sidesteps the need for vector databases at small-to-medium scale—the knowledge base is just a directory of text files that both humans and LLMs can directly manipulate. [Source](../../raw/tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md)
+## How It Works
+
+The bidirectional link index is built at vault open time by scanning all `.md` files for `[[wikilink]]` patterns and building a backlink map. The graph view renders this as a force-directed node graph. Search is local full-text across all files.
+
+The canvas feature (`.canvas` files) stores a JSON representation of a spatial layout of notes and embedded content. The Bases feature (`.base` files) adds structured querying over note properties, similar to a lightweight local database view.
+
+The Obsidian Web Clipper browser extension saves web pages as markdown directly into a vault, stripping HTML and preserving structure.
+
+## The LLM Workflow Context
+
+[Andrej Karpathy's workflow](../../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) made explicit what Obsidian's architecture affords for LLM-driven knowledge bases: because everything is markdown files in a directory, an LLM can read, write, and reorganize the vault through normal filesystem operations. Karpathy uses Obsidian as the viewing frontend while the LLM maintains the wiki, rarely editing files manually. The LLM writes summaries, articles, and backlinks into `.md` files; Obsidian renders them.
+
+This works because the file format is completely open. An LLM agent writing to `architecture/decision-001.md` sees its output rendered with backlinks and graph connections immediately when you open Obsidian. No API, no special integration needed.
+
+The [napkin project](../../raw/repos/michaelliv-napkin.md) formalizes this pattern: it runs a BM25 search index over Obsidian-compatible markdown vaults and exposes a CLI for agents to query, read, and write notes. Its vault structure (`.napkin/` config alongside `.obsidian/`) sits inside a standard Obsidian vault, meaning you get both human-friendly browsing and agent-friendly tooling from the same files. Napkin's LongMemEval benchmarks (83-92% accuracy depending on session length) are self-reported and specific to their BM25 retrieval setup, not a general claim about Obsidian.
 
 ## Strengths
 
-- **Zero infrastructure**: No database, no embeddings server, no cloud dependency for the core files.
-- **Human oversight built-in**: Editors can inspect, correct, or annotate LLM-generated content directly.
-- **Interoperability**: Because everything is markdown, the same vault works with BM25 search tools like napkin, standard RAG pipelines, or direct LLM context injection.
-- **Mature UX**: Canvas, graph view, daily notes, and templates cover most PKM workflows without custom tooling.
+**No retrieval infrastructure required at small-to-medium scale.** A vault of 100-400 articles (~400K words) fits in a long-context LLM window with selective loading. You don't need embeddings, vector databases, or RAG pipelines to do useful Q&A over a knowledge base at this size.
+
+**Format durability.** Markdown files from 2019 open fine today. When Obsidian changes or disappears, your notes remain readable.
+
+**Plugin surface area.** Marp for slide rendering, Dataview for structured queries over frontmatter, Excalidraw for diagrams, community sync plugins. The ecosystem covers unusual workflows.
+
+**Human-readable structure.** Unlike Notion or Roam, you can grep, diff, and version-control the vault in git. This matters when LLMs generate content you want to audit.
 
 ## Limitations
 
-- **Not a retrieval system**: Obsidian has no native semantic search or embedding support. At scale, you still need an external retrieval layer.
-- **Single-user focus**: Collaboration features are limited; real-time multi-user editing requires third-party sync.
-- **Plugin quality variance**: The ecosystem is large but uneven; some AI plugins are experimental or abandoned.
-- **Sync costs money**: Obsidian Sync (the official cloud sync) is a paid add-on. Alternatives (iCloud, git) work but add friction.
-- **No native LLM integration**: Obsidian itself doesn't call LLMs. All AI workflows require external scripts, plugins, or manual LLM interaction.
+**Concrete failure mode: sync conflicts.** If two devices edit the same file before sync completes, you get conflicted copies with names like `Note (conflicted copy 2024-01-15).md`. Obsidian has no built-in conflict resolution. You resolve this manually or with git. With LLM agents writing files and humans editing simultaneously, conflict frequency increases.
+
+**Unspoken infrastructure assumption: single-user, single-vault.** Obsidian has no real-time collaboration. The commercial Obsidian Publish product shares vaults as static sites, not as collaborative editors. Teams using a shared vault over a network drive hit file-locking and sync issues quickly.
+
+**Plugin stability.** Community plugins are maintained by individuals. Plugins break on Obsidian updates. A workflow built on three plugins has three independent maintenance dependencies. Some widely-used plugins have gone unmaintained for months.
+
+**Graph view doesn't scale.** With thousands of notes, the force-directed graph renders slowly and provides little navigational value. It's useful for smaller vaults or as a visual artifact.
+
+## When NOT to Use It
+
+If your team needs to co-edit notes in real time, Obsidian is the wrong tool. Use Notion, Confluence, or a wiki.
+
+If your knowledge base will exceed 10,000 notes with complex relational queries, the Dataview plugin and manual linking become load-bearing infrastructure that requires ongoing maintenance. A purpose-built tool handles this better.
+
+If you need guaranteed mobile-first workflows, the Obsidian mobile apps work but feel secondary to the desktop experience, and sync setup adds friction.
+
+## Unresolved Questions
+
+**Governance and longevity.** Obsidian is a private company (Dynalist Inc.) with no public funding information. The free tier is generous but the company's revenue model depends on Obsidian Sync and Publish subscriptions. No clarity on what happens to the app if the company folds, though the local-first design means your notes survive either way.
+
+**Plugin API stability.** The plugin API is not formally versioned. Breaking changes happen. There's no documented deprecation policy.
+
+**LLM write conflicts at scale.** As more workflows involve LLM agents writing to vaults in parallel with human editing, the lack of any locking or transaction model becomes a real operational question. Karpathy's workflow handles this by having the LLM own writes almost entirely. Mixed workflows have no documented best practice.
 
 ## Alternatives
 
-| Tool | Key Difference |
-|------|----------------|
-| Agent Memory (napkin) | Agent-native, BM25 search, no GUI—built for LLM read/write, not human browsing |
-| Notion | Cloud-based, richer databases, worse plain-text interoperability |
-| Logseq | Open-source, outline-first, similar local markdown model |
-| Plain git repo | Maximum interoperability, zero UX |
-| [RAG pipelines](../concepts/knowledge-base-retrieval.md) | Better semantic retrieval at scale, but no human-readable interface |
+Use **Notion** when you need structured databases, team collaboration, or prefer a hosted product with a support contract.
 
-## Practical Implications
+Use **git + raw markdown** (no Obsidian) when your primary interface is an LLM agent and human browsing is rare. The extra tooling Obsidian provides is unnecessary overhead.
 
-For [Self-Healing Knowledge Bases](../concepts/self-healing-knowledge-bases.md), Obsidian vaults are an attractive substrate: LLMs can lint, update, and cross-link files autonomously while humans inspect results in a familiar interface. The bottleneck shifts from retrieval architecture to the quality of LLM-driven synthesis—a meaningful inversion of the typical RAG engineering challenge. For [Personal Knowledge Management](../concepts/personal-knowledge-management.md) workflows that don't yet need vector search, an Obsidian vault plus a capable LLM may be sufficient.
+Use **Logseq** when you prefer an outline-first, block-based structure over document-first notes. Also local-first and open-source.
 
-
-## Related
-
-- [Retrieval-Augmented Generation](../concepts/rag.md) — part_of (0.4)
-- [Agent Memory](../concepts/agent-memory.md) — alternative_to (0.4)
-- [Personal Knowledge Management](../concepts/personal-knowledge-management.md) — implements (0.9)
-- [Self-Healing Knowledge Bases](../concepts/self-healing-knowledge-bases.md) — part_of (0.5)
-- [Knowledge Base Retrieval](../concepts/knowledge-base-retrieval.md) — implements (0.6)
+Use **Roam Research** when you want a hosted bidirectional-linking tool with an active research community and don't care about local file access.

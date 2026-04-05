@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>meta-kb Knowledge Graph</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
+  svg { width: 100vw; height: 100vh; }
+  .link { stroke-opacity: 0.3; }
+  .link:hover { stroke-opacity: 0.8; }
+  .node circle { stroke: #1e293b; stroke-width: 1.5; cursor: pointer; }
+  .node circle:hover { stroke: #fff; stroke-width: 2.5; }
+  .node text { fill: #94a3b8; font-size: 10px; pointer-events: none; }
+  .node.project text { fill: #e2e8f0; font-size: 11px; font-weight: 500; }
+  .tooltip { position: absolute; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px 14px; color: #e2e8f0; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.15s; max-width: 250px; }
+  .tooltip .bucket { color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .tooltip .type { color: #64748b; font-size: 10px; }
+  .legend { position: fixed; bottom: 20px; left: 20px; display: flex; gap: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; color: #94a3b8; font-size: 11px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  h1 { position: fixed; top: 20px; left: 20px; color: #e2e8f0; font-size: 16px; font-weight: 500; }
+  .stats { position: fixed; top: 44px; left: 20px; color: #64748b; font-size: 11px; }
+</style>
+</head>
+<body>
+<h1>meta-kb Knowledge Graph</h1>
+<div class="stats">52 entities · 64 relationships</div>
+<div class="tooltip" id="tooltip"></div>
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Knowledge Bases</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Agent Memory</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Context Engineering</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Agent Systems</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div>Self Improving</div>
+</div>
+<svg></svg>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const graph = {"nodes":[{"id":"claude-code","name":"Claude Code","type":"project","bucket":"agent-systems"},{"id":"openai","name":"OpenAI","type":"project","bucket":"agent-systems"},{"id":"rag","name":"Retrieval-Augmented Generation","type":"concept","bucket":"knowledge-bases"},{"id":"anthropic","name":"Anthropic","type":"project","bucket":"agent-systems"},{"id":"andrej-karpathy","name":"Andrej Karpathy","type":"person","bucket":"agent-systems"},{"id":"openclaw","name":"OpenClaw","type":"project","bucket":"agent-systems"},{"id":"cursor","name":"Cursor","type":"project","bucket":"agent-systems"},{"id":"mcp","name":"Model Context Protocol","type":"concept","bucket":"context-engineering"},{"id":"langchain","name":"LangChain","type":"project","bucket":"agent-systems"},{"id":"opencode","name":"OpenCode","type":"project","bucket":"agent-systems"},{"id":"zep","name":"Zep","type":"project","bucket":"agent-memory"},{"id":"graphrag","name":"GraphRAG","type":"project","bucket":"knowledge-bases"},{"id":"mem0","name":"Mem0","type":"project","bucket":"agent-memory"},{"id":"context-engineering","name":"Context Engineering","type":"approach","bucket":"context-engineering"},{"id":"claude","name":"Claude","type":"project","bucket":"agent-systems"},{"id":"agent-skills","name":"Agent Skills","type":"concept","bucket":"agent-systems"},{"id":"skill-md","name":"skill.md","type":"concept","bucket":"agent-systems"},{"id":"bm25","name":"BM25","type":"approach","bucket":"knowledge-bases"},{"id":"hotpotqa","name":"HotpotQA","type":"project","bucket":"knowledge-bases"},{"id":"langgraph","name":"LangGraph","type":"project","bucket":"agent-systems"},{"id":"windsurf","name":"Windsurf","type":"project","bucket":"agent-systems"},{"id":"codex","name":"OpenAI Codex","type":"project","bucket":"agent-systems"},{"id":"progressive-disclosure","name":"Progressive Disclosure","type":"concept","bucket":"context-engineering"},{"id":"llamaindex","name":"LlamaIndex","type":"project","bucket":"knowledge-bases"},{"id":"prompt-engineering","name":"Prompt Engineering","type":"approach","bucket":"context-engineering"},{"id":"vector-database","name":"Vector Database","type":"concept","bucket":"knowledge-bases"},{"id":"grpo","name":"GRPO","type":"concept","bucket":"self-improving"},{"id":"hybrid-retrieval","name":"Hybrid Retrieval","type":"approach","bucket":"knowledge-bases"},{"id":"semantic-search","name":"Semantic Search","type":"approach","bucket":"knowledge-bases"},{"id":"raptor","name":"RAPTOR","type":"project","bucket":"knowledge-bases"},{"id":"openai-agents-sdk","name":"OpenAI Agents SDK","type":"project","bucket":"agent-systems"},{"id":"github-copilot","name":"GitHub Copilot","type":"project","bucket":"agent-systems"},{"id":"gemini","name":"Google Gemini","type":"project","bucket":"agent-systems"},{"id":"agents-md","name":"agents.md","type":"concept","bucket":"agent-systems"},{"id":"ragflow","name":"RAGFlow","type":"project","bucket":"knowledge-bases"},{"id":"meta-kb","name":"Meta-KB","type":"project","bucket":"knowledge-bases"},{"id":"cognee","name":"Cognee","type":"project","bucket":"knowledge-bases"},{"id":"aider","name":"Aider","type":"project","bucket":"agent-systems"},{"id":"context-window-management","name":"Context Window Management","type":"concept","bucket":"context-engineering"},{"id":"multi-hop-reasoning","name":"Multi-Hop Reasoning","type":"concept","bucket":"knowledge-bases"},{"id":"agentic-rag","name":"Agentic RAG","type":"approach","bucket":"knowledge-bases"},{"id":"hipporag","name":"HippoRAG","type":"project","bucket":"knowledge-bases"},{"id":"lightrag","name":"LightRAG","type":"project","bucket":"knowledge-bases"},{"id":"autogen","name":"AutoGen","type":"project","bucket":"agent-systems"},{"id":"reinforcement-learning","name":"Reinforcement Learning","type":"approach","bucket":"self-improving"},{"id":"swe-bench","name":"SWE-Bench","type":"project","bucket":"agent-systems"},{"id":"entity-extraction","name":"Entity Extraction","type":"approach","bucket":"knowledge-bases"},{"id":"deepseek","name":"DeepSeek","type":"project","bucket":"agent-systems"},{"id":"chunking","name":"Chunking","type":"concept","bucket":"knowledge-bases"},{"id":"tobi-lutke","name":"Tobi Lütke","type":"person","bucket":"agent-systems"},{"id":"omar-khattab","name":"Omar Khattab","type":"person","bucket":"context-engineering"},{"id":"arc-agi","name":"ARC-AGI","type":"project","bucket":"agent-systems"}],"edges":[{"source":"claude-code","target":"anthropic","type":"created_by","weight":0.95},{"source":"claude-code","target":"claude","type":"part_of","weight":0.85},{"source":"claude-code","target":"openai","type":"competes_with","weight":0.6},{"source":"claude-code","target":"cursor","type":"competes_with","weight":0.8},{"source":"claude-code","target":"opencode","type":"competes_with","weight":0.75},{"source":"claude-code","target":"mcp","type":"implements","weight":0.8},{"source":"claude-code","target":"agent-skills","type":"implements","weight":0.7},{"source":"claude-code","target":"agents-md","type":"implements","weight":0.65},{"source":"claude-code","target":"skill-md","type":"implements","weight":0.6},{"source":"claude-code","target":"context-engineering","type":"implements","weight":0.6},{"source":"claude-code","target":"openclaw","type":"alternative_to","weight":0.6},{"source":"claude-code","target":"codex","type":"competes_with","weight":0.75},{"source":"claude-code","target":"github-copilot","type":"competes_with","weight":0.65},{"source":"claude-code","target":"windsurf","type":"competes_with","weight":0.7},{"source":"claude-code","target":"aider","type":"competes_with","weight":0.6},{"source":"claude-code","target":"progressive-disclosure","type":"implements","weight":0.5},{"source":"claude-code","target":"rag","type":"implements","weight":0.45},{"source":"claude-code","target":"prompt-engineering","type":"implements","weight":0.45},{"source":"claude-code","target":"context-window-management","type":"implements","weight":0.5},{"source":"claude-code","target":"swe-bench","type":"part_of","weight":0.3},{"source":"claude-code","target":"tobi-lutke","type":"created_by","weight":0.2},{"source":"openai","target":"anthropic","type":"competes_with","weight":0.9},{"source":"openai","target":"codex","type":"created_by","weight":0.95},{"source":"openai","target":"openai-agents-sdk","type":"created_by","weight":0.95},{"source":"openai","target":"gemini","type":"competes_with","weight":0.85},{"source":"openai","target":"claude","type":"competes_with","weight":0.85},{"source":"openai","target":"deepseek","type":"competes_with","weight":0.75},{"source":"openai","target":"mcp","type":"implements","weight":0.6},{"source":"openai","target":"langchain","type":"part_of","weight":0.3},{"source":"openai","target":"langgraph","type":"part_of","weight":0.3},{"source":"openai","target":"github-copilot","type":"created_by","weight":0.7},{"source":"openai","target":"rag","type":"implements","weight":0.5},{"source":"openai","target":"reinforcement-learning","type":"implements","weight":0.5},{"source":"openai","target":"grpo","type":"implements","weight":0.4},{"source":"openai","target":"autogen","type":"created_by","weight":0.5},{"source":"openai","target":"swe-bench","type":"part_of","weight":0.3},{"source":"openai","target":"arc-agi","type":"part_of","weight":0.3},{"source":"openai","target":"andrej-karpathy","type":"created_by","weight":0.4},{"source":"openai","target":"omar-khattab","type":"part_of","weight":0.2},{"source":"openai","target":"tobi-lutke","type":"part_of","weight":0.2},{"source":"rag","target":"graphrag","type":"part_of","weight":0.7},{"source":"rag","target":"agentic-rag","type":"extends","weight":0.8},{"source":"rag","target":"hybrid-retrieval","type":"extends","weight":0.7},{"source":"rag","target":"raptor","type":"implements","weight":0.7},{"source":"rag","target":"hipporag","type":"implements","weight":0.7},{"source":"rag","target":"lightrag","type":"implements","weight":0.7},{"source":"rag","target":"ragflow","type":"implements","weight":0.7},{"source":"rag","target":"semantic-search","type":"part_of","weight":0.6},{"source":"rag","target":"vector-database","type":"part_of","weight":0.6},{"source":"rag","target":"bm25","type":"part_of","weight":0.5},{"source":"rag","target":"chunking","type":"part_of","weight":0.6},{"source":"rag","target":"entity-extraction","type":"part_of","weight":0.5},{"source":"rag","target":"context-engineering","type":"part_of","weight":0.5},{"source":"rag","target":"llamaindex","type":"implements","weight":0.6},{"source":"rag","target":"langchain","type":"implements","weight":0.5},{"source":"rag","target":"multi-hop-reasoning","type":"part_of","weight":0.5},{"source":"rag","target":"hotpotqa","type":"part_of","weight":0.4},{"source":"rag","target":"mcp","type":"alternative_to","weight":0.3},{"source":"rag","target":"cursor","type":"implements","weight":0.4},{"source":"rag","target":"opencode","type":"implements","weight":0.4},{"source":"rag","target":"zep","type":"implements","weight":0.5},{"source":"rag","target":"mem0","type":"implements","weight":0.5},{"source":"rag","target":"cognee","type":"implements","weight":0.5},{"source":"rag","target":"meta-kb","type":"implements","weight":0.5}]};
+const colors = {"knowledge-bases":"#f59e0b","agent-memory":"#3b82f6","context-engineering":"#10b981","agent-systems":"#ef4444","self-improving":"#8b5cf6"};
+
+const width = window.innerWidth;
+const height = window.innerHeight;
+
+const svg = d3.select("svg")
+  .attr("viewBox", [0, 0, width, height]);
+
+// Zoom
+const g = svg.append("g");
+svg.call(d3.zoom().scaleExtent([0.2, 5]).on("zoom", (e) => g.attr("transform", e.transform)));
+
+// Force simulation
+const simulation = d3.forceSimulation(graph.nodes)
+  .force("link", d3.forceLink(graph.edges).id(d => d.id).distance(d => 120 - d.weight * 60).strength(d => d.weight * 0.3))
+  .force("charge", d3.forceManyBody().strength(-200))
+  .force("center", d3.forceCenter(width / 2, height / 2))
+  .force("collision", d3.forceCollide().radius(d => d.type === "project" ? 30 : 20))
+  .force("x", d3.forceX(width / 2).strength(0.03))
+  .force("y", d3.forceY(height / 2).strength(0.03));
+
+// Links
+const link = g.append("g")
+  .selectAll("line")
+  .data(graph.edges)
+  .join("line")
+  .attr("class", "link")
+  .attr("stroke", "#475569")
+  .attr("stroke-width", d => 0.5 + d.weight * 2);
+
+// Nodes
+const node = g.append("g")
+  .selectAll("g")
+  .data(graph.nodes)
+  .join("g")
+  .attr("class", d => "node " + d.type)
+  .call(d3.drag()
+    .on("start", (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+    .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
+    .on("end", (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+node.append("circle")
+  .attr("r", d => d.type === "project" ? 8 : d.type === "concept" ? 5 : 4)
+  .attr("fill", d => colors[d.bucket] || "#64748b")
+  .attr("opacity", d => d.type === "project" ? 0.9 : 0.5);
+
+node.append("text")
+  .attr("dx", d => (d.type === "project" ? 12 : 8))
+  .attr("dy", 3)
+  .text(d => d.name);
+
+// Tooltip
+const tooltip = d3.select("#tooltip");
+node.on("mouseover", (e, d) => {
+  tooltip.style("opacity", 1)
+    .html('<div class="bucket">' + d.bucket + '</div><strong>' + d.name + '</strong><div class="type">' + d.type + '</div>')
+    .style("left", (e.pageX + 15) + "px")
+    .style("top", (e.pageY - 10) + "px");
+  // Highlight connections
+  const connected = new Set();
+  graph.edges.forEach(l => { if (l.source.id === d.id) connected.add(l.target.id); if (l.target.id === d.id) connected.add(l.source.id); });
+  node.select("circle").attr("opacity", n => n.id === d.id || connected.has(n.id) ? 1 : 0.1);
+  node.select("text").attr("opacity", n => n.id === d.id || connected.has(n.id) ? 1 : 0.1);
+  link.attr("stroke-opacity", l => l.source.id === d.id || l.target.id === d.id ? 0.8 : 0.05);
+}).on("mouseout", () => {
+  tooltip.style("opacity", 0);
+  node.select("circle").attr("opacity", d => d.type === "project" ? 0.9 : 0.5);
+  node.select("text").attr("opacity", 1);
+  link.attr("stroke-opacity", 0.3);
+});
+
+simulation.on("tick", () => {
+  link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+  node.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+});
+</script>
+</body>
+</html>

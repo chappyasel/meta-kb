@@ -18,6 +18,7 @@ key_insight: >-
   inference, it turns ad-hoc corrections into reusable patterns that compound
   across sessions.
 stars: 2112
+deep_researched: 'deep/repos/kayba-ai-agentic-context-engine.md'
 forks: 264
 relevance_scores:
   topic_relevance: 9

@@ -19,6 +19,7 @@ key_insight: >-
   base retrieval, agent reasoning chains, and skill composition without
   prohibitive LLM costs.
 stars: 3157
+deep_researched: 'deep/repos/gepa-ai-gepa.md'
 forks: 269
 relevance_scores:
   topic_relevance: 8

@@ -1,84 +1,48 @@
----
-entity_id: llmlingua
-type: project
-bucket: context-engineering
-sources:
-  - repos/microsoft-llmlingua.md
-related:
-  - Context Compression
-last_compiled: '2026-04-04T21:20:40.819Z'
----
 # LLMLingua
+
+> Microsoft's prompt compression library that uses small language models to identify and remove non-essential tokens, achieving up to 20x compression with minimal performance loss -- directly addressing the cost and latency bottleneck in RAG and long-context inference.
 
 ## What It Does
 
-LLMLingua is a family of prompt compression tools from Microsoft Research that use small language models (SLMs) to identify and remove redundant tokens from prompts before sending them to larger, more expensive LLMs. The goal is to reduce token count—and therefore cost and latency—while preserving task-relevant information.
+LLMLingua takes a prompt and compresses it by selectively removing tokens that a small, well-trained language model (GPT-2-small, LLaMA-7B, or BERT-level encoder) identifies as non-essential. The compressed prompt preserves the key information that large LLMs need to generate correct responses. Three variants exist: LLMLingua (original, budget-constrained compression), LongLLMLingua (mitigates "lost in the middle" for long contexts, improves RAG by 21.4% with 1/4 tokens), and LLMLingua-2 (3-6x faster via data distillation from GPT-4 into a BERT-level token classifier). A fourth variant, SecurityLingua, uses compression to reveal malicious intent in jailbreak attacks.
 
-The family has evolved across multiple generations:
-- **LLMLingua** (EMNLP 2023): Original approach using perplexity-based token scoring
-- **LLMLingua-2**: Improved compression with better semantic preservation
-- **LongLLMLingua**: Optimized for long-context scenarios (RAG, document QA)
+## Architecture
 
-## What's Unique
+The compression pipeline:
 
-The core insight is using a small, cheap model to score token importance before sending context to a large, expensive one. Rather than summarizing or extracting (which requires generation), LLMLingua does *selective deletion*—tokens with high perplexity under the SLM (i.e., surprising or non-redundant tokens) are kept; low-perplexity (predictable, redundant) tokens are dropped. This preserves the original tokens and their order without hallucinating new content.
+1. **Token scoring**: A small LM (compressor model) scores each token's importance based on perplexity/entropy
+2. **Selective removal**: Non-essential tokens are dropped according to a target compression ratio or token budget
+3. **Structured compression**: Optional `<llmlingua>` tags let users define per-section compression rates and exclude critical segments
+
+LLMLingua-2 replaces the perplexity-based approach with a BERT-level encoder trained via data distillation from GPT-4 for token classification, making it task-agnostic and 3-6x faster. Supports structured prompts with section-level compression control. Also supports KV-Cache compression for inference acceleration.
+
+Integrated into LangChain, LlamaIndex, and Microsoft Prompt Flow.
 
 ## Key Numbers
 
-| Metric | Value |
-|--------|-------|
-| GitHub Stars | ~6,000 |
-| Max compression ratio | 20× |
-| License | MIT |
-| Published | EMNLP 2023, ACL 2024 |
-| Language | Python |
-
-Claimed: up to 20× compression with minimal performance loss on downstream tasks.
-
-## Architecture Summary
-
-1. A small LM (e.g., LLaMA-7B or similar) scores each token by perplexity
-2. Tokens below an importance threshold are removed
-3. The compressed prompt is sent to the target LLM
-4. LongLLMLingua adds document-level reordering to surface relevant chunks first
-
-Integrates with LangChain and LlamaIndex, making it drop-in compatible with common RAG pipelines.
+- **5,985 GitHub stars**, 358 forks
+- **Up to 20x compression** with minimal performance loss
+- **21.4% RAG improvement** with LongLLMLingua using only 1/4 of tokens
+- **3-6x speed improvement** with LLMLingua-2 over v1
+- 3 peer-reviewed papers (EMNLP 2023, ACL 2024, ACL 2024 Findings)
+- SecurityLingua: 100x less token cost vs. state-of-the-art LLM guardrails
+- MIT license, Python
 
 ## Strengths
 
-- **Cost reduction**: 20× compression = roughly 20× fewer tokens billed
-- **Latency**: Smaller context → faster inference on the target model
-- **RAG-friendly**: LongLLMLingua specifically targets multi-document retrieved contexts
-- **No target model changes**: Works as preprocessing; target LLM is unmodified
-- **Open source**: MIT license, commercially usable
-- **Non-generative**: Deletion-based approach avoids hallucination risk from summarization
+- Three peer-reviewed papers (EMNLP, ACL) provide rigorous evidence that compression preserves reasoning quality -- this is not just empirical hand-waving
+- Direct integration with LangChain and LlamaIndex means RAG builders can add compression as a post-processing step without architectural changes
 
 ## Limitations
 
-- **Requires a local SLM**: You need to run a scoring model (e.g., 7B parameters), which adds infrastructure overhead and may negate savings at small scale
-- **Compression quality varies**: Performance degrades on tasks requiring precise numerical data, code, or structured formats where "redundant" tokens may actually matter
-- **Perplexity as proxy**: Token importance is inferred indirectly; the SLM's perplexity may not perfectly align with what the target LLM actually needs
-- **Benchmark gap**: Most evaluations are on QA benchmarks—real-world performance on diverse tasks is less documented
-- **Latency tradeoff**: Running the SLM scorer adds wall-clock time; the net latency gain depends on the cost ratio between scoring and target inference
+- Compression is lossy by design -- at aggressive ratios (15-20x), edge cases and nuanced details can be dropped, requiring careful tuning per use case
+- Requires running a small LM (GPT-2 or BERT-level) for compression, adding a GPU/CPU dependency that purely API-based systems avoid
 
 ## Alternatives
 
-| Tool | Approach | Notes |
-|------|----------|-------|
-| [Selective Context](../projects/) | Sentence-level filtering | Coarser granularity |
-| Summarization (GPT-4 etc.) | Generative | Higher quality, higher cost, hallucination risk |
-| Rerankers (Cohere, BGE) | Chunk selection | Works at retrieval level, not token level |
-| KV-cache compression | Architectural | Requires model access, not a preprocessing step |
+- [pageindex.md](pageindex.md) -- use when you want to eliminate chunking entirely via reasoning-based retrieval rather than compressing retrieved chunks
+- [hipporag.md](hipporag.md) -- use when you want to improve retrieval quality via knowledge graph structure rather than compressing what you retrieve
 
-## Practical Fit
+## Sources
 
-Best suited for RAG pipelines with large retrieved contexts where the retrieved documents contain substantial redundancy (boilerplate, repetitive passages, off-topic sentences). Less useful when every token matters (code, structured data, short prompts) or when you lack the infrastructure to run a scoring SLM.
-
-**Related concepts**: [Context Compression](../concepts/context-compression.md)
-
-**Sources**: [Source](../../raw/repos/microsoft-llmlingua.md)
-
-
-## Related
-
-- [Context Compression](../concepts/context-compression.md) — implements (0.9)
+- [microsoft-llmlingua.md](../../raw/repos/microsoft-llmlingua.md) -- "LLMLingua utilizes a compact, well-trained language model to identify and remove non-essential tokens in prompts, achieving up to 20x compression with minimal performance loss"

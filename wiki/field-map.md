@@ -1,225 +1,198 @@
-# Field Map
+---
+title: The Landscape of LLM Knowledge Systems
+type: field-map
+last_compiled: '2026-04-05T06:04:55.395Z'
+---
+# The Landscape of LLM Knowledge Systems
 
-> The five buckets in this repo are not five separate markets. They are five layers of the same emerging stack: knowledge bases shape what can persist, memory decides what stays relevant, context engineering decides what gets surfaced now, agent systems decide how capabilities are packaged, and self-improving loops decide how the whole stack evolves. [Karpathy](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) [Anthropic](../raw/articles/effective-context-engineering-for-ai-agents.md) [Xu & Yan](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md)
+Five areas of active development sit in every serious practitioner's reading list: knowledge bases, agent memory, context engineering, agent systems, and self-improving systems. Most people encounter them as separate topics. They are five layers of the same stack, and the interfaces between them are where most production systems break.
 
-The fastest way to get lost in this field is to study each bucket in isolation. If you do that, markdown wikis look like a storage fad, skills look like prompt packaging, and self-improvement looks like a separate research thread. Read the corpus as a whole and a different picture appears: the field is standardizing around inspectable external artifacts that agents can load, mutate, validate, and feed back into future work. [knowledge-bases](knowledge-bases.md) [agent-memory](agent-memory.md) [context-engineering](context-engineering.md) [agent-systems](agent-systems.md) [self-improving](self-improving.md)
+The unifying idea: knowledge feeds memory, memory shapes context, context enables agents to act, and agent actions create the feedback loops that let systems improve. Remove any layer and the stack degrades in a specific, predictable way.
 
-## The New Default Stack
+## The Five Layers
 
-The old default stack for LLM products was simple: prompt plus tools plus maybe RAG. The new default stack is more layered:
+**Knowledge bases** are the raw substrate. Documents, facts, structured records, conversation histories. The central engineering problem is retrieval: given a query at runtime, which pieces of knowledge are relevant? The answer depends on whether knowledge is stored as vector embeddings, graph edges, or plain text files, and whether it is static or continuously updated. See [The State of LLM Knowledge Bases](knowledge-bases.md).
 
-1. Raw sources are ingested into a durable substrate: markdown files, graph stores, SQL memory, or packaged documentation assets. [Karpathy](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) [Graphiti](projects/graphiti.md) Skill Seekers
-2. An agent-facing memory layer decides what should persist as episodic traces, semantic facts, procedural lessons, or temporal relations. [Mem0](projects/mem0.md) Memori [Graphiti](projects/graphiti.md)
-3. A context layer decides what gets loaded now, in what order, and at what token cost. Claude-Mem OpenViking [LLMLingua](projects/llmlingua.md)
-4. A skills or workflow layer packages specialized capabilities and routes work to the right procedure. Anthropic Skills gstack [AI-Research-SKILLs](projects/ai-research-skills.md)
-5. A verification and improvement loop observes failures, proposes changes, and promotes only validated updates back into the system. [Autoresearch](projects/autoresearch.md) [ACE](concepts/execution-traces.md) [GEPA](projects/gepa.md)
+**Agent memory** is knowledge personalized and temporalized. Where a knowledge base stores what is true in general, agent memory stores what is true for this user, in this context, as of this moment. The central engineering problem is persistence: how does information cross the session boundary, and how does the system handle contradictions between what it "knew" last week and what it learns today? See [The State of Agent Memory](agent-memory.md).
 
-That stack is visible across the strongest sources. Karpathy’s markdown wiki pattern is not just a knowledge-base idea. It is already a context-engineering strategy, a self-improvement loop, and a workflow substrate. [Jumpers](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md) adds the missing review gate, showing where a permanent knowledge base needs a separate validator if it is going to compound safely. [Jumperz](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md)
+**Context engineering** is the runtime assembly problem. Given all the knowledge and memory available, what goes into the context window for a specific task? At 1 million tokens of capacity, naive approaches still fail because attention is not uniform and cost is not zero. The central engineering problem is selection: what to include, at what level of detail, in what order. See [The State of Context Engineering](context-engineering.md).
 
-## The Three Big Shifts
+**Agent systems** are where knowledge, memory, and context combine into something that takes actions. An agent without good memory repeats mistakes. An agent without good context engineering hallucinates from incomplete information. An agent without a knowledge substrate cannot ground its actions in facts. The central engineering problem is coordination: how do multiple agents share state without corrupting it? See [The State of Agent Systems](agent-systems.md).
 
-### From Retrieval To Maintenance
+**Self-improving systems** close the loop. Agent actions produce outcomes; outcomes generate training signal; training signal updates skills, knowledge, and memory. The central engineering problem is the fitness function: what counts as improvement, and how do you prevent the system from gaming the metric? See [The State of Self-Improving Systems](self-improving.md).
 
-The field used to ask: how do we retrieve the right chunk? It is now asking: how do we maintain the right artifact? That is a more powerful question. Once a wiki, memory graph, or skill registry becomes the maintained object, retrieval quality improves as a side effect of better curation, better compression, and better review loops. [Karpathy](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) [Graphiti](projects/graphiti.md) Skill Seekers
+## Integration Points
 
-### From Monolithic Prompts To Layered Context
+### Knowledge Bases -> Agent Memory
 
-The field has also outgrown the fantasy that one giant system prompt can carry an agent. The current best practice is layered context: project guidance, scoped rules, lazily loaded skills, just-in-time file retrieval, compressed history, external memory, and sometimes separate subagents with clean windows. Context engineering is turning into architecture. [Anthropic](../raw/articles/effective-context-engineering-for-ai-agents.md) [Martin Fowler](../raw/articles/martinfowler-com-context-engineering-for-coding-agents.md) planning-with-files
+The interface is ingestion and extraction. A knowledge base holds raw documents. Agent memory holds extracted, structured, personalized facts. The pipeline that converts one into the other determines retrieval quality.
 
-### From Static Workflows To Evolving Systems
+[Graphiti](projects/graphiti.md) (24,473 stars) makes this interface explicit: every document episode triggers entity extraction, relationship building, and fact invalidation against existing edges. The validity window `(entity -> relationship -> entity, valid_from, valid_to)` means the memory layer knows not just what is true but when it was true. [Cognee](projects/cognee.md) (14,899 stars) runs a similar `cognify()` pipeline on ingest.
 
-Finally, the most forward-looking projects assume the system will keep rewriting itself. Not by magical self-awareness, but by ordinary loops: evaluate, reflect, mutate, verify, promote. This is why self-improvement now touches every bucket. Memory systems store the lessons. Context systems expose them. Skills systems package them. Knowledge bases absorb them. [Autoresearch](projects/autoresearch.md) [ACE](concepts/execution-traces.md) [Reflexion](../raw/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md) [Darwin Godel Machine](../raw/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md)
+When this interface is missing, you get semantic staleness: a user's preferences change, but the old high-similarity vector still scores highest. The agent acts on a fact that stopped being true six months ago. [Mem0](projects/mem0.md) (51,880 stars) handles this with LLM-driven extraction at each session boundary: the model decides what to write back, which facts to update, which to discard.
 
-## How A Mature Stack Handles One Task
+### Agent Memory -> Context Engineering
 
-The easiest way to see the buckets as one system is to walk through a concrete task.
+Memory stores facts. Context engineering decides which facts to surface for a specific task. The interface is retrieval routing: given a query, which memory stores get searched, by what method, and how do results get assembled?
 
-Imagine a coding agent dropped into a new repository. It does not start from raw documents alone. First it reads a durable knowledge layer: a compiled wiki, a project guide, a set of notes, or a skill registry. That is the knowledge-base bucket at work. It gives the agent a curated map before the agent starts improvising. [Karpathy](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) Skill Seekers
+[Hipocampus](projects/hipocampus.md) (145 stars) makes the routing problem concrete. Its ROOT.md is a 3K-token topic index loaded at every session start, giving the agent a map of what it knows before any retrieval query fires. Entries like `legal [reference, 14d]: Civil Act S750 -> knowledge/legal-750.md` let the agent jump to relevant files rather than running similarity search against unknown unknowns. On MemAware: 21% overall versus 3.4% for vector search alone.
 
-Next, the system checks memory. Has this repo been touched before? Are there durable notes about conventions, prior failures, or known traps? Should the agent load a user preference, a task timeline, or a previously learned strategy? That is the memory layer deciding what from the past deserves influence in the present. [Mem0](projects/mem0.md) Claude-Mem [Graphiti](projects/graphiti.md)
+When this interface breaks, you get the unknown-unknowns problem: the agent does not retrieve relevant context because it does not know to search for it. A decision made three weeks ago in a different domain affected today's task, but no query surfaces it.
 
-Then context engineering takes over. Even if the system has rich memory and a large knowledge base, it still cannot dump everything into the active window. It needs to choose the minimum viable context: maybe a short repo guide, one skill, two files, and a small set of tool descriptions. The rest stays latent until evidence justifies expansion. [Anthropic](../raw/articles/effective-context-engineering-for-ai-agents.md) planning-with-files
+[OpenViking](projects/openviking.md) (20,813 stars) addresses assembly. Its L0/L1/L2 tiered loading means the agent loads one-sentence abstracts for all candidates, promotes relevant ones to full content, and avoids context bloat. On LoCoMo10: 52% task completion versus 36% baseline at 83% lower token cost.
 
-Only after those layers are set does the capability system matter. The agent decides whether to load a review skill, a QA skill, a debugging workflow, or a research subagent. At that point the system is no longer “the model plus tools.” It is a routed execution graph over packaged capabilities. Anthropic Skills gstack [AI-Research-SKILLs](projects/ai-research-skills.md)
+### Context Engineering -> Agent Systems
 
-Finally, after the task runs, the self-improvement layer asks what should persist. Did the run reveal a reusable lesson, a better context policy, a stronger skill, or a new benchmark case? If yes, the system proposes a durable update. If not, the trace remains ephemeral. This last step is what turns a one-off agent into a compounding system. [Autoresearch](projects/autoresearch.md) [ACE](concepts/execution-traces.md) [Memento](projects/memento.md)
+Context engineering produces the assembled input. Agent systems consume it and decide what actions to take. The interface is the system prompt and tool call schema.
 
-Read that sequence carefully and the buckets stop looking like a taxonomy exercise. They become the stages of a single control loop.
+[Anthropic's Skills repo](projects/anthropic.md) (110,064 stars) standardized one half: SKILL.md files with YAML frontmatter for discoverability and markdown bodies, enabling progressive disclosure. A survey found 26.1% of community skills contain vulnerabilities, making provenance and governance active problems.
 
-## Why External Artifacts Keep Winning
+[Acontext](projects/acontext.md) (3,264 stars) treats skills as the memory format: after each task, a distillation pipeline extracts what worked and writes to a SKILL.md schema. The agent recalls by calling `get_skill`, no semantic search, just tool calls and structured files.
 
-Across almost every source, the most reliable improvements come from moving important state outside the opaque model context and into explicit artifacts. Those artifacts may be markdown files, skill folders, graph edges, SQL rows, traces, workflow manifests, or benchmark suites. The exact substrate differs, but the move is the same: make the system’s operating knowledge inspectable and editable. [Martin Fowler](../raw/articles/martinfowler-com-context-engineering-for-coding-agents.md) [Xu & Yan](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md)
+When this interface is poorly designed, agents get brittle. A skill exists in memory but the context layer never surfaces it. Or the agent loads too many skills at startup, burning context on irrelevant capabilities.
 
-This is not just about debuggability. It is also about collaboration. Human operators can review a wiki page, a skill definition, or a stored reflection in a way they cannot review latent weights or a tangled multi-turn prompt history. External artifacts create handoff surfaces between humans and agents. They let teams decide which layers should be machine-maintained, which should be human-authored, and which should be jointly edited. [Anthropic](../raw/articles/effective-context-engineering-for-ai-agents.md) [Jumperz](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md)
+### Agent Systems -> Self-Improving Systems
 
-They also create portability. A learned lesson kept only inside a giant system prompt is fragile. The same lesson stored as a skill, note, benchmark case, or memory entry can move across agents and runtimes. This is one reason skill registries and packaging systems feel so important right now: they are turning ephemeral procedure into durable infrastructure. Skill Seekers Anthropic Skills
+Agent execution produces outcomes. Self-improving systems turn those outcomes into capability updates. The interface is the evaluation loop: task execution -> scoring -> write-back to skills, memory, or model weights.
 
-## Boundary Failures Are The Real Failure Modes
+[Memento-Skills](projects/memento-skills.md) (916 stars) operationalizes this at the skill level: execute, reflect, assign utility scores, update the skill router. All adaptation stays in external files. [ACE](projects/agentic-context-engine.md) (2,112 stars) goes further with a Recursive Reflector that writes Python in a sandbox to extract patterns from traces. On Tau2: 15 learned strategies doubled pass^4 consistency.
 
-Most serious failures in the corpus happen at the boundaries between buckets.
+[CORAL](projects/coral.md) (120 stars) handles the multi-agent variant. Each agent in its own git worktree branch. Shared state in `.coral/public/` symlinks into every worktree.
 
-One common failure is letting raw retrieval do the job of curation. Teams pull more chunks because they lack a maintained knowledge layer. The result is not richer understanding but noisier prompts. The fix is not usually “better embeddings.” It is often “better artifacts.” [Han et al.](../raw/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md) [Karpathy](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
+When this interface is absent, agents repeat mistakes across sessions. Every task starts cold. This is the default state of most deployed agents.
 
-Another common failure is letting memory do the job of context engineering. A system may store many relevant facts but still fail because it has no good policy for what to surface now. Memory quality and active-context quality are related but not interchangeable. This is why projects like OpenViking and Claude-Mem combine memory storage with explicit staged retrieval. [OpenViking](../raw/repos/volcengine-openviking.md) [Claude-Mem](../raw/repos/thedotmack-claude-mem.md)
+## Cross-Cutting Themes
 
-Another failure is letting skills do the job of orchestration. A team may accumulate a large registry of capabilities and still have poor results because it has not solved routing, sequencing, or evaluation. Skills answer “what can the system do?” Workflow graphs answer “what should happen in this run?” Treating those as the same problem leads to sprawling but unreliable harnesses. [Yue et al.](../raw/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md) [AI-Research-SKILLs](projects/ai-research-skills.md)
+### Markdown Won
 
-The last major failure is letting self-improvement bypass governance. A system that can rewrite its wiki, skills, or prompts without a meaningful promotion gate will eventually optimize for the wrong proxy. The recurring lesson from Karpathy, OpenAI, LangSmith, Arion, and Jumperz is that improvement loops need separate evaluators, explicit budgets, and rollback paths. [OpenAI cookbook](../raw/articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md) [Arion circuit breakers](../raw/articles/arion-research-llc-algorithmic-circuit-breakers-preventing-flash-cr.md)
+Across all five domains, the output format is overwhelmingly markdown. Knowledge bases compile to markdown wikis. Agent memory stores to markdown files. Context architecture lives in CLAUDE.md. Skills are SKILL.md folders. Self-improving loops track changes via markdown specs.
 
-## The Most Important Fault Lines
+Markdown is the one format that is human-readable, LLM-readable, version-controllable, and renderable in multiple tools. It is the lingua franca of LLM-native knowledge engineering.
 
-There are still real disagreements in the field.
+### The Finite Attention Budget
 
-The first is human legibility versus machine structure. Markdown-first systems like Napkin, Claude-Mem, and the Karpathy wiki pattern optimize for inspectability. Graph-heavy systems like [Graphiti](projects/graphiti.md) optimize for relations and temporality. Both are right about different failure modes. [Napkin](../raw/repos/michaelliv-napkin.md) [Claude-Mem](../raw/repos/thedotmack-claude-mem.md) [Graphiti](../raw/repos/getzep-graphiti.md)
+The most important shared insight: **context is a finite resource that degrades with scale, not a container that expands with window size**.
 
-The second is open distribution versus governed distribution. Agent skills are exploding because they are useful, but the security survey is already telling the field that community abundance is not enough. Portable capabilities need provenance, testing, and permission models. Anthropic Skills claude-skills [Xu & Yan](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md)
+Knowledge base builders discovered this when RAG systems silently degraded from context bloat. Memory system builders discovered it when full-context injection caused 90% more token waste than selective retrieval. Context engineers formalized it as "context rot." Skill system builders solved it with progressive disclosure. Self-improving systems bypassed it by offloading knowledge to git and markdown.
 
-The third is offline optimization versus online improvement. Benchmark-driven loops are easier to trust; trace-driven loops fit product reality better. The likely end state is hybrid: offline regression suites to set the floor, online traces to discover the next problem, and human gates for high-impact promotions. [OpenAI cookbook](../raw/articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md) [LangSmith trace article](../raw/articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md)
+Every serious system converges on: **load the minimum context at the lowest resolution that answers the question**.
 
-## Practical Build Order For Teams
+### The Agent as Author
 
-One reason this field feels chaotic is that many teams try to adopt all five layers at once. The corpus suggests a better order.
+Across all five domains, agents are shifting from consumers of human-authored content to authors of their own knowledge. Agents compile knowledge bases. Agents maintain their own memory. Agents evolve their own context playbooks. Agents design their own skills. Agents improve their own code.
 
-Start by building a clean artifact layer. That can be a markdown wiki, a note vault, or a packaging pipeline, but it should make the domain legible. This gives the team a durable source of truth that agents and humans can both inspect. [Karpathy](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) Ars Contexta
+The human's role shifts from author to editor: defining constraints, reviewing outputs, designing reward functions. The Karpathy Loop makes this explicit: the human writes `program.md` (the spec), the agent writes `train.py` (the implementation).
 
-Then add the thinnest memory layer that solves a real continuity problem. If you do not need relational or temporal reasoning yet, file-based or structured-layer memory is often enough. Overbuilding graph memory too early is as real a mistake as underbuilding it too late. [Mem0](projects/mem0.md) planning-with-files [Graphiti](projects/graphiti.md)
+### Git as Infrastructure
 
-Then harden context engineering. This is where many teams discover that their real problem was not missing memory but weak selection policy. Tighten the always-on guide, move specialized procedures into skills, and add progressive disclosure before chasing bigger windows. [Anthropic](../raw/articles/effective-context-engineering-for-ai-agents.md) [Pawel Huryn](../raw/tweets/pawelhuryn-your-claude-md-is-doing-jobs-that-rules-hooks-an.md)
+Git appears everywhere: as the experiment ledger for self-improving loops, as the version control layer for knowledge bases, as the distribution mechanism for skills, as the session persistence layer for context management. Git provides atomicity (revert is trivial), auditability (diff any two versions), and collaboration (human reviews what the agent produced). No database or proprietary system offers all three simultaneously.
 
-Only then does it make sense to grow the agent system layer aggressively. Skills, roles, and subagents pay off once there is enough context discipline to keep them from becoming a new monolith. Anthropic Skills gstack
+### The Emergence of Forgetting
 
-Finally, add self-improvement loops after the first four layers are stable enough to evaluate. Improvement systems do not rescue bad foundations. They amplify whatever objective and governance structure already exists. [Autoresearch](projects/autoresearch.md) [Cameron Westland](../raw/articles/cameron-westland-autoresearch-is-reward-function-design.md)
+The field is recognizing that forgetting is as important as remembering. [MemoryBank](projects/memorybank.md) (419 stars) implements Ebbinghaus-inspired forgetting curves. [Graphiti](projects/graphiti.md) invalidates facts when contradictions are detected. [MemEvolve](projects/memevolve.md) (201 stars) evolves memory architecture including what to discard. Self-healing knowledge bases prune stale data through linting loops.
 
-## Practical Mental Model
+Systems that only append will drown in noise. The hardest design decision in agent architecture is not what to remember. It is what to forget.
 
-For practitioners, the shortest useful mental model is:
+### Binary Evaluation as Universal Primitive
 
-- A knowledge base is your durable artifact layer.
-- Memory is your persistence policy.
-- Context engineering is your selection policy.
-- Agent systems are your capability packaging and routing layer.
-- Self-improvement is your mutation and promotion layer.
+The most consistent practical finding across self-improving systems and skill evaluation: binary assertions beat subjective scoring. Does the response include an empathy phrase? Is the word count under 200? Does it avoid invented policies? Deterministic, comparable, debuggable. The moment you introduce a 1-7 scale, the system learns to produce outputs that score 5 but read like garbage.
 
-Most failures happen at the boundaries, not inside the layers. Teams stuff too much into context because they have weak memory. They build giant harnesses because they have weak skill packaging. They let agent outputs persist directly because they have weak review gates. The sources in this corpus are effectively different attempts to harden those boundaries. [Anthropic](../raw/articles/effective-context-engineering-for-ai-agents.md) [Jumperz](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md) [Xu & Yan](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md)
+## What the Field Got Wrong
 
-## Research Agenda Hiding In Plain Sight
+The dominant assumption from 2023: retrieval quality determines agent quality. Build a better vector database, maintain better embeddings, retrieve more relevant chunks.
 
-The next wave of work is not likely to produce one dominant architecture that replaces the rest. More likely, it will improve the interfaces between layers. Better promotion policies between memory and context. Better provenance for skills. Better ways to export knowledge into multiple agent surfaces without drift. Better evaluation harnesses for self-improving systems. Better graph abstractions that remain legible to human operators. [Xu & Yan](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md) [Rasmussen et al.](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md) [OpenAI cookbook](../raw/articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md)
+The assumption was incomplete in a specific way: retrieval quality determines agent quality on tasks where the agent knows what to search for. For the broader class of tasks where relevant context is not obvious from the query, retrieval does not help because no query fires for the relevant information.
 
-The deepest unanswered question is governance. The technical stack is advancing quickly, but the trust stack is still immature. Who is allowed to author memory? Who is allowed to publish skills? Who is allowed to promote a learned strategy into the default context? The sources increasingly imply that the next frontier is not just smarter agents, but safer interfaces for letting those agents shape the systems around them. [Arion circuit breakers](../raw/articles/arion-research-llc-algorithmic-circuit-breakers-preventing-flash-cr.md) [Jumperz](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md) [Xu & Yan](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md)
+The replacement insight: agents need both retrieval and disclosure. Retrieval is reactive: it answers queries. Disclosure is proactive: it surfaces context the agent did not know to ask for. Hipocampus's ROOT.md, OpenViking's tiered loading, and SKILL.md progressive disclosure are all implementations of proactive disclosure. The 5x improvement Hipocampus shows on hard cross-domain questions (8% versus 0.7% for search alone) comes from making relevant context navigable before any retrieval query fires.
 
-## What The Likely Winners Share
+A secondary error: assuming self-improvement required model fine-tuning. The autoresearch and skill accumulation work shows that keeping model weights frozen while writing improvement back to external skill files, GOAL.md loops, and knowledge bases produces substantial capability gains. Acontext and Memento-Skills both take this approach. The advantage is auditability: you can read what the system "learned," edit it, and roll back.
 
-Even though the projects in this repo disagree on storage model, runtime architecture, and evaluation style, the strongest ones share a small number of traits.
+## The Practitioner's Flow
 
-They expose inspectable artifacts. The artifact may be a wiki page, a memory timeline, a context playbook, a skill folder, or a benchmark case. But the system does not hide the important state inside an opaque prompt if it can avoid it. [Karpathy](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) [Anthropic Skills](../raw/repos/anthropics-skills.md) [Autoresearch](projects/autoresearch.md)
+A concrete trace of how a mature stack handles a real task: a software agent receives a request to debug a performance regression in a service it has worked on before.
 
-They stage access. The system does not assume the model should always see everything. Strong systems earn detail through retrieval, graph traversal, summary expansion, or skill loading. [Anthropic](../raw/articles/effective-context-engineering-for-ai-agents.md) OpenViking Claude-Mem
+**1. Session initialization (Hipocampus / Letta)**
 
-They separate proposal from promotion. This appears in explicit eval harnesses, blind review loops, circuit breakers, or curated registries. The system can generate new candidate knowledge or behavior quickly, but it does not let those candidates silently become the new default without a gate. [OpenAI cookbook](../raw/articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md) [Jumperz](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md)
+Before the agent reads the request, ROOT.md loads into the system prompt. It contains `performance [debugging, 3d]: profiling results -> sessions/2025-06-15.md` and `service-auth [architecture, 8d]: rate limiter change -> knowledge/auth-service.md`. The agent already knows it recently profiled this service and changed the rate limiter. No search query fired.
 
-And they optimize for compounding reuse rather than one-off brilliance. A good skill is valuable because it can be reused. A good memory entry is valuable because it prevents repeated mistakes. A good context playbook is valuable because it keeps future runs tighter. A good wiki page is valuable because future synthesis starts one layer higher. [ACE](concepts/execution-traces.md) Skill Seekers [Mem0](projects/mem0.md)
+**2. Query-time retrieval (Graphiti / Mem0)**
 
-## What To Avoid
+The agent processes the regression report and fires two retrieval queries: one for the service's recent performance history, one for the rate limiter implementation. Graphiti returns edges with validity windows: the old rate limiter config (invalidated 8 days ago) and the new one (valid from 8 days ago to present). The agent sees both old and new state and can reason about what changed.
 
-The negative synthesis is just as useful.
+**3. Skill lookup (Acontext / SKILL.md)**
 
-Avoid monolithic prompts that are trying to act as a knowledge base, a memory store, a style guide, a workflow registry, and a self-improvement log at the same time. That pattern keeps reappearing in weaker systems, and the field is steadily decomposing away from it. [Pawel Huryn](../raw/tweets/pawelhuryn-your-claude-md-is-doing-jobs-that-rules-hooks-an.md) [Martin Fowler](../raw/articles/martinfowler-com-context-engineering-for-coding-agents.md)
+The agent calls `get_skill("performance-debugging")`. The skill file returns a structured guide extracted from previous debugging sessions: which profiling tools to run first, which metrics to check, a common false positive to avoid in this service's flamegraph output. One tool call, not a similarity search.
 
-Avoid unlabeled persistence. If the system can write durable knowledge, memory, or skills, it needs provenance and review. Otherwise it is building future errors into its own substrate. [Jumperz](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md) [Xu & Yan](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md)
+**4. Execution (CORAL / any multi-agent framework)**
 
-Avoid optimizing a proxy without protecting the boundary around the proxy. Self-improvement systems become dangerous when “improved score” and “improved behavior” are allowed to drift apart. [Cameron Westland](../raw/articles/cameron-westland-autoresearch-is-reward-function-design.md) [Reward hacking article](../raw/articles/lil-log-reward-hacking-in-reinforcement-learning.md)
+If the task requires parallel investigation, CORAL spins up two agents in separate git worktree branches. Shared state lives in `.coral/public/`. Both agents see each other's findings without merge conflicts.
 
-Avoid premature complexity in the knowledge and memory layers. Several of the strongest sources are effectively warnings that teams often add structure before they add discipline. A clean compiled wiki, a small external memory, or a narrow skill registry can outperform a more ambitious architecture that nobody can maintain. [Karpathy](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) planning-with-files
+**5. Outcome write-back (Memento-Skills / Acontext distillation)**
 
-## A Shared Vocabulary Is Emerging
+The agent fixes the regression. The distillation pipeline extracts what worked (the specific flamegraph pattern that identified the issue), assigns a utility score to the relevant skill, and updates `knowledge/auth-service.md`. ROOT.md gets a new entry. Next session, this knowledge is immediately navigable.
 
-Another important signal from the corpus is linguistic. The field is settling on a shared vocabulary for externalized intelligence: memory, skills, context, traces, playbooks, graphs, registries, and compiled knowledge. That vocabulary matters because it lets builders separate concerns that used to be collapsed into “prompting.” Once those terms harden, teams can reason more clearly about where a failure belongs and which artifact should change in response. [Mei et al.](../raw/papers/mei-a-survey-of-context-engineering-for-large-language.md) [Xu & Yan](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md) [Yue et al.](../raw/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md)
+**6. Autoresearch loop (GOAL.md, optional)**
 
-The shared vocabulary also creates interoperability pressure. If one project calls something memory, another calls it context, and a third calls it a skill, the real question becomes whether those are genuinely different artifacts or different names for the same operational layer. The best systems in this repo are valuable partly because they clarify these distinctions in practice. Anthropic separates context surfaces. Graphiti separates temporal memory from retrieval. Agent Skills separates reusable capabilities from always-on instructions. Autoresearch separates the editable artifact from the evaluator. The field is learning to modularize not just code, but concepts. [Anthropic](../raw/articles/effective-context-engineering-for-ai-agents.md) [Graphiti](projects/graphiti.md) Anthropic Skills [Autoresearch](projects/autoresearch.md)
+If the team wants the agent to proactively improve its debugging approach, a GOAL.md loop runs overnight: generate hypotheses for faster debugging, run against a benchmark suite, keep improvements that score higher on both the task metric and the measurement quality score.
 
-That conceptual modularity is likely what makes the whole stack composable. Once the artifacts are named clearly, they can be swapped, upgraded, or governed independently. A team can keep its skill registry and swap its memory layer. It can keep its compiled wiki and replace its compaction policy. It can keep its eval harness and change the thing being optimized. This is how the field stops being a collection of clever demos and starts becoming an engineering discipline. [OpenAI cookbook](../raw/articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md) [Martin Fowler](../raw/articles/martinfowler-com-context-engineering-for-coding-agents.md)
+The whole flow uses: Hipocampus for topic indexing, Graphiti for temporal fact storage, Acontext for skill management, CORAL for multi-agent coordination, and GOAL.md for overnight self-improvement. Each tool does one job at one layer. The interfaces are files and tool calls.
 
-Just as important, a shared vocabulary makes comparison possible without flattening everything into a leaderboard. Builders can ask better questions: is this project offering a new memory substrate, a better context policy, a richer capability package, or a stronger improvement loop? Once the question is specific, the tradeoffs become legible. That is part of what this repo is really for. [Mei et al.](../raw/papers/mei-a-survey-of-context-engineering-for-large-language.md) [Yue et al.](../raw/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md)
+## Paradigm Fragmentation: When to Use Which
 
-That is also why the five-bucket structure is more than filing. It is a way to keep the field intellectually navigable while the projects themselves keep blending together. If the taxonomy works, it should help practitioners decide what layer of the system to change first when something breaks. If a team has retrieval thrash, it may have a context problem more than a knowledge problem. If a team keeps repeating mistakes, it may have a memory or self-improvement problem more than a model problem. If a team’s agent feels “smart but unreliable,” it may actually have an agent-systems problem: poor packaging, weak routing, or no trustworthy review surface. [Anthropic](../raw/articles/effective-context-engineering-for-ai-agents.md) [LangSmith trace article](../raw/articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md) [Xu & Yan](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md)
+Three retrieval paradigms coexist. The answer depends on query type, not technical preference.
 
-That diagnostic value is the practical payoff of synthesis. The best outcome from a repo like this is not memorizing project names. It is gaining a better instinct for where a failure lives and which artifact deserves intervention. That is what turns a landscape map into an engineering tool. [Martin Fowler](../raw/articles/martinfowler-com-context-engineering-for-coding-agents.md) [OpenAI cookbook](../raw/articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md)
+**Vector retrieval** (Mem0, Qdrant, Weaviate) wins when queries are semantic and vocabulary is inconsistent, the knowledge domain is stable, you need sub-100ms retrieval over millions of documents, or infrastructure simplicity matters. It loses on temporal reasoning, multi-hop relationships, or systematic vocabulary mismatch.
 
-That matters a lot.
+**Temporal knowledge graphs** (Graphiti, Cognee, HippoRAG) win when facts change and you need to know when they were true, multi-hop reasoning matters, cross-session contradictions need explicit handling, or audit trails have compliance value. They lose when entity extraction LLMs make errors during ingestion. Graph construction is expensive: every episode triggers extraction, deduplication, and invalidation.
 
-## Where The Field Is Likely Headed
+**File-system/keyword retrieval** (Napkin, OpenViking, Hipocampus) wins when knowledge fits in hundreds to low thousands of files, human inspectability matters, you want zero infrastructure overhead, or queries are broad and exploratory. Napkin achieves 91% on LongMemEval with no embeddings. It loses at scale past ~10K files.
 
-The next year likely belongs to systems that combine:
-
-- inspectable artifacts instead of opaque hidden state,
-- progressive disclosure instead of context stuffing,
-- skills and workflow graphs instead of monolithic prompts,
-- explicit review gates instead of direct self-promotion,
-- and measured improvement loops instead of intuition-driven tweaking.
-
-That is the synthesis line running through nearly every high-signal source in this repo. [Karpathy](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) [Anthropic Skills](../raw/repos/anthropics-skills.md) [ACE paper](../raw/papers/zhang-agentic-context-engineering-evolving-contexts-for.md)
+**Routing logic:** Start with file-system approaches for anything under a few hundred documents. Add vector retrieval when document count exceeds navigability or semantic matching matters. Add graph infrastructure only when temporal validity or multi-hop traversal are genuine requirements.
 
 ## Knowledge Graph
 
-```mermaid
-graph TD
-  KB[Knowledge Bases]
-  MEM[Agent Memory]
-  CE[Context Engineering]
-  SYS[Agent Systems]
-  SI[Self-Improving Systems]
+![meta-kb knowledge graph](images/field-map.svg)
 
-  KB --> Karpathy[Karpathy Wiki Pattern]
-  KB --> GraphRAG[GraphRAG]
-  KB --> SkillSeekers[Skill Seekers]
+*Architecture diagram: 5 taxonomy buckets with top projects and cross-bucket relationships. Generated from build/graph.json via D2.*
 
-  MEM --> Mem0[Mem0]
-  MEM --> Graphiti[Graphiti]
-  MEM --> Memori[Memori]
+For an interactive, explorable version of the full knowledge graph (124 entities, 64 relationships), open [graph.html](graph.html) in a browser.
 
-  CE --> AnthropicCE[Anthropic Context Engineering]
-  CE --> ClaudeMem[Claude-Mem]
-  CE --> LLMLingua[LLMLingua]
+## Implementation Maturity
 
-  SYS --> AnthropicSkills[Anthropic Skills]
-  SYS --> Gstack[gstack]
-  SYS --> AIResearchSkills[AI-Research-SKILLs]
+**Production-ready:**
 
-  SI --> Autoresearch[Autoresearch]
-  SI --> ACE[ACE]
-  SI --> GEPA[GEPA]
+[Mem0](projects/mem0.md) (51,880 stars) has a managed cloud offering, extensive API, and active enterprise adoption. [Graphiti](projects/graphiti.md) (24,473 stars) supports Neo4j, FalkorDB, Kuzu, and Amazon Neptune. Peer-reviewed paper (arXiv 2501.13956). [Letta](projects/letta.md) (21,873 stars) has a production API. Its `memory_blocks` abstraction is conceptually clean and operationally simple.
 
-  Karpathy --> ClaudeMem
-  Karpathy --> Autoresearch
-  GraphRAG --> Graphiti
-  SkillSeekers --> AnthropicSkills
-  Mem0 --> ACE
-  Graphiti --> AnthropicCE
-  Memori --> ClaudeMem
-  AnthropicCE --> AnthropicSkills
-  AnthropicCE --> ACE
-  AnthropicSkills --> Gstack
-  AnthropicSkills --> AIResearchSkills
-  Gstack --> Autoresearch
-  ACE --> Autoresearch
-  GEPA --> Autoresearch
-```
+**Maturing, with production deployments:**
 
-## Sources
+[OpenViking](projects/openviking.md) (20,813 stars) from Volcano Engine (ByteDance's cloud arm). Self-reported benchmarks but the L0/L1/L2 pattern is sound and reproducible. [HippoRAG](projects/hipporag.md) (3,332 stars) has a peer-reviewed ICML 2025 paper. [Cognee](projects/cognee.md) (14,899 stars) has cloud deployment options.
 
-- [Landscape Comparison](comparisons/landscape.md)
-- [Project Index](indexes/projects.md)
-- [Topic Index](indexes/topics.md)
-- [Timeline](indexes/timeline.md)
-- [Missing Coverage](indexes/missing.md)
-- [The State of LLM Knowledge Bases](knowledge-bases.md)
-- [The State of Agent Memory](agent-memory.md)
-- [The State of Context Engineering](context-engineering.md)
-- [The State of Agent Systems](agent-systems.md)
-- [The State of Self-Improving Systems](self-improving.md)
-- [Karpathy knowledge-base tweet](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
-- [Anthropic context engineering article](../raw/articles/effective-context-engineering-for-ai-agents.md)
-- [Agent Skills for Large Language Models](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md)
-- [Workflow optimization survey](../raw/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md)
-- [OpenAI self-evolving agents cookbook](../raw/articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md)
+**Research-grade:**
+
+The Darwin Godel Machine (SWE-bench 20% to 50%) is a controlled research setting. Independent reproduction not published. [Mem-alpha](projects/mem-alpha.md) (193 stars) requires retraining. Not validated at scale. [MIRIX](projects/mirix.md) (3,508 stars) with six specialized memory agents is grounded in cognitive psychology but not benchmarked against simpler alternatives at production cost.
+
+**Stable patterns, minimal tooling:**
+
+The Karpathy wiki pattern. [Napkin](projects/napkin.md) (264 stars) is the reference implementation. [GOAL.md](projects/goal-md.md) (112 stars) for dual-scoring autoresearch loops.
+
+## Reading Guide
+
+**Building a production RAG system or enterprise knowledge base:**
+Start with [Knowledge Bases](knowledge-bases.md). Then read Graphiti for temporal fact management and Napkin for when simpler beats complex. HippoRAG if multi-hop retrieval matters.
+
+**Building an agent that needs to remember users across sessions:**
+Start with [Agent Memory](agent-memory.md). Then Mem0 for production deployment patterns and Letta for the memory_blocks architecture. Add Graphiti if users' situations change over time.
+
+**Hitting context window problems or agents that miss relevant information:**
+Start with [Context Engineering](context-engineering.md). Hipocampus addresses unknown-unknowns. OpenViking addresses context bloat through tiered loading.
+
+**Building multi-agent systems or autonomous pipelines:**
+Start with [Agent Systems](agent-systems.md). CORAL for multi-agent shared state. Anthropic Skills for skill architecture and the security risks in community registries.
+
+**Agents that improve without manual intervention:**
+Start with [Self-Improving Systems](self-improving.md). The autoresearch pattern first (conceptually simple, immediately deployable). Then GOAL.md for domains without natural metrics. Darwin Godel Machine for the research frontier. Treat DGM as a five-year horizon.
+
+**Evaluating which retrieval paradigm to adopt:**
+Use the Paradigm Fragmentation section above. Vector retrieval for semantic matching at scale, temporal graphs for facts that change or require multi-hop reasoning, file-system approaches for anything small enough to navigate. Most teams start with vector retrieval and add graph infrastructure only when specific requirements force it.
+
+The field moves fast but not uniformly. Production-ready patterns (Mem0, Graphiti, SKILL.md, the Karpathy wiki pattern) are stable enough to build on today. Research-grade patterns (DGM, Mem-alpha, MIRIX routing) are worth understanding but not deploying. The practitioner's task is knowing which layer of the stack a given problem lives in, and matching the maturity of the solution to the maturity of the requirement.

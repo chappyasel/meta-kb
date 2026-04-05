@@ -19,6 +19,7 @@ key_insight: >-
   disclosure can match or exceed RAG systems while keeping memory local and
   human-readable, which matters because it dramatically reduces infrastructure
   complexity for agentic knowledge bases.
+deep_researched: deep/repos/michaelliv-napkin.md
 stars: 264
 forks: 11
 relevance_scores:

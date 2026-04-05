@@ -18,6 +18,7 @@ key_insight: >-
   models—autocontext turns ephemeral agent runs into a self-improving asset that
   compounds reliability and reduces frontier-model dependency over time.
 stars: 695
+deep_researched: 'deep/repos/greyhaven-ai-autocontext.md'
 forks: 50
 relevance_scores:
   topic_relevance: 9

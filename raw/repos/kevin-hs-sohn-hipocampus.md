@@ -20,6 +20,7 @@ key_insight: >-
   explicit prompting.
 stars: 145
 forks: 11
+deep_researched: 'deep/repos/kevin-hs-sohn-hipocampus.md'
 relevance_scores:
   topic_relevance: 9
   practitioner_value: 9

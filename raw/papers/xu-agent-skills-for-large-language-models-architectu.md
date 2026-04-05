@@ -25,6 +25,7 @@ relevance_scores:
   novelty: 8
   signal_quality: 9
   composite: 8.6
+  deep_researched: 'deep/papers/xu-agent-skills-for-large-language-models-architectu.md'
   reason: >-
     Directly addresses SKILL.md specification, progressive context loading,
     skill registries, and self-improving skill ecosystems—core topics 3, 4, and

@@ -11,6 +11,7 @@ tags:
   - autonomous-loops
   - product-automation
   - skill-composition
+deep_researched: deep/repos/snarktank-compound-product.md
 key_insight: >-
   This system demonstrates how observation/correction loops enable autonomous
   product improvement without manual intervention—builders can embed

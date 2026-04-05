@@ -12,6 +12,7 @@ tags:
   - Mem0
   - semantic-working-memory
   - adaptive-interfaces
+deep_researched: deep/repos/bingreeky-memevolve.md
 key_insight: >-
   MemEvolve enables agents to not just update memory contents but evolve the
   memory architecture itself through meta-evolution, allowing systems to

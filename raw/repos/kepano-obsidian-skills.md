@@ -17,6 +17,7 @@ key_insight: >-
   interactions—allowing agents to actively maintain and evolve personal
   knowledge systems rather than just query them, directly addressing the gap
   between static RAG and dynamic, agent-driven knowledge graphs.
+deep_researched: 'deep/repos/kepano-obsidian-skills.md'
 stars: 19325
 forks: 1192
 relevance_scores:

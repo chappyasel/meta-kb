@@ -11,6 +11,7 @@ tags:
   - Karpathy-pattern
   - autonomous-iteration
   - verification-loop
+deep_researched: 'deep/repos/uditgoenka-autoresearch.md'
 key_insight: >-
   Autoresearch instantiates Karpathy's constraint-metric-loop pattern as a
   reusable Claude Code skill, enabling unbounded autonomous iteration across any

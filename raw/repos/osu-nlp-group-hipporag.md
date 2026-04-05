@@ -18,6 +18,7 @@ key_insight: >-
   to build persistent, interconnected knowledge representations that improve
   over time without fine-tuning.
 stars: 3332
+deep_researched: 'deep/repos/osu-nlp-group-hipporag.md'
 forks: 333
 relevance_scores:
   topic_relevance: 9

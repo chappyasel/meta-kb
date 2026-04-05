@@ -24,6 +24,7 @@ relevance_scores:
   novelty: 6
   signal_quality: 7
   composite: 6.5
+  deep_researched: 'deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md'
   reason: >-
     Directly relevant to context engineering and agentic skill composition
     (prompt rules as executable workflows, autonomy guardrails, skill

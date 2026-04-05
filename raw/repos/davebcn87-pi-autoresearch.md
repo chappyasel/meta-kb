@@ -11,6 +11,7 @@ tags:
   - benchmark-driven-iteration
   - skill-composition
   - git-branching-strategy
+deep_researched: 'deep/repos/davebcn87-pi-autoresearch.md'
 key_insight: >-
   Pi-autoresearch implements a self-improving agent loop that enables autonomous
   optimization by decoupling measurements (via benchmarking scripts) from agent

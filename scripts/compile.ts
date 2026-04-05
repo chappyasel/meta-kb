@@ -42,16 +42,16 @@ import type {
 
 const ROOT = join(import.meta.dir, "..");
 const RAW_DIR = join(ROOT, "raw");
-const BUILD_DIR = join(ROOT, "build");
-const WIKI_DIR = join(ROOT, "wiki");
+const BUILD_DIR = join(ROOT, process.argv.find((a) => a.startsWith("--build-dir="))?.split("=")[1] ?? "build");
+const WIKI_DIR = join(ROOT, process.argv.find((a) => a.startsWith("--wiki-dir="))?.split("=")[1] ?? "wiki");
 
 const FROM_PASS = process.argv.find((a) => a.startsWith("--from-pass="))?.split("=")[1];
 const DRY_RUN = process.argv.includes("--dry-run");
 
 const HAIKU_CONCURRENCY = 10;
 const SONNET_CONCURRENCY = 5;
-const FULL_ARTICLE_THRESHOLD_REFS = 2;
-const FULL_ARTICLE_THRESHOLD_RELEVANCE = 6.0;
+const FULL_ARTICLE_THRESHOLD_REFS = 3;        // raised: need 3+ source refs for full article (was 2)
+const FULL_ARTICLE_THRESHOLD_RELEVANCE = 7.0; // raised: need 7.0+ relevance for full article (was 6.0)
 
 // ─── Provider ───────────────────────────────────────────────────────────
 
@@ -133,6 +133,25 @@ async function loadSources(): Promise<SourceIndex> {
     }
   }
 
+  // Load deep research sources (raw/deep/repos/, raw/deep/papers/)
+  for (const type of ["repos", "papers"]) {
+    const dir = join(RAW_DIR, "deep", type);
+    if (!existsSync(dir)) continue;
+    const files = (await readdir(dir)).filter((f) => f.endsWith(".md"));
+    for (const file of files) {
+      const raw = await readFile(join(dir, file), "utf-8");
+      const { data, content } = matter(raw);
+      const fm = data as RawSourceFrontmatter;
+      const relevance = (fm as any).relevance_scores?.composite ?? 0;
+      sources.push({
+        path: `deep/${type}/${file}`,
+        frontmatter: fm,
+        body: content.trim(),
+        relevance,
+      });
+    }
+  }
+
   // Group by bucket (from tags) and by type
   const byBucket: Record<string, ParsedSource[]> = {};
   const byType: Record<string, ParsedSource[]> = {};
@@ -148,22 +167,26 @@ async function loadSources(): Promise<SourceIndex> {
     const type = src.frontmatter.type;
     (byType[type] ??= []).push(src);
 
-    // Map tags to buckets
+    // Map tags to ALL matching buckets (a source can belong to multiple buckets)
+    const assignedBuckets = new Set<string>();
     for (const tag of src.frontmatter.tags ?? []) {
       for (const bucket of bucketNames) {
-        if (tag === bucket || tag.startsWith(bucket.split("-")[0])) {
-          (byBucket[bucket] ??= []).push(src);
-          break;
+        if (!assignedBuckets.has(bucket)) {
+          if (tag === bucket || tag.startsWith(bucket.split("-")[0])) {
+            (byBucket[bucket] ??= []).push(src);
+            assignedBuckets.add(bucket);
+          }
         }
       }
     }
-    // Also check tag substrings
+    // Also check tag substrings for buckets not yet matched
     const tagStr = (src.frontmatter.tags ?? []).join(" ");
     for (const bucket of bucketNames) {
-      if (!byBucket[bucket]?.includes(src)) {
+      if (!assignedBuckets.has(bucket)) {
         const keywords = bucket.split("-");
         if (keywords.some((k) => tagStr.includes(k))) {
           (byBucket[bucket] ??= []).push(src);
+          assignedBuckets.add(bucket);
         }
       }
     }
@@ -225,10 +248,27 @@ async function extractEntitiesPerSource(index: SourceIndex): Promise<RawEntity[]
   let processed = 0;
   const total = index.sources.length;
 
+  // Detect curation sources (awesome-lists, skill catalogs) by link density
+  // These produce entity spam — hundreds of name-drops with no analysis
+  function isCurationSource(src: ParsedSource): boolean {
+    const linkCount = (src.body.match(/\[[^\]]*\]\(http[^)]*\)/g) || []).length;
+    const wordCount = src.body.split(/\s+/).length;
+    // High absolute link count AND high link density = curation, not analysis
+    return linkCount > 40 && wordCount > 0 && (linkCount / wordCount) > 0.02;
+  }
+
   const tasks = index.sources.map((src) =>
     limit(async () => {
       try {
-        const truncated = (src.frontmatter.key_insight + "\n\n" + src.body).slice(0, 4000);
+        // Skip curation sources (awesome-lists, skill catalogs) — they spam entity extraction
+        if (isCurationSource(src)) {
+          console.log(`  ⏭ Skipping curation source: ${src.path} (${(src.body.match(/\[[^\]]*\]\(http[^)]*\)/g) || []).length} links)`);
+          return;
+        }
+
+        // Cap at 8K chars to prevent mega-sources from dominating entity extraction
+        const content = src.frontmatter.key_insight + "\n\n" + src.body;
+        const truncated = content.slice(0, 8000);
         const { object } = await generateObject({
           model: getProvider()("claude-haiku-4-5"),
           schema: rawEntitySchema,
@@ -300,7 +340,7 @@ async function resolveEntities(
   // Build prompt with mention list
   const mentionList = [...mentionsByName.entries()]
     .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, 300) // cap for token limits
+    .slice(0, 500) // cap for token limits (increased for deep sources)
     .map(([name, info]) => `  "${name}" (${info.count}x, types: ${info.types.join("/")}, sources: ${info.sources.length})`)
     .join("\n");
 
@@ -334,8 +374,11 @@ Aim for 60-100 canonical entities total.`,
       .map((ref) => index.sources.find((s) => s.path === ref)?.relevance ?? 0)
       .reduce((a, b) => Math.max(a, b), 0);
 
+    // Both conditions must be met (AND, not OR) to prevent generic infrastructure
+    // like PostgreSQL/FAISS/Ollama from getting full articles just because they're
+    // mentioned frequently or scored high on general relevance
     const articleLevel: "full" | "stub" =
-      sourceRefs.size >= FULL_ARTICLE_THRESHOLD_REFS ||
+      sourceRefs.size >= FULL_ARTICLE_THRESHOLD_REFS &&
       maxRelevance >= FULL_ARTICLE_THRESHOLD_RELEVANCE
         ? "full"
         : "stub";
@@ -386,12 +429,15 @@ const edgeClassificationSchema = z.object({
 async function buildGraph(entities: Entity[], index: SourceIndex): Promise<KnowledgeGraph> {
   console.log("\n═══ Pass 2: Graph Construction (Sonnet) ═══");
 
-  // Find co-occurring entity pairs (2+ shared sources)
+  // Find co-occurring entity pairs
+  // Use 1+ shared sources (lowered from 2) to catch deep-source relationships,
+  // but only for entity pairs where at least one is a project (skip concept-concept noise)
   const pairs: { a: Entity; b: Entity; sharedSources: string[] }[] = [];
   for (let i = 0; i < entities.length; i++) {
     for (let j = i + 1; j < entities.length; j++) {
       const shared = entities[i].source_refs.filter((r) => entities[j].source_refs.includes(r));
-      if (shared.length >= 2) {
+      const minShared = (entities[i].type === "project" || entities[j].type === "project") ? 1 : 2;
+      if (shared.length >= minShared) {
         pairs.push({ a: entities[i], b: entities[j], sharedSources: shared });
       }
     }
@@ -402,12 +448,20 @@ async function buildGraph(entities: Entity[], index: SourceIndex): Promise<Knowl
   let edges: GraphEdge[] = [];
 
   if (pairs.length > 0) {
+    // Sort by co-occurrence count so the most-connected pairs make it into the LLM context
     const pairSummary = pairs
+      .sort((a, b) => b.sharedSources.length - a.sharedSources.length)
       .slice(0, 200)
-      .map(
-        (p) =>
-          `  "${p.a.name}" (${p.a.type}) ↔ "${p.b.name}" (${p.b.type}): ${p.sharedSources.length} shared sources`,
-      )
+      .map((p) => {
+        // Include source context so the LLM can infer WHY these entities co-occur
+        const context = p.sharedSources
+          .slice(0, 2)
+          .map((ref) => index.sources.find((s) => s.path === ref)?.frontmatter.key_insight)
+          .filter(Boolean)
+          .join("; ")
+          .slice(0, 150);
+        return `  "${p.a.name}" (${p.a.type}) ↔ "${p.b.name}" (${p.b.type}): ${p.sharedSources.length} shared sources. Context: ${context}`;
+      })
       .join("\n");
 
     const { object } = await generateObject({
@@ -415,7 +469,7 @@ async function buildGraph(entities: Entity[], index: SourceIndex): Promise<Knowl
       schema: edgeClassificationSchema,
       system: `Classify relationships between entity pairs in a knowledge base about LLM knowledge bases and agent systems.
 Use the entity IDs (not names) for source and target fields.
-Only create edges where a meaningful relationship exists. Skip pairs with no clear relationship.
+Create edges generously — if two entities co-occur in sources about the same topic, there is likely a relationship. Err on the side of creating edges rather than skipping.
 Weight: 0.1-0.3 = weak/tangential, 0.4-0.6 = moderate, 0.7-1.0 = strong/direct.`,
       prompt: `Entities:\n${entities.map((e) => `  ${e.id}: ${e.name} (${e.type}, ${e.bucket})`).join("\n")}\n\nPairs to classify:\n${pairSummary}`,
     });
@@ -469,34 +523,93 @@ Weight: 0.1-0.3 = weak/tangential, 0.4-0.6 = moderate, 0.7-1.0 = strong/direct.`
   return graph;
 }
 
+// ─── Writing Style (loaded from .claude/skills/stop-slop at compile time) ──
+
+let WRITING_STYLE = "";
+{
+  const slopSkillPath = join(ROOT, ".claude", "skills", "stop-slop", "SKILL.md");
+  const phrasesPath = join(ROOT, ".claude", "skills", "stop-slop", "references", "phrases.md");
+  const structuresPath = join(ROOT, ".claude", "skills", "stop-slop", "references", "structures.md");
+  if (existsSync(slopSkillPath)) {
+    const skill = await readFile(slopSkillPath, "utf-8");
+    const phrases = existsSync(phrasesPath) ? await readFile(phrasesPath, "utf-8") : "";
+    const structures = existsSync(structuresPath) ? await readFile(structuresPath, "utf-8") : "";
+    WRITING_STYLE = `
+WRITING RULES — follow the stop-slop skill strictly. Key rules:
+${skill}
+
+${phrases}
+
+${structures}`;
+  } else {
+    WRITING_STYLE = `
+WRITING RULES (non-negotiable):
+- No throat-clearing openers ("Here's the thing:", "It turns out", "Let me be clear")
+- No binary contrast clichés ("Not X. But Y." / "isn't X, it's Y"). State Y directly.
+- No emphasis crutches ("Full stop.", "Let that sink in.", "This matters because")
+- No adverbs: kill every -ly word, "really", "just", "fundamentally", "inherently"
+- No business jargon: "landscape", "game-changer", "deep dive", "lean into", "navigate"
+- No false agency: systems don't "emerge" or "evolve" on their own. Name who built what.
+- No passive voice. Find the actor, make them the subject.
+- No dramatic fragmentation ("Speed. That's it. That's the thing.")
+- No vague declaratives ("The implications are significant"). Name the specific implication.
+- Active voice, specific claims, varied sentence rhythm. Two items beat three.
+- State facts. Trust the reader. No hand-holding, no softening, no meta-commentary.`;
+  }
+}
+
 // ─── Pass 3a: Synthesis Articles ────────────────────────────────────────
 
-const SYNTHESIS_SYSTEM = `You are writing a landscape analysis for practitioners who build with LLM agents. This is NOT a summary of each project. It's a synthesis that answers:
+const SYNTHESIS_SYSTEM = `You are writing a landscape analysis for practitioners who build with LLM agents. This is NOT a catalog of projects. It's a synthesis that changes how practitioners THINK about this space.
 
-1. What approaches exist in this space? Group them into 3-5 categories.
-2. What consistent threads keep emerging? What is everyone converging on?
-3. What unique approaches stand out? What's different and why?
-4. What's the hottest right now? What has momentum? (cite star counts, engagement)
-5. Where is this space moving? What are the open questions and emerging trends?
-6. What are the practical tradeoffs a builder should know about?
+Many sources have paths starting with "deep/" — these are deep research files containing source-code analysis, architecture details, design tradeoffs, failure modes, and verified benchmarks. When you draw implementation details from a source, cite its ACTUAL path (including "deep/" prefix if applicable). These deep sources are your primary material for specificity.
 
-Structure:
-- Lead with the big picture (2-3 sentences). What's the state of play?
-- [Approach Categories] — for each, describe the approach, name key projects, compare tradeoffs, cite specific sources.
-- [The Convergence] — what threads are people pulling on consistently?
-- [The Divergence] — what unique or contrarian approaches stand out?
-- [What's Hot Now] — momentum signals, recent launches, viral discussions
-- [Where It's Going] — trends, emerging patterns, open research questions
-- [Open Questions] — what we don't know yet, gaps in the landscape
+Structure (use these exact ## headings):
+
+## [Opening — no heading, just start with 2-3 sentences]
+What has fundamentally changed in how practitioners think about this problem? NOT "the field is growing" — rather "the core question changed from A to B."
+
+## Approach Categories
+3-5 categories, each framed as an ARCHITECTURAL question. For each:
+- Name the question it answers
+- Cite 2-3 flagship projects with star counts as adoption signals (e.g., "Mem0 (51,880 stars)")
+- Include implementation details from deep sources: name files, algorithms, data structures
+- Give the concrete tradeoff: "wins when X, loses when Y"
+- Name one specific failure mode — what actually BREAKS in production
+
+## The Convergence
+THREE things all serious systems now agree on that would have been controversial 6 months ago.
+
+## What the Field Got Wrong
+One major assumption that turned out to be false. Provide evidence. Explain what replaced it.
+
+## Failure Modes
+Consolidated section: 3-5 concrete failure modes practitioners will hit. Not generic limitations — specific mechanisms. How does it break? What triggers it? What's the blast radius?
+
+## Selection Guide
+Scannable decision framework. Format as a list of conditions:
+- "If you need X, use Y because Z"
+- "If you need A, avoid B because C — use D instead"
+Include star counts and maturity signals. A practitioner should be able to scan this section in 30 seconds and know which tool to evaluate.
+
+## The Divergence
+3-4 competing architectural camps where the field has NOT converged. For each: name both sides, what each optimizes for, which wins under what conditions. These are active disagreements with working implementations on both sides — not "open questions" but "active splits."
+
+## What's Hot Now
+Momentum signals: recent launches, star velocity, viral discussions. Cite specific numbers.
+
+## Open Questions
+What remains genuinely unsolved? What do practitioners still disagree about?
 
 Rules:
-- Every factual claim MUST cite a specific source by relative path: [Source](../raw/type/file.md)
+- CITE THE ACTUAL SOURCE PATH. If you draw from a deep source, cite it: [Source](../raw/deep/repos/file.md). If from a shallow source: [Source](../raw/repos/file.md). Do not normalize all citations to shallow paths.
 - Every project mentioned MUST link to its reference card: [Mem0](projects/mem0.md)
-- Comparisons MUST include a recommendation: "Use X when Y, use Z when W"
-- Surface non-obvious insights. If it's in every README, it's not an insight.
+- Include star counts when first mentioning a project as an adoption signal
+- After reporting benchmarks, assess credibility: self-reported, peer-reviewed, or verified in code
 - Be honest about limitations. Apply equal criticism to all projects.
-- Write for a practitioner who builds with AI agents daily, not an academic.
-- Output 2000-4000 words of markdown. Use ## headings for sections.`;
+- Write as a practitioner talking to practitioners. No academic hedging.
+- Output 3000-5000 words of markdown.
+${WRITING_STYLE}`;
 
 const BUCKET_TITLES: Record<string, string> = {
   "knowledge-bases": "The State of LLM Knowledge Bases",
@@ -535,7 +648,7 @@ async function generateSynthesisArticles(
     const sourceContent = bucketSources
       .map(
         (s) =>
-          `### Source: ${s.path}\nKey insight: ${s.frontmatter.key_insight}\n${s.frontmatter.stars ? `Stars: ${s.frontmatter.stars}` : ""}\n\n${s.body.slice(0, 1500)}`,
+          `### Source: ${s.path}\nKey insight: ${s.frontmatter.key_insight}\n${s.frontmatter.stars ? `Stars: ${s.frontmatter.stars}` : ""}\n\n${s.body}`,
       )
       .join("\n\n---\n\n");
 
@@ -588,17 +701,30 @@ ${sourceContent}`,
 
 // ─── Pass 3b: Reference Cards ───────────────────────────────────────────
 
-const REFERENCE_CARD_SYSTEM = `Generate a brief reference card for a project, concept, or person in the LLM knowledge base space.
+const REFERENCE_CARD_SYSTEM = `Generate a reference card for a project, concept, or person in the LLM knowledge base space.
 
-For projects (300-500 words): What it does, what's unique about it, key numbers (stars, benchmarks), architecture summary, strengths, limitations, alternatives. Be honest.
-For concepts (500-1000 words): What it is, why it matters, how it works, who implements it, practical implications. Include concrete examples.
+Some sources include deep implementation analysis (architecture, design tradeoffs, failure modes, benchmarks from code). Use this depth — name specific files, functions, algorithms.
+
+For projects (800-1500 words):
+- What it does and what's architecturally unique
+- Core mechanism: HOW it works (name files, algorithms, data structures)
+- Key numbers (stars, benchmarks) with credibility assessment (self-reported vs verified)
+- Strengths: what it's genuinely good at
+- Critical limitations: one concrete failure mode, one unspoken infrastructure assumption
+- When NOT to use it: operational conditions where this is the wrong choice
+- Unresolved questions: what the documentation doesn't explain (governance, cost at scale, conflict resolution)
+- Alternatives: with selection guidance ("Use X when Y")
+
+For concepts (1500-2500 words): What it is, why it matters, how it works with implementation details, who implements it, practical implications, failure modes. Include concrete examples.
 For people (150-250 words): Who they are, key contributions to this space, notable work.
 
 Rules:
-- Cite sources by relative path: [Source](../raw/type/file.md)
+- Cite sources by relative path: [Source](../raw/type/file.md) or [Source](../raw/deep/type/file.md)
 - Link to related wiki pages: [Related Concept](../concepts/slug.md) or [Related Project](../projects/slug.md)
+- After reporting benchmarks, note if self-reported or independently validated
 - Be honest about limitations. No marketing copy.
-- Output markdown with ## headings.`;
+- Output markdown with ## headings.
+${WRITING_STYLE}`;
 
 async function generateReferenceCards(
   entities: Entity[],
@@ -620,12 +746,17 @@ async function generateReferenceCards(
 
   const tasks = fullEntities.map((entity) =>
     limit(async () => {
-      // Collect top sources for this entity
+      // Collect top sources — prioritize deep sources, then by relevance
       const entitySources = entity.source_refs
         .map((ref) => index.sources.find((s) => s.path === ref))
         .filter(Boolean)
-        .sort((a, b) => (b?.relevance ?? 0) - (a?.relevance ?? 0))
-        .slice(0, 3) as ParsedSource[];
+        .sort((a, b) => {
+          const aDeep = a!.path.startsWith("deep/") ? 1 : 0;
+          const bDeep = b!.path.startsWith("deep/") ? 1 : 0;
+          if (aDeep !== bDeep) return bDeep - aDeep; // deep sources first
+          return (b?.relevance ?? 0) - (a?.relevance ?? 0);
+        })
+        .slice(0, 5) as ParsedSource[]; // 5 sources (was 3) to include both deep and shallow
 
       // Get graph neighbors
       const neighbors = graph.edges
@@ -640,7 +771,7 @@ async function generateReferenceCards(
       const sourceContent = entitySources
         .map(
           (s) =>
-            `### Source: ${s.path}\nKey insight: ${s.frontmatter.key_insight}\n${s.body.slice(0, 1000)}`,
+            `### Source: ${s.path}\nKey insight: ${s.frontmatter.key_insight}\n${s.body}`,
         )
         .join("\n\n---\n\n");
 
@@ -708,7 +839,7 @@ async function generateFieldMapAndIndexes(
     if (existsSync(path)) {
       const raw = await readFile(path, "utf-8");
       const { content } = matter(raw);
-      syntheses.push(content.slice(0, 3000)); // first 3K chars of each
+      syntheses.push(content.slice(0, 6000)); // first 6K chars of each synthesis
     }
   }
 
@@ -719,16 +850,32 @@ async function generateFieldMapAndIndexes(
       model: getProvider()("claude-sonnet-4-6"),
       system: `You are writing the flagship overview article for meta-kb, a knowledge base about LLM knowledge bases, agent memory, context engineering, agent systems, and self-improving systems.
 
-This is THE article people read first. It should be 3000-5000 words. It weaves the 5 synthesis articles into one bird's-eye narrative:
-- How the 5 areas connect to each other
-- The big threads running through the entire space
-- Where the field came from, where it is now, where it's going
-- A reading guide: what to read next based on interest
+This is THE article people read first. It should be 3000-5000 words. It is NOT a taxonomy of separate markets — it is a SYSTEMS MAP showing how these five areas form one emerging stack.
+
+Start with a brief "Five Layers" overview — one paragraph per bucket naming the central engineering problem and linking to its synthesis article. Then move into the systems analysis.
+
+Structure:
+1. **The unifying insight**: Name the single architectural idea that connects all five buckets. Example: "These five areas are five layers of the same stack — knowledge feeds memory, memory shapes context, context enables skills, skills compound via self-improvement."
+
+2. **Integration points**: For each pair of adjacent buckets, explain how one feeds the other. What is the interface? What breaks when it's missing?
+
+3. **Paradigm fragmentation**: Where multiple valid approaches coexist (e.g., vector vs graph vs keyword retrieval), explain the ROUTING LOGIC — when to use which, not which is "better."
+
+4. **Implementation maturity**: What's production-ready vs research-only? Name specific projects at each level. Be honest.
+
+5. **What the field got wrong**: One major assumption that turned out to be false and what replaced it.
+
+6. **The practitioner's flow**: Describe concretely how a mature stack processes a real task end-to-end, naming specific tools at each step.
+
+7. **Cross-cutting themes**: 4-6 patterns that span all five buckets. Examples: markdown as universal format, git as infrastructure, context as finite budget, agents as authors of their own knowledge, the emergence of forgetting.
+
+8. **Reading guide**: What to read next based on what you're building.
 
 Write as a knowledgeable practitioner, not an academic. Be opinionated. Name specific projects and approaches. Link to synthesis articles: [Agent Memory](agent-memory.md), [Knowledge Bases](knowledge-bases.md), etc.
 Link to project cards: [Mem0](projects/mem0.md), [gstack](projects/gstack.md), etc.
 
-Start with "# The Landscape of LLM Knowledge Systems" as the H1.`,
+Start with "# The Landscape of LLM Knowledge Systems" as the H1.
+${WRITING_STYLE}`,
       prompt: `Write the field-map.md overview article.
 
 ## Stats:

@@ -25,6 +25,7 @@ relevance_scores:
   novelty: 7
   signal_quality: 7
   composite: 7.4
+  deep_researched: 'deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md'
   reason: >-
     This survey directly addresses agentic computation graphs, workflow
     optimization for LLM agents, and dynamic vs. static structures—highly

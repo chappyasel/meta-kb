@@ -1,75 +1,41 @@
----
-entity_id: ai-research-skills
-type: project
-bucket: agent-systems
-sources:
-  - repos/orchestra-research-ai-research-skills.md
-related:
-  - Agent Skills
-  - Research Orchestration
-last_compiled: '2026-04-04T21:23:28.371Z'
----
 # AI Research Skills
 
-## What It Is
+> 87 production-ready skills enabling AI agents to autonomously conduct AI research from idea to paper, covering the full ML lifecycle across 22 categories. Key differentiator: deep framework-specific expertise (Megatron, vLLM, TRL) rather than generic instructions.
 
-AI Research Skills is an open-source library of packaged capabilities designed to give AI agents (Claude Code, Codex, Gemini, GPT-4/5, etc.) the domain-specific knowledge needed to conduct end-to-end AI research workflows. The goal is to move agents beyond generic retrieval patterns toward structured, expert-like research execution—covering the full arc from idea generation through experimentation to paper writing.
+## What It Does
 
-Maintained by Orchestra Research. MIT licensed.
+AI Research Skills provides a comprehensive skills library organized into 22 categories spanning the entire AI research lifecycle. An autoresearch orchestration skill manages the full workflow using a two-loop architecture (inner optimization + outer synthesis), routing to domain skills as needed. Categories include model architecture (LitGPT, Mamba, NanoGPT, RWKV, TorchTitan), fine-tuning (Axolotl, LLaMA-Factory, PEFT, Unsloth), post-training (TRL, GRPO, OpenRLHF, SimPO, verl), distributed training (DeepSpeed, FSDP, Megatron-Core), inference (vLLM, TensorRT-LLM, llama.cpp, SGLang), mechanistic interpretability (TransformerLens, SAELens), and paper writing with LaTeX templates. Each skill contains real code examples, troubleshooting guides, and production workflows sourced from official repos and battle-tested patterns.
+
+## Architecture
+
+Skills follow the SKILL.md convention: structured markdown files with frontmatter, code examples, and reference documents. An npm-based interactive installer (`npx @orchestra-research/ai-research-skills`) auto-detects installed coding agents, installs skills to `~/.orchestra/skills/` with symlinks, and offers category-based or individual skill selection. Also available through the Claude Code plugin marketplace. Skills range from 75 to 726 lines with 1-12 reference files each. The autoresearch skill supports Claude Code `/loop` and OpenClaw heartbeat for continuous operation.
 
 ## Key Numbers
 
-| Metric | Value |
-|--------|-------|
-| GitHub Stars | 6,111 |
-| Forks | 474 |
-| Skills in library | 87 (production-ready) |
-| Primary language | TeX |
-| Last updated | April 2026 |
-
-## What's Unique
-
-Most LLM-based research tooling defaults to generic RAG over papers. This library takes a different approach: pre-packaging domain-specific expertise as discrete, reusable "skills" that an agent can invoke at the appropriate stage of a research workflow. The framing is less "search engine with LLM wrapper" and more "give the agent the same mental models a domain expert would apply."
-
-Coverage spans practical AI engineering topics including GRPO, vLLM, Megatron, HuggingFace workflows, and model training pipelines—suggesting focus on ML research specifically rather than general scientific literature.
-
-## Architecture Summary
-
-Skills are defined in TeX (likely as structured prompt templates or knowledge documents), which agents consume as context or instructions. The library is model-agnostic by design—the same skill set is advertised for Claude Code, Codex, and Gemini. Integration with [Research Orchestration](../concepts/research-orchestration.md) systems allows skills to be selected and composed dynamically based on the current research subtask.
-
-This implements the [Agent Skills](../concepts/agent-skills.md) pattern: discrete capability units that augment general-purpose agents with specialized knowledge without full fine-tuning.
+- 6,111 GitHub stars, 474 forks
+- 87 skills across 22 categories
+- Skill sizes range from 75 to 726 lines
+- Coverage: 5 model architectures, 4 fine-tuning frameworks, 8 post-training methods, 6 distributed training tools, 4 inference engines, 7 multimodal tools
+- MIT license
 
 ## Strengths
 
-- Broad coverage of modern ML engineering topics (vLLM, Megatron, GRPO)
-- Model-agnostic design reduces vendor lock-in
-- MIT license enables commercial use and modification
-- Addresses a real gap: most agent frameworks are tool-heavy but knowledge-light
+- Framework-specific depth is genuine; skills contain real debugging patterns from GitHub issues, not just API docs
+- The autoresearch orchestration layer enables end-to-end autonomous research workflows
+- Research-grade coverage of mechanistic interpretability tools (TransformerLens, SAELens, pyvene, nnsight) is rare in skill libraries
 
 ## Limitations
 
-- **TeX as a format** is unusual and may create friction for programmatic integration; unclear how skills are actually loaded at runtime
-- **6K stars is modest** for a library claiming comprehensive coverage—adoption signals are limited
-- **ML/AI research focus** is narrow; not a general research agent solution
-- **Autonomy claims** ("from idea to paper") are ambitious and largely unvalidated in published benchmarks
-- Maintenance is tied to a single organization (Orchestra Research), raising long-term sustainability questions
-- No published evals comparing skill-augmented agents against baselines
+- Exclusively focused on AI/ML research; no coverage of application development, DevOps, or business domains
+- Skills are static documents that do not update when upstream frameworks release new versions
+- The two-loop autoresearch architecture is described but not implemented as executable code
 
 ## Alternatives
 
-- [OpenScholar](https://openreview.net/forum?id=openScholar) — retrieval-augmented scientific QA with citation grounding
-- Elicit — commercial research synthesis tool
-- ResearchAgent (various academic implementations) — agent frameworks for paper analysis
-- Direct tool-use with Semantic Scholar / Arxiv APIs without prepackaged skills
+- [claude-skills.md](claude-skills.md) — use when the domain is engineering, product, or business rather than ML research
+- [gepa.md](gepa.md) — use when you want to automatically optimize prompts and agent architectures rather than follow manual skill instructions
+- [adas.md](adas.md) — use when the goal is discovering novel agent designs through meta-search
 
-## Honest Take
+## Sources
 
-The core insight—that domain knowledge fragmentation is a real problem for research agents—is sound. Whether packaging that knowledge as 87 TeX skill files is the right mechanism is less clear. The library's value depends heavily on how skills are actually consumed at runtime, which the available documentation doesn't make transparent.
-
-[Source](../../raw/repos/orchestra-research-ai-research-skills.md)
-
-
-## Related
-
-- [Agent Skills](../concepts/agent-skills.md) — implements (0.7)
-- [Research Orchestration](../concepts/research-orchestration.md) — implements (0.7)
+- [../../raw/repos/orchestra-research-ai-research-skills.md](../../raw/repos/orchestra-research-ai-research-skills.md) — "the most comprehensive open-source skills library enabling AI agents to autonomously conduct AI research — from idea to paper"

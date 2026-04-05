@@ -8,13 +8,15 @@ Inspired by [Andrej Karpathy's tweet](https://x.com/karpathy/status/203980565952
 
 ```mermaid
 graph LR
-    A["raw/<br/>101 curated sources"] -->|compile.ts| B["build/<br/>entity graph"]
-    B --> C["wiki/<br/>synthesis articles<br/>+ reference cards"]
-    C -->|lint.ts| D["verified output"]
-    D -->|"new sources"| A
+    A["raw/<br/>155 curated sources"] -->|research.ts| B["raw/deep/<br/>51 deep research files"]
+    A -->|compile.ts| C["build/<br/>entity graph"]
+    B -->|compile.ts| C
+    C --> D["wiki/<br/>synthesis articles<br/>+ reference cards"]
+    D -->|lint.ts| E["verified output"]
+    E -->|"new sources"| A
 ```
 
-Raw sources (tweets, repos, papers, articles) go into `raw/`. The compiler extracts entities, builds a knowledge graph, then generates synthesis articles and reference cards. Every claim cites its source. Every answer compounds the knowledge base.
+Raw sources (tweets, repos, papers, articles) go into `raw/`. The deep research pipeline clones repos, reads source code, fetches documentation, and writes structured analysis to `raw/deep/`. The compiler extracts entities, builds a knowledge graph, then generates synthesis articles and reference cards. Every claim cites its source. Every cycle compounds the knowledge base.
 
 ## Browse the wiki
 
@@ -27,7 +29,9 @@ Raw sources (tweets, repos, papers, articles) go into `raw/`. The compiler extra
 - [The State of Agent Systems](wiki/agent-systems.md)
 - [The State of Self-Improving Systems](wiki/self-improving.md)
 
-**Compare tools:** [Landscape Comparison Table](wiki/comparisons/landscape.md)
+**Compare tools:** [Landscape Comparison Table](wiki/comparisons/landscape.md) | [Interactive Knowledge Graph](wiki/graph.html)
+
+**How it was built:** [METHODOLOGY.md](METHODOLOGY.md)
 
 ## Two ways to compile
 
@@ -38,13 +42,30 @@ cp .env.example .env  # add your ANTHROPIC_API_KEY
 bun install
 bun run compile       # raw/ → build/ → wiki/
 bun run lint          # verify structural integrity
+bun run diagrams      # generate D2 + D3 visualizations
 ```
 
 ### Path B: Agent session (editorial)
 
 Give any AI coding agent the [SKILL.md](SKILL.md) and point it at `raw/`. The agent reads all sources, reasons about them, and writes the wiki directly. Works with Claude Code, Codex, Cursor, or any agent that supports the SKILL.md standard.
 
-Both paths produce the same output structure. Run multiple agents and cherry-pick the best articles from each.
+Both paths produce the same output structure. The shipped wiki was compiled via three independent paths and merged best-of-three.
+
+## Deep research
+
+Shallow sources (README scrapes, paper abstracts) tell you WHAT a project does. Deep research tells you HOW it works.
+
+```bash
+# Research specific repos or papers
+bun run research https://github.com/mem0ai/mem0 https://arxiv.org/abs/2501.13956
+
+# Research all unresearched sources
+bun run research --all
+```
+
+The deep research pipeline clones repos, reads 15-25 key source files, fetches external documentation and blog posts, then synthesizes structured analysis (architecture, core mechanism, design tradeoffs, failure modes, benchmarks). Output goes to `raw/deep/`.
+
+See the [deep-research skill](.claude/skills/deep-research/SKILL.md) for the full methodology.
 
 ## Ingesting new sources
 
@@ -53,8 +74,8 @@ Both paths produce the same output structure. Run multiple agents and cherry-pic
 bun run ingest <url1> [url2] ...
 
 # Platform-specific
-bun run ingest:twitter [urls...]
-bun run ingest:github [urls...]
+bun run ingest:twitter [urls...]   # supports X articles via Xquik
+bun run ingest:github [urls...]    # supports awesome-list detection
 bun run ingest:arxiv [urls...]
 bun run ingest:article [urls...]
 
@@ -75,9 +96,10 @@ This is a general-purpose knowledge compiler. To build your own wiki on any topi
 
 ## Stats
 
-- **Sources:** 101 curated (17 tweets, 53 repos, 12 papers, 19 articles)
-- **Wiki:** 79 articles (5 synthesis, 27 project cards, 40 concept explainers, field map, indexes)
-- **Graph:** 107 entities, 194 relationships across 5 topic areas
+- **Sources:** 155 curated (55 repos, 13 papers, 18 tweets, 19 articles) + 51 deep research files
+- **Wiki:** 211 articles (5 synthesis, 123 project cards, 76 concept explainers, field map, indexes)
+- **Graph:** 124 entities, 64 relationships across 5 topic areas
+- **Deep research:** 140K words of source-code-level analysis
 - **Compiled by:** 3 independent systems (API pipeline, Claude Code, Codex), best-of-three merged
 
 ## Contributing
@@ -110,6 +132,7 @@ Environment variables:
 - `ANTHROPIC_API_KEY` — for compilation and scoring
 - `APIFY_API_TOKEN` — for Twitter scraping (ingestion only)
 - `GITHUB_TOKEN` — for GitHub API (ingestion only)
+- `XQUIK_API_KEY` — for X article extraction (optional, ingestion only)
 
 ## License
 

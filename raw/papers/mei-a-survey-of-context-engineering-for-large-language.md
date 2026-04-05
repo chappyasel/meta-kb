@@ -27,6 +27,7 @@ relevance_scores:
   novelty: 7
   signal_quality: 8
   composite: 8.7
+  deep_researched: 'deep/papers/mei-a-survey-of-context-engineering-for-large-language.md'
   reason: >-
     A comprehensive 1400-paper survey that formally taxonomizes context
     engineering—covering retrieval, processing, management, RAG, memory systems,

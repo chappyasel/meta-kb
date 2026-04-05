@@ -18,6 +18,7 @@ key_insight: >-
   resumption when token limits force `/clear`—directly replicating Manus's
   $2B-acquisition workflow pattern of agent persistence through structured file
   artifacts rather than traditional vector databases.
+deep_researched: 'deep/repos/othmanadi-planning-with-files.md'
 stars: 17968
 forks: 1623
 relevance_scores:
