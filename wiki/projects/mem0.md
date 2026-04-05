@@ -2,106 +2,148 @@
 entity_id: mem0
 type: project
 bucket: agent-memory
+abstract: >-
+  Mem0 is a persistent memory layer for AI agents using a two-pass LLM pipeline
+  (extract facts, then reconcile against stored memories) over pluggable vector
+  stores, with optional graph memory via Neo4j.
 sources:
   - repos/memorilabs-memori.md
-  - repos/supermemoryai-supermemory.md
   - repos/thedotmack-claude-mem.md
   - repos/caviraoss-openmemory.md
   - repos/mem0ai-mem0.md
-  - repos/affaan-m-everything-claude-code.md
-  - deep/repos/supermemoryai-supermemory.md
-  - deep/repos/memorilabs-memori.md
   - deep/repos/getzep-graphiti.md
-  - deep/repos/wangyu-ustc-mem-alpha.md
   - deep/repos/caviraoss-openmemory.md
-  - deep/repos/kepano-obsidian-skills.md
   - deep/repos/letta-ai-letta.md
-  - deep/repos/topoteretes-cognee.md
   - deep/repos/mem0ai-mem0.md
 related:
+  - Anthropic
+  - OpenAI
   - Retrieval-Augmented Generation
-last_compiled: '2026-04-05T05:22:45.894Z'
+  - Model Context Protocol
+  - Episodic Memory
+  - Semantic Memory
+  - Agent Memory
+  - LangGraph
+  - Vector Database
+  - Agent Memory
+last_compiled: '2026-04-05T20:28:56.783Z'
 ---
 # Mem0
 
 ## What It Does
 
-Mem0 ("mem-zero") adds a persistent memory layer to AI applications. Instead of passing full conversation history into every prompt, it extracts facts from conversations, stores them, and retrieves relevant ones on demand. The result is agents and chatbots that remember user preferences, past interactions, and contextual details across sessions without consuming the entire context window.
+Mem0 ("mem-zero") adds persistent, personalized memory to AI agents and assistants. When an agent converses with a user, Mem0 extracts atomic facts from that conversation and stores them in a vector database. On subsequent conversations, relevant facts are retrieved and injected into the prompt, giving the agent continuity across sessions without stuffing full conversation history into context.
 
-The core architectural choice: memory management is decoupled from both the LLM and the storage backend. You can swap models or vector stores without rebuilding the memory pipeline.
+The core claim: +26% accuracy over OpenAI Memory on LOCOMO, 91% faster responses, and 90% fewer tokens compared to full-context approaches (arXiv:2504.19413, self-reported, not independently replicated).
 
-## Core Mechanism
+51,880 GitHub stars, Y Combinator S24, Apache-2.0.
 
-The `Memory` class (in `mem0/memory/`) handles three operations:
+## Architecture: What Makes It Distinctive
 
-**Add** (`memory.add(messages, user_id=user_id)`): Passes conversation turns through an LLM extraction step to identify facts worth storing ("user prefers dark mode"), then writes those facts as vectors to the configured store. The default LLM is `gpt-4.1-nano-2025-04-14`.
+Mem0 is a **plugin-orchestration layer**, not a novel algorithm. The `Memory` class in `mem0/memory/main.py` wires together four swappable subsystems:
 
-**Search** (`memory.search(query, user_id=user_id, limit=3)`): Runs a semantic similarity search against stored facts for a given user, session, or agent scope. Returns ranked results that callers inject into their system prompts.
+- **LLM layer** (`mem0/llms/`) — 16 providers via `LlmFactory`; default `gpt-4.1-nano-2025-04-14`
+- **Embedding layer** (`mem0/embeddings/`) — 11 providers via `EmbedderFactory`; default OpenAI embeddings
+- **Vector store layer** (`mem0/vector_stores/`) — 23 backends via `VectorStoreFactory`; default Qdrant at `~/.mem0/`
+- **Graph store layer** (`mem0/memory/graph_memory.py`) — optional Neo4j knowledge graph; off by default
 
-**Multi-level scoping**: Memories are tagged at three levels — user, session, and agent. A single fact can belong to all three, enabling per-user personalization independent of which agent or session surfaced it.
+A `SQLiteManager` (`mem0/memory/storage.py`) logs all ADD/UPDATE/DELETE events for audit history. Memory is scoped by `user_id`, `agent_id`, `session_id`, and `run_id` metadata filters on the same flat vector collection — not separate storage tiers despite how the documentation describes "multi-level memory."
 
-Vector storage is pluggable. The library supports Qdrant, Pinecone, Chroma, and others through a common interface. Each user's facts live in the same vector namespace, differentiated by metadata filters on user_id.
+## Core Mechanism: The Two-Pass Pipeline
 
-The extraction step uses an LLM to decide what's worth remembering, which means every `add()` call consumes tokens beyond what the application already spent on generation. This is a real cost that the documentation underemphasizes.
+`Memory._add_to_vector_store()` runs two sequential LLM calls per ingestion:
 
-## Key Numbers
+**Pass 1 — Fact extraction.** The LLM receives the conversation and `USER_MEMORY_EXTRACTION_PROMPT` (from `mem0/configs/prompts.py`), returning:
 
-From the Mem0 research paper (self-reported, LOCOMO benchmark):
-- **+26% accuracy** over OpenAI Memory
-- **91% faster responses** than full-context approaches
-- **90% fewer tokens** than full-context
+```json
+{"facts": ["Name is John", "Is a Software engineer", "Likes cheese pizza"]}
+```
 
-These numbers come from Mem0's own paper (`arXiv:2504.19413`) and have not been independently validated. The LoCoMo benchmark results from competitor Memori (81.95% overall accuracy) rank above Mem0 on the same benchmark, which Mem0's README does not acknowledge. Supermemory claims the #1 position on LoCoMo, LongMemEval, and ConvoMem.
+Two prompt variants exist: user extraction (penalizes including assistant content) and agent extraction (assistant messages only, activated when `agent_id` is present).
 
-**Repository**: 51,880 stars, Apache-2.0 license, YC S24 backed.
+**Pass 2 — Reconciliation.** For each extracted fact, Mem0 embeds it, searches the vector store for the top 5 similar existing memories, then sends all retrieved memories plus new facts to a second LLM call with `DEFAULT_UPDATE_MEMORY_PROMPT`. The LLM returns one of four operations per memory: ADD, UPDATE, DELETE, or NONE.
+
+A critical implementation detail: real UUIDs are swapped for sequential integer IDs (0, 1, 2...) before the LLM call, then mapped back afterward. The comment in `main.py` says explicitly: "mapping UUIDs with integers for handling UUID hallucinations." This prevents the LLM from inventing non-existent IDs.
+
+Each decision is then executed: ADD creates a new vector; UPDATE overwrites the payload and re-embeds; DELETE removes the vector and writes to SQLite history.
+
+**Retrieval** (`memory.search()`) is a single embedding call plus vector similarity search, with optional reranking via Cohere, HuggingFace, SentenceTransformer, ZeroEntropy, or an LLM-based reranker added in v1.0.0.
+
+## Optional Graph Memory
+
+When Neo4j is configured, `MemoryGraph` runs in parallel via `concurrent.futures.ThreadPoolExecutor`:
+
+1. LLM + `EXTRACT_ENTITIES_TOOL` extracts entity-type pairs
+2. Second LLM call via `RELATIONS_TOOL` establishes source-relationship-destination triples
+3. Third LLM call checks which existing relationships are contradicted
+4. Merge nodes with Cypher `MERGE` queries; soft-delete contradicted relationships (`r.valid = false`, `r.invalidated_at = datetime()`)
+
+Graph mode costs 3+ additional LLM calls per `add()`. The graph search results appear in a separate `relations` array alongside the vector results. Soft-deleted relationships accumulate indefinitely with no garbage collection.
+
+## Comparison to Related Systems
+
+Mem0 occupies the simplest position in the agent memory space. [Graphiti](../projects/getzep-graphiti.md) builds a full bi-temporal knowledge graph with entity resolution, 4–5 LLM calls per episode, and temporal edge invalidation — reaching +38% improvement on temporal reasoning tasks. [Letta](../projects/letta-ai-letta.md) gives agents explicit tools to read and rewrite their own context window blocks, making memory management a first-class agent capability. Mem0 requires no changes to the agent: wrap any conversation in `memory.add()` and `memory.search()`, and the system handles extraction, dedup, and retrieval automatically.
+
+The tradeoff: no [temporal reasoning](../concepts/episodic-memory.md), no [agent-driven memory management](../concepts/agent-memory.md), no structured entity relationships by default. For preference tracking and personalization, this is sufficient. For multi-session reasoning across changing facts, the more sophisticated systems pull ahead.
 
 ## Strengths
 
-**Broad backend support**: Works with most major vector stores and LLMs out of the box. Switching from Qdrant to Pinecone requires a config change, not code changes.
+**Drop-in integration.** The canonical usage pattern takes fewer than 10 lines of code. No schema design, no graph database, no agent prompt rewrites.
 
-**Simple API surface**: `add()`, `search()`, `get()`, `delete()` cover most use cases. The quickstart example in the README is complete and functional — no hidden setup steps.
+**23 vector backends.** Qdrant, pgvector, Pinecone, Chroma, FAISS, Milvus, Redis, Weaviate, MongoDB, Elasticsearch, and more. Production deployments can use whatever vector store is already in the stack.
 
-**Framework integrations**: LangGraph, CrewAI, and others have documented integration paths. MCP server support lets it plug into Claude Code, Cursor, and similar tools.
+**Semantic deduplication.** The reconciliation pass handles equivalences like "likes cheese pizza" vs "loves cheese pizza" that hash-based or exact-match dedup would miss.
 
-**Self-hostable**: The full open-source package runs without any Mem0 cloud dependency. Managed platform exists for teams that want it.
+**Hosted managed service.** The platform at app.mem0.ai handles the vector database, graph services, and rerankers as a service, including SOC 2 Type II, GDPR compliance, and audit logging.
 
 ## Critical Limitations
 
-**Concrete failure mode**: Memory extraction relies on an LLM call per `add()` invocation. In high-frequency agent loops where the agent calls tools repeatedly and logs each step, extraction costs accumulate fast. If the extraction LLM misclassifies a transient state ("I am currently processing step 3 of 10") as a durable fact, that noise pollutes future retrievals. There is no built-in deduplication or contradiction resolution — if a user updates a preference ("actually I prefer light mode now"), both the old and new facts coexist until you manually delete the stale one.
+**Silent data loss on LLM parse failure.** The reconciliation step requires the LLM to return valid JSON. The code strips markdown fences and attempts regex extraction, but if the LLM produces malformed output, `new_memories_with_actions` becomes `{}` and the entire `add()` call produces no memory updates. There is no retry and no error surfaced to the caller.
 
-**Unspoken infrastructure assumption**: Mem0 expects a running vector database. In production, that means maintaining Qdrant or another store alongside your application. Cold start latency, replication, and backup are entirely your problem. The managed platform sidesteps this, but introduces vendor lock-in that the Apache-2.0 license otherwise avoids.
+**No concurrency control.** Multiple concurrent `add()` calls for the same `user_id` race on the vector store: both read existing memories, both may decide to ADD the same fact, creating duplicates. There is no locking beyond SQLite's thread lock for history writes.
 
-## When NOT to Use It
+**Unspoken infrastructure assumption: a running LLM API.** Every `add()` call makes 2+ synchronous LLM calls before returning. In high-throughput applications — real-time chat, batch processing, event-driven pipelines — this creates a latency bottleneck that cannot be eliminated by parallelism alone. The managed platform mitigates this by handling memory operations asynchronously server-side, but the self-hosted `Memory` class blocks.
 
-**Avoid Mem0 when your memory queries require temporal reasoning**. If your application needs to answer "what did the user say last week versus last month" or resolve contradictions ("user said X in January but Y in March"), Mem0 has no native mechanism for this. It stores facts as flat vectors with timestamps but does not reason over time ordering.
+## When NOT to Use Mem0
 
-**Skip it if your agent runs in tight loops with many short turns**. Each `add()` call hits an LLM for extraction. An agent that takes 50 steps to complete a task generates 50 extraction calls on top of 50 task calls. At that ratio, the token savings from not passing full context may disappear.
+**When facts change frequently.** Mem0 has no true temporal model. Contradicted facts are deleted from the vector store rather than invalidated with a timestamp. "Alice works at Google" gets deleted when she changes jobs, with no record of the history. If your application needs "what did we know about Alice in January?" use [Graphiti](../projects/getzep-graphiti.md) instead.
 
-**Do not use it for compliance-sensitive applications** without auditing the hosted platform's data handling. The self-hosted path avoids this, but requires running your own vector infrastructure at production scale.
+**When relationships between entities matter.** The default mode stores flat fact strings. "Alice is Bob's manager" becomes a text chunk, not a typed edge between two entity nodes. Queries like "who reports to Bob?" require the agent to parse text blobs. Enable graph memory for relational data — but budget for the extra LLM calls and the Neo4j dependency.
+
+**When the agent must reason about its own memory.** Mem0's extraction is invisible to the agent. The agent cannot decide what is worth remembering, reorganize its knowledge, or reflect on what it knows. For agents that need explicit memory management, [Letta](../projects/letta-ai-letta.md)'s editable context blocks are the right model.
+
+**When operating at high write volume without the managed platform.** The self-hosted library makes synchronous LLM calls per `add()`. At >10 concurrent users writing messages, the LLM API becomes a bottleneck and UUID-hallucination errors begin accumulating silently in logs.
 
 ## Unresolved Questions
 
-**Conflict resolution is undocumented**. The README shows no mechanism for handling contradictory facts about the same user. Whether the extraction LLM detects conflicts or simply appends is unclear from public documentation.
+**Benchmark provenance.** The +26% accuracy over OpenAI Memory on LOCOMO is self-reported (arXiv:2504.19413). No independent replication exists in the repository or as a separate evaluation suite. The benchmark scripts are absent from the codebase.
 
-**Cost at scale**: The managed platform pricing for high-volume production workloads is not public. For self-hosted deployments, the combined cost of extraction LLM calls plus vector store operations at millions of add/search operations per day is not benchmarked anywhere in the documentation.
+**Soft-delete accumulation in graph mode.** Invalidated relationships (`r.valid = false`) are never garbage collected. For long-running deployments with frequent fact updates, the graph accumulates stale edges that slow queries without any documented compaction strategy.
 
-**Governance**: Mem0 is YC-backed and commercially oriented. The open-source repository and the managed platform share a brand but have separate codebases. It is not documented how features developed for the platform flow back to the open-source package, or on what timeline.
+**Organizational memory governance.** The documentation describes an "organizational memory" tier for shared team context, noting it "depends on owner maintenance for governance." There is no access control, audit trail for shared memories, or mechanism to prevent a single agent from polluting shared state at scale.
 
-**Extraction quality**: The paper benchmarks retrieval accuracy but not extraction precision — how often the extraction LLM correctly identifies what should be a memory versus noise. This matters more in production than retrieval accuracy, because bad extraction corrupts the memory store over time.
+**v1.0.0 breaking changes.** The migration guide exists but the scope of backward incompatibility is not quantified. Deployments using older vector store schemas or custom prompts may require manual data migration.
 
 ## Alternatives
 
-**[Memori](https://github.com/MemoriLabs/Memori)**: SQL-native, extracts memory from agent actions (tool calls, not just text). Outperforms Mem0 on LoCoMo (81.95% vs Mem0's reported numbers). Use Memori when you need structured, queryable memory and your agents do more than converse.
+| Need | Use instead |
+|------|-------------|
+| Temporal fact tracking, point-in-time queries | [Graphiti](../projects/getzep-graphiti.md) — bi-temporal edges, entity resolution, proven LongMemEval results |
+| Agent-controlled memory, multi-agent coordination | [Letta](../projects/letta-ai-letta.md) — editable context blocks, sleeptime consolidation agents |
+| Cognitive-science-inspired decay, self-hosted only | OpenMemory — sector-based decay, reflection, no managed service |
+| Simple RAG without memory management overhead | Any [vector database](../concepts/vector-database.md) with direct retrieval |
 
-**Supermemory**: Claims #1 on LongMemEval, LoCoMo, and ConvoMem (self-reported). Handles temporal reasoning and contradiction resolution natively. TypeScript-first. Use Supermemory when temporal fact management and automatic forgetting matter for your use case.
+## Related Concepts
 
-**Plain RAG**: If your memory needs are document retrieval rather than personal fact tracking, a standard vector search pipeline (Qdrant + embeddings) without a memory abstraction layer is simpler and cheaper. Mem0 adds value when you need per-user personalization across sessions, not just document retrieval.
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
+- [Episodic Memory](../concepts/episodic-memory.md)
+- [Semantic Memory](../concepts/semantic-memory.md)
+- [Agent Memory](../concepts/agent-memory.md)
+- [Model Context Protocol](../concepts/model-context-protocol.md)
 
-**LangMem (LangGraph)**: Tightly integrated with the LangGraph ecosystem. Use it if you are already on LangGraph and want minimal additional dependencies.
+## Sources
 
-Use Mem0 when you want a self-hostable, backend-agnostic memory layer with a clean API, an existing LangGraph or CrewAI integration, and your use case fits simple fact storage and retrieval without temporal reasoning.
-
-
-## Related
-
-- [Retrieval-Augmented Generation](../concepts/rag.md) — implements (0.5)
+- [Deep repo analysis: mem0ai/mem0](../raw/deep/repos/mem0ai-mem0.md)
+- [Repo summary: mem0ai/mem0](../raw/repos/mem0ai-mem0.md)
+- [Deep repo analysis: getzep/graphiti](../raw/deep/repos/getzep-graphiti.md) — comparative context
+- [Deep repo analysis: letta-ai/letta](../raw/deep/repos/letta-ai-letta.md) — comparative context

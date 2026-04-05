@@ -207,6 +207,143 @@ async function downloadImages(
   return images;
 }
 
+// ─── Thread detection + merging ─────────────────────────────────────────
+
+/** Extract reply-to ID from various Apify response shapes. */
+function getReplyToId(tweet: Record<string, unknown>): string | null {
+  const id =
+    (tweet.inReplyToId as string) ??
+    (tweet.in_reply_to_status_id_str as string) ??
+    (tweet.in_reply_to_status_id as string) ??
+    ((tweet.legacy as Record<string, unknown>)?.in_reply_to_status_id_str as string) ??
+    null;
+  return id || null;
+}
+
+/** Extract conversation ID from various Apify response shapes. */
+function getConversationId(tweet: Record<string, unknown>): string | null {
+  const id =
+    (tweet.conversationId as string) ??
+    (tweet.conversation_id_str as string) ??
+    ((tweet.legacy as Record<string, unknown>)?.conversation_id_str as string) ??
+    null;
+  return id || null;
+}
+
+/**
+ * Detect self-reply threads and merge them into the root tweet.
+ * A "thread" is a chain of tweets by the same author replying to themselves.
+ * Returns the items with thread tweets merged into their root parents.
+ */
+function mergeThreads(
+  items: Record<string, unknown>[],
+  requestedUrls: string[],
+): Record<string, unknown>[] {
+  // Index all tweets by ID for parent lookup
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const tweet of items) {
+    byId.set(getTweetId(tweet), tweet);
+  }
+
+  // Find thread children: same author replying to themselves
+  const threadChildren = new Set<string>(); // IDs to skip in main loop
+  // Map from root tweet ID → ordered list of thread continuation texts
+  const threadTexts = new Map<string, string[]>();
+  // Map from root tweet ID → aggregated engagement from thread
+  const threadEngagement = new Map<string, Engagement>();
+  // Map from root tweet ID → all expanded URLs from thread tweets
+  const threadUrls = new Map<string, string[]>();
+  // Map from root tweet ID → all media URLs from thread tweets
+  const threadMedia = new Map<string, string[]>();
+
+  for (const tweet of items) {
+    const replyToId = getReplyToId(tweet);
+    if (!replyToId) continue;
+
+    const author = getAuthorHandle(tweet);
+    const tweetId = getTweetId(tweet);
+
+    // Walk up the reply chain to find the root of a self-reply thread
+    let parentId = replyToId;
+    let parent = byId.get(parentId);
+    // Only merge if replying to the same author (self-thread)
+    if (!parent || getAuthorHandle(parent) !== author) continue;
+
+    // Walk to the root of the thread
+    let rootId = parentId;
+    let root = parent;
+    while (root) {
+      const rootReplyTo = getReplyToId(root);
+      if (!rootReplyTo) break;
+      const rootParent = byId.get(rootReplyTo);
+      if (!rootParent || getAuthorHandle(rootParent) !== author) break;
+      rootId = getTweetId(root);
+      root = rootParent;
+      rootId = getTweetId(root);
+    }
+
+    // Mark this tweet as a thread child (will be merged, not processed independently)
+    threadChildren.add(tweetId);
+
+    // Accumulate text
+    const texts = threadTexts.get(rootId) ?? [];
+    texts.push(getTweetText(tweet));
+    threadTexts.set(rootId, texts);
+
+    // Accumulate engagement
+    const childEng = getEngagement(tweet);
+    const existing = threadEngagement.get(rootId) ?? { likes: 0, retweets: 0, views: 0 };
+    threadEngagement.set(rootId, {
+      likes: existing.likes + childEng.likes,
+      retweets: existing.retweets + childEng.retweets,
+      views: existing.views + childEng.views,
+    });
+
+    // Accumulate URLs and media from thread tweets
+    const urls = threadUrls.get(rootId) ?? [];
+    urls.push(...extractExpandedUrls(tweet));
+    threadUrls.set(rootId, urls);
+
+    const media = threadMedia.get(rootId) ?? [];
+    media.push(...extractMediaUrls(tweet));
+    threadMedia.set(rootId, media);
+  }
+
+  // Now augment root tweets with merged thread data
+  const merged: Record<string, unknown>[] = [];
+  for (const tweet of items) {
+    const tweetId = getTweetId(tweet);
+    if (threadChildren.has(tweetId)) continue; // skip — already merged into root
+
+    // If this tweet is a thread root, augment it
+    const extraTexts = threadTexts.get(tweetId);
+    if (extraTexts && extraTexts.length > 0) {
+      const threadCount = extraTexts.length + 1;
+      console.log(`  detected thread: ${threadCount} tweets by @${getAuthorHandle(tweet)}, merging`);
+      // Merge thread text into the tweet (store as _threadText for downstream use)
+      tweet._threadText = extraTexts;
+      tweet._threadCount = threadCount;
+      // Merge engagement (add thread engagement to root)
+      const extraEng = threadEngagement.get(tweetId);
+      if (extraEng) {
+        const rootEng = getEngagement(tweet);
+        tweet._mergedEngagement = {
+          likes: rootEng.likes + extraEng.likes,
+          retweets: rootEng.retweets + extraEng.retweets,
+          views: rootEng.views + extraEng.views,
+        };
+      }
+      // Merge URLs and media
+      tweet._threadUrls = threadUrls.get(tweetId) ?? [];
+      tweet._threadMedia = threadMedia.get(tweetId) ?? [];
+    }
+
+    merged.push(tweet);
+  }
+
+  return merged;
+}
+
 // ─── Main ingestion logic ───────────────────────────────────────────────
 
 interface IngestOptions {
@@ -239,14 +376,17 @@ export async function ingestTweets(
     maxItems: startUrls.length * 10, // Extra for replies/quotes
   });
 
-  for (const tweet of items) {
+  // Merge self-reply threads into their root tweets
+  const mergedItems = mergeThreads(items, urls);
+
+  for (const tweet of mergedItems) {
     const tweetUrl = getTweetUrl(tweet);
     const text = getTweetText(tweet);
     if (!text) continue;
 
     // Check if this is one of the original requested tweets or a reply/quote
     const isOriginal = urls.some((u) => tweetUrl.includes(getTweetId(tweet)));
-    const engagement = getEngagement(tweet);
+    const engagement = (tweet._mergedEngagement as Engagement) ?? getEngagement(tweet);
 
     // For non-original tweets, only ingest if high engagement or has URLs
     if (!isOriginal) {
@@ -280,8 +420,12 @@ export async function ingestTweets(
       }
     }
 
-    // Combine tweet text with article content for LLM classification
-    const fullText = articleContent ? `${text}\n\n## ${articleTitle}\n\n${articleContent}` : text;
+    // Combine tweet text (including merged thread) with article content for LLM classification
+    const threadTexts = (tweet._threadText as string[]) ?? [];
+    const threadBody = threadTexts.length > 0 ? "\n\n" + threadTexts.join("\n\n") : "";
+    const fullText = articleContent
+      ? `${text}${threadBody}\n\n## ${articleTitle}\n\n${articleContent}`
+      : `${text}${threadBody}`;
 
     // Skip tweets with < 50 words of actual content (after article enrichment)
     const wordCount = fullText.replace(/https?:\/\/\S+/g, "").split(/\s+/).filter(Boolean).length;
@@ -305,10 +449,14 @@ export async function ingestTweets(
       ? slugify(`${handle}-${articleTitle.slice(0, 50)}`)
       : slugify(`${handle}-${text.slice(0, 50)}`);
 
-    // Download images
-    const mediaUrls = extractMediaUrls(tweet);
+    // Download images (including from thread tweets)
+    const mediaUrls = [
+      ...extractMediaUrls(tweet),
+      ...((tweet._threadMedia as string[]) ?? []),
+    ];
     const images = await downloadImages(mediaUrls, slug);
 
+    const threadCount = (tweet._threadCount as number) ?? 1;
     const frontmatter: RawSourceFrontmatter = {
       url: tweetUrl,
       type: "tweet",
@@ -319,20 +467,25 @@ export async function ingestTweets(
       likes: engagement.likes,
       retweets: engagement.retweets,
       views: engagement.views,
+      ...(threadCount > 1 && { thread_count: threadCount }),
       ...(images.length > 0 && {
         images: images.map((img) => img.localPath),
       }),
-    };
+    } as RawSourceFrontmatter;
 
     const body = articleContent
-      ? buildTweetBody(tweet, text, engagement, images) + `\n\n---\n\n## ${articleTitle}\n\n${articleContent}`
-      : buildTweetBody(tweet, text, engagement, images);
+      ? buildTweetBody(tweet, text, engagement, images, threadTexts) + `\n\n---\n\n## ${articleTitle}\n\n${articleContent}`
+      : buildTweetBody(tweet, text, engagement, images, threadTexts);
     const filePath = await writeRawSource("tweets", slug, frontmatter, body);
     written.push(filePath);
 
     // Auto-chain: extract expanded URLs from Apify entities and ingest linked content
     // (X article URLs already handled above, skip them here)
-    const expandedUrls = extractExpandedUrls(tweet);
+    // Include URLs discovered in thread tweets
+    const expandedUrls = [
+      ...extractExpandedUrls(tweet),
+      ...((tweet._threadUrls as string[]) ?? []),
+    ];
     const githubChain: string[] = [];
     const articleChain: string[] = [];
 
@@ -382,14 +535,16 @@ function buildTweetBody(
   text: string,
   engagement: Engagement,
   images: TweetImage[] = [],
+  threadTexts: string[] = [],
 ): string {
   const handle = getAuthorHandle(tweet);
   const isRT = tweet.isRetweet === true;
   const isQT = tweet.isQuote === true;
   const quote = tweet.quote as Record<string, unknown> | undefined;
+  const threadCount = (tweet._threadCount as number) ?? 1;
 
   const lines: string[] = [];
-  lines.push(`## Tweet by @${handle}`);
+  lines.push(threadCount > 1 ? `## Thread by @${handle} (${threadCount} tweets)` : `## Tweet by @${handle}`);
   lines.push("");
 
   if (isRT) {
@@ -403,6 +558,14 @@ function buildTweetBody(
 
   lines.push(text);
   lines.push("");
+
+  // Append thread continuation tweets
+  if (threadTexts.length > 0) {
+    for (let i = 0; i < threadTexts.length; i++) {
+      lines.push(threadTexts[i]!);
+      lines.push("");
+    }
+  }
 
   // Include quoted tweet content if available
   if (isQT && quote) {

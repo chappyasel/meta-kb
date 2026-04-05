@@ -2,124 +2,168 @@
 entity_id: letta
 type: project
 bucket: agent-memory
+abstract: >-
+  Letta (formerly MemGPT) is a stateful agent platform where memory blocks are
+  editable text injected directly into the LLM system prompt, making memory
+  management a first-class agent capability rather than an external retrieval
+  system.
 sources:
+  - tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md
   - repos/mirix-ai-mirix.md
+  - repos/letta-ai-letta-code.md
   - repos/letta-ai-letta.md
+  - repos/letta-ai-lettabot.md
   - papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
-  - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
-  - deep/repos/getzep-graphiti.md
-  - deep/repos/wangyu-ustc-mem-alpha.md
+  - articles/turing-post-9-open-agents-that-improve-themselves.md
   - deep/repos/letta-ai-letta.md
-  - deep/repos/mem0ai-mem0.md
   - deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
-related: []
-last_compiled: '2026-04-05T05:28:49.035Z'
+related:
+  - Retrieval-Augmented Generation
+  - Episodic Memory
+  - Reflexion
+  - Graphiti
+  - Letta Code
+  - Core Memory
+last_compiled: '2026-04-05T20:29:26.676Z'
 ---
-# Letta (formerly MemGPT)
-
-**Type:** Agent framework | **Language:** Python | **License:** Apache-2.0
-**Stars:** ~21,900 | **GitHub:** [letta-ai/letta](https://github.com/letta-ai/letta)
-
-[Source](../../raw/repos/letta-ai-letta.md)
-
----
+# Letta
 
 ## What It Does
 
-Letta provides infrastructure for building stateful LLM agents that persist memory across conversations. Agents can learn from interactions, update their own memory, and theoretically improve over time without losing context between sessions.
+Letta is a full agent platform built around one core premise: memory should live inside the prompt where the agent can see and edit it, not in a separate system the agent queries blindly. Every agent maintains persistent `Block` objects compiled into the system prompt at each LLM call. The agent uses tool calls to rewrite those blocks across conversations, accumulating knowledge without any external memory store.
 
-The project started as MemGPT, a research system exploring how to give LLMs access to hierarchical memory tiers (analogous to OS virtual memory). It has since expanded into a full agent platform with an API, SDKs for Python and TypeScript, and a hosted cloud service.
+The project originated as MemGPT (arXiv:2310.08560), which framed LLMs as operating systems managing context windows the way an OS manages RAM -- paging information between an active context window and external storage. Letta is the productized evolution: a REST API server, multi-agent orchestration, Python and TypeScript SDKs, and a CLI tool called Letta Code.
 
----
+[Source](../raw/deep/repos/letta-ai-letta.md) | [Source](../raw/repos/letta-ai-letta.md)
 
 ## Core Mechanism
 
-The central abstraction is `memory_blocks`: named, mutable text slots attached to each agent at creation. Standard blocks are `human` (what the agent knows about the user) and `persona` (how the agent understands itself). These blocks load directly into the system prompt on every turn, giving the agent immediate access to its accumulated knowledge.
+### Memory Blocks as Editable Context
 
-Agent creation looks like this:
+The `Memory` class in `letta/schemas/memory.py` holds a list of `Block` objects. Each block has a `label` (e.g., "human", "persona"), a `value` (plain text), and a `limit` (character count, not tokens). The `Memory.compile()` method renders all blocks into XML-structured text injected into the system prompt, including metadata showing the agent its own character counts and limits.
 
-```python
-agent_state = client.agents.create(
-    model="openai/gpt-5.2",
-    memory_blocks=[
-        {"label": "human", "value": "Name: Timber..."},
-        {"label": "persona", "value": "I am a self-improving superintelligence..."}
-    ],
-    tools=["web_search", "fetch_webpage"]
-)
+```xml
+<memory_blocks>
+<human>
+<metadata>chars_current=142, chars_limit=5000</metadata>
+<value>The user's name is Alice. She prefers dark mode.</value>
+</human>
+</memory_blocks>
 ```
 
-The agent can edit its own `memory_blocks` mid-conversation via tool calls, which is the core self-improvement loop. This differs from simple conversation history logging: the agent decides what to retain and how to represent it, rather than a system mechanically appending turns to a buffer.
+The agent knows its own memory constraints and can act on them.
 
-Beyond in-context blocks, Letta manages archival storage for information that doesn't fit in the context window. Agents retrieve from archival via search tools, enabling recall across long interaction histories.
+### Self-Modifying Memory Tools
 
-The Letta Code CLI extends this with a local agent that can run subagents and load pre-built skills, framed as a coding assistant with persistent context.
+Defined in `letta/functions/function_sets/base.py`, these tools let the agent rewrite its own context:
 
----
+- **`core_memory_replace(label, old_content, new_content)`** -- Exact string replacement. Fails with `ValueError` if `old_content` is not found, forcing the agent to be precise.
+- **`core_memory_append(label, content)`** -- Appends content. Prone to block fragmentation over time.
+- **`rethink_memory(new_memory, target_block_label)`** -- Wholesale rewrite of a block. Creates the block if it doesn't exist. This is the reorganization tool that addresses fragmentation.
+- **`archival_memory_insert(content, tags)`** -- Pushes content to long-term vector-searchable storage.
+- **`archival_memory_search(query, tags, top_k)`** -- Semantic search over archival memory. The agent must call this explicitly -- there is no automatic retrieval.
+- **`conversation_search(query, roles, limit, start_date, end_date)`** -- Hybrid search over conversation history.
+
+### The Agent Loop
+
+`LettaAgent.step()` follows this sequence for each user message:
+
+1. Load message history and system prompt
+2. Refresh blocks from the database (`agent_manager.refresh_memory_async`)
+3. Compile blocks into the system prompt via `_rebuild_memory_async`
+4. Call the LLM with tools available
+5. If the LLM calls a tool: execute it, update blocks or archival storage, loop back to step 4
+6. If the LLM calls `send_message`: return response to user
+7. Check context window usage -- if above 90% (`SUMMARIZATION_TRIGGER_MULTIPLIER = 0.9`), trigger summarization
+8. Maximum 50 steps per request (`DEFAULT_MAX_STEPS = 50`)
+
+A single user message routinely triggers 3-5 LLM calls as the agent reads context, updates memory, searches archival storage, and formulates a response.
+
+### Summarization
+
+Two modes handle context window overflow. `STATIC_MESSAGE_BUFFER` evicts oldest messages and runs a background `EphemeralSummaryAgent` that writes a summary to a dedicated `conversation_summary` block. `PARTIAL_EVICT_MESSAGE_BUFFER` evicts 30% of messages synchronously and creates a recursive summary inserted as a user message. The static mode is non-blocking but the summary arrives after the current turn.
+
+### Sleeptime Agents
+
+`SleeptimeMultiAgent` in `letta/groups/sleeptime_multi_agent.py` runs a second agent in background threads (using `asyncio.new_event_loop()`) to consolidate memory between conversations. The primary agent handles real-time interactions without memory-editing tools. After every N messages (configurable via `sleeptime_agent_frequency`), a background task spawns the sleep-time agent with a transcript of recent messages. It reorganizes the primary agent's memory blocks and writes to shared state through the block system. This decouples memory quality from response latency.
+
+### Multi-Agent Coordination
+
+Agents communicate via `send_message_to_agent_async` (fire-and-forget), `send_message_to_agent_and_wait_for_reply` (blocking), and `send_message_to_agents_matching_all_tags` (broadcast). Multiple agents can reference identical `Block` objects by `block_id`, enabling collaborative knowledge building where one agent's memory edits are visible to another on its next call. Built-in orchestration patterns: round-robin, supervisor-worker, dynamic routing, sleeptime, and producer-reviewer.
 
 ## Key Numbers
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| GitHub Stars | ~21,900 | As of early 2026 |
-| Forks | ~2,300 | |
-| DMR Benchmark | 93.4% (MemGPT) | Self-reported by MemGPT team; Zep paper reports this figure |
-| Contributors | 100+ | Per README |
+- **21,873 GitHub stars, 2,312 forks** (self-reported via repository metadata)
+- **DMR benchmark**: MemGPT scored 93.4% accuracy vs. Zep's 94.8% -- independently benchmarked in the Zep paper (arXiv:2501.13956). The comparison used different base models, limiting direct apples-to-apples interpretation.
+- **17+ LLM providers** supported via adapter pattern
+- **128K token** default context window with summarization at 90% usage
+- **Default archival chunk size**: 300 characters, 1024-dimensional embeddings
 
-The DMR (Deep Memory Retrieval) benchmark was established by the MemGPT team as their primary evaluation metric, which means Letta both designed and scored on their own test. Zep subsequently outperformed this score (94.8% vs 93.4%) on the same benchmark, and also beat Letta on the independent LongMemEval benchmark [Source](../../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md). Treat Letta's memory benchmark claims with appropriate skepticism.
-
----
+[Source](../raw/deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)
 
 ## Strengths
 
-**Stateful agent lifecycle management.** The `agents.create` / `agents.messages.create` API gives you a clean contract: agent identity and memory persist server-side, and your application code just sends messages. This removes the burden of managing conversation state in your own database.
+**Memory is inspectable and externally editable.** Every block is individually persisted with a `block_id`. Developers can read and modify agent memory via the REST API or the Agent Development Environment (ADE) visual interface. No opaque vector stores or graph databases to debug.
 
-**Self-directed memory editing.** The agent chooses what to write into its memory blocks, rather than having a fixed summarization pipeline run externally. This means the agent can maintain structured, semantically meaningful summaries rather than chronological logs.
+**Reversible learning.** Unlike fine-tuning or RLHF, memory modifications are text edits. Bad memories can be overwritten. The agent's full "learned state" is readable as text.
 
-**Model agnosticism.** The SDK supports arbitrary model endpoints. Letta publishes a model leaderboard (leaderboard.letta.com) with their own rankings for which models perform best in agentic memory tasks.
+**Sleeptime decouples quality from latency.** The primary agent never blocks on memory operations. The sleeptime agent can use stronger models and spend more compute on consolidation, improving memory quality without slowing conversations.
 
-**Ecosystem influence.** MIRIX, a multi-agent personal assistant with a six-component memory architecture, explicitly acknowledges Letta as the foundation for its memory system [Source](../../raw/repos/mirix-ai-mirix.md). The abstractions have proven reusable.
+**Full platform.** REST API, SDKs, MCP integration, multi-agent orchestration, and deployment infrastructure are included. You do not need to assemble these from separate libraries.
 
----
+**Model-agnostic.** Adapters cover 17+ providers. Tool interfaces are constrained to the lowest common denominator of supported models, but portability is genuine.
 
-## Limitations
+## Critical Limitations
 
-**Failure mode: memory block staleness under rapid update.** Because agents write to memory blocks through LLM-generated tool calls, any confusion in the agent's reasoning about what to update (or forgetting to update) silently corrupts the agent's world model. There is no transactional guarantee. An agent that makes a bad decision about what to store will carry that bad state forward indefinitely until something overwrites it. The system has no built-in mechanism to detect or flag when stored memory contradicts recent observations.
+**One concrete failure mode -- archival memory requires explicit retrieval.** Unlike [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) systems that automatically surface relevant context, `archival_memory_search` must be called by the agent. If the agent fails to search, relevant information stays in external storage regardless of relevance. Weaker models miss this consistently, creating a false sense of persistent memory that silently degrades on facts the agent doesn't think to look up.
 
-**Infrastructure assumption: context window as the bottleneck.** Letta's architecture assumes the primary constraint is fitting relevant information into finite context. This was true when MemGPT was designed (circa GPT-4 with 8K context). With models now supporting 128K-1M token windows, the retrieval-over-archival pattern is less compelling for many use cases. The framework has not publicly addressed how its archival retrieval strategy adapts when the context window can hold most of a user's history directly.
+**One unspoken infrastructure assumption -- PostgreSQL is mandatory.** The ORM layer in `letta/orm/` requires PostgreSQL for production deployments. SQLite works for local development but is not supported at scale. Teams expecting to drop a memory library into an existing architecture will instead be adopting a full service with a database dependency, API server, and embedding infrastructure.
 
----
+**Character limits are per-block, not global.** Each block has its own limit, but no global budget exists across blocks. An agent with many blocks can overflow the context window even with every individual block under its limit.
 
-## When Not to Use Letta
+**Memory quality degrades with model quality.** Since the agent manages its own blocks through tool calls, memory quality is directly proportional to the LLM's reasoning. Weaker models create redundant entries, fail to recognize when information should be updated, and produce fragmented blocks that grow until `rethink_memory` is called.
 
-**Short-lived or stateless interactions.** If your application handles discrete, independent queries where users don't expect continuity, Letta's memory infrastructure adds complexity without benefit.
+**No structured knowledge representation.** All memory is unstructured text strings. Relational queries ("what is Alice's relationship to Bob?") require the agent to parse its own block text. For applications requiring entity-relationship reasoning across many facts, this approach becomes unwieldy as knowledge grows. [Graphiti](../projects/graphiti.md) stores explicit entity nodes and edges; Letta stores paragraphs.
 
-**High-throughput, low-latency production workloads.** Each agent message involves memory block retrieval, potential archival search, and LLM-mediated memory editing. This is expensive relative to a stateless inference call. If you need sub-second responses at scale, the overhead compounds quickly.
+**Background sleeptime has no graceful shutdown.** Tasks run in daemon threads with independent event loops. If the main process exits mid-consolidation, work is lost silently.
 
-**Teams without tolerance for early-stage APIs.** The transition from MemGPT to Letta involved breaking changes. The project is still evolving rapidly; anyone building on the SDK should expect the API surface to shift.
+## When NOT to Use Letta
 
-**Use cases requiring temporal reasoning across structured data.** If your agents need to track how facts change over time (e.g., a customer's account status, a contract that was amended), Letta's text-blob memory blocks have no native temporal model. Zep's knowledge graph approach handles this better [Source](../../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md).
+**Skip Letta when you need structured relational memory.** If your application needs to answer questions like "list all users who mentioned X in the past week" or "what entities does Alice relate to?", Letta's text-block architecture forces parsing unstructured strings for every query. Use [Graphiti](../projects/graphiti.md) instead.
 
----
+**Skip Letta when memory is not the central concern.** Letta is a full platform with a PostgreSQL-backed server, embedding infrastructure, and REST API. If you need lightweight memory augmentation for an existing agent system, the operational overhead is disproportionate. [mem0](../projects/mem0.md) provides automatic fact extraction with far lower infrastructure requirements.
+
+**Skip Letta for stateless or ephemeral use cases.** Every agent maintains a perpetual message thread. For one-shot tasks or applications where conversation isolation is required, the statefulness is overhead without benefit.
+
+**Skip Letta when per-message cost is tightly constrained.** The agent loop generates 3-5 LLM calls per user message for memory-active sessions. At high volume, this cost multiplier is significant.
 
 ## Unresolved Questions
 
-**Governance of the hosted service.** The API requires a Letta API key tied to `app.letta.com`. The README links to privacy and terms pages but does not explain what happens to agent memory stored in the cloud, data retention policies, or how conflicts between the open-source and hosted versions are resolved.
+**Memory consolidation quality is unvalidated.** The documentation claims sleeptime agents produce "clean, concise, and detailed memories," but no benchmark measures consolidation quality over long time horizons. How well the system maintains coherent memory after hundreds of sessions is unknown.
 
-**Cost at scale.** Every message may trigger multiple LLM calls (memory editing tool calls on top of the primary response). The documentation does not publish cost estimates per agent-message under realistic workloads.
+**Block budget management at scale.** There is no documented guidance on how many blocks an agent should have, what happens to context window efficiency as block count grows, or when to split versus merge blocks.
 
-**Memory conflict resolution.** If an agent writes contradictory facts to the same memory block across sessions (user says their name is Alice in session 1, corrects it to Alicia in session 5), there is no documented reconciliation mechanism beyond whatever the LLM happens to do when updating the block.
+**Governance of shared blocks in multi-agent systems.** When two agents write to the same block concurrently, the documentation does not specify conflict resolution. The last write wins, but there is no locking mechanism described in the available source material.
 
-**Benchmark design independence.** DMR was created by the MemGPT team. Independent validation of Letta's memory quality claims on neutral benchmarks is sparse.
+**Hosted service cost model.** The Letta API (app.letta.com) is the recommended deployment path, but pricing at scale is not documented in available sources. The per-agent overhead (persistent threads, block storage, embedding infrastructure) for large agent fleets is unclear.
 
----
+**Context constitution formalization.** The blog describes "context constitutions" as structured policies governing context composition, but this feature's implementation status and relationship to the current block architecture is not fully documented.
 
 ## Alternatives
 
-| Alternative | Use when |
-|-------------|----------|
-| **Zep** | You need temporal knowledge graphs, structured business data integration, or enterprise-grade retrieval with auditable history. Outperforms Letta on both DMR and LongMemEval. |
-| **Plain conversation history + summarization** | Your context window is large enough to hold relevant history and you want simpler infrastructure. |
-| **MIRIX** | You want a multi-agent memory system with specialized recall by memory type (episodic, semantic, procedural) and local-first storage. Built on Letta's abstractions but extends them. |
-| **Custom vector store + RAG** | Your memory needs are read-heavy and updates are infrequent; you want full control over retrieval logic. |
+- **Use [Graphiti](../projects/graphiti.md) / Zep when** you need temporal knowledge graphs with entity-relationship tracking. On the LongMemEval benchmark, Zep achieves 18.5% accuracy improvement and 90% latency reduction over baselines on complex temporal reasoning tasks -- meaningfully stronger than MemGPT on tasks requiring cross-session synthesis of evolving facts. [Source](../raw/deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)
+
+- **Use mem0 when** you want automatic memory extraction without managing a full platform. mem0 extracts facts from conversations automatically; Letta delegates all extraction decisions to the agent itself.
+
+- **Use plain [RAG](../concepts/retrieval-augmented-generation.md) when** your use case is document retrieval rather than agent learning. Letta's documentation explicitly distinguishes its approach from RAG: "RAG merely connects systems to data without enabling learning or adaptation." If adaptation is not required, the full Letta stack is unnecessary overhead.
+
+- **Use Letta when** memory management is the central product requirement, you need inspectable and externally editable agent state, multi-agent memory sharing is required, or you want a complete platform rather than assembling components.
+
+## Related Concepts
+
+- [Core Memory](../concepts/core-memory.md) -- The in-context editable block system Letta implements
+- [Episodic Memory](../concepts/episodic-memory.md) -- Recall memory (conversation history) tier
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) -- Archival memory tier uses embedding-based retrieval
+- [Reflexion](../concepts/reflexion.md) -- Self-improvement via memory editing is conceptually related
+- [Graphiti](../projects/graphiti.md) -- Alternative memory architecture using temporal knowledge graphs

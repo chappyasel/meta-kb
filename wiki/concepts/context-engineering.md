@@ -1,140 +1,168 @@
 ---
 entity_id: context-engineering
-type: approach
+type: concept
 bucket: context-engineering
+abstract: >-
+  Context engineering is the discipline of systematically designing, managing,
+  and optimizing information fed to LLMs during inference — more rigorous than
+  prompt engineering, covering retrieval, compression, memory, and multi-agent
+  coordination.
 sources:
-  - repos/memodb-io-acontext.md
-  - repos/vectifyai-pageindex.md
-  - repos/thedotmack-claude-mem.md
+  - repos/agenticnotetaking-arscontexta.md
   - repos/topoteretes-cognee.md
-  - repos/othmanadi-planning-with-files.md
+  - repos/kayba-ai-agentic-context-engine.md
   - papers/mei-a-survey-of-context-engineering-for-large-language.md
   - articles/effective-context-engineering-for-ai-agents.md
-  - articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md
+  - articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md
   - articles/martinfowler-com-context-engineering-for-coding-agents.md
-  - deep/repos/garrytan-gstack.md
-  - deep/repos/othmanadi-planning-with-files.md
-  - deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
-  - deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
 related:
-  - Claude Code
   - Retrieval-Augmented Generation
-last_compiled: '2026-04-05T05:23:14.883Z'
+  - Model Context Protocol
+  - Prompt Engineering
+  - Dynamic Cheatsheet
+  - Context Graph
+  - Chain-of-Thought
+  - Bounded Context
+  - Progressive Disclosure
+  - DSPy
+last_compiled: '2026-04-05T20:25:09.301Z'
 ---
 # Context Engineering
 
 ## What It Is
 
-Context engineering is the discipline of designing and managing the information provided to an LLM during inference. It goes beyond writing prompts to encompass how you retrieve, structure, compress, and update everything inside the context window.
+Context engineering treats the information provided to an LLM as a first-class engineering artifact rather than an afterthought. Where [prompt engineering](../concepts/prompt-engineering.md) focused narrowly on phrasing instructions, context engineering addresses the full problem: what information to provide, how to retrieve it, how to compress it, how to structure it, and how to allocate a finite token budget across competing needs.
 
-The framing matters because LLMs don't learn from individual interactions at inference time. Their behavior is determined entirely by what you put in the context window at the moment they run. A model with good weights and poor context engineering underperforms a weaker model with well-constructed context. This makes context the primary lever practitioners actually control.
+The 2025 survey by Mei et al. ([Source](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md)) formalizes this as an optimization problem:
 
-A 2025 survey ([Mei et al.](../../raw/papers/mei-a-survey-of-context-engineering-for-large-language.md)) covering over 1,400 papers formalizes this as a discipline with three foundational components: context retrieval and generation, context processing, and context management. These components then compose into system-level implementations: RAG, memory systems, tool-integrated reasoning, and multi-agent coordination.
+**C = A(c\_instr, c\_know, c\_tools, c\_mem, c\_state, c\_query)**
 
-## The Taxonomy
+Where context is composed of six component types fed through an assembly function A, subject to the hard constraint |C| ≤ L\_max. The goal is finding assembly functions that maximize expected task reward across a task distribution.
 
-### Context Retrieval and Generation
+This framing matters because it makes explicit what practitioners do implicitly: every token in the context window has an opportunity cost. Filling it with boilerplate instructions trades against retrieved knowledge; verbose tool definitions crowd out memory.
 
-Retrieval pulls relevant information from external sources at query time. The core challenge is that you can't embed everything in a static prompt, so you need mechanisms to select what's relevant for a specific query.
+## Why It Matters
 
-Vector search (dense retrieval) converts text into embeddings and finds semantically similar passages. This handles paraphrase and implicit connections but fails on exact-match lookups and struggles when relevance depends on relationship structure rather than surface similarity.
+LLMs cannot learn between calls. Everything they know about your specific situation — user history, relevant documents, the current state of a workflow — must arrive through the context window. This makes context the primary lever for improving LLM behavior, not fine-tuning, not model selection.
 
-Graph-augmented retrieval, as implemented in tools like [Cognee](../projects/cognee.md), structures knowledge as entity-relationship graphs. This lets queries traverse connections rather than scoring isolated chunks, which helps for multi-hop questions where the answer depends on the relationship between two things that wouldn't be retrieved together by pure vector similarity.
+The survey's central finding is an asymmetry: **LLMs are far better at understanding complex contexts than generating equally sophisticated outputs.** A model can reason over a detailed, multi-document context and draw accurate conclusions, but it cannot generate an equivalently rich long-form document from sparse input. This asymmetry has a direct design implication: invest in rich context assembly rather than expecting the model to compensate with better generation from thin inputs.
 
-Generation-based context construction creates context through synthesis rather than lookup. This includes hypothetical document embedding (generating a hypothetical answer and retrieving against it), query expansion, and summarization-based compression.
+## Taxonomy
 
-### Context Processing
+The survey decomposes context engineering into two layers:
 
-Raw retrieved content rarely fits directly into a prompt. Processing transforms it into a form the model can use effectively.
+### Foundational Components
 
-**Compression** reduces token count while preserving information density. This includes extractive methods (selecting important spans), abstractive methods (generating summaries), and token-level methods that prune tokens by predicted importance. The tradeoff is that compression introduces lossy decisions about what to keep.
+**Context Retrieval and Generation** covers how information enters the context. This includes prompt engineering techniques (zero-shot, few-shot, chain-of-thought, tree-of-thought, ReAct), external knowledge retrieval ([Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md), knowledge graph queries, structured search), and dynamic context assembly with automated optimization.
 
-**Reranking** reorders retrieved passages by relevance to the actual query, separating the initial broad retrieval from the precision selection step. Cross-encoder rerankers are more accurate than embedding-based retrieval but more expensive to run at scale.
+**Context Processing** covers transformation within the context. Relevant techniques: Mamba and LongNet for state-space modeling, position interpolation to extend beyond training-time context lengths, FlashAttention and Ring Attention to reduce the O(n²) cost of attention, and memory compression methods like YaRN, Infini-attention, and StreamingLLM. Self-refinement approaches (Self-Refine, Reflexion, long chain-of-thought) also fall here.
 
-**Structuring** reformats content into representations the model handles better: tables, code, lists, or structured schemas versus unformatted prose.
+**Context Management** addresses budget allocation: tiered memory hierarchies (hot/warm/cold storage), context compression, intelligent routing, and caching. Current compression techniques achieve 4-8× compression ratios with moderate information loss, which suggests most production systems are wasting context budget.
 
-### Context Management
+### System Implementations
 
-Long-running agents and multi-turn conversations accumulate context that grows unbounded. Management handles what to keep, what to discard, and how to maintain continuity across sessions.
+These components combine into recognizable patterns:
 
-The core challenge is the context window limit. Even models with 1M-token windows face practical constraints: longer contexts increase latency, cost, and the probability of the model attending to the wrong parts. The "lost in the middle" problem, documented in multiple studies, shows model performance degrades on information positioned in the middle of long contexts compared to information at the beginning or end.
+- **RAG systems**: The survey documents a clear trend from monolithic pipelines toward modular architectures (FlashRAG, KRAGEN, ComposeRAG) where retrieval, reranking, and generation components are independently swappable. Agentic RAG (Self-RAG, CDF-RAG) extends this further, letting the LLM autonomously decide when and what to retrieve.
 
-Memory systems persist information across context windows. Approaches vary by structure:
+- **Memory systems**: MemoryBank, MemLLM, MemGPT, MemOS represent a rapidly evolving field with no settled best practice. The survey notes that most benchmarks (LongMemEval, MEMENTO) test single-session recall rather than the cross-session synthesis and temporal reasoning production systems require. Memory system evaluation is immature.
 
-- **Vector stores**: fast semantic retrieval but opaque; hard to inspect or correct
-- **Knowledge graphs**: human-readable relationships but require schema design upfront
-- **Skill files**: [Acontext](../projects/acontext.md) stores agent learnings as Markdown files, making memory auditable and editable without re-embedding on transfer
-- **Episodic logs**: compressed summaries of past interactions
+- **Multi-agent systems**: Communication protocols (MCP, KQML, FIPA ACL) and orchestration frameworks (AutoGen, MetaGPT, CrewAI) sit at the frontier. Managing shared context across agents remains an unsolved challenge — coordination overhead often negates the benefits of parallelization for simple tasks.
 
-Each has different tradeoffs for inspection, portability, and retrieval precision.
+## The Six-Component Model in Practice
 
-## The Asymmetry Problem
+The six-component decomposition (c\_instr, c\_know, c\_tools, c\_mem, c\_state, c\_query) functions as a design checklist. For any LLM-powered system, each component warrants explicit design decisions:
 
-Mei et al. identify a structural gap that shapes what context engineering can accomplish: current LLMs are considerably better at understanding complex contexts than at generating equivalently complex outputs. You can feed a model a 100,000-token context and it will comprehend it reasonably well. Ask it to produce 10,000 tokens of coherent, structured output and quality degrades substantially.
+| Component | Questions to Ask |
+|---|---|
+| c\_instr | What behavioral rules does this system need? Can they be compressed? |
+| c\_know | What external knowledge is relevant? Is retrieval quality maximizing mutual information with the query? |
+| c\_tools | How verbose are tool definitions? Can signatures be shortened without loss? |
+| c\_mem | What from prior sessions is relevant? How is relevance determined? |
+| c\_state | What world state or user context needs to be injected? |
+| c\_query | Is the user query being passed as-is, or transformed before assembly? |
 
-This matters for system design. Context engineering can dramatically improve what a model extracts, reasons about, and synthesizes from large information sets. It cannot compensate for output-side limitations. Systems that need long-form generation, extended reasoning chains, or complex structured output hit a ceiling that better context construction doesn't raise.
+The information-theoretic framing from the survey is useful conceptually: retrieval should maximize I(Y\*; c\_know | c\_query) — the mutual information between retrieved content and the correct answer given the query. In practice, reranking models approximate this.
 
-The practical implication: context engineering works best when the output is short and targeted (answers, decisions, summaries) rather than long and generative (reports, code bases, extended plans).
+## Implementations
 
-## How It Works in Practice
+Several projects instantiate context engineering principles in different ways:
 
-**Static context**: fixed system prompts, few-shot examples baked in at deploy time. Simple, predictable, but can't adapt to query-specific needs.
+**[Cognee](../projects/cognee.md)** ([Source](../raw/repos/topoteretes-cognee.md)) combines vector search with graph databases to maintain dynamically evolving contextual knowledge. It grounds queries in relationship structures that adapt as data changes, addressing RAG's core limitation: inability to synthesize information across disconnected documents. Graph-enhanced approaches show consistent 10-20% improvements on multi-hop reasoning tasks over vanilla RAG (self-reported benchmarks).
 
-**Dynamic context**: context constructed at request time based on the query. Requires retrieval infrastructure but scales to large knowledge bases.
+**[Agentic Context Engine (ACE)](../projects/agentic-context-engine.md)** ([Source](../raw/repos/kayba-ai-agentic-context-engine.md)) implements a Skillbook: a persistent collection of strategies that evolves through a Reflector/SkillManager loop. The Recursive Reflector writes and executes Python code in a sandboxed environment to programmatically search for patterns rather than summarizing traces in a single pass. Reported results: 2× consistency improvement on the Tau2 airline benchmark with 15 learned strategies, 49% token reduction in browser automation tasks (self-reported, not independently validated).
 
-**Agentic context**: context evolves over a multi-step task. The agent retrieves information, takes actions, receives results, and each step modifies what's in context. This requires managing not just what to retrieve but what to keep from previous steps and what to drop.
+**[Ars Contexta](../projects/arscontexta.md)** ([Source](../raw/repos/agenticnotetaking-arscontexta.md)) generates personalized knowledge system architectures through conversation. Rather than applying generic templates, it derives folder structure, processing pipelines, hooks, and navigation maps from the user's domain and cognitive patterns. The system implements a six-phase pipeline (Record, Reduce, Reflect, Reweave, Verify, Rethink) and spawns fresh subagents per phase to avoid attention degradation as context fills.
 
-**Tool-integrated reasoning**: the model's context includes tool schemas and prior tool call results. Context engineering here involves deciding which tools to expose (exposing too many degrades performance), how to format tool outputs before they re-enter context, and how to handle tool failures without context contamination.
+Other patterns that implement context engineering concepts: [Dynamic Cheatsheet](../concepts/dynamic-cheatsheet.md), [Context Graph](../concepts/context-graph.md), [Chain-of-Thought](../concepts/chain-of-thought.md), [Progressive Disclosure](../concepts/progressive-disclosure.md), [Bounded Context](../concepts/bounded-context.md), [DSPy](../projects/dspy.md).
 
-**Multi-agent context**: in systems with multiple agents, each agent has its own context window. Coordination requires deciding what information to pass between agents (messages, shared memory, structured handoffs) without duplicating the entire conversation history at each node.
+## Design Tradeoffs
+
+**Comprehension vs. generation asymmetry**: Rich retrieval and context assembly yields higher returns than trying to coax better generation from sparse input. This is the survey's most actionable finding.
+
+**Context length vs. quality**: More retrieved documents does not reliably produce better answers. Noise increases with length. The O(n²) attention cost remains significant even with FlashAttention, though specialized architectures (Mamba, LongNet) partially address this.
+
+**Static vs. dynamic retrieval**: Static RAG (retrieve once, generate once) is fast and debuggable. Agentic RAG (iterative retrieval, multi-hop) handles complex reasoning better but introduces latency and opacity. The survey leaves selection guidance as an open question.
+
+**Modular vs. monolithic pipelines**: Modular architectures enable component-level optimization but add integration complexity. The field trend is toward modularity, but swappable components require clean interface contracts.
+
+**Compression vs. fidelity**: 4-8× compression with moderate loss is achievable, but "moderate loss" is domain-dependent. There is no principled guidance on compression ratio limits or information loss detection in production.
 
 ## Failure Modes
 
-**Retrieval-generation mismatch**: the retrieved content is relevant in isolation but confuses the model when combined. Two passages that contradict each other, or that use the same term with different meanings, can cause the model to hedge or produce inconsistent outputs. The model has no way to signal that its retrieved context is incoherent.
+**The retrieval-quality gap**: Most RAG systems retrieve relevant documents but fail at multi-hop reasoning requiring synthesis across them. Vanilla vector similarity does not capture relationship structure. Graph-enhanced retrieval partially addresses this.
 
-**Context pollution in agents**: early mistakes in a multi-step task contaminate subsequent reasoning. If the model's tool call at step 2 produces wrong output and that output sits in context, subsequent steps will reason from it. There's no native mechanism to quarantine suspect context.
+**Memory isolation**: Memory architectures are typically evaluated in isolation. In production, they interact with retrieval, tool use, and multi-agent coordination in ways benchmarks do not capture.
 
-**Semantic drift in memory**: memory systems that accumulate over long periods tend to store outdated information. Updating memory requires detecting what's stale, which requires running retrieval against the memory itself. Cognee's continuous learning approach addresses this by reprocessing data as it changes, but this creates its own consistency challenges during updates.
+**Attribution failures**: RAG systems struggle to faithfully attribute information to sources. Hallucination can occur even when the correct answer exists in the retrieved context, particularly when multiple contradictory sources are present.
 
-**The lost-in-the-middle problem**: information placed in the middle of a long context window receives less attention than information at the start or end. Systems that retrieve 20 passages and concatenate them expose themselves to this: only the first and last few passages may be attended to reliably.
+**Benchmark inadequacy**: Existing benchmarks (GAIA, NarrativeQA, LongMemEval) do not adequately test cross-session, multi-source, temporal reasoning. Production systems regularly encounter tasks these benchmarks underrepresent.
 
-**Compression loss**: aggressive context compression to fit within token limits can remove precisely the detail needed to answer the query. The compression decision is made before the model runs, so there's no feedback loop to discover what was erroneously dropped.
+**Coordination overhead in multi-agent systems**: Passing context between agents introduces overhead that can exceed the benefit of parallelization for simple tasks. Shared context management across agents remains architecturally unsolved.
 
-## Infrastructure Assumptions
+## When Not to Use Context Engineering Approaches
 
-Most context engineering approaches assume synchronous, low-latency access to retrieval systems. In practice, vector search against large corpora can take 50-200ms, reranking adds another pass, and multi-hop graph traversal compounds these costs. For latency-sensitive applications, the retrieval pipeline can dominate response time, not the model inference.
+Context engineering adds complexity. For single-turn, narrow-domain tasks where the relevant information fits comfortably in a direct prompt, elaborate retrieval and assembly pipelines introduce latency and failure modes without meaningful gains. If your system does not require information beyond what fits in 2-4K tokens of hand-written context, simpler is better.
 
-Graph-based approaches (Cognee, GraphRAG variants) additionally require maintained graph infrastructure: databases like Neo4j or Weaviate, ingestion pipelines that update graph structure as source data changes, and schema design that reflects actual query patterns. This is more infrastructure than most prompt-engineering setups anticipate.
+For tasks requiring real-time information (live prices, current news, streaming data), retrieval pipelines introduce staleness risks that context engineering cannot solve — those require direct API integration, not knowledge base retrieval.
 
-Acontext's skill file approach ([source](../../raw/repos/memodb-io-acontext.md)) takes the opposite tradeoff: memory is Markdown files that require no vector infrastructure and are trivially portable, but retrieval is by agent reasoning and `list_skills`/`get_skill` tool calls rather than semantic search. This works when skill counts are manageable but breaks down as the skill library grows and the agent can't determine what to retrieve without browsing.
+## Unresolved Questions
 
-## When Not to Use It
+**Technique selection**: The survey's taxonomy is descriptive, not prescriptive. It catalogs what techniques exist but provides limited guidance on when to use which technique for which problem type or constraint set.
 
-**Single-turn, low-variability queries**: if your queries are narrow and the relevant information is small enough to fit in a system prompt, dynamic retrieval adds latency and failure modes without benefit. A customer support bot answering questions about one product's FAQ probably doesn't need RAG.
+**Computational tractability**: The formal optimization framework (maximize mutual information subject to context length) is mathematically sound but not computable in practice. Practitioners cannot derive Bayesian posteriors over context utility at inference time.
 
-**Latency-critical applications**: retrieval adds round trips. If you need sub-100ms response times, a static context approach with a well-tuned prompt will outperform a multi-stage retrieval pipeline.
+**Multi-modal gaps**: The survey and most context engineering work focus heavily on text. Multi-modal context engineering (images, video, audio, structured data) receives comparatively thin treatment.
 
-**Small, stable knowledge bases**: if your knowledge base fits in 10,000 tokens and changes quarterly, load it statically. Retrieval infrastructure is operational overhead that only pays off when you can't fit everything in context or when the knowledge changes frequently enough that rebuilding static prompts isn't feasible.
+**Memory system churn**: MemGPT, Zep, Letta, MemOS, and others represent a field changing faster than any single architecture can be validated. Systems built on any specific memory backend should be designed for replacement.
 
-**When output quality is the bottleneck**: if your problem is that outputs aren't long enough, structured enough, or consistent enough across multiple turns, better context construction won't fix this. That's a generation-side limitation.
+**Cost at scale**: Context compression, graph construction, and agentic retrieval all carry compute costs. The survey does not address how these costs scale with corpus size or query volume in production environments.
 
-## Open Questions
+## Alternatives and Selection Guidance
 
-**Compression without loss guarantees**: every compression method makes implicit decisions about what's important. There's no principled way to verify that compressed context preserves all query-relevant information before running the model.
+- Use [prompt engineering](../concepts/prompt-engineering.md) when your task fits in a single context window and doesn't require external information
+- Use [RAG](../concepts/retrieval-augmented-generation.md) when your knowledge base is too large for the context window and queries are retrievable by semantic similarity
+- Use graph-enhanced RAG (Cognee, GraphRAG, LightRAG) when queries require synthesizing information across multiple related documents
+- Use memory systems when agent behavior should improve across sessions based on prior interactions
+- Use multi-agent architectures when tasks decompose into parallelizable subtasks requiring specialized capabilities — but expect coordination overhead
 
-**Cost accounting at scale**: the published benchmarks on RAG and memory systems rarely include full cost profiles. Token costs for retrieval, reranking, and the model call itself combine in ways that aren't obvious. The cost per query for a sophisticated context engineering pipeline can be 5-10x a simple prompt.
+## Sources
 
-**Conflict resolution in retrieved context**: when retrieved passages contradict each other, what should the system do? Some approaches ask the model to reason through contradictions, but this requires the model to have ground truth about which source is more reliable, which it typically doesn't have.
+- [A Survey of Context Engineering for Large Language Models](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md) — Mei et al., 2025
+- [Cognee repository](../raw/repos/topoteretes-cognee.md)
+- [Agentic Context Engine repository](../raw/repos/kayba-ai-agentic-context-engine.md)
+- [Ars Contexta repository](../raw/repos/agenticnotetaking-arscontexta.md)
 
-**Memory governance**: who decides when agent-learned skills should be deleted or corrected? Acontext makes skills human-readable so they can be edited, but there's no standard for how to audit or expire accumulated agent memory over time.
 
-## Related Concepts and Tools
+## Related
 
-- Retrieval-Augmented Generation: the most widely deployed form of context engineering
-- [Cognee](../projects/cognee.md): graph-plus-vector retrieval with continuous learning
-- [Acontext](../projects/acontext.md): skill-file-based memory layer emphasizing portability and human readability
-
-## Selection Guidance
-
-Use pure vector RAG when your knowledge base is large, queries are ad-hoc, and you want standard infrastructure. Use graph-augmented retrieval (Cognee) when queries depend on relationships between entities rather than similarity to a query. Use skill-file memory (Acontext) when you need portable, human-auditable agent memory and can tolerate retrieval by agent reasoning rather than semantic search. Use static context when the knowledge base is small and stable.
+- [Retrieval-Augmented Generation](../concepts/rag.md) — part_of (0.6)
+- [Model Context Protocol](../concepts/mcp.md) — part_of (0.7)
+- [Prompt Engineering](../concepts/prompt-engineering.md) — supersedes (0.7)
+- [Dynamic Cheatsheet](../concepts/dynamic-cheatsheet.md) — implements (0.7)
+- [Context Graph](../concepts/context-graph.md) — implements (0.7)
+- [Chain-of-Thought](../concepts/chain-of-thought.md) — implements (0.7)
+- [Bounded Context](../concepts/bounded-context.md) — implements (0.7)
+- [Progressive Disclosure](../concepts/progressive-disclosure.md) — implements (0.7)
+- [DSPy](../projects/dspy.md) — implements (0.7)

@@ -1,5 +1,7 @@
 # meta-kb
 
+![meta-kb](og-image.png)
+
 A living, LLM-compiled knowledge base about building LLM knowledge bases.
 
 Inspired by [Andrej Karpathy's tweet](https://x.com/karpathy/status/2039805659525644595) about using LLMs to compile and maintain markdown wikis from raw sources. This repo applies that exact pattern to the topic of LLM knowledge systems itself. The repo IS the demo.
@@ -30,6 +32,10 @@ Raw sources (tweets, repos, papers, articles) go into `raw/`. The deep research 
 - [The State of Self-Improving Systems](wiki/self-improving.md)
 
 **Compare tools:** [Landscape Comparison Table](wiki/comparisons/landscape.md) | [Interactive Knowledge Graph](wiki/graph.html)
+
+| Knowledge Graph | Architecture |
+|:---:|:---:|
+| [![Knowledge Graph](wiki/images/graph-preview.png)](wiki/graph.html) | [![Architecture](wiki/images/field-map-preview.png)](wiki/field-map.md) |
 
 **How it was built:** [METHODOLOGY.md](METHODOLOGY.md)
 
@@ -98,7 +104,7 @@ This is a general-purpose knowledge compiler. To build your own wiki on any topi
 
 - **Sources:** 155 curated (55 repos, 13 papers, 18 tweets, 19 articles) + 51 deep research files
 - **Wiki:** 211 articles (5 synthesis, 123 project cards, 76 concept explainers, field map, indexes)
-- **Graph:** 124 entities, 64 relationships across 5 topic areas
+- **Graph:** 107 entities, 194 relationships across 5 topic areas
 - **Deep research:** 140K words of source-code-level analysis
 - **Compiled by:** 3 independent systems (API pipeline, Claude Code, Codex), best-of-three merged
 

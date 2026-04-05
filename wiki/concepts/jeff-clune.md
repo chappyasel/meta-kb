@@ -2,33 +2,37 @@
 entity_id: jeff-clune
 type: person
 bucket: self-improving
+abstract: >-
+  Jeff Clune is a CS professor at UBC and research scientist known for
+  open-ended learning, neuroevolution, and self-improving AI systems.
 sources:
   - tweets/jennyzhangzt-introducing-hyperagents-an-ai-system-that-not-onl.md
   - repos/shengranhu-adas.md
   - papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md
-related: []
-last_compiled: '2026-04-05T05:43:04.858Z'
+related:
+  - Self-Improving Agents
+last_compiled: '2026-04-05T20:37:07.597Z'
 ---
-# Jeff Clune
+## Jeff Clune
 
-AI researcher at the University of British Columbia and a Canada CIFAR AI Chair, previously at OpenAI, Uber AI Labs, and the University of Wyoming. His research spans open-ended learning, quality-diversity (QD) algorithms, neuroevolution, and self-improving AI systems.
+**Role:** Professor, University of British Columbia; Research Scientist (Meta AI, formerly OpenAI)
+**Areas:** Open-ended learning, neuroevolution, self-improving AI, quality-diversity algorithms
 
-## Key Contributions
+Clune has spent two decades on a consistent question: can AI systems improve themselves without human intervention? His early work on neuroevolution (HyperNEAT, NEAT variants) showed that evolutionary methods could discover neural architectures that gradient descent missed. That thread runs directly into his current work on agents that rewrite their own code.
 
-**Quality-diversity algorithms.** Clune's early work on MAP-Elites and related QD methods established the idea that search should optimize for a diverse archive of high-performing solutions rather than a single optimum. This framework later informed his approach to open-ended AI: maintain a growing population of varied artifacts rather than hill-climbing toward one target.
+His most cited recent contribution is framing **open-endedness** as a core research goal: systems that keep discovering novel, useful capabilities rather than converging to a local optimum. This distinguishes his agenda from standard AutoML or NAS work, which optimizes toward a fixed target.
 
-**AI-Generating Algorithms (AI-GAs).** A 2020 paper Clune authored argued that the path to general AI runs through algorithms that themselves generate AI systems, rather than through hand-designed architectures. This framing directly motivated the self-improvement research that followed.
+**Key contributions:**
 
-**Automated Design of Agentic Systems (ADAS).** Clune co-authored the ADAS paper (ICLR 2025, Outstanding Paper at NeurIPS 2024 Open-World Agent Workshop), introducing Meta Agent Search: a meta-agent that iteratively programs new agent designs in code, building on previous discoveries. The [ADAS repo](https://github.com/ShengranHu/ADAS) has ~1,500 GitHub stars. Results are self-reported on standard benchmarks (ARC, DROP, MGSM, MMLU).
+- **ADAS (Automated Design of Agentic Systems)**, published ICLR 2025 with Shengran Hu and Cong Lu: a meta-agent that iteratively programs new agent architectures in code, treating the agent design space as searchable. [Source](../raw/repos/shengranhu-adas.md)
 
-**Darwin Gödel Machine (DGM).** Co-authored with Jenny Zhang, Shengran Hu, Cong Lu, and Robert Lange (2025), DGM replaces the provability requirement of the original Gödel Machine with empirical validation. The system maintains an archive of coding agents, samples from it, uses a foundation model to generate a modified version, then benchmarks the result. Self-reported performance on SWE-bench improved from 20.0% to 50.0%; Polyglot from 14.2% to 30.7%. These numbers are self-reported and run in sandboxed environments with human oversight.
+- **Darwin Gödel Machine (DGM)**, 2025, with Jenny Zhang et al.: a self-improving system that modifies its own codebase and validates changes empirically via coding benchmarks. SWE-bench performance grew from 20% to 50% through autonomous self-modification. [Source](../raw/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md)
 
-**Hyperagents / DGM-H.** An extension of DGM where both the task-solving behavior and the self-improvement procedure itself are editable. Clune served as a collaborator on this Meta AI internship project. The system demonstrated meta-level improvements (persistent memory, performance tracking) that transferred across coding, paper review, robotics reward design, and math grading domains.
+- **Hyperagents / DGM-H**: an extension where both the task-solving behavior and the self-improvement procedure are editable, enabling meta-level improvements that transfer across domains (coding, robotics reward design, math grading). [Source](../raw/tweets/jennyzhangzt-introducing-hyperagents-an-ai-system-that-not-onl.md)
 
-## Notable Positions
+His approach to the Gödel machine problem is pragmatic: drop the provability requirement, substitute empirical validation, add evolutionary exploration. The DGM line of work represents the clearest current instantiation of [Self-Improving Agents](../concepts/self-improving-agents.md) in a deployable research system.
 
-University of British Columbia (current faculty), OpenAI (Research Director, 2019-2021), Uber AI Labs, University of Wyoming.
 
-## Related Concepts
+## Related
 
-Self-improving systems, open-ended learning, quality-diversity search, meta-learning, agentic system design.
+- [Self-Improving Agents](../concepts/self-improving-agents.md) — implements (0.7)

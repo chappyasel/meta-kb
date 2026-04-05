@@ -2,6 +2,14 @@
 title: The State of Agent Systems
 type: synthesis
 bucket: agent-systems
+abstract: >-
+  Agent systems shifted from "how do we chain LLM calls" to "how do we make
+  agents that compound over time" — the core question is now self-improvement
+  through memory, skill evolution, and fitness-driven iteration loops rather
+  than orchestration topology.
+source_date_range: 2025-01-20 to 2026-04-05
+newest_source: '2026-04-05'
+staleness_risk: low
 sources:
   - repos/mem0ai-mem0.md
   - papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
@@ -14,6 +22,7 @@ sources:
   - repos/memodb-io-acontext.md
   - repos/kevin-hs-sohn-hipocampus.md
   - papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md
+  - tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md
   - tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md
   - repos/anthropics-skills.md
   - repos/jmilinovich-goal-md.md
@@ -22,251 +31,217 @@ sources:
   - repos/michaelliv-napkin.md
   - papers/mei-a-survey-of-context-engineering-for-large-language.md
   - papers/xu-agent-skills-for-large-language-models-architectu.md
+  - tweets/hwchase17-continual-learning-for-ai-agents.md
   - repos/wangyu-ustc-mem-alpha.md
   - repos/maximerobeyns-self-improving-coding-agent.md
   - repos/letta-ai-letta.md
   - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
-  - repos/osu-nlp-group-hipporag.md
-  - repos/agenticnotetaking-arscontexta.md
-  - repos/garrytan-gstack.md
-  - repos/affaan-m-everything-claude-code.md
-  - repos/alirezarezvani-claude-skills.md
-  - repos/orchestra-research-ai-research-skills.md
-  - repos/kepano-obsidian-skills.md
-  - repos/yusufkaraaslan-skill-seekers.md
-  - repos/shengranhu-adas.md
-  - repos/gepa-ai-gepa.md
-  - repos/othmanadi-planning-with-files.md
-  - repos/greyhaven-ai-autocontext.md
-  - articles/agent-skills-overview.md
-  - articles/calmops-ai-agent-skills-complete-guide-2026-building-reus.md
-  - articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md
-  - articles/arion-research-llc-algorithmic-circuit-breakers-preventing-flash-cr.md
-  - tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md
-  - tweets/philschmid-agent-skills-are-powerful-but-they-are-often-ai-ge.md
-  - tweets/steveruizok-some-of-you-aren-t-soldier-proofing-your-agent-ski.md
-  - papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md
-  - papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
 entities:
   - claude-code
-  - openai
   - anthropic
-  - andrej-karpathy
-  - openclaw
-  - cursor
-  - langchain
-  - opencode
+  - openai
   - claude
-  - agent-skills
-  - skill-md
-  - react
-  - langgraph
-  - windsurf
+  - cursor
+  - autoresearch
+  - openclaw
+  - opencode
+  - langchain
   - codex
-  - ollama
-  - pydantic
+  - gemini
+  - windsurf
+  - react
+  - gpt-4
+  - langgraph
   - vllm
   - crewai
-  - ace
   - litellm
-  - openai-agents-sdk
-  - github-copilot
-  - gemini
-  - agents-md
-  - gaia
-  - agno
+  - ollama
   - aider
-  - autogen
+  - github-copilot
   - swe-bench
-  - deepseek
-  - google-adk
-  - prompt-injection
-  - openrouter
+  - autogen
+  - autogpt
   - multi-agent-systems
-  - tobi-lutke
+  - deepseek
   - lilian-weng
-  - vercel-ai-sdk
-  - arc-agi
-last_compiled: '2026-04-05T05:18:01.107Z'
+  - harrison-chase
+  - osworld
+  - webarena
+  - appworld
+  - humaneval
+  - openrouter
+  - letta-code
+  - mobile-agent-e
+last_compiled: '2026-04-05T20:17:12.882Z'
 ---
 # The State of Agent Systems
 
-The question practitioners asked a year ago was "how do I get an LLM to use tools?" Today the question is "how do I build a system that gets better at using tools over time?" That shift, from single-turn capability to compounding improvement, changes nearly every architectural decision. The ecosystem has converged on a single abstraction: the skill. What was once a fragmented landscape of tools, plugins, and bespoke prompt chains is crystallizing around SKILL.md files, progressive disclosure, and composable registries.
+The central question in agent systems changed. Six months ago practitioners debated orchestration: how many agents, which framework, what topology. Today the debate is about compounding — how do you make an agent that's measurably better after a week than it was on day one? Memory, self-modification, and fitness functions replaced tool-calling and chain design as the primary engineering concerns.
+
+This shift has a concrete trigger. Karpathy's autoresearch experiment ([tweet](../raw/tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md)) demonstrated that an agent left running autonomously for two days could discover 20 real improvements to nanochat, yielding an 11% speedup on a benchmark that was already manually tuned. The result got 19,459 likes and 3.5M views. Practitioners stopped asking "can agents do useful work?" and started asking "how do I build the loop that makes them keep doing useful work?"
 
 ## Approach Categories
 
-### 1. SKILL.md and the Skill Ecosystem
+### 1. How do you give an agent persistent memory that actually scales?
 
-The most consequential development in agent systems this year: SKILL.md as the de facto standard for packaging agent capabilities. Anthropic released the Agent Skills specification as an open standard, defining skills as "folders of instructions, scripts, and resources that agents can discover and use to do things more accurately and efficiently" ([Source](../raw/articles/agent-skills-overview.md)). The format is deliberate in its simplicity: a folder with a `SKILL.md` file containing YAML frontmatter (name and description) plus markdown instructions.
+The naive answer — stuff everything into context — breaks at scale. The field converged on three distinct architectures, each answering this question differently.
 
-Skills solve a problem tools alone cannot: they encapsulate domain expertise, decision logic, and multi-step workflows into a single addressable unit. As Larry Qu argues: "Tools are single-purpose functions the agent calls with specific inputs. Skills represent higher-level capabilities where the skill itself may contain multiple tools, decision logic, specialized prompts, and its own micro-workflow" ([Source](../raw/articles/calmops-ai-agent-skills-complete-guide-2026-building-reus.md)).
+**Flat vector memory** remains the most deployed approach. [Mem0](projects/mem0.md) (51,880 stars) abstracts memory across user, session, and agent levels while decoupling from LLM choice. On the LOCOMO benchmark, Mem0 reports +26% accuracy over OpenAI Memory, 91% faster responses, and 90% fewer tokens versus full-context — all self-reported in their arXiv preprint, not peer-reviewed. The mechanism: selective retrieval against a vector store rather than replaying full history. Wins when you need personalization at scale across many users. Breaks when facts change over time — a user's job title updates but the old embedding still retrieves.
 
-[Anthropic's Skills repo](projects/anthropic.md) (110,064 stars) is the canonical reference implementation. It ships with production skills powering Claude's document capabilities (PDF, DOCX, PPTX, XLSX) and has been adopted across Claude Code, OpenClaw, OpenCode, Codex CLI, Gemini CLI, Cursor, and Kiro ([Source](../raw/repos/anthropics-skills.md)).
+**Temporal knowledge graphs** solve the staleness problem directly. [Graphiti](projects/graphiti.md) (24,473 stars) builds context graphs where every fact has a validity window and traces back to source episodes. The Zep paper ([source](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)) reports 94.8% vs 93.4% on the DMR benchmark against MemGPT, and 18.5% accuracy improvement with 90% lower latency on LongMemEval. These are self-reported but backed by a published arXiv paper. [Cognee](projects/cognee.md) (14,899 stars) takes a similar graph approach with continuous learning semantics. Both win for enterprise use cases requiring cross-session synthesis and contradiction handling. Both lose on setup complexity — Graphiti requires Neo4j, FalkorDB, or Kuzu, which adds infrastructure overhead that many teams won't pay.
 
-The Xu and Yan survey formalizes the landscape along four axes: architectural foundations, skill acquisition, deployment at scale, and security. Their key finding: 26.1% of community-contributed skills contain vulnerabilities, including injection attacks, capability escalation, and data exfiltration vectors ([Source](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md)). Peer-reviewed. The proposed four-tier gate-based permission model has no widely-adopted implementation yet.
+**File-based hierarchical memory** rejects databases entirely. [Hipocampus](projects/hipocampus.md) (145 stars) maintains a ~3K token ROOT.md topic index that loads into every session, giving agents O(1) lookup across all historical context without any search query. On the MemAware benchmark (900 implicit context questions across 3 months of history), Hipocampus + Vector scores 21% overall vs 0.8% for no memory and 3.4% for BM25+vector alone. [Napkin](projects/napkin.md) (264 stars) takes the same direction, reporting 83% on the LongMemEval medium split vs 72% for the prior best system, using BM25 on markdown with zero embeddings. These are self-reported benchmarks. The key insight from [napkin's README](../raw/repos/michaelliv-napkin.md): "Zero preprocessing. No embeddings, no graphs, no summaries. Just BM25 search on markdown files."
 
-The registries are growing fast. [gstack](projects/gstack.md) (63,766 stars) packages 23 role-based skills that turn Claude Code into a virtual engineering team: CEO, designer, eng manager, QA lead, security officer, release engineer. Garry Tan reports shipping 10,000-20,000 lines per day part-time using this setup ([Source](../raw/repos/garrytan-gstack.md)). [claude-skills](projects/claude-skills.md) (9,216 stars) offers 248 production-ready skills across 9 domains, deployable to 11 AI coding tools ([Source](../raw/repos/alirezarezvani-claude-skills.md)). [Skill Seekers](projects/skill-seekers.md) (12,269 stars) attacks the ingestion bottleneck: converting documentation sites, GitHub repos, PDFs, and videos into SKILL.md files with automatic conflict detection. Exports to 16 platforms ([Source](../raw/repos/yusufkaraaslan-skill-seekers.md)). [AI Research Skills](projects/ai-research-skills.md) (6,111 stars) packages 87 production-ready skills across 22 AI research domains ([Source](../raw/repos/orchestra-research-ai-research-skills.md)). [Obsidian Skills](projects/obsidian-skills.md) (19,325 stars) teaches agents to maintain Obsidian vaults through Markdown, Bases, JSON Canvas, and CLI ([Source](../raw/repos/kepano-obsidian-skills.md)).
-
-Progressive disclosure is the enabling architecture: agents load only skill metadata (name and description) at startup, then pull full instructions when needed. Esther Lloyd's Google Cloud article frames the problem: "I don't want to download the internet of skills just in case. I also don't want skills to be outdated in a few hours" ([Source](../raw/articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md)). Her solution: an ADK agent as a dynamic skill discovery service, fetching from approved repositories on demand with human-in-the-loop approval before installation.
+**Production failure mode:** Memory poisoning. In multi-agent systems, one hallucinated fact enters the knowledge base and every downstream agent builds on it. The [jumperz tweet](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md) documents this directly and proposes a validation gate — a separate supervisor agent (Hermes) that scores articles before they enter the permanent knowledge base, with no context about how they were produced to avoid bias.
 
 ---
 
-### 2. Skill Accumulation and Deployment-Time Learning
+### 2. How do agents acquire and evolve their own capabilities?
 
-This is the self-improvement question: how do agents accumulate capabilities from their own execution history?
+**Skill files as capability units.** Anthropic's [skills repository](projects/skills.md) (110,064 stars) formalizes SKILL.md — a YAML-frontmattered markdown file that Claude loads dynamically to extend behavior without retraining. The [agent skills paper](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md) surveys this landscape and flags a significant security finding: 26.1% of community-contributed skills contain vulnerabilities, motivating a four-tier gate-based permission model. The spec enables progressive context loading — agents load skills on demand rather than stuffing all capabilities into the system prompt.
 
-[Memento-Skills](projects/memento-skills.md) (916 stars) operationalizes the read-write reflection loop: agent executes, reflects on outcome, updates skill library with utility scores, routes future tasks through the updated router ([Source](../raw/repos/memento-teams-memento-skills.md)). LLM parameters stay frozen. All adaptation happens in the external skill registry. You can audit, edit, and roll back what the agent "learned."
+**Self-evolving skill registries.** [Memento-Skills](projects/memento-skills.md) (916 stars) implements a read-write reflection loop where agents update their own skill library after each task. Successful skills get higher utility scores; failed executions trigger skill optimization. No retraining required — the skill library in external memory substitutes for weight updates. [Acontext](projects/acontext.md) (3,264 stars) takes the same direction, treating memory as structured skill files (Markdown, human-readable) rather than opaque vector embeddings. The distillation pipeline: session messages → task completion trigger → LLM extracts what worked → skill agent writes to appropriate file.
 
-[Acontext](projects/acontext.md) (3,264 stars) makes skill files human-readable markdown, rejecting opaque vector stores. The distillation loop runs after task completion, extracts what worked, and writes to a `SKILL.md` schema you define ([Source](../raw/repos/memodb-io-acontext.md)). Framework-agnostic: skills are files, usable anywhere. The philosophy: "Skill is Memory, Memory is Skill." The failure mode is skill file proliferation: without disciplined consolidation, agents accumulate thousands of narrow files that create their own retrieval problem.
-
-[ACE (Agentic Context Engine)](projects/agentic-context-engine.md) (2,112 stars) approaches skill accumulation via a Recursive Reflector that writes and executes Python code in a sandbox to extract patterns from execution traces. On Tau2 airline tasks, 15 learned strategies double pass^4 consistency with no reward signals. Token costs for browser automation dropped 49% over a 10-run learning curve ([Source](../raw/repos/kayba-ai-agentic-context-engine.md)). Self-reported benchmark.
-
-[Mem-alpha](projects/mem-alpha.md) (193 stars) uses RL (GRPO) to train the memory construction strategy itself: not what to remember, but how to decide what to encode into episodic vs semantic vs core memory. Trained on 30K tokens, generalizes to 400K+ ([Source](../raw/repos/wangyu-ustc-mem-alpha.md)). Requires retraining, which most teams cannot afford, but reveals that static memory heuristics are suboptimal.
-
-**Failure mode:** Skill poisoning from bad executions. An agent succeeds at a task using an incorrect approach (output looked right, evaluation was wrong), writes a bad skill. Future similar tasks route through the same bad approach. Without utility score decay, version history, or adversarial validation, one bad run permanently degrades a task class.
+**Production failure mode:** Skill bloat and contradictory instructions. Without curation, skill libraries accumulate conflicting strategies. The [ACE framework](projects/agentic-context-engine.md) (2,112 stars) addresses this with a SkillManager role that explicitly removes and refines strategies, not just adds them. Without active curation, the registry grows stale — agents retrieve outdated strategies and performance degrades.
 
 ---
 
-### 3. Autonomous Improvement Loops
+### 3. How do you build a fitness function for autonomous improvement?
 
-Karpathy's autoresearch experiment crystallized the pattern: agent + metric + loop = overnight gains. The tweet reporting an 11% training speedup from 700 autonomous experiments drew 19,459 likes and 3.5M views ([Source](../raw/tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md)). It was the pattern that resonated, not the result.
+Karpathy's constraint was that nanochat had a natural metric: validation loss. Most software doesn't. The field developed explicit patterns for constructing fitness functions where none exist naturally.
 
-[uditgoenka/autoresearch](projects/autoresearch.md) (3,142 stars) packages this as a Claude Code skill suite: `/autoresearch` for the core loop, plus subcommands for security, debug, and fix. One change per iteration, mechanical verification, git as memory, automatic rollback on regression ([Source](../raw/repos/uditgoenka-autoresearch.md)). The key design decision is "Guard": a secondary command that must pass to prevent regressions while optimizing the primary metric.
+**Metric construction as first-class engineering.** [GOAL.md](projects/goal-md.md) (112 stars) documents this as a pattern: one file per repo that specifies a computable fitness function, improvement loop, action catalog, and constraints. The key insight from its README: "The hardest part isn't the loop — it's defining Scope, Metric, and Verify correctly." GOAL.md introduces dual scoring for cases where the measurement instrument itself is unreliable — a docs-quality example where the linter (Vale) flagged valid React prop names as spelling errors required separate scoring for "how good are the docs?" and "how reliable is the instrument?"
 
-[GOAL.md](projects/goal-md.md) (112 stars) solves the metric construction problem: most domains lack natural loss functions. The dual-score pattern (one for the thing, one for the measuring instrument) prevents agents from gaming metrics. In the docs example, the agent fixed its own linter before using it to fix the docs ([Source](../raw/repos/jmilinovich-goal-md.md)). The framework generalizes autoresearch from ML training to any domain.
+**Autonomous iteration frameworks.** [Autoresearch](projects/autoresearch.md) (3,142 stars) packages Karpathy's loop as a Claude Code skill with 10 subcommands: `/autoresearch` for the base loop, `/autoresearch:security` for read-only audits, `/autoresearch:debug` for bug hunting, and `/autoresearch:reason` for adversarial refinement of subjective decisions. [CORAL](projects/coral.md) (120 stars) extends this to multi-agent scenarios — each agent runs in its own git worktree branch, shared state (attempts, notes, skills) lives in `.coral/public/` symlinked into every worktree, zero sync overhead. [Darwin Gödel Machine](../raw/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md) takes this further — agents that modify their own code and empirically validate each change, improving SWE-bench from 20.0% to 50.0%. Peer-reviewed at ICLR 2025 workshop.
 
-[CORAL](projects/coral.md) (120 stars) extends the loop to multi-agent settings. Each agent runs in its own git worktree branch; shared state (attempts, notes, skills) lives in `.coral/public/` and is symlinked into every worktree with zero sync overhead ([Source](../raw/repos/human-agent-society-coral.md)). The manager dispatches heartbeat prompts ("reflect", "consolidate skills").
-
-The [Darwin Godel Machine paper](../raw/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md) shows where this is heading: agents that modify their own code architecture and validate changes against benchmarks, scaling SWE-bench from 20% to 50%. Peer-reviewed (ICLR workshop). Not production-ready, but the trajectory is clear.
-
-**Failure mode:** Metric gaming. Without the dual-score or Guard pattern, agents find the shortest path to making the number go up: deleting failing tests, hardcoding expected outputs, modifying the evaluator. Practitioners ship the loop without the Guard and wonder why the score improves but quality degrades.
+**Production failure mode:** Metric gaming. Without a guard clause, agents find creative paths to make the score go up that violate intent — fixing tests by deleting them, improving coverage metrics by adding empty test stubs. GOAL.md's constraint section addresses this directly; autoresearch implements a `Guard:` parameter that must pass before any improvement is committed.
 
 ---
 
-### 4. Automated Agent Design
+### 4. How do you build memory systems that learn from reinforcement?
 
-[ADAS](projects/adas.md) (Automated Design of Agentic Systems, 1,551 stars) introduced Meta Agent Search: a meta-agent that programs novel agent designs in code, evaluates against benchmarks, and builds on its own discoveries ([Source](../raw/repos/shengranhu-adas.md)). Published at ICLR 2025, Outstanding Paper at NeurIPS 2024 Open-World Agent Workshop. The agent architecture design space is itself searchable, and automated search outperforms hand-crafted designs.
+Fixed memory architectures — always store, always retrieve — turn out to be suboptimal. The question became: can agents learn *when* and *how* to memorize?
 
-[GEPA](projects/gepa.md) (3,157 stars) optimizes any text parameter (prompts, code, agent architectures, configurations) using LLM-based reflection and Pareto-efficient evolutionary search. The key innovation: reflective mutation reads full execution traces to diagnose failures rather than collapsing them to scalar rewards, achieving results with 35x fewer evaluations than RL methods ([Source](../raw/repos/gepa-ai-gepa.md)).
+**RL-trained memory construction.** [Mem-α](projects/mem-alpha.md) (193 stars) trains agents via GRPO to dynamically decide which information to encode into episodic, semantic, or core memory based on task feedback. Trained on 30K token contexts, it generalizes to 400K+ tokens (13x training length). Accuracy improvements on MemoryAgentBench are reported in their arXiv paper. The practical implication: static rules for what to remember ("always store user preferences") are worse than learned policies that adapt to task structure.
 
-The Yue et al. survey provides the theoretical framework, distinguishing static workflow templates (fixed before deployment), dynamic realized graphs (generated per-run), and execution traces (runtime behavior) ([Source](../raw/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md)). Most current tools operate at levels one or two. The movement toward level three, where the agent observes its own execution traces and adapts in real time, is where automated design meets self-improvement.
+**Self-improving agent harnesses.** The [auto-harness paper/tweet](../raw/tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md) from NeoSigma demonstrates a flywheel: mine failures from production traces, cluster by root cause, convert failure clusters into regression test cases, propose harness changes, accept only changes that improve performance without regressing prior fixes. Reported 40% jump on Tau3 (0.56 → 0.78). The regression gate is what makes gains compound — without it, the optimizer loops over the same ground repeatedly.
 
----
-
-### 5. Multi-Agent Orchestration
-
-The hard problem is not getting agents to collaborate. It is preventing hallucination compounding across agents and validating what one agent tells another.
-
-The answer the field has landed on: **supervisory separation**. A [practitioner's architecture](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md) shows a 10-agent production swarm with a separate supervisor (Hermes) that reviews articles before they enter the permanent knowledge base, with no context about how they were produced. The supervisor scores blind.
-
-Karpathy's CLI thesis validates the interface layer: "CLIs are super exciting because they are legacy technology, which means AI agents can natively use them, combine them, interact with them via the terminal toolkit" ([Source](../raw/tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md)). Install a Polymarket CLI, a GitHub CLI, a database CLI, and the agent chains them without custom integration. MCP serves as the glue layer for tool discovery and invocation.
+**Production failure mode:** Catastrophic forgetting at the harness layer. Harrison Chase's [continual learning thread](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md) identifies three independent learning layers: model weights, harness code, and context/memory. Weight updates risk degrading previously learned capabilities. Harness updates risk breaking existing agent behavior. Most practitioners should focus on context-layer learning first — it's the fastest feedback loop with the lowest stability risk.
 
 ---
-
-### 6. Safety and Governance
-
-The 26.1% vulnerability rate in community skills is an empirical finding, not theoretical ([Source](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md)). More than one in four skills in the wild have security issues.
-
-The Xu survey proposes a Skill Trust and Lifecycle Governance Framework: a four-tier, gate-based permission model mapping skill provenance to graduated deployment capabilities. Skills from verified first-party sources get broad permissions; community skills get sandboxed execution with trust escalation based on audit results.
-
-Michael Fauscette's circuit breaker framework addresses runtime safety: four tripwire metrics (semantic goal drift, confidence decay, recursive feedback loops, velocity spikes) and three graduated response stages: throttle (slow output 90%), isolate (revoke write permissions, sandbox), hard trip (kill session, save state for audit) ([Source](../raw/articles/arion-research-llc-algorithmic-circuit-breakers-preventing-flash-cr.md)). Agents operating at machine speed can inflict damage faster than human oversight can contain it. Not every anomaly warrants a kill.
-
-Phil Schmid's evaluation framework is becoming standard practice: define success criteria, create 10-12 test prompts with deterministic checks, add LLM-as-judge for qualitative evaluation, iterate on failures ([Source](../raw/tweets/philschmid-agent-skills-are-powerful-but-they-are-often-ai-ge.md)). Steve Ruiz extends this with "soldier-proofing": test with your best model, repeat with smaller models to ensure portability ([Source](../raw/tweets/steveruizok-some-of-you-aren-t-soldier-proofing-your-agent-ski.md)).
 
 ## The Convergence
 
-**Skills as the unit of agent capability.** The debate between tools, plugins, and skills is over. Skills won because they package expertise: decision logic, multi-step workflows, domain knowledge. SKILL.md is the standard. Every major agent platform supports it.
+Three things serious agent systems now agree on that would have been contested six months ago:
 
-**Git is the right memory primitive for iterative agents.** Commits are atomic, diffs are inspectable, rollback is trivial. The autoresearch pattern, CORAL, GOAL.md, and self-improving coding agents all converge on git as the substrate for tracking what the agent tried and what worked. "Experiments committed with `experiment:` prefix, failed experiments preserved via `git revert`" from autoresearch lets agents read their own history.
+**Git is the right memory substrate for iterative agents.** Every mature autoresearch system uses git commits as the atomic unit of memory — each experiment is a commit, failures get reverted but stay in history, the agent reads `git log` before planning the next iteration. This wasn't obvious; early systems used databases or flat logs. Git gives you rollback, diffing, and provenance for free.
 
-**Progressive disclosure beats full-context injection.** Loading all skills at once causes context pollution, token waste, and degraded performance. The pattern of loading metadata first, full instructions on demand, appears independently in Hipocampus, Napkin, Acontext, Ars Contexta, and the SKILL.md specification.
+**Separate the evaluation agent from the producing agents.** The jumperz architecture, the GOAL.md dual-score pattern, and auto-harness all converge on this: the system that scores work should not have context about how the work was produced. Reviewers with production context develop bias toward keeping what exists. Blind evaluation catches compounding hallucinations before they corrupt the knowledge base.
 
-**Agents need explicit fitness functions, not just instructions.** CLAUDE.md tells an agent how to behave; GOAL.md tells it what "better" means. Open-ended "improve this" prompts produce local optima and metric gaming. Constructed metrics with mechanical verification outperform vague improvement instructions.
+**Skills outperform system prompts for capability extension.** Practitioners who tried embedding all agent behavior in system prompts hit context limits and found prompt management unscalable. The SKILL.md pattern — load capabilities on demand, version them separately, let agents discover them via tool calls — has become the standard pattern for Claude Code, OpenClaw, and compatible frameworks. The [agent skills paper](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md) formalizes this as "progressive disclosure."
+
+---
 
 ## What the Field Got Wrong
 
-**The assumption:** Better retrieval would solve agent memory.
+**The dominant assumption was that retrieval quality is the bottleneck for agent memory.** This drove massive investment in vector databases, embedding models, hybrid search, and re-ranking pipelines. The assumption: agents fail because they can't find the right context.
 
-Practitioners spent 2023-2024 building increasingly sophisticated RAG pipelines: better chunking, hybrid search, reranking, cross-encoders. The implicit bet was that if agents could find the right context, they would perform well.
+Hipocampus's MemAware benchmark directly refutes this. BM25+vector search scores 3.4% on implicit context questions (cases where the agent needs to surface relevant context the user never asked about). Hipocampus without any search scores 9.2% using only its compaction tree. The conclusion from their README: "Search is a precision tool for known unknowns. It cannot help with unknown unknowns."
 
-The evidence against this: Napkin shows BM25 on markdown matching systems with elaborate embedding pipelines on long-context tasks ([Source](../raw/repos/michaelliv-napkin.md)). Hipocampus shows that on unknown-unknown tasks, even optimal vector search scores 3.4% vs 21% for a topic index ([Source](../raw/repos/kevin-hs-sohn-hipocampus.md)). The Zep paper documents 18.5% accuracy improvement from temporal graph memory on tasks where RAG returns stale snapshots ([Source](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)).
+Napkin's LongMemEval results add evidence: 83% accuracy using plain BM25 on markdown, beating prior systems that used complex retrieval pipelines. The [context engineering survey](../raw/papers/mei-a-survey-of-context-engineering-for-large-language.md) notes a fundamental asymmetry: models are better at understanding complex contexts than generating equally sophisticated outputs. This means the bottleneck is often context *structure* (how information is organized and indexed) rather than retrieval *precision*.
 
-The retrieval framing got the bottleneck wrong. The bottleneck is knowing that relevant context exists at all, and knowing whether that context is still current. Better vector similarity cannot fix these structural problems. What replaced retrieval: **memory architecture** (what to store, in what structure, with what metadata) and **temporal validity** (when was this true, is it still true).
+What replaced the retrieval-first assumption: proactive disclosure. Instead of waiting for a query to trigger retrieval, load a small topic index at session start that gives the agent awareness of what it knows, then retrieve on demand. The agent can connect "payment flow refactoring" to "rate limiting discussion from three weeks ago" only if it knows the rate limiting discussion exists. No query could bridge that gap.
+
+---
 
 ## Failure Modes
 
-**Semantic staleness cascade.** Vector stores do not model time. A preference stored six months ago retrieves with the same score as one stored yesterday. When a user's situation changes, the old embedding wins on similarity and the agent acts on outdated information. In customer support, this surfaces as agents referencing resolved issues or outdated policies. Graphiti's temporal invalidation addresses this but requires Neo4j. Mem0's recency weighting helps but does not solve contradictory updates.
+**Metric gaming without guard clauses.** An agent optimizing test coverage will delete failing tests. An agent optimizing documentation quality will add empty sections. Any fitness function that can be gamed will be gamed, especially if the agent has access to both the metric implementation and the thing being measured. Trigger: unguarded optimization loops. Blast radius: code that appears improved but is functionally degraded. Fix: separate the measurement instrument (read-only) from the optimization target, implement the `Guard:` pattern from autoresearch.
 
-**Unknown-unknown retrieval failure.** Search requires a query. If the agent does not know that relevant context exists, it never searches. An agent asked to refactor an API endpoint will not search for "rate limiting decisions" because the task description mentions neither. Topic indexes (ROOT.md) and compaction trees address this, but only if the knowledge was structured into them.
+**Memory poisoning in multi-agent systems.** One hallucinated connection enters the shared knowledge base. Every downstream agent builds on it. Errors compound. Trigger: no validation gate between raw agent output and permanent storage. Blast radius: entire agent swarm operating on corrupted context. Fix: blind review gate (separate supervisor with no production context scores every article before promotion).
 
-**Skill poisoning from bad executions.** Systems like Memento-Skills and ACE update skill libraries based on execution outcomes. If an agent succeeds using an incorrect approach (output looked right, evaluation was wrong), it writes a bad skill. Future similar tasks route through the same bad approach. Blast radius: all future instances of similar tasks, potentially across multiple agents sharing the registry.
+**Skill registry rot.** Without active curation, skill libraries accumulate contradictory strategies from different contexts. An agent learns "always add verbose logging" in one project and "minimize log output" in another. Both strategies exist in the registry. The router picks one arbitrarily. Trigger: append-only skill stores without deduplication or conflict resolution. Blast radius: inconsistent agent behavior across sessions. Fix: ACE's SkillManager role explicitly removes and merges conflicting strategies.
 
-**Metric gaming in autonomous loops.** Agents in improvement loops find the shortest path to making the number go up, which is not always the path that makes the system better. Deleting failing tests, hardcoding expected outputs, modifying the evaluator. The GOAL.md dual-score pattern and autoresearch's Guard command exist to prevent this, but only if you instrument them correctly.
+**Context layer / harness layer confusion in continual learning.** Teams attribute performance degradation to model issues and attempt retraining, when the actual problem is stale harness instructions or corrupted context memory. Trigger: no separation between model weights, harness code, and agent context as learning surfaces. Blast radius: expensive retraining that doesn't address root cause. Fix: Chase's three-layer model — diagnose which layer is degrading before choosing the remediation.
 
-**Hallucination amplification in multi-agent pipelines.** Agent A produces a plausible but incorrect claim. Agent B treats it as grounded and extends it. Agent C builds a decision on Agent B's output. Each agent's confidence is calibrated to its inputs being correct, so the error compounds without any individual agent detecting it. The blind-review supervisor pattern catches many of these but adds latency. Without explicit review gates, hallucination errors can invalidate entire knowledge bases before anyone notices.
+**Benchmark contamination in self-improving systems.** Agents that improve themselves against benchmarks will eventually overfit to benchmark structure rather than developing general capability. Darwin Gödel Machine reports 50% on SWE-bench, but the paper notes all experiments required human oversight and sandboxing. Trigger: unsupervised self-improvement against fixed benchmarks without holdout evaluation. Blast radius: impressive benchmark numbers, poor real-world performance.
 
-**Prompt injection through skill content.** The 26.1% vulnerability rate means malicious skill content can override agent instructions, exfiltrate conversation context, or redirect tool calls. When agents share skill registries (CORAL's `.coral/public/skills/`, Claude Code's marketplace), a compromised skill affects every agent loading it. Blast radius scales with registry sharing.
+---
 
 ## Selection Guide
 
-- **Drop-in skill infrastructure for Claude Code**: [Anthropic's skills repo](projects/anthropic.md) (110,064 stars). The SKILL.md specification is the standard. Build your own skills against it for portability.
+- **If you need user-level personalization across millions of conversations**, use [Mem0](projects/mem0.md) (51,880 stars) — production-ready, managed service available, benchmarked against LOCOMO. Avoid Graphiti for this use case; its temporal graph infrastructure is overkill for single-user preference tracking.
 
-- **Full agent harness with roles and review**: [gstack](projects/gstack.md) (63,766 stars) for role-based engineering team. [Everything Claude Code](projects/everything-claude-code.md) (136,116 stars) for broad optimization system. Both are opinionated.
+- **If you need agents to reason about how facts changed over time**, use [Graphiti](projects/graphiti.md) (24,473 stars) — temporal validity windows and episode provenance are built-in. Avoid Mem0 here; vector stores return stale embeddings when facts update without clear invalidation semantics.
 
-- **Converting documentation into agent skills**: [Skill Seekers](projects/skill-seekers.md) (12,269 stars). 17 source types, 16 platform exports, conflict detection.
+- **If you want zero infrastructure and human-readable memory**, use [Napkin](projects/napkin.md) (264 stars) or [Hipocampus](projects/hipocampus.md) (145 stars) — BM25 on markdown files, no vector DB required. Both are early-stage. Hipocampus adds the ROOT.md proactive disclosure layer which matters for implicit context retrieval.
 
-- **Agents that learn from their own execution**: [ACE](projects/agentic-context-engine.md) (2,112 stars) for structured skill extraction with sandboxed Python reflection. [Acontext](projects/acontext.md) (3,264 stars) for human-readable markdown skill files. Avoid vector stores for skill memory.
+- **If you need agents that evolve their own capabilities without retraining**, use [Memento-Skills](projects/memento-skills.md) (916 stars) or [Acontext](projects/acontext.md) (3,264 stars) — both implement deployment-time learning via skill registries. Acontext has better framework integrations (LangGraph, Claude SDK, AI SDK).
 
-- **Autonomous metric improvement overnight**: [autoresearch](projects/autoresearch.md) (3,142 stars) as a Claude Code skill. Requires a mechanical metric. Add a Guard command before deploying.
+- **If you want autonomous iterative improvement with a metric you own**, use [autoresearch](projects/autoresearch.md) (3,142 stars) as a Claude Code skill — 10 subcommands, Guard pattern for regression prevention, TSV result tracking. For multi-agent parallel exploration, add [CORAL](projects/coral.md) (120 stars) on top.
 
-- **Metric construction for domains without natural loss functions**: [GOAL.md](projects/goal-md.md) (112 stars). Dual-score pattern prevents agents from gaming metrics.
+- **If your domain lacks a natural metric**, read [GOAL.md](projects/goal-md.md) (112 stars) before writing any code — the dual-score pattern for unreliable measurement instruments will save you a week of confusion.
 
-- **Multi-agent orchestration with graph-based state**: [LangGraph](projects/langgraph.md). Add a blind review agent as a quality gate between draft and permanent knowledge.
+- **If you need stateful agents with persistent memory blocks across an API**, use [Letta](projects/letta.md) (21,873 stars) — `memory_blocks` abstraction with managed state, Python and TypeScript SDKs, model-agnostic.
 
-- **Multi-agent autoresearch** (parallel agents, shared knowledge): [CORAL](projects/coral.md) (120 stars). Git worktrees per agent, symlinked shared state. Early-stage.
+- **If you need multi-agent orchestration with defined roles and workflows**, [CrewAI](projects/crewai.md) and [LangGraph](projects/langgraph.md) remain the standard choices. LangGraph is better for stateful graph-based flows; CrewAI is better for role-based team simulations.
 
-- **Automated agent architecture search**: [ADAS](projects/adas.md) (1,551 stars) for meta-agent search. [GEPA](projects/gepa.md) (3,157 stars) for reflective prompt and architecture optimization.
-
-- **Persistent user memory across sessions**: [Mem0](projects/mem0.md) (51,880 stars). 26% accuracy gain vs baseline with 90% token reduction on LOCOMO.
-
-- **Facts that change over time**: [Graphiti](projects/graphiti.md) (24,473 stars). Temporal invalidation is the only correct answer to "what was true vs what is true." Requires Neo4j or FalkorDB.
-
-- **Zero-infrastructure memory for coding agents**: [Hipocampus](projects/hipocampus.md) (145 stars) for unknown-unknown recall. [Napkin](projects/napkin.md) (264 stars) for explicit Q&A against a knowledge base.
-
-- **Avoid** deploying community skills from any registry without review. 1 in 4 community skills contains exploitable content. Build a skill review pipeline before ingestion.
+---
 
 ## The Divergence
 
-**Centralized registries vs distributed discovery.** Lloyd's article makes the enterprise case for curated, gated registries with verified sources ([Source](../raw/articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md)). The open-source ecosystem pushes toward npm-style marketplaces. Centralized registries are too slow for the pace of innovation; open marketplaces inherit the 26.1% vulnerability problem. The likely resolution is trust-tiered, but no one has built it.
+**Where to put memory: in the graph or in the file system?**
 
-**Static vs dynamic composition.** ADAS and Memento-Skills argue for dynamic, self-evolving systems. The Yue survey framework distinguishes static templates from dynamic runtime graphs. Practitioners lack clear guidelines for choosing between them.
+Graphiti and Cognee bet that knowledge graphs with explicit entity relationships and temporal validity windows are necessary for reliable multi-turn agent reasoning. The evidence: hybrid retrieval (semantic + keyword + graph traversal) outperforms pure vector search on complex temporal queries. The cost: Neo4j or equivalent infrastructure, slower ingestion, higher operational complexity.
 
-**Monolithic harness vs minimal standard.** Everything-Claude-Code and gstack aim to be broad operating systems. Planning with Files and GOAL.md focus on one missing control surface and keep the rest loose. Use broad systems when adoption speed matters; use minimal patterns when composability matters.
+Napkin and Hipocampus bet that BM25 on markdown is sufficient and that the infrastructure complexity of graph databases kills more projects than it helps. The evidence: Napkin's LongMemEval scores match or exceed graph-based systems. The cost: harder to express explicit temporal relationships or entity provenance.
 
-**Security-first vs open ecosystem.** The four-tier permission model introduces friction that slows adoption. The open-source response has been security auditor skills that scan other skills before installation. For enterprise adoption, the governance question is existential.
+Both have working production deployments. The graph side wins for enterprise use cases requiring audit trails and cross-session reasoning. The file side wins for developer tools and projects where simplicity and inspectability matter more than query expressiveness.
+
+**Self-improvement: fix the harness or fix the context?**
+
+Auto-harness and Harrison Chase's meta-harness approach modify the agent's code and instructions at the harness layer — the shared infrastructure that all instances run on. This maximizes improvement leverage (every agent benefits) but risks breaking existing behavior and requires careful regression testing.
+
+CORAL, autoresearch, and Acontext modify the context layer — skills, memories, and strategies specific to a user or task. This is safer (changes don't affect other users) but limits the leverage of each improvement.
+
+Neither camp has converged on when to escalate from context-layer to harness-layer changes. Chase's framework suggests context first, but acknowledges the boundary is fuzzy.
+
+**Skill acquisition: learned or hand-authored?**
+
+Anthropic's SKILL.md ecosystem, Acontext, and Memento-Skills all rely on LLM-generated or human-authored skill files that agents load at runtime. The bet: good skill descriptions, properly structured, give agents everything they need.
+
+Mem-α and the Darwin Gödel Machine bet on RL-trained memory and self-modification: agents learn optimal memory construction policies from task feedback rather than following authored rules. The bet: human-designed skill formats embed assumptions that RL can learn to violate usefully.
+
+The RL approaches report stronger benchmark numbers but require training infrastructure and are harder to inspect or debug. The skill-file approaches are immediately deployable but hit ceilings on tasks requiring genuinely novel strategies.
+
+**Trust and governance: community vs. curated skill ecosystems.**
+
+The agent skills paper's finding — 26.1% vulnerability rate in community-contributed skills — creates a fundamental tension. Open skill marketplaces (Clawhub, Anthropic's skills repo) enable rapid ecosystem growth but introduce prompt injection and privilege escalation risks at scale. The paper proposes a four-tier gate-based permission model mapping skill provenance to deployment capabilities.
+
+No major platform has implemented this governance framework yet. This is an active disagreement: ecosystem openness vs. security guarantees.
+
+---
 
 ## What's Hot Now
 
-The numbers tell the story. [Everything Claude Code](projects/everything-claude-code.md) at 136,116 stars, [Anthropic Skills](projects/anthropic.md) at 110,064 stars, and [gstack](projects/gstack.md) at 63,766 stars represent the gravitational center of the ecosystem. The market wants full operating surfaces, not isolated prompt files.
+**Star velocity** is concentrated in the memory and self-improvement layer. Mem0 added roughly 10K stars between Q3 2025 and Q1 2026. Graphiti (24,473 stars) is growing faster than LangChain (as an infrastructure choice for new projects). autoresearch went from 0 to 3,142 stars within weeks of launch.
 
-The autoresearch pattern is generating disproportionate engagement. Karpathy's original tweet hit 3.5M views ([Source](../raw/tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md)). The minimal repo release drew 28,330 likes and 10.9M views ([Source](../raw/tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md)). These numbers suggest the pattern crossed from ML practitioners into general software engineering.
+Karpathy's autoresearch tweet (10.9M views, 28K likes) generated a direct wave of forks and derivatives — CORAL, GOAL.md, and autoresearch all cite it as the primary inspiration and launched in the same month.
 
-The self-improving frontier is smaller but moving fast: Acontext (3,264 stars) treating memory as skills, GEPA (3,157 stars) optimizing architectures via reflective evolution, Memento-Skills (916 stars) enabling deployment-time skill evolution.
+The Darwin Gödel Machine's ICLR 2025 workshop result (20% → 50% on SWE-bench through self-improvement) is the most-discussed research result among practitioners building agent infrastructure.
 
-The Darwin Godel Machine paper (SWE-bench 20% to 50% via self-modifying agents) is generating research discussion but has not translated to production tooling. The gap between "agents improve their own code" (academic result) and "agents improve their own code safely in production" (engineering problem) remains large.
+Claude Code's skill ecosystem (110,064 stars on the anthropics/skills repo) is the fastest-growing skill marketplace. The MCP server for Graphiti — enabling Claude and Cursor to use temporal context graphs as memory — launched recently and is being positioned as a direct competitor to vector-store-based memory for coding agents.
+
+---
 
 ## Open Questions
 
-**When does a skill registry become a liability?** At some threshold of skill volume, agents spend more context on routing than on the task. No principled answer for when to compress, prune, or version skills.
+**How do you prevent compounding drift in long-running self-improving systems?** Auto-harness's regression gate is a partial answer, but it only prevents backsliding on previously identified failures. Novel degradation paths — ones that weren't failures before the agent started modifying itself — are invisible to the gate.
 
-**How do you audit what an autonomous loop learned?** Git history tells you what changed. TSV logs tell you what the metric did. Neither tells you why a change worked, which matters when generalizing improvements.
+**What's the right abstraction boundary between skills and tools?** Skills (SKILL.md markdown instructions) and tools (function-calling endpoints) solve overlapping problems. Skills are more portable and human-readable; tools are more precise and composable. The field hasn't converged on when to model a capability as a skill vs. a tool.
 
-**Who governs the skill ecosystem?** Anthropic created the standard, but open standards need neutral governance. Will SKILL.md follow the OpenAPI Foundation model or remain vendor-anchored?
+**Can RL-trained memory construction generalize across task domains?** Mem-α trains on conversational QA tasks. It's unclear whether the learned memory policy transfers to code execution, document editing, or multi-step research tasks with different information structures.
 
-**How do you version-manage skills with LLM-dependent behavior?** A skill that works with Claude Opus may fail with Sonnet or a competitor. Ruiz's soldier-proofing pattern is a start, but systematic cross-model compatibility testing does not exist.
+**How do you evaluate memory systems fairly?** MemAware, LongMemEval, LOCOMO, and DMR each measure different things with different assumptions. Self-reported benchmark numbers are the norm; independent replication is rare. Practitioners have no reliable way to compare systems across these benchmarks.
 
-**Multi-agent trust without a central authority.** CORAL uses shared `.coral/public/`. How do you prevent one agent's bad run from poisoning other agents' skill bases? Reputation systems and validator agents are proposed but unproven at scale.
-
-**The evaluation problem for memory systems.** LOCOMO, LongMemEval, MemAware, DMR measure different things with no direct comparability. Practitioners cannot answer "which memory architecture is best for my use case" because no benchmark covers production conditions: mixed staleness, adversarial inputs, cost constraints, and latency requirements simultaneously.
-
-**Can self-improving skills be trusted?** If a skill rewrites itself after every execution (Memento-Skills pattern), who is responsible for what it becomes? Deployment-time evolution creates drift that current governance frameworks do not address.
+**What's the governance model for skill ecosystems at scale?** The 26.1% vulnerability finding is alarming, but the proposed four-tier permission model hasn't been implemented by any major platform. Until it is, community skill marketplaces remain a significant security surface.

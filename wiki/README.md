@@ -18,7 +18,7 @@ A compiled knowledge base covering how to build LLM knowledge bases, agent memor
 
 ## Browse
 
-- [Project index](indexes/projects.md) — all projects with links and star counts
+- [Project index](indexes/projects.md) — all projects with links
 - [Topic index](indexes/topics.md) — concepts and approaches
 - [Timeline](indexes/timeline.md) — chronological development
 - [Landscape comparison](comparisons/landscape.md) — all projects in one table
@@ -26,12 +26,12 @@ A compiled knowledge base covering how to build LLM knowledge bases, agent memor
 
 ## Knowledge graph
 
-- [Architecture diagram](images/field-map.svg) — the five taxonomy buckets with top projects
+- [Architecture diagram](images/field-map.svg) — ingestion and compilation pipeline architecture
 - [Interactive graph](graph.html) — explorable entity-relationship visualization (open in browser)
 
 ## Stats
 
 - **155** curated sources (55 repos, 13 papers, 18 tweets, 19 articles + 51 deep research files)
 - **211** wiki articles (5 synthesis, 123 project cards, 76 concept explainers, field map, indexes)
-- **124** entities, **64** relationships across 5 topic areas
+- **107** entities, **194** relationships across 5 topic areas
 - **203,000** words of compiled analysis

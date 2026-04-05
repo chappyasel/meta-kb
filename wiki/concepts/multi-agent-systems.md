@@ -2,156 +2,148 @@
 entity_id: multi-agent-systems
 type: concept
 bucket: agent-systems
+abstract: >-
+  Multi-agent systems coordinate multiple AI agents to decompose and execute
+  complex tasks, with context management across agents as the primary unsolved
+  engineering challenge.
 sources:
-  - repos/alirezarezvani-claude-skills.md
+  - tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md
+  - tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md
+  - tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md
+  - repos/letta-ai-letta.md
   - papers/mei-a-survey-of-context-engineering-for-large-language.md
-  - deep/repos/michaelliv-napkin.md
+  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
-related: []
-last_compiled: '2026-04-05T05:42:38.983Z'
+related:
+  - CrewAI
+  - AutoGen
+  - LangGraph
+  - Mobile-Agent-E
+last_compiled: '2026-04-05T20:35:43.627Z'
 ---
 # Multi-Agent Systems
 
-## What It Is
+## What They Are
 
-A multi-agent system (MAS) coordinates multiple AI agents to accomplish tasks that a single agent handles poorly: tasks too long for one context window, tasks requiring specialized skills, tasks that benefit from independent verification, or tasks whose steps can run in parallel.
+A multi-agent system (MAS) distributes task execution across multiple LLM-driven agents that communicate, coordinate, and specialize. The core premise: some tasks exceed what a single agent can handle in one context window, benefit from parallel execution, or require specialized sub-agents with distinct capabilities and personas.
 
-The core insight is that LLMs have fixed context windows and inconsistent performance across domains. Splitting work across specialized agents, or having agents check each other's output, often produces better results than asking one agent to do everything.
+The architecture spans a spectrum from loosely coupled pipelines to tightly coupled swarms. At one end, a simple two-agent setup runs a coder and a reviewer in sequence. At the other, a dynamic swarm routes subtasks to specialized workers based on capability declarations, aggregates results, and synthesizes outputs through an orchestrator.
 
-Multi-agent architectures have existed in traditional AI for decades, but LLM-based MAS became practically relevant around 2023, when agents became capable enough that coordination overhead was worth paying.
+What distinguishes MAS from single-agent tools-plus-prompts is the introduction of inter-agent communication as a first-class design primitive. Agents maintain their own context windows, execute concurrently or sequentially, and pass structured messages rather than sharing a monolithic prompt.
 
-## Core Patterns
+## How They Work
 
-### Orchestrator-Worker
+### Agent Roles and Topology
 
-One agent (orchestrator) plans and delegates; worker agents execute. The orchestrator breaks a task into subtasks, assigns each to a worker, collects results, and synthesizes. The orchestrator doesn't necessarily do the hardest reasoning itself — it routes.
+Most implementations decompose into two layers:
 
-Example: a software engineering task where the orchestrator assigns the backend agent to write an API, the frontend agent to write the UI, and the test agent to write coverage. The orchestrator then reviews integration.
+**Orchestrators** hold the task plan, delegate to worker agents, aggregate outputs, and handle failures. They rarely call tools directly. Their primary job is decomposition and synthesis.
 
-This pattern appears in claude-skills's orchestration protocol, which defines four coordination modes: Solo Sprint (persona switching across phases), Domain Deep-Dive (one persona plus stacked skills), Multi-Agent Handoff (personas reviewing each other's output), and Skill Chain (sequential skills with no persona). The handoff pattern is the closest to true multi-agent orchestration: one agent produces output, another critiques it before the result is accepted.
+**Workers** specialize: a `web_researcher`, a `code_executor`, a `data_analyst`. Each carries role-specific instructions, tools, and a bounded context window tuned to its task.
 
-### Specialized Agents
+Topology shapes behavior:
+- **Sequential pipelines**: Agent A outputs feed Agent B's inputs. Simple, debuggable, slow.
+- **Parallel fan-out**: Orchestrator dispatches identical or complementary subtasks to workers simultaneously. Faster, but output reconciliation adds complexity.
+- **Hierarchical**: Orchestrators spawn sub-orchestrators. Used in [CrewAI](../projects/crewai.md) for complex multi-phase workflows.
+- **Peer-to-peer**: Agents negotiate directly. Rare in production due to coordination overhead and loop risk.
 
-Rather than configuring one agent with all available tools and context, specialized agents receive narrow context and purpose-specific tools. A RAG agent gets retrieval tools and document context; a code agent gets file system tools and execution environment; a critic agent gets the outputs of both.
+### Communication Protocols
 
-Specialization helps for two reasons. Narrower context means the agent is less likely to confuse available tools or relevant information. Purpose-built prompts and tool sets outperform general ones on their target task.
+Inter-agent communication has no dominant standard, though the survey of context engineering [identifies KQML, FIPA ACL, and MCP (Model Context Protocol) as the leading candidates](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md). In practice, most frameworks pass structured JSON messages through an orchestrator rather than using formal agent communication languages.
 
-Claude-skills packages this idea as "skills" — structured `SKILL.md` files plus domain-specific Python CLI tools, scoped to one domain (security auditing, RAG architecture, regulatory compliance). Skills are modular enough to compose across different orchestration platforms (Claude Code, Cursor, Codex) without rewriting.
+The message payload typically carries:
+- Task specification (what to do)
+- Context from prior steps (what's been done)
+- Constraints (format, tools available, budget)
+- Role declaration (who this agent is supposed to be)
 
-### Critic/Verifier Patterns
+### Context as the Core Problem
 
-One agent generates; another evaluates. This exploits an asymmetry: LLMs are often better at judging quality than producing it on the first try. A critic agent reviewing code for security vulnerabilities, or a QA agent running generated tests against generated code, catches errors the generator couldn't see in its own output.
+Each agent has its own context window. Cross-agent coordination requires deciding what each agent needs to see and when. The survey formalizes this as a budget allocation problem: **C = A(c_instr, c_know, c_tools, c_mem, c_state, c_query)** subject to |C| ≤ L_max. Every token an orchestrator passes to a worker occupies that worker's finite window. [Source](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md)
 
-The failure mode: critics trained on similar data to generators share similar blind spots. If both agents would answer a question the same way, having one critique the other adds latency but not correctness.
+Three strategies for managing this:
 
-### Parallel Execution
+1. **Full context passing**: Every agent receives the entire task history. Simple but wasteful. Breaks down when conversation length exceeds window size.
 
-Independent subtasks run simultaneously rather than sequentially. If a research task requires gathering information from five separate sources, five agents working in parallel finish faster than one agent working sequentially. The orchestrator waits for all results, then synthesizes.
+2. **Summarization at handoff**: Orchestrator compresses prior agent outputs before passing downstream. [Gauri Gupta's auto-harness work](../raw/tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md) explicitly recommends sub-agents that own their verbose output and pass only summaries up. Reduces bloat but risks losing nuance.
 
-Parallelism requires the orchestrator to correctly identify task independence. Incorrectly parallelizing dependent tasks (where agent B's work depends on agent A's output) produces bad results. This dependency analysis is itself a planning task the orchestrator must perform correctly.
+3. **Persistent shared memory**: A memory store accessible to all agents. [Letta's `memory_blocks`](../raw/repos/letta-ai-letta.md) implements this as labeled, updateable state that survives across agent invocations. Expensive to maintain, but enables genuine cross-agent learning.
 
-## How It Works: Context Engineering View
+### State and Coordination
 
-The context engineering survey frames MAS as one of three high-level implementations of context engineering, alongside RAG and memory systems. In MAS, each agent maintains its own context window, but agents share information by passing structured outputs (tool results, summaries, intermediate artifacts) into each other's contexts.
+For agents to coordinate without a shared context, they need external state. Common patterns:
 
-This creates an information routing problem: what does each agent need to see, and in what form? An orchestrator passing a full 50-page document to a worker agent wastes tokens and may cause the worker to lose focus. Passing a compressed summary loses detail. The right level of compression is task-dependent and hard to get right automatically.
+- **Shared database**: Agents read and write to a common store. Simple but requires conflict resolution logic.
+- **Message queue**: Tasks dispatched as queue items, workers consume and post results. Enables parallelism and retry.
+- **Blackboard architecture**: A shared workspace all agents can read and write. Expensive coordination overhead.
 
-Progressive disclosure — the principle that agents should request only the information they need, at the level of detail they need — applies directly here. Napkin's L0-L3 model (overview → search → read) implements this for memory retrieval, but the same principle governs inter-agent information passing. An orchestrator should tell a worker agent what it needs to know, not dump its full context.
+[LangGraph](../projects/langgraph.md) models this as a graph where nodes are agents and edges carry state. The `StateGraph` object acts as the shared blackboard. [AutoGen](../projects/autogen.md) uses conversation threads as the coordination primitive. [CrewAI](../projects/crewai.md) defines `Task` objects with explicit input/output contracts between agents.
 
-## Context and Memory Across Agents
+### Self-Improving Agent Swarms
 
-Agents in a system do not share memory by default. Each agent starts with whatever context it's given. This means coordination requires explicit design decisions:
+Karpathy's autoresearch experiment demonstrates a compelling MAS pattern: agents run parallel hyperparameter search on small models, validate promising changes, and cascade confirmed improvements to larger models. Running ~700 experiments autonomously over 48 hours, the swarm found a cumulative 11% speedup in "Time to GPT-2" that manual tuning had missed, including non-obvious issues like an unscaled QK normalizer and misconfigured AdamW betas. [Source](../raw/tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md)
 
-- **What shared state exists?** Often an external store (database, file system, message queue) that all agents can read and write.
-- **How does an agent learn what other agents have done?** Either the orchestrator passes summaries, agents read from shared state, or a message-passing protocol routes outputs.
-- **What happens when agents produce conflicting outputs?** The orchestrator must resolve conflicts, which requires knowing they exist.
+This pattern generalizes to any metric that is cheap to evaluate. The key design elements:
+- Small proxy models validate before testing at scale
+- Agents track experiment sequences and use prior results to plan next experiments
+- Human review stays optional, at the edges
 
-Napkin's architecture illustrates one approach: a shared markdown vault that agents read (via BM25 search at session start) and write (via distillation at session end). Multiple agents could work against the same vault, with the backlink graph and keyword index giving each agent navigable access to what the others have deposited. The auto-distillation pattern — read context at session start, write new knowledge at session end — generalizes to multi-agent settings.
+Auto-harness extends this idea to agent behavior improvement: mine production failures, cluster by root cause, convert clusters into regression tests, propose fixes, gate acceptance on both improvement and non-regression. The regression gate prevents backsliding: every fixed failure becomes a permanent test case, so the bar only moves one direction. Tau3 benchmark performance moved from 0.56 to 0.78 with this loop. [Source](../raw/tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md)
 
-## Tool Use and Specialization
+## Strengths
 
-Agents acquire capabilities through tools: function calls, API access, file system operations, browser control, code execution. The tool set available to an agent defines what it can do, and restricting tools is one way to enforce specialization.
+**Parallelism**: Tasks with independent subtasks (research + coding + review) complete faster when dispatched concurrently. A single-agent pipeline must serialize.
 
-A worker agent with only file system read/write tools cannot accidentally make API calls. A research agent with only web search and summarization tools cannot modify the codebase. Tool restriction is a form of capability boundary that reduces the blast radius of agent errors.
+**Specialization**: Role-specific instructions and tool restrictions let each agent operate in a tighter problem space. A `web_researcher` agent can have search-optimized prompting and no code execution tools.
 
-Tool schemas matter. An orchestrator needs to know what tools workers expose in order to delegate correctly. Claude-skills's POWERFUL-tier agent-designer skill addresses this directly: it handles "multi-agent orchestration, tool schemas, performance evaluation" — the tool schema problem is listed as a first-class concern.
+**Context budget efficiency**: Dividing a large task across multiple smaller contexts avoids the degradation that comes from stuffing everything into one long window. [The asymmetry finding from the context engineering survey applies](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md): LLMs understand complex contexts better than they generate sophisticated long outputs, so smaller, focused contexts per agent often outperform one massive prompt.
 
-## Failure Modes
+**Iterative self-improvement**: When evaluation is cheap, agent swarms can autonomously search for improvements humans would miss. The Karpathy autoresearch case demonstrates this at a concrete, measurable level.
 
-### Cascading Errors
+## Limitations
 
-Errors in upstream agents propagate downstream. If agent A produces a flawed plan, agent B executes the flawed plan, and agent C validates work built on the flawed plan, the final output is wrong and each step was "correct" given its inputs. The orchestrator sees plausible outputs at each stage without detecting the upstream error.
+**Coordination overhead compounds**: For simple tasks, agent setup and message-passing cost exceeds the benefit of parallelism. The context engineering survey explicitly notes that "multi-agent systems show coordination overhead that often negates the benefits of parallelization for simple tasks." [Source](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md) A task taking two LLM calls in a single-agent setup may require eight in a multi-agent pipeline (task decomposition, delegation, two worker calls, aggregation, review, synthesis).
 
-This is the most serious failure mode. Mitigation: checkpoint validation at stage boundaries, not just at the end. Have the orchestrator (or a dedicated critic) review intermediate outputs before passing them forward.
+**Concrete failure mode — context drift in long chains**: When an orchestrator summarizes agent output to pass downstream, semantic drift accumulates. By the fourth or fifth handoff, the downstream agent may be working from a summary-of-a-summary that has lost critical constraints from the original task specification. There is no automatic detection mechanism for this. The task completes but produces wrong output that matches the corrupted context, not the original request.
 
-### Coordination Overhead Exceeding Benefit
+**Infrastructure assumption**: Most MAS frameworks assume each agent call is cheap and fast. If the underlying model has high latency or token cost, parallelism doesn't help much and the coordination overhead dominates. This assumption breaks badly on slower hosted endpoints or heavily throttled APIs.
 
-Decomposing a task into subtasks, passing context between agents, synthesizing outputs — all of this takes tokens and time. For tasks that one capable agent handles well, multi-agent coordination produces slower, more expensive results.
+**Debugging is hard**: A single-agent chain with a bug points to one context window. A multi-agent system with a bug requires tracing message provenance across agent boundaries, distinguishing orchestrator errors from worker errors from coordination errors. Frameworks provide varying levels of observability tooling.
 
-The decision to use multiple agents should be driven by a clear reason: context window limits, need for specialization, independent verification, or parallelism. Using MAS because it seems more sophisticated is a reliable way to build something worse than a single well-prompted agent.
+**Shared memory is unsolved**: The survey identifies memory system isolation as a field-level failure mode. Most MAS implementations evaluate agents in isolation. Cross-agent memory that persists, remains consistent, and handles concurrent writes lacks settled best practice. [Source](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md)
 
-### Inter-Agent Hallucination
+## When Not to Use Multi-Agent Systems
 
-Agents can hallucinate information about other agents' outputs if summaries are imprecise. An orchestrator telling a worker "the research agent found that X" when the research agent said something more nuanced ("X appears to be true in most cases, but...") can cause the worker to proceed on false premises. Precise structured handoffs — JSON rather than natural language summaries — reduce but don't eliminate this.
+Avoid MAS when:
 
-### Shared Blind Spots
-
-Critic-generator patterns assume the critic and generator have different failure modes. When both are the same underlying model with similar training, they share failure modes. The critic is most useful when it has genuinely different capabilities: different training, different tools, or different information access.
-
-### State Synchronization
-
-When multiple agents write to shared state concurrently, conflicts arise. Two agents both updating the same document, or both marking a task as "in progress" when only one should proceed, requires coordination primitives (locks, versioning, conflict resolution). Most LLM agent frameworks do not provide these out of the box.
-
-## Infrastructure Assumptions
-
-MAS architectures carry hidden infrastructure requirements that documentation understates:
-
-**Reliable tool execution.** Agents calling tools expect deterministic responses. In practice, API rate limits, network timeouts, and service outages cause tool calls to fail mid-task. Recovery requires either retry logic, checkpointing, or orchestrator awareness of partial completion.
-
-**Prompt stability across agents.** If agents are different model versions, or the same model served from different infrastructure with different system prompts, behavior diverges in ways that are hard to detect. The orchestrator assumes consistent agent behavior; inconsistency causes unpredictable coordination failures.
-
-**Cost at scale.** A task requiring five agents, each making ten LLM calls, costs 50x a single-call solution. At development scale, this is fine. At production scale with many users, costs compound fast. This arithmetic rarely appears in architecture documentation.
-
-**Latency stacking.** Sequential agent calls stack latency. Ten sequential steps at 2 seconds each is 20 seconds of wall time. Users who tolerate 2-second single-agent responses may not tolerate 20-second multi-agent responses for the same task.
+- The task fits comfortably in a single context window and doesn't decompose into parallel subtasks. The coordination overhead is pure cost.
+- Debugging and explainability are critical. Multi-agent execution traces are significantly harder to interpret than single-agent traces.
+- Latency matters more than throughput. Sequential agent chains add roundtrip latency at every step.
+- The evaluation metric is expensive or slow. Self-improvement loops (autoresearch, auto-harness) only pay off when you can run many experiments cheaply.
+- Your team lacks observability infrastructure. Without tracing across agent boundaries, failures are very hard to diagnose.
 
 ## Unresolved Questions
 
-**Optimal decomposition.** No general method exists for deciding how to split a task across agents. Current practice is heuristic: split by domain, by context window limits, or by parallelizability. Research on automatic task decomposition is active but not settled.
+**Conflict resolution**: When two worker agents return contradictory outputs, no framework provides a principled resolution mechanism. Orchestrators typically pick one, summarize both, or re-prompt. The correct resolution depends on the task, and no general solution exists.
 
-**Evaluation.** Evaluating single-agent output is hard; evaluating multi-agent system output is harder. Which agent caused a bad result? Was the orchestrator's decomposition wrong, the worker's execution wrong, or the synthesis wrong? Attribution is unclear, which makes debugging and improvement difficult.
+**Memory governance at scale**: Who owns the shared memory store? What happens when one agent writes malformed data that corrupts another agent's context? Letta's `memory_blocks` gives each agent labeled state, but doesn't address concurrent write conflicts across agents in the same session.
 
-**Governance and trust boundaries.** When an orchestrator agent delegates to a worker agent, how much should the worker trust the orchestrator's instructions? If the orchestrator is compromised (via prompt injection, for example), a fully trusting worker will execute malicious instructions. Trust hierarchies in MAS are architecturally underspecified.
+**Cost attribution**: In a production multi-agent system, token costs distribute across many LLM calls. Frameworks generally don't provide per-subtask cost visibility, making cost optimization difficult.
 
-**Long-running coordination.** Most MAS research and tooling assumes tasks complete in a single session. Tasks that run over hours or days, with agents that may restart or be replaced, require persistent state and coordination protocols that don't exist in most current frameworks.
+**Evaluation frameworks**: Existing benchmarks (WebArena, SWE-Bench) test single-agent task completion. There is no settled benchmark for evaluating coordination quality, failure recovery, or cross-agent consistency in multi-agent systems.
 
-## When Not to Use It
+**When to spawn vs. when to reason**: No principled heuristic exists for deciding whether a subtask should be delegated to a sub-agent or handled with a tool call in the current agent. This is currently a design judgment call, not a computed decision.
 
-Avoid multi-agent architectures when:
+## Framework Selection Guidance
 
-- A single context window is sufficient. If the task fits in one agent's context, coordination adds cost without benefit.
-- Correctness requirements are high and verification is hard. Cascading errors in MAS are difficult to catch, and debugging across agent boundaries is painful.
-- Latency matters. Sequential multi-agent pipelines are slow. Parallel pipelines require infrastructure to coordinate.
-- The task doesn't decompose cleanly. Tasks with tight interdependencies between steps don't parallelize well and produce incoherent results when distributed across agents without careful dependency management.
-- Budget is constrained. Multi-agent systems multiply LLM API costs. A five-agent system with ten calls per agent costs 50x a single-call solution.
-
-## Alternatives
-
-**Single agent with more tools.** Before adding agents, add tools. A single agent with web search, code execution, and file system access handles many tasks that naive multi-agent decomposition handles less reliably.
-
-**Longer context single agent.** As context windows expand (1M+ tokens), some tasks previously requiring multiple agents fit in one. Re-evaluate whether decomposition is still necessary.
-
-**RAG over MAS.** If the goal is accessing more information than fits in context, RAG retrieves relevant information into a single agent's context. Simpler than coordination, and napkin's benchmark results (91% on LongMemEval-S with BM25 + progressive disclosure) show that well-implemented retrieval handles many "multi-agent" memory tasks with one agent.
-
-**Structured workflows over dynamic agents.** For predictable task sequences, a deterministic workflow (step A always precedes step B) is more reliable than an orchestrator dynamically planning each run. Agents work best for variable, adaptive coordination; fixed pipelines work better for stable, predictable processes.
+- [CrewAI](../projects/crewai.md): Use for structured, role-based workflows with clear task contracts and output dependencies. Python-native, good for teams that want defined agent personas.
+- [AutoGen](../projects/autogen.md): Use for conversational multi-agent setups where agents negotiate or debate. Strong for code generation and review loops.
+- [LangGraph](../projects/langgraph.md): Use when you need fine-grained control over agent state, branching logic, and explicit graph topology. Higher setup cost, lower abstraction.
+- [Letta / MemGPT](../projects/letta.md): Use when cross-session memory and agent self-improvement are requirements. The `memory_blocks` abstraction is the most mature persistent state solution.
+- [Mobile-Agent-E](../projects/mobile-agent-e.md): Use for GUI automation tasks where agents interact with mobile interfaces.
 
 ## Related Concepts
 
-- [Context Engineering](../concepts/context-engineering.md): The systematic design of information provided to LLMs — MAS is one architectural pattern within this discipline
-- [RAG](../concepts/rag.md): An alternative to multi-agent coordination for information access
-- [Agent Memory](../concepts/agent-memory.md): How persistent state is maintained across agent interactions
-
-## Sources
-
-- [Context Engineering Survey](../../raw/papers/mei-a-survey-of-context-engineering-for-large-language.md): Taxonomy placing MAS as an implementation pattern alongside RAG and memory systems
-- [Napkin Architecture](../../raw/repos/michaelliv-napkin.md): Concrete implementation of shared memory for multi-agent coordination, with benchmark results
-- [Claude Skills](../../raw/repos/alirezarezvani-claude-skills.md): Skill-based specialization and orchestration patterns across 11 agent platforms
+- [Context Engineering](../concepts/context-engineering.md)
+- [Agent Memory Systems](../concepts/agent-memory.md)
+- [RAG (Retrieval-Augmented Generation)](../concepts/rag.md)

@@ -2,109 +2,235 @@
 entity_id: knowledge-graph
 type: concept
 bucket: knowledge-bases
+abstract: >-
+  Knowledge Graph: a graph data structure of entities (nodes) and typed
+  relationships (edges) used to represent domain knowledge for querying,
+  multi-hop reasoning, and retrieval augmentation — differentiated from flat
+  document stores by its ability to traverse transitive relationships across
+  documents.
 sources:
+  - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
+  - repos/getzep-graphiti.md
   - repos/aiming-lab-simplemem.md
   - repos/osu-nlp-group-hipporag.md
-  - repos/caviraoss-openmemory.md
   - repos/topoteretes-cognee.md
+  - papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md
   - papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
-  - articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md
-  - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
   - deep/repos/osu-nlp-group-hipporag.md
-  - deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md
-  - deep/repos/michaelliv-napkin.md
   - deep/repos/topoteretes-cognee.md
+  - deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
-related: []
-last_compiled: '2026-04-05T05:26:45.262Z'
+related:
+  - Retrieval-Augmented Generation
+  - Model Context Protocol
+  - GraphRAG
+  - Agent Memory
+  - Neo4j
+  - Graphiti
+  - Cognee
+  - Community Detection
+  - Personalized PageRank
+last_compiled: '2026-04-05T20:31:09.031Z'
 ---
 # Knowledge Graph
 
 ## What It Is
 
-A knowledge graph (KG) is a data structure that represents entities as nodes and relationships between them as typed, directed edges. Rather than storing facts as isolated records, a KG encodes the *connections* between facts. "Alice works at Acme Corp, which is headquartered in Berlin, which is in Germany" becomes a traversable path through a graph rather than three separate rows in a table.
+A knowledge graph is a directed, labeled graph where nodes represent entities (people, places, concepts, events) and edges represent typed relationships between them. A triple `(Barack Obama, born_in, Hawaii)` is the atomic unit. Query a knowledge graph and you can traverse chains: `Obama -> born_in -> Hawaii -> part_of -> United States` rather than having to locate a single document that mentions all three in proximity.
 
-The term gained traction when Google announced its Knowledge Graph in 2012, but the underlying formalism predates that by decades — semantic networks, RDF triples, and ontologies from the 1970s-2000s are conceptual predecessors. The current wave of interest comes from a specific problem: vector embeddings are good at similarity search but bad at structured reasoning. A knowledge graph provides the complement.
+The structure predates LLMs by decades. Google's Knowledge Graph (2012), Wikidata (2012), and Freebase (before its acquisition by Google in 2010) established the pattern. What changed is how knowledge graphs get built (LLMs now extract triples from unstructured text instead of manual curation), and how they get used (as retrieval substrate for agents rather than as static encyclopedia backends).
 
-## Why It Matters for AI Systems
+Three constructs define any knowledge graph:
 
-Large language models have two persistent failure modes: they hallucinate facts they don't know, and they struggle to chain reasoning steps reliably across long contexts. Knowledge graphs address both. A graph gives an agent a queryable, auditable external store where facts can be retrieved exactly, and multi-hop questions can be answered by traversing edges rather than prompting a model to "remember."
+- **Node** (entity): a distinct thing with an identifier and optional properties. `Person:Obama`, `City:Honolulu`, `Concept:machine_learning`.
+- **Edge** (relationship): a typed, directed connection between two nodes. `(Obama) --born_in--> (Honolulu)`. Edges may carry properties: weight, timestamp, source document, confidence score.
+- **Triple**: the subject-predicate-object unit. RDF formalizes this as `(subject, predicate, object)`. A knowledge graph is a set of triples plus indexes for efficient traversal.
 
-The contrast with vector RAG is concrete. A vector store retrieves chunks ranked by embedding similarity. Ask "Who does the person who manages the person who approved Project X report to?" and you're hoping the answer fell into a single chunk. A knowledge graph answers that by following three edges. The architecture shifts reasoning from the model's weights to a structured store.
+## Why It Matters for LLM Systems
 
-## Core Data Model
+Standard dense retrieval (embedding similarity search) finds documents whose vectors are close to the query vector. This works well for single-hop lookups: "Who is Barack Obama?" retrieves a passage about Obama, done. It fails for multi-hop queries: "Who governed the birthplace of the first US president who won a Nobel Prize?" requires chaining `Nobel Prize winner -> Barack Obama -> born in -> Hawaii -> governed by -> David Ige`. No single passage embeds close to this query unless it happens to mention all those facts together.
 
-The foundational unit is a triple: **(subject, predicate, object)** — or equivalently, a labeled directed edge between two nodes. Examples:
+The paper [RAG vs GraphRAG](../raw/deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md) quantifies this gap. On temporal reasoning queries, GraphRAG outperforms RAG by 23.33 F1 points (49.06 vs 25.73). On multi-hop queries, the gap narrows to 0.72–1.62 F1 points — meaningful but not decisive. On single-hop factual queries, RAG wins. The practical conclusion: knowledge graphs provide the largest return when queries require chaining across entities or tracking how facts change over time.
 
-- `(Zep, implements, Graphiti)`
-- `(Graphiti, is_a, temporal_knowledge_graph_engine)`
-- `(Graphiti, maintains, historical_relationships)`
+The same paper identifies a hard ceiling: only ~65% of answer-relevant entities survive LLM-based extraction into the graph. When an entity never gets extracted, graph traversal cannot recover it. This caps the ceiling on graph-only retrieval regardless of how sophisticated the traversal algorithm is.
 
-Typed edges carry semantics. An edge labeled `works_at` means something different from `acquired`, even if both connect two entities. This typing is what enables reasoning: you can ask for all entities connected by `reports_to` relationships without scanning every edge.
+## How Knowledge Graphs Get Built
 
-**Temporal extensions** add a validity interval to each triple: facts have a `valid_from` and optionally a `valid_until` timestamp. Without this, a graph can't distinguish "Alice works at Acme (current)" from "Alice worked at Acme (past)." The Zep paper's core architecture, Graphiti, handles this by storing temporal metadata on edges, enabling queries like "who was Alice's manager in Q3 2023?" [Source](../../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)
+### Manual Curation
 
-**Ontologies** define the schema: what entity types exist, what predicates are valid between which types, and what constraints apply. Without an ontology, graphs degrade into unstructured edge soup. Cognee explicitly supports ontology grounding as a product feature. [Source](../../raw/repos/topoteretes-cognee.md)
+Wikidata and DBpedia are human-curated at scale. Contributors write triples directly, with editorial processes to resolve conflicts. Quality is high; coverage is broad; maintenance is labor-intensive. Viable for domain ontologies and reference knowledge, not for dynamic enterprise data or frequently updated corpora.
 
-## How Information Gets In
+### LLM-Based Triple Extraction
 
-Three main patterns:
+The dominant pattern for building knowledge graphs from unstructured text feeds documents through two LLM passes:
 
-**Manual curation** produces the highest-quality graphs but doesn't scale. Human experts define entities and relationships. Suitable for structured domains with stable schemas (medical ontologies, product catalogs).
+1. **Named Entity Recognition (NER)**: Extract entity mentions from text.
+2. **Relation extraction**: Given the document and extracted entities, produce subject-predicate-object triples.
 
-**Information extraction from text** uses NLP pipelines — named entity recognition, relation extraction, coreference resolution — to parse documents into triples. Quality depends heavily on the extraction model. HippoRAG's indexing pipeline does this using an LLM to extract entity nodes and relationships from documents, then stores them as a graph before applying Personalized PageRank at retrieval time. [Source](../../raw/repos/osu-nlp-group-hipporag.md)
+[HippoRAG](../raw/deep/repos/osu-nlp-group-hipporag.md) implements this as `OpenIE` in `information_extraction/openie_openai.py`. The NER pass uses a prompt template (`prompts/templates/ner.py`) to extract entities as a JSON list. The triple extraction pass conditions on those entities to generate triples. Conditioning the second pass on the first reduces hallucinated entities in relations, but errors compound: missed entities in NER mean missed triples downstream.
 
-**Continuous ingestion** processes streams of new data as they arrive. Zep's Graphiti engine ingests conversational turns and business data in real time, extracting entities and relationships and merging them into the existing graph while preserving historical state. [Source](../../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md) This is architecturally distinct from batch extraction — the graph is always current rather than periodically refreshed.
+[Cognee](../raw/deep/repos/topoteretes-cognee.md) implements this through `extract_graph_from_data()` in `cognee/tasks/graph/extract_graph_from_data.py`, using Instructor/litellm for structured output against a `KnowledgeGraph` Pydantic model. Each document chunk generates entities and relations concurrently via `asyncio.gather()`. Cognee optionally validates extracted entities against OWL ontologies with fuzzy matching at 80% threshold — an unusual step that reduces noisy entities in specialized domains.
 
-## How Queries Work
+### Hybrid Deterministic + LLM Construction
 
-**Graph traversal** follows edges from a starting node. Breadth-first search finds all entities within N hops. Depth-first search follows specific relationship chains. SPARQL is the standard query language for RDF graphs; Cypher is used for property graphs (Neo4j). Cognee supports Neo4j as a backend. [Source](../../raw/repos/topoteretes-cognee.md)
+For structured data (database rows, CSV files, schemas with foreign keys), deterministic edge construction is more reliable than LLM extraction. Cognee has a special path for DLT row documents that skips LLM extraction entirely and builds edges from foreign key relationships. This avoids the quality ceiling problem for structured sources while retaining LLM extraction for unstructured text.
 
-**Multi-hop reasoning** is the primary advantage over vector RAG. HippoRAG 2 uses Personalized PageRank (PPR) — an algorithm that propagates relevance scores from seed nodes through the graph, discounting by edge count. A query entity seeds the walk; PPR surfaces nodes that are structurally important relative to that seed, not just embedding-similar. This retrieves passage sets that span multiple hops without requiring the model to hold the chain in context. [Source](../../raw/repos/osu-nlp-group-hipporag.md)
+## How Knowledge Graphs Get Queried
 
-**Hybrid search** combines graph traversal with vector similarity. Cognee runs vector search and graph traversal in parallel, merging results. This handles queries that are partly structural ("who reports to whom") and partly semantic ("find discussions about contract disputes"). [Source](../../raw/repos/topoteretes-cognee.md)
+### Cypher / SPARQL Query Languages
 
-**Temporal queries** filter or sort by validity timestamps on edges. Zep reports 18.5% accuracy improvement on LongMemEval's temporal reasoning tasks compared to baseline implementations — tasks that require tracking how facts change over time across sessions. This benchmark result comes from the Zep paper itself, so treat it as self-reported. [Source](../../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)
+Neo4j uses Cypher; RDF systems use SPARQL. Both let you write explicit graph traversal queries:
 
-## Implementation Patterns in Production
+```cypher
+MATCH (p:Person)-[:BORN_IN]->(c:City)<-[:GOVERNS]-(g:Governor)
+WHERE p.name = 'Barack Obama'
+RETURN g.name
+```
 
-Current systems layer knowledge graphs over other retrieval mechanisms rather than replacing them:
+This is precise and fast but requires the query to be pre-formulated or generated by an LLM. [Cognee](../raw/deep/repos/topoteretes-cognee.md) exposes a `CYPHER` search type for power users who want this control.
 
-- **Graph + vector**: Cognee and HippoRAG both maintain vector indexes alongside graph structures. Vector search handles broad semantic retrieval; graph traversal handles relational reasoning.
-- **Graph as memory backend**: Zep positions its knowledge graph as a persistent memory layer for agents — facts extracted from conversations accumulate in the graph, and agents query it across sessions. This solves context-window overflow for long-running agent deployments.
-- **Graph + LLM extraction**: All three systems use LLMs to extract graph content from unstructured text. This introduces extraction errors that propagate into the graph and are difficult to correct systematically.
+### Personalized PageRank (PPR)
 
-## Failure Modes
+PPR starts traversal from a set of "seed" nodes (those semantically relevant to the query) and propagates relevance scores through the graph structure, naturally amplifying nodes that connect many relevant entities. Nodes connected to multiple seeds rank higher than nodes connected to only one.
 
-**Extraction noise compounds.** When an LLM extracts entities and relationships from text, errors enter the graph. A misidentified entity creates wrong edges. Those edges then participate in multi-hop queries, amplifying the initial error across downstream reasoning. Vector RAG degrades gracefully — a bad chunk gets low similarity scores. A bad triple in a graph can route entire reasoning chains incorrectly, with no automatic signal that something went wrong.
+HippoRAG uses PPR as its core retrieval mechanism. After extracting and filtering relevant triples from the query, `graph_search_with_fact_entities()` runs PPR from the entity nodes found in those triples. Document nodes reachable through entity connections accumulate PPR scores that combine with direct embedding similarity. The `passage_node_weight` parameter controls the blend. The implementation uses [igraph](../raw/deep/repos/osu-nlp-group-hipporag.md)'s PPR function directly on an in-memory graph.
 
-**Schema drift breaks queries.** Ontologies assume the world has a stable structure. When business domains evolve — companies reorganize, products change categories, terminology shifts — graph schemas need updates. Temporal KGs partially address this by timestamping facts, but schema changes (a new predicate type, a renamed entity class) require manual migration. Systems without strong ontology governance accumulate inconsistent representations of the same real-world concepts.
+PPR is computationally expensive on large graphs. HippoRAG tracks `self.ppr_time` per query; at scale, PPR latency can exceed acceptable bounds for real-time applications.
 
-**Graph sparsity undermines multi-hop reasoning.** Multi-hop retrieval only works if the relevant path exists in the graph. Sparse graphs — because extraction missed relationships, or certain document types weren't ingested — produce dead ends. An agent following a reasoning chain hits a node with no outgoing edges and returns incomplete answers, often without flagging the gap.
+### Community Detection
 
-## When Not to Use a Knowledge Graph
+[GraphRAG](../projects/graphrag.md) (Microsoft's implementation) builds a hierarchy of communities using algorithms like Leiden or Louvain. Communities group densely connected entity clusters. At query time, community summaries provide compressed representations of topic clusters, enabling broad "what does this corpus say about X" queries without traversing individual entity neighborhoods.
 
-**Small, stable corpora** don't justify the infrastructure. A company with 200 internal documents and no cross-document reasoning requirements gets more value from a well-tuned vector store with lower operational overhead.
+The [RAG vs GraphRAG evaluation](../raw/deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md) shows community-based global search consistently underperforms local search on factual QA (45–55% vs 63–65% F1). Community search suits corpus-wide sensemaking, not targeted factual retrieval.
 
-**Domains where relationships don't drive the queries.** Semantic search ("find documents discussing climate risk") is a vector problem. Introducing a graph adds complexity without improving retrieval for similarity-based workloads.
+### Vector + Graph Hybrid
 
-**Teams without graph query expertise.** Debugging a SPARQL or Cypher query requires skills most ML teams lack. A misconfigured traversal that returns empty results looks identical to a correctly configured traversal on a sparse graph. The operational cost of maintaining graph infrastructure is real and often underestimated.
+Most production systems combine embedding similarity with graph traversal rather than choosing one. The pattern:
 
-**High-velocity data with unstable entity definitions.** If your entity types and relationship schemas change weekly, maintaining graph consistency costs more than the reasoning benefits deliver.
+1. Retrieve top-k entities or facts by embedding similarity to the query.
+2. Use those as seed nodes for graph traversal (PPR, neighborhood expansion, or shortest path).
+3. Score retrieved documents by combining embedding similarity and graph traversal score.
 
-## Open Questions
+This handles the case where the query semantics don't exactly match the graph's entity vocabulary. The embedding step finds approximate anchors; the graph step follows structural connections the embedding step would miss. Integration of both retrieval paths yields +6.4% improvement on multi-hop tasks over RAG alone and +4–6% over GraphRAG alone, per the benchmark study.
 
-**Entity resolution at scale.** When the same real-world entity appears under different names across documents ("Apple Inc.," "Apple," "AAPL's parent company"), the graph needs to merge them into one node. None of the current open-source systems document their entity resolution approach in detail. Poor resolution fragments the graph; over-eager resolution merges distinct entities.
+## Graph Data Structures and Storage
 
-**Cost at ingestion scale.** LLM-based extraction is per-document. For large enterprise corpora, the extraction cost (API calls, latency) can exceed the cost of running the retrieval system. This is rarely discussed in documentation.
+Knowledge graphs require a property graph model or an RDF triplestore. The choice affects query expressiveness, schema flexibility, and ecosystem tooling.
 
-**Conflict resolution.** When two sources assert contradictory facts about the same entity, what happens? Temporal KGs can defer to recency, but that breaks when an older authoritative source conflicts with a newer unreliable one. HippoRAG, Cognee, and Zep don't specify conflict resolution policies in their public documentation.
+**Property graphs** (Neo4j, Kuzu, Memgraph, FalkorDB): Nodes and edges carry arbitrary key-value properties. Rich query language (Cypher). No requirement for formal ontology. Better for application-layer knowledge graphs where schema evolves frequently.
 
-## Implementations Worth Examining
+**RDF triplestores** (Virtuoso, GraphDB, Amazon Neptune): Store triples as `(subject, predicate, object)` with URI-based identifiers. SPARQL query language. OWL ontology support for formal inference. Better for interoperability with public linked data (Wikidata, DBpedia) and when ontological reasoning matters.
 
-- **HippoRAG** (NeurIPS 2024, ICML 2025): Research-grade, uses Personalized PageRank for retrieval. Best for understanding the academic foundations. [Source](../../raw/repos/osu-nlp-group-hipporag.md)
-- **Cognee**: Open-source, supports Neo4j, designed for agent memory with continuous learning. [Source](../../raw/repos/topoteretes-cognee.md)
-- **Zep / Graphiti**: Production-focused temporal KG with session-persistent agent memory. Strongest for enterprise deployments where conversational history matters. [Source](../../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)
-- **Microsoft GraphRAG**: Hierarchical community detection approach; not covered in source materials but widely deployed.
+**In-memory graph libraries** (igraph, NetworkX, rustworkx): Fast graph algorithms (PageRank, community detection, shortest path) without a database server. HippoRAG uses igraph persisted as a Pickle file. Simple to deploy; poor operability (no external queries, no versioning, not portable across Python versions).
 
-Use HippoRAG when you want to understand retrieval quality tradeoffs and have research flexibility. Use Cognee when you need an open-source system with broad database backend support. Use Zep when temporal reasoning across agent sessions is the primary requirement. Use a plain vector store when your queries are semantic similarity queries and your team has no graph expertise.
+For persistence in production, [Neo4j](../projects/neo4j.md) is the most widely deployed property graph database, with native Cypher support and an established driver ecosystem. [Cognee](../projects/cognee.md) supports Neo4j, Kuzu (embedded), AWS Neptune, and Memgraph as swappable backends behind a `GraphDBInterface` adapter.
+
+## Synonymy and Entity Resolution
+
+Entity extraction from natural language produces multiple surface forms for the same entity: "United States," "US," "U.S.A.," "America." Without resolution, these become separate nodes with no edges between them, breaking multi-hop traversal.
+
+Three resolution strategies appear across implementations:
+
+**Synonymy edges (HippoRAG)**: After initial graph construction, compute KNN over all entity embeddings. Entity pairs above a similarity threshold get connected with weighted edges. PPR then propagates relevance across synonym clusters naturally. Cost: all-pairs KNN over entity embeddings, which becomes expensive for large corpora. The cap at 100 nearest neighbors per entity prevents combinatorial explosion but may miss distant synonyms.
+
+**Ontology grounding (Cognee)**: Validate extracted entities against OWL ontologies with fuzzy matching. Entities that match canonical ontology terms inherit the ontology's class hierarchy and object properties, reducing fragmentation from the start. Works well in domains with authoritative ontologies (biomedical, legal, financial); requires upfront ontology curation for custom domains.
+
+**LLM deduplication (Cognee)**: Multi-pass extraction with cross-checking against source documents. Different extraction runs are compared and reconciled. More expensive than a single-pass extraction but improves consistency across large corpora.
+
+## Temporal Knowledge Graphs
+
+Standard knowledge graphs treat facts as timeless. Enterprise applications need to track how facts change: an employee's role in 2022 differs from their role today; a regulation that changed in 2024 must not contaminate queries about the regulatory state in 2023.
+
+[Graphiti](../projects/graphiti.md) (Zep's core engine) addresses this by adding temporal metadata to edges. Each edge carries `valid_from` and `valid_to` timestamps, with `invalid_at` recording when a fact was superseded. The [Zep paper](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md) reports 18.5% accuracy improvement on LongMemEval and 90% latency reduction versus baseline MemGPT on tasks requiring cross-session synthesis and long-term context maintenance.
+
+Cognee notes temporal reasoning as an active development area. Most other knowledge graph systems (HippoRAG, basic GraphRAG) treat the graph as static snapshots without temporal awareness.
+
+## Key Numbers and Benchmarks
+
+From the [RAG vs GraphRAG evaluation](../raw/deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md) (self-reported in the paper):
+
+| Task type | RAG F1 (Llama 70B) | GraphRAG Local F1 | Gap |
+|---|---|---|---|
+| Single-hop (NQ) | 68.18 | 65.44 | RAG +2.74 |
+| Multi-hop (HotPotQA) | 63.88 | 64.60 | GraphRAG +0.72 |
+| Temporal (MultiHop-RAG) | 25.73 | 49.06 | GraphRAG +23.33 |
+
+Hybrid integration (both retrieval paths): +6.4% over RAG baseline on multi-hop tasks.
+
+Entity extraction coverage: ~65.8% of answer-relevant entities survive into constructed knowledge graphs (HotPotQA). This is the hard ceiling for graph-only retrieval.
+
+Zep/Graphiti vs MemGPT on Deep Memory Retrieval: 94.8% vs 93.4% (self-reported).
+
+Cognee vs RAG on standard benchmarks: ~90% vs ~60% accuracy (self-reported, on unspecified benchmarks; exact scores not published with methodology).
+
+None of these numbers have been independently replicated outside the reporting teams. Treat them as directional evidence, not production guarantees.
+
+## Who Implements Knowledge Graphs
+
+- [HippoRAG](../projects/hipporag.md): In-memory igraph with PPR retrieval, OpenIE extraction, synonymy edges for multi-hop QA.
+- [GraphRAG](../projects/graphrag.md): Community detection hierarchy with local/global search modes.
+- [Cognee](../projects/cognee.md): ECL pipeline, three-store architecture (relational + vector + graph), optional OWL ontology grounding.
+- [Graphiti](../projects/graphiti.md): Temporal knowledge graph engine underlying Zep, tracks fact validity over time.
+- [Neo4j](../projects/neo4j.md): Primary production-grade property graph database for knowledge graph storage and querying.
+- [Agent Memory](../concepts/agent-memory.md): Knowledge graphs serve as the long-term relational memory layer in agent architectures.
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md): Knowledge graphs augment standard dense retrieval for multi-hop queries.
+- [Model Context Protocol](../concepts/model-context-protocol.md): Knowledge graphs can expose structured retrieval tools via MCP for agent consumption.
+
+## Practical Failure Modes
+
+**Entity extraction ceiling**: ~34% of answer-relevant entities don't survive extraction. In specialized domains (biomedical, legal, technical), this miss rate is likely higher. Measure extraction recall on domain-representative samples before committing to a graph-based architecture.
+
+**Graph scale**: In-memory graphs (igraph, NetworkX) become a bottleneck when entity counts exceed a few million. PPR on graphs this large requires either approximation algorithms or persistent graph databases with native traversal.
+
+**Entity fragmentation**: Without deliberate resolution, "US," "U.S.A.," and "United States" become isolated nodes. This silently breaks multi-hop traversal — queries that should chain through "United States" find nothing when the entity was extracted as "US."
+
+**Cold start**: A newly constructed knowledge graph with sparse entity coverage retrieves nothing useful until the extraction pipeline has processed sufficient corpus. During this ramp-up period, pure dense retrieval outperforms the hybrid.
+
+**Static snapshots**: Most graph implementations don't track temporal changes. A knowledge graph built from a corpus in 2023 will silently return stale facts for queries about 2025 state. Only temporal-aware systems (Graphiti, Zep) handle this by design.
+
+## When NOT to Use a Knowledge Graph
+
+**Single-hop factual retrieval**: Dense passage retrieval outperforms graph retrieval on simple lookups (RAG +2.74 F1 on NQ). The indexing overhead of graph construction is not justified.
+
+**Small, stable corpora**: If your knowledge base contains fewer than a few thousand documents and updates infrequently, embedding similarity search is simpler to operate and maintain. The multi-hop benefit only materializes when the corpus has enough interconnected entities to form useful graph structure.
+
+**Real-time ingestion with latency constraints**: LLM-based triple extraction is slow (multiple LLM calls per document). Systems requiring sub-second ingestion of new documents cannot use extraction-based graph construction.
+
+**Unstructured, narrative-heavy content**: Novels, transcripts, forum threads, and similar content have low entity density. The extraction pipeline produces sparse, noisy graphs. Dense retrieval handles these better.
+
+**When extraction quality can't be validated**: If you can't evaluate whether your extraction pipeline achieves adequate entity recall on your domain, you risk building an architecture with a hidden quality ceiling that's hard to diagnose.
+
+## Unresolved Questions
+
+**Extraction quality feedback loops**: How do you detect when the ~34% entity miss rate is degrading retrieval in production? No standard tooling exists for monitoring extraction coverage against incoming queries.
+
+**Incremental graph updates at scale**: Most systems support incremental document ingestion for embeddings but require full re-computation of all-pairs entity similarity (HippoRAG) or community detection (GraphRAG) when the corpus grows. At what scale does this become untenable, and what architectures handle it gracefully?
+
+**Optimal chunking for graph extraction**: The extraction pipeline's entity recall depends on chunk size. Smaller chunks contain fewer entities but make relationship extraction harder. Larger chunks have more context but exceed LLM context windows. No consensus exists on the right tradeoff.
+
+**Evaluation methodology**: The [context engineering survey](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md) notes that memory system benchmarks mostly test single-session recall, not the cross-session synthesis and temporal reasoning that production systems require. LLM-as-judge evaluations have documented position bias that can invert preference judgments. Standard QA benchmarks (NQ, HotPotQA) don't cover the distribution of queries in enterprise deployments.
+
+## Alternatives and Selection Guidance
+
+| Situation | Recommendation |
+|---|---|
+| Single-hop factual retrieval, low latency | Dense vector search (no knowledge graph) |
+| Multi-hop reasoning across documents | Knowledge graph + PPR traversal (HippoRAG, GraphRAG Local) |
+| Corpus-wide sensemaking and summarization | Community detection (GraphRAG Global) |
+| Temporal fact tracking across sessions | Temporal knowledge graph (Graphiti/Zep) |
+| Domain with formal ontology (biomedical, legal) | Property graph + OWL ontology grounding (Cognee) |
+| Structured data with explicit relationships | Deterministic edge construction from schema (no LLM extraction needed) |
+| Best of both worlds, cost not a constraint | Hybrid RAG + Knowledge Graph retrieval (+6.4% on multi-hop) |
+
+
+## Related
+
+- [Retrieval-Augmented Generation](../concepts/rag.md) — implements (0.6)
+- [Model Context Protocol](../concepts/mcp.md) — implements (0.5)
+- [GraphRAG](../concepts/graphrag.md) — implements (0.9)
+- [Agent Memory](../concepts/agent-memory.md) — implements (0.6)
+- [Neo4j](../projects/neo4j.md) — implements (0.8)
+- [Graphiti](../projects/graphiti.md) — implements (0.8)
+- [Cognee](../projects/cognee.md) — implements (0.7)
+- [Community Detection](../concepts/community-detection.md) — implements (0.6)
+- [Personalized PageRank](../concepts/personalized-pagerank.md) — implements (0.6)

@@ -2,8 +2,44 @@
 
 These entities were mentioned in sources but don't have enough references for a full article yet. Contributions welcome!
 
-- **Aider** (project, agent-systems) — An AI pair programming CLI tool that integrates LLMs with git to enable code editing across multiple files from the command line.. Sources: 2
-- **Prompt Injection** (concept, agent-systems) — A security attack where malicious content in retrieved data or tool outputs manipulates agent behavior by overriding instructions. A key security concern in RAG and agentic systems.. Sources: 2
-- **Bi-Temporal Indexing** (concept, knowledge-bases) — A data modeling approach that tracks both the time when facts were valid in the real world and when they were recorded in the system, enabling accurate historical queries.. Sources: 2
-- **Milvus** (project, knowledge-bases) — An open-source vector database designed for scalable similarity search. Used as a backend for RAG systems and agent memory in production deployments.. Sources: 2
-- **Memgraph** (project, knowledge-bases) — An in-memory graph database compatible with Neo4j's Cypher query language, used for real-time graph analytics and agent memory.. Sources: 2
+- **Aider** (project, agent-systems) — An AI pair programming tool that works with local git repositories, enabling LLM-assisted code editing and autonomous coding workflows.. Sources: 2
+- **ADAS** (project, self-improving) — Automated Design of Agentic Systems, a framework for automatically discovering and optimizing agent architectures and prompting strategies.. Sources: 2
+- **AutoGen** (project, agent-systems) — Microsoft's framework for building multi-agent AI systems with conversational patterns and tool use.. Sources: 2
+- **AutoGPT** (project, agent-systems) — An early autonomous GPT-4 based agent that could execute multi-step tasks by decomposing goals and using tools.. Sources: 2
+- **LightRAG** (project, knowledge-bases) — A lightweight RAG framework that integrates graph-based indexing for efficient and context-rich document retrieval.. Sources: 2
+- **LLMLingua** (project, context-engineering) — A family of prompt compression methods that use small language models to identify and remove unimportant tokens from LLM prompts, improving efficiency.. Sources: 2
+- **pgvector** (project, knowledge-bases) — A PostgreSQL extension for vector similarity search, enabling hybrid relational and semantic retrieval in a single database.. Sources: 3
+- **Pinecone** (project, knowledge-bases) — A managed vector database service for production semantic search and RAG applications.. Sources: 2
+- **Weaviate** (project, knowledge-bases) — An open-source vector database with built-in AI model integrations for semantic search and knowledge base applications.. Sources: 2
+- **Milvus** (project, knowledge-bases) — An open-source vector database designed for scalable similarity search in production AI and agent memory applications.. Sources: 2
+- **FAISS** (project, knowledge-bases) — Facebook's library for efficient similarity search and clustering of dense vectors, widely used in RAG and agent memory systems.. Sources: 2
+- **Darwin Gödel Machine** (concept, self-improving) — A self-improving AI system concept that uses evolutionary and formal verification approaches to modify its own code, drawing on Gödel machine theory.. Sources: 2
+- **Cognitive Architecture** (concept, agent-memory) — The overall design of an agent's memory, reasoning, and action systems, often inspired by cognitive science models of human cognition.. Sources: 2
+- **Reinforcement Learning** (concept, self-improving) — A machine learning paradigm where agents learn to take actions by receiving rewards or penalties, used in training and self-improving agent systems.. Sources: 2
+- **Community Detection** (concept, knowledge-bases) — Graph algorithms used to identify clusters or communities in knowledge graphs, supporting hierarchical summarization and retrieval in GraphRAG systems.. Sources: 5
+- **Personalized PageRank** (approach, knowledge-bases) — A graph traversal algorithm used in knowledge graph retrieval to rank nodes by relevance to a query, used in HippoRAG and similar systems.. Sources: 2
+- **Case-Based Reasoning** (concept, agent-memory) — A problem-solving approach where agents recall and adapt solutions from past similar cases, applicable to episodic memory systems.. Sources: 2
+- **Multi-Hop Reasoning** (concept, knowledge-bases) — The ability to answer questions or solve problems by chaining multiple retrieval or inference steps across a knowledge base or graph.. Sources: 2
+- **LanceDB** (project, knowledge-bases) — An open-source vector database built on the Lance columnar format, designed for efficient AI application development with multimodal data.. Sources: 2
+- **Agent Workflow Memory** (project, agent-memory) — A system that extracts and reuses workflow patterns from agent execution traces as reusable memory for future task completion.. Sources: 2
+- **SkillWeaver** (project, self-improving) — A framework for agents to automatically acquire, compose, and reuse skills from experience, supporting lifelong skill learning.. Sources: 2
+- **Cognee** (project, knowledge-bases) — A knowledge graph and memory platform for AI applications, enabling structured knowledge storage and retrieval for agents.. Sources: 2
+- **RAGFlow** (project, knowledge-bases) — An open-source RAG engine with deep document understanding and intelligent chunking for enterprise knowledge base applications.. Sources: 2
+- **Synthetic Data Generation** (approach, self-improving) — The process of generating artificial training or evaluation data using LLMs or other methods to augment agent learning and skill development.. Sources: 2
+- **Git as Memory** (approach, agent-memory) — Using version control systems like git as a structured memory layer for agents, tracking changes, decisions, and code evolution over time.. Sources: 2
+- **Dynamic Cheatsheet** (concept, context-engineering) — A context engineering pattern where an agent maintains an evolving reference document of key facts, rules, and learned heuristics in its context.. Sources: 4
+- **Lilian Weng** (person, agent-systems) — AI researcher at OpenAI known for comprehensive blog posts on agent systems, memory, and LLM capabilities.. Sources: 2
+- **Harrison Chase** (person, agent-systems) — Creator of LangChain, a leading framework for building LLM-powered applications and agents.. Sources: 1
+- **OSWorld** (project, agent-systems) — A benchmark for evaluating computer-use agents on real-world operating system tasks across diverse applications.. Sources: 2
+- **WebArena** (project, agent-systems) — A realistic benchmark for evaluating autonomous web agents on complex web navigation and task completion.. Sources: 2
+- **Organizational Memory** (concept, knowledge-bases) — The collective knowledge, processes, and context stored and shared across an organization or multi-agent system, enabling institutional learning.. Sources: 2
+- **Bounded Context** (concept, context-engineering) — A software architecture pattern applied to agent systems to define clear boundaries around context domains, preventing context pollution and improving modularity.. Sources: 2
+- **Compaction Tree** (concept, context-engineering) — A hierarchical summarization structure used to compress long conversation histories or context into progressively more abstract representations.. Sources: 2
+- **Automatic Curriculum** (concept, self-improving) — A method for automatically generating increasingly difficult training tasks or experiences for self-improving agents, enabling progressive skill acquisition.. Sources: 2
+- **Credit Assignment** (concept, self-improving) — The problem of determining which actions or decisions in an agent's trajectory were responsible for a final outcome, critical for self-improvement and reinforcement learning.. Sources: 2
+- **Compositional Skill Synthesis** (approach, self-improving) — An approach to building agent capabilities by combining simpler learned skills into more complex composite skills.. Sources: 2
+- **Mobile-Agent-E** (project, agent-systems) — A mobile agent benchmark and framework for evaluating LLM agents on smartphone task automation.. Sources: 1
+- **Ebbinghaus Forgetting Curve** (concept, agent-memory) — A psychological model of memory decay over time, used as inspiration for spaced repetition and memory management in agent systems.. Sources: 1
+- **Temporal Reasoning** (concept, agent-memory) — The ability of agents to reason about time, temporal relationships between events, and the recency or validity of stored knowledge.. Sources: 2
+- **Reward Hacking** (concept, self-improving) — A failure mode in reinforcement learning where agents exploit loopholes in reward functions rather than learning intended behaviors.. Sources: 2
+- **Supervised Fine-Tuning** (concept, self-improving) — A training technique for adapting pre-trained language models to specific tasks using labeled examples, often combined with RLHF or GRPO.. Sources: 2

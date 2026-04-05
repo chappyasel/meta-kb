@@ -2,105 +2,112 @@
 entity_id: github-copilot
 type: project
 bucket: agent-systems
+abstract: >-
+  GitHub Copilot: Microsoft's AI coding assistant integrated into IDEs, offering
+  inline completions and chat; differentiates through deep IDE integration and
+  enterprise GitHub ecosystem, not raw model capability.
 sources:
   - repos/caviraoss-openmemory.md
-  - repos/othmanadi-planning-with-files.md
   - articles/martinfowler-com-context-engineering-for-coding-agents.md
-  - deep/repos/caviraoss-openmemory.md
+  - deep/repos/othmanadi-planning-with-files.md
   - deep/repos/kepano-obsidian-skills.md
 related:
-  - Claude Code
-  - OpenAI
-last_compiled: '2026-04-05T05:30:11.456Z'
+  - Cursor
+  - OpenAI Codex
+  - Google Gemini
+  - Windsurf
+  - Agent Skills
+  - OpenAI Codex
+last_compiled: '2026-04-05T20:33:32.097Z'
 ---
 # GitHub Copilot
 
-## What It Is
+## What It Does
 
-GitHub Copilot is Microsoft's AI pair programming assistant, launched in technical preview in June 2021 and generally available from June 2022. It originated as a collaboration between GitHub and OpenAI, running on OpenAI Codex (a code-focused derivative of GPT-3), and has since migrated to GPT-4-class models with optional Claude integration.
+GitHub Copilot is Microsoft's AI coding assistant, available as an IDE plugin for VS Code, Visual Studio, JetBrains IDEs, Neovim, and others. It provides two primary interaction modes: inline ghost-text completions that appear as you type, and a chat interface for code explanation, generation, debugging, and test writing. Enterprise tiers add features like codebase-wide context, custom models, and organization-level policy controls.
 
-The product sits inside editors — primarily VS Code, JetBrains IDEs, Neovim, and Visual Studio — and provides inline code completions, a chat interface, context-aware edits, and (more recently) an autonomous agent mode that can execute multi-step coding tasks with terminal access.
-
-Copilot was among the first AI coding tools to reach mass adoption. By late 2024, GitHub reported over 1.8 million paid subscribers and claimed 77% of Fortune 500 companies had active users. These figures come from GitHub's own reporting and are not independently audited.
+The assistant launched in 2021 built on OpenAI Codex. As of 2025, it runs multiple models including GPT-4o, Claude 3.5/3.7 Sonnet, Gemini 1.5 Pro, and o3-mini depending on tier and task. This multi-model architecture is a meaningful architectural decision: Copilot is now a model-agnostic interface layer rather than a single-model product.
 
 ## Core Mechanism
 
-Copilot operates on a **fill-in-the-middle (FIM)** architecture. When you pause typing, the extension sends a payload to GitHub's inference infrastructure containing:
+### Inline Completions
 
-- The code before your cursor (prefix)
-- The code after your cursor (suffix)
-- Relevant context extracted from open tabs and recently edited files
+Copilot sends a context window to a hosted model API and renders the response as ghost text. The context includes the current file, cursor position, open tabs (weighted by recency and relevance), and repository metadata. The system uses a relevance ranking pass to decide which open files to include, prioritizing files with similar imports, naming patterns, or direct references to the current file. This neighbor-file selection is the main mechanism distinguishing Copilot from a plain API call.
 
-The model returns a completion that fits the gap. Ghost text appears inline; Tab accepts it.
+### Skills and Context Configuration
 
-Beyond completions, **Copilot Chat** opens a conversation thread attached to your editor. It can reference selected code, the active file, or the entire workspace (via `@workspace`). The `@workspace` context is built by running a local embedding search over your repository files, retrieving the most relevant chunks before each request.
+Copilot supports the Agent Skills specification (SKILL.md format), meaning it participates in the same skill ecosystem as Claude Code, Codex CLI, and Gemini CLI. SKILL.md files in a repository are loaded on demand when the agent determines they're relevant, based on natural-language description matching. This is the same format documented in the `planning-with-files` skill, which ships separate `ide/copilot` branches adapted to Copilot's lifecycle hooks. The `obsidian-skills` repository explicitly lists Copilot as a target runtime, installing skills to `~/.claude/skills/` paths that Copilot discovers.
 
-Copilot's agent mode (introduced 2024) adds tool use: the model can read files, run terminal commands, search the web, and iterate on its own output. This puts it in the same category as Claude Code and Cursor's agent mode, though the execution model differs — Copilot's agent runs inside VS Code's extension host rather than a separate process.
+Rules files (path-scoped guidance markdown) are loaded when files at configured paths are accessed. This mirrors the CLAUDE.md pattern but scoped to file globs, so TypeScript-specific rules only enter context when `.ts` files are open.
 
-Rules files (`AGENTS.md` at the repo root, or `.github/copilot-instructions.md`) inject persistent guidance into every request, similar to Claude Code's `CLAUDE.md`. GitHub's own context engineering article notes that path-scoped rules are becoming standard across major tools.
+### Agent Mode
 
-For lifecycle hooks, Copilot added hook support (tracked in `ide/copilot` branches of third-party skill projects like `planning-with-files`), including an `errorOccurred` hook. This is newer and less mature than Claude Code's hook system.
+Copilot's agent mode (available in VS Code) allows multi-step task execution: the model can read files, run terminal commands, create and edit files, and call tools across a session. This is where the planning-with-files skill pattern applies directly. The `PreToolUse` hook re-reads `task_plan.md` before each tool invocation, keeping goals in the attention window across long sessions. Without this discipline, Copilot agents show the same goal-drift failure mode as other long-context agents: completing the wrong subtask or abandoning the original intent after 50+ tool calls.
 
 ## Key Numbers
 
-| Metric | Value | Source |
-|--------|-------|--------|
-| Paid subscribers | 1.8M+ (late 2024) | Self-reported by GitHub |
-| Fortune 500 adoption | 77% | Self-reported by GitHub |
-| Monthly cost (Individual) | $10/month | Public pricing |
-| Monthly cost (Business) | $19/user/month | Public pricing |
-| Context window (completions) | ~8k tokens | Estimated from behavior; not officially disclosed |
+- Copilot has reportedly surpassed 15 million users (Microsoft-reported, not independently verified by usage auditors).
+- GitHub claims 55% of code in repositories with Copilot enabled is AI-generated (self-reported, methodology unstated).
+- The planning-with-files skill evaluation showed a 90-percentage-point pass rate improvement (96.7% vs 6.7%) when structured planning discipline was applied to coding agents, using 30 objectively verifiable assertions across 10 parallel subagents. This was conducted by the skill's author, not independently validated, but the assertion framework is reproducible.
 
-No independent benchmark has measured Copilot's completion accept rate or code correctness at scale in a controlled study. GitHub has published internal studies (claiming ~55% of developers feel they write higher-quality code) but methodology is not peer-reviewed.
+These numbers should be treated as directional, not precise. Microsoft has commercial incentives to report favorable adoption figures.
 
 ## Strengths
 
-**Deep IDE integration.** Copilot lives where developers already work. The ghost-text completion UX is low-friction in a way that browser-based or terminal-based tools are not. Accepting a suggestion costs one keypress.
+**IDE integration depth.** Copilot's ghost-text completions are faster and lower-friction than chat-first interfaces. The integration works at the keystroke level, not the prompt level, which changes the development workflow less abruptly.
 
-**Enterprise infrastructure.** Organizations get audit logs, IP indemnification, policy controls, and SAML SSO. For companies where legal review gates tooling decisions, Copilot's enterprise tier often clears procurement faster than newer competitors.
+**Enterprise access controls.** Organization admins can restrict which models are available, block specific file types from being sent to the model, and enforce content policies. This matters in regulated industries where competitor tools like Cursor have weaker organizational controls.
 
-**Breadth of language support.** Training data covers a wide range of languages. Completion quality in TypeScript, Python, Go, and Java is generally strong. Less common languages benefit from the FIM architecture even when training data is thinner.
+**Multi-model flexibility.** Switching between Claude Sonnet and GPT-4o within the same session is available in newer tiers. For tasks where model choice matters (long reasoning chains vs. fast completions), this reduces context-switching cost.
 
-**`@workspace` retrieval.** For navigating large codebases mid-conversation, the local embedding search is practical and doesn't require users to manually attach files.
+**Ecosystem participation.** Supporting the Agent Skills spec means Copilot can load community-built skills without custom integration work. The obsidian-skills package, planning-with-files, and similar repositories work with Copilot without modification.
 
 ## Critical Limitations
 
-**Concrete failure mode — context staleness in agent tasks.** When Copilot's agent mode runs multi-step tasks, it does not maintain a persistent external state file the way Manus-style workflows do (storing task state in `task_plan.md`, `findings.md`, `progress.md`). If the session context fills or the agent encounters an error mid-task, recovery depends on conversation history alone. Long agentic tasks involving 30+ tool calls frequently drift from the original goal or silently drop earlier constraints. Users who have added the `planning-with-files` skill to Copilot (via `ide/copilot` branch hooks) report better recovery behavior, but this is a community workaround, not a native capability.
+**Context window opacity.** Unlike Claude Code's `/context` command showing exactly what's consuming context, Copilot provides limited transparency into what neighbor files were selected, what rules are loaded, and how full the context is. Birgitta Böckeler's analysis in the Thoughtworks piece identifies context transparency as "a crucial feature in the tools to help us navigate this balance" — Copilot lags here. You cannot easily audit why Copilot completed code one way versus another.
 
-**Unspoken infrastructure assumption — internet connectivity and GitHub authentication.** Every completion request leaves the machine. Completions are unavailable offline, and any network disruption drops the feature entirely. In air-gapped development environments (defense contractors, regulated financial systems), Copilot is simply non-functional unless GitHub Enterprise installs the dedicated server product, which carries a substantially higher cost and configuration burden.
+**Unspoken infrastructure assumption.** Copilot requires a GitHub account and a Copilot subscription. All completions route through Microsoft-hosted APIs. For air-gapped environments, regulated data environments, or organizations that prohibit code from leaving their infrastructure, Copilot is architecturally incompatible regardless of enterprise settings. The model runs on Microsoft servers. There is no self-hosted option.
 
 ## When NOT to Use It
 
-**Air-gapped or high-security environments.** Code leaves the machine on every keystroke pause. Even with IP indemnification, some organizations cannot send source code to external APIs. Local alternatives (Continue.dev with a local model, Ollama-backed completions) are the correct choice here.
-
-**Complex autonomous multi-file refactors.** For tasks requiring 50+ sequential file edits with dependency tracking across a large codebase, Copilot's agent mode lacks the session recovery and structured planning that Claude Code's hook system and external memory provide. Claude Code or a Manus-style persistent-file workflow handles task resumption better.
-
-**Teams needing fine-grained model control.** Copilot lets you switch between models (GPT-4o, Claude Sonnet, Gemini) in chat, but the completion model is not user-selectable. If your team's workflows require a specific model for compliance or quality reasons, you cannot control that in completions.
-
-**Budget-sensitive small teams doing heavy agent work.** At $19/user/month for Business, the cost compounds quickly for teams running extended agent sessions. Tools with consumption-based pricing may be cheaper for irregular heavy usage.
+- **Offline or air-gapped development**: Copilot requires active internet connectivity. Every completion is a remote API call.
+- **Long autonomous agent tasks without external memory**: Without a planning discipline (skills like planning-with-files), Copilot's agent mode degrades on tasks exceeding 50 tool calls. The goal-drift failure mode is real and documented.
+- **Teams requiring full data residency**: Enterprise GitHub data residency options exist but are limited geographically and come with additional cost and complexity.
+- **Users wanting local model execution**: If you want to run models locally (Ollama, llama.cpp), tools like Continue.dev or Cursor with local model support are better fits. Copilot has no local model path.
 
 ## Unresolved Questions
 
-**What exactly goes into the context payload?** GitHub documents `@workspace` retrieval conceptually but does not publish the embedding model, chunking strategy, or retrieval count. Developers cannot audit what code was or wasn't retrieved for a given response.
+**Model arbitration logic.** When multiple models are available, how does Copilot decide which to use for a given request? The documentation describes user selection, but agent mode may auto-select. The selection criteria aren't public.
 
-**Conflict resolution in multi-file rules.** When `.github/copilot-instructions.md` contradicts a path-scoped rule, which wins? The documentation does not specify precedence. In practice, behavior appears to vary by request type.
+**Skill loading reliability.** The Agent Skills spec relies on natural-language description matching to trigger skill loading, which the spec itself acknowledges as non-deterministic. For Copilot specifically, there's no documented mechanism to verify which skills are active in a session, or to force a skill to load without relying on the LLM's judgment.
 
-**Governance of training data going forward.** Copilot offers a code suggestion exclusion option (preventing your code from being used in Copilot's suggestions to others), but independent verification that the exclusion functions as documented has not been published.
+**Context selection algorithm.** The neighbor-file relevance ranking that determines which open files enter context is not documented in detail. Whether it uses embeddings, AST analysis, import graph traversal, or heuristics is unspecified, making it hard to engineer your file structure to improve completion quality.
 
-**Cost at scale for agent mode.** Agent mode token consumption is not metered differently from chat in the current per-seat pricing. Long agentic runs on complex tasks may represent significant backend cost to GitHub that could prompt pricing model changes.
+**Governance at organizational scale.** Enterprise Copilot policies are set at the organization level, but GitHub's policy enforcement model for forks, external contributors, and CI-triggered agents (Copilot Coding Agent) is not fully specified.
+
+## Failure Mode: Agent Goal Drift
+
+In agent mode, after approximately 50 tool calls, Copilot (like all current LLM agents) tends to lose track of the original task objective. The model begins optimizing for completing the most recent tool output rather than the original user intent. This is the "lost in the middle" effect documented in the Manus AI context engineering research, applied to coding agents.
+
+The planning-with-files skill directly addresses this by injecting the first 30 lines of `task_plan.md` before every tool call via a PreToolUse hook. The Copilot-compatible branch (`ide/copilot`) adapts these hooks to Copilot's lifecycle system. Without this intervention, long autonomous refactoring tasks, multi-file feature implementations, or test suite generation tasks will frequently produce subtask-complete but task-incomplete results.
 
 ## Alternatives
 
-| Tool | Choose when |
-|------|-------------|
-| **Claude Code** | You want strong autonomous multi-step coding with a mature hook system, persistent external memory, and better task recovery at the cost of a terminal-first workflow |
-| **Cursor** | You want tight IDE integration with subagent support and are willing to pay for a separate editor subscription |
-| **Continue.dev** | You need local model support, air-gapped operation, or want to mix providers per task |
-| **Codeium / Supermaven** | Completion-only workflows where cost matters and enterprise features are unnecessary |
-
-Copilot remains the default choice for organizations already on GitHub Enterprise where procurement friction is the primary constraint, and for developers who want inline completions with minimal setup. It is not the right choice when autonomous multi-step agentic tasks, offline operation, or fine-grained model control are requirements.
+- **[Cursor](../projects/cursor.md)**: Better for users who want a full IDE built around AI, stronger agentic features, more configurable context. Use Cursor when Copilot's ghost-text model feels too passive and you want chat-first or agent-first workflows.
+- **Windsurf**: Positioned similarly to Cursor with its own agent loop ("Cascade"). Use when evaluating alternatives to Cursor.
+- **Claude Code**: Terminal-first, strongest at long autonomous tasks with explicit context engineering support (hooks, skills, MCP). Use Claude Code when IDE integration matters less than task completion depth.
+- **Continue.dev**: Open-source, supports local models and custom API endpoints. Use when data residency or offline operation is required.
+- **Amazon CodeWhisperer**: Use within AWS-heavy organizations where IAM-based access control and AWS service integration matter.
 
 ## Related
 
-- [Claude Code](../projects/claude-code.md) — primary competitor in agentic coding
-- [Context Engineering](../concepts/context-engineering.md) — the discipline underlying rules files, skills, and hooks
+- [Agent Skills](../concepts/agent-skills.md)
+- [OpenAI Codex](../projects/openai-codex.md)
+- [Context Engineering](../concepts/context-engineering.md)
+
+## Sources
+
+- [Agent Skills / planning-with-files](../raw/deep/repos/othmanadi-planning-with-files.md)
+- [Obsidian Skills ecosystem](../raw/deep/repos/kepano-obsidian-skills.md)
+- [Context Engineering for Coding Agents](../raw/articles/martinfowler-com-context-engineering-for-coding-agents.md)
+- [OpenMemory](../raw/repos/caviraoss-openmemory.md)

@@ -2,91 +2,161 @@
 entity_id: openclaw
 type: project
 bucket: agent-systems
+abstract: >-
+  OpenClaw is an open-source agentic coding framework (Claude Code alternative)
+  that introduced a plugin system enabling third-party context engines, memory
+  layers, and workflow extensions.
 sources:
   - tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md
+  - tweets/hwchase17-continual-learning-for-ai-agents.md
   - tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md
   - repos/memorilabs-memori.md
-  - repos/supermemoryai-supermemory.md
   - repos/martian-engineering-lossless-claw.md
   - repos/kevin-hs-sohn-hipocampus.md
-  - repos/greyhaven-ai-autocontext.md
   - repos/alirezarezvani-claude-skills.md
   - repos/thedotmack-claude-mem.md
+  - repos/greyhaven-ai-autocontext.md
   - repos/garrytan-gstack.md
-  - repos/topoteretes-cognee.md
   - repos/volcengine-openviking.md
-  - repos/othmanadi-planning-with-files.md
+  - repos/topoteretes-cognee.md
   - repos/infiniflow-ragflow.md
   - deep/repos/memorilabs-memori.md
   - deep/repos/kevin-hs-sohn-hipocampus.md
-  - repos/orchestra-research-ai-research-skills.md
   - deep/repos/martian-engineering-lossless-claw.md
-  - deep/repos/greyhaven-ai-autocontext.md
   - deep/repos/volcengine-openviking.md
-  - deep/repos/michaelliv-napkin.md
-  - deep/repos/topoteretes-cognee.md
-  - deep/repos/mem0ai-mem0.md
 related:
   - Claude Code
-last_compiled: '2026-04-05T05:21:03.992Z'
+  - Anthropic
+  - OpenAI
+  - Claude
+  - Retrieval-Augmented Generation
+  - Cursor
+  - Model Context Protocol
+  - OpenAI Codex
+  - OpenCode
+  - Agent Memory
+  - claude.md
+  - A-MEM
+last_compiled: '2026-04-05T20:22:47.809Z'
 ---
 # OpenClaw
 
 ## What It Is
 
-OpenClaw is an open-source agent execution runtime. From the available source material, it surfaces as the execution layer in multi-agent systems: running agents, routing tasks, managing communication channels, and dispatching scheduled jobs (crons). It positions itself as an alternative to Claude Code for AI coding and agent workflows.
+OpenClaw is an open-source terminal-based agentic coding framework, positioned as a community alternative to proprietary agents like Claude Code, Cursor, and OpenAI Codex. It runs in the terminal, executes code, reads and writes files, calls tools, and orchestrates multi-step programming tasks. Its primary architectural differentiator is a slot-based plugin system introduced in v2026.3.7 (via PR #22201, authored by Josh Lehman, who is also a core OpenClaw maintainer) that allows third parties to replace or extend core subsystems — most notably context management.
 
-The clearest description comes from a practitioner's account of a 10-agent swarm: "openclaw handles the execution — running agents, routing tasks, managing channels, dispatching crons." That framing — execution and orchestration, distinct from reasoning or judgment — captures what the project does.
+The framework gained significant ecosystem traction as the runtime target for several memory and context projects: [OpenViking](../projects/openviking.md) (ByteDance's context database), [lossless-claw](../projects/lossless-claw.md) (DAG-based summarization), [Hipocampus](../projects/hipocampus.md) (file-based proactive memory), [Memori](../projects/memori.md) (LLM call interception), and [Cognee](../projects/cognee.md) (graph-vector knowledge engine). This plugin ecosystem is what distinguishes OpenClaw from similar agents.
 
-## Architectural Role
+## Core Architecture
 
-OpenClaw occupies the orchestration tier in agent stacks, not the intelligence tier. In documented deployments, it sits below a supervisor agent (handling validation and review) and above the raw agent outputs. The separation matters: execution routing is distinct from quality judgment, and OpenClaw handles the former.
+### The ContextEngine Plugin System
 
-Third-party integrations suggest a plugin-oriented architecture. Cognee, the knowledge engine project, ships an `@cognee/cognee-openclaw` npm package for connecting graph/vector memory to OpenClaw agents. Hipocampus, a memory harness, lists `openclaw` as a supported platform alongside Claude Code and OpenCode, with platform-specific configuration (`"platform": "openclaw"`) detected automatically at init time. This plugin surface implies OpenClaw exposes a stable enough interface that external projects build against it.
+The central architectural contribution is the `ContextEngine` interface, a slot-based registry resolved from config that provides seven lifecycle hooks:
+
+1. **bootstrap** — Engine initialization, DB connections, session reconciliation
+2. **ingest** — New message arrival, preprocessing, classification
+3. **assemble** — Before each prompt is sent to the model; decides what goes into the context window
+4. **compact** — Token limit approaching; compress or summarize conversations
+5. **afterTurn** — Post-processing after each model response
+6. **prepareSubagentSpawn** — Before a subagent launches; prepare isolated context scope
+7. **onSubagentEnded** — After a subagent completes; collect output, merge back
+
+The `ownsCompaction` flag is the key toggle: when a plugin sets it `true`, OpenClaw's built-in sliding-window compaction is fully disabled and the plugin takes over. Without any plugin configured, OpenClaw loads a `LegacyContextEngine` for backward compatibility.
+
+The `systemPromptAddition` feature in the assembly response enables plugins to inject dynamic content into the system prompt at runtime, without static configuration files. Lossless-claw uses this to calibrate agent confidence when operating from compressed context.
+
+### Subagent System
+
+OpenClaw spawns subagents for delegated tasks. The plugin interface exposes `prepareSubagentSpawn` and `onSubagentEnded` hooks so context plugins can scope subagents to relevant memory (via delegation grants with TTLs and token caps) and collect results back into the parent session. The `statelessSessionPatterns` configuration allows temporary subagent sessions to read from existing context without polluting it.
+
+### Session Management
+
+Sessions have explicit lifecycle commands: `/new` keeps the conversation but prunes context items, `/reset` archives and creates a new session. Plugins control how much summary structure survives `/new` via `newSessionRetainDepth`. The session state persists to JSONL files on disk, enabling crash recovery via bootstrap reconciliation.
+
+### Configuration
+
+OpenClaw uses JSON configuration files to specify plugin slots. Community experience notes the config file is not stable across restarts — it may be silently modified or damaged on reload. This is a known production reliability issue.
+
+## Plugin Ecosystem
+
+The plugin system is the reason multiple major memory projects target OpenClaw specifically:
+
+| Plugin | What It Adds |
+|--------|-------------|
+| [lossless-claw](../projects/lossless-claw.md) | DAG-based hierarchical summarization, SQLite immutable store, expansion tools |
+| [OpenViking](../projects/openviking.md) | Filesystem-paradigm context database with L0/L1/L2 tiered loading |
+| [Hipocampus](../projects/hipocampus.md) | File-based proactive memory with compaction tree and ROOT.md index |
+| [Memori](../projects/memori.md) | LLM call interception for transparent persistent memory |
+| [Cognee](../projects/cognee.md) | Graph-vector knowledge engine with continuous learning |
+
+Each plugin registers into the `contextEngine` slot via `openclaw.plugin.json` and implements the lifecycle interface. Install via `openclaw plugins install @vendor/plugin-name`.
+
+The plugin system was architected and first exercised by the same person (Lehman), which explains its tight fit with lossless-claw's requirements. This dual-authorship pattern means the plugin interface reflects real production needs rather than speculative API design.
 
 ## Key Numbers
 
-No independently verified benchmark data is available in the source material. Star counts, performance figures, and adoption metrics are absent from the referenced sources. Treat any numbers cited elsewhere as self-reported until verified.
+- Minimum version for plugin system: **v2026.3.7**
+- Seven lifecycle hooks in the ContextEngine interface
+- Node.js >= 22 required for most plugins
+- Python >= 3.10 required for OpenViking integration
+
+Star counts and download figures for OpenClaw itself are not directly cited in the source material. OpenViking reached 20,800+ stars partly through OpenClaw ecosystem association. These figures are self-reported by project maintainers.
 
 ## Strengths
 
-**Task routing and scheduling.** Practitioners reach for OpenClaw specifically when they need cron-based dispatch and channel routing across multiple agents — capabilities that coding-focused tools like Claude Code don't prioritize.
+**Extensible context management.** The ContextEngine plugin system is genuinely novel among open-source coding agents. No comparable agent framework exposes this level of composable context control. Plugins can intercept every lifecycle stage, own compaction entirely, inject dynamic prompts, and scope subagent memory.
 
-**Ecosystem compatibility.** Both Cognee (knowledge graphs) and Hipocampus (memory harness) explicitly support it as a target platform, suggesting OpenClaw integrates cleanly enough that memory and knowledge infrastructure projects bother maintaining compatibility.
+**Ecosystem gravity.** Multiple well-resourced teams (ByteDance/Volcengine, Martian Engineering) built production systems targeting OpenClaw specifically. This creates compounding value: users get access to battle-tested memory plugins without building them.
 
-**Execution/judgment separation.** Architecturally, OpenClaw works well when paired with a separate review agent (the tweet describes Hermes as supervisor). The tool handles mechanics; judgment lives elsewhere. This separation prevents the execution layer from accumulating bias about the work it routes.
+**MCP compatibility.** OpenClaw integrates with [Model Context Protocol](../concepts/model-context-protocol.md) tooling, enabling connection to external MCP servers (Memori's `api.memorilabs.ai/mcp/`, Cursor-compatible tools, etc.).
+
+**Subagent isolation.** The delegation grant model with TTLs and token caps gives memory plugins a principled way to spawn bounded subagents for retrieval tasks without exposing the full agent context.
 
 ## Critical Limitations
 
-**Concrete failure mode.** In multi-agent swarms, OpenClaw dispatches agent outputs into raw storage without built-in validation. One documented architecture explicitly adds an external review gate (a supervisor agent with no context about how work was produced) to catch hallucinated connections before they enter a permanent knowledge base. Without that external gate, compounding errors from one agent can corrupt downstream agent contexts — and OpenClaw's execution layer won't catch them.
+**Configuration fragility.** Community reports consistently identify JSON config instability as a production issue — the configuration file may be modified or damaged on restart. For systems that depend on plugin slot configuration, this creates silent failures where the plugin silently deregisters, falling back to `LegacyContextEngine` without error. Teams running OpenClaw in unattended workflows need config validation and version control on the JSON file.
 
-**Unspoken infrastructure assumption.** The npm package ecosystem around OpenClaw (`@cognee/cognee-openclaw`) and Hipocampus's platform detection assume Node.js tooling. Teams running Python-only infrastructure or air-gapped environments will hit friction that the documentation likely doesn't surface.
+**Infrastructure assumption.** OpenClaw assumes a local development environment: filesystem access, persistent process state, Node.js runtime, and (for most useful plugins) a running database (SQLite at minimum, PostgreSQL for production memory plugins). It is not designed for ephemeral, containerized, or serverless runtimes where filesystem state disappears between invocations. Deploying it in a CI/CD environment or cloud function requires explicit volume mounts and state management that the framework itself does not provide.
 
 ## When Not to Use It
 
-If your workflow is a single-agent coding session with no cross-session memory requirements, OpenClaw adds orchestration overhead without clear benefit. Claude Code covers that space directly. OpenClaw's value emerges at the multi-agent, multi-channel, scheduled-dispatch tier — below that threshold, you're managing complexity for no payoff.
+**Skip OpenClaw when you need a managed, zero-infrastructure coding agent.** The plugin ecosystem's power requires installing and operating multiple components (Node.js 22+, Go 1.22+ for some plugins, C++ compilers, database backends). Community feedback describes the setup as requiring developer familiarity with JSON config troubleshooting, build toolchains, and willingness to debug across multiple layers. If your team wants a coding agent that works out of the box, Claude Code or Cursor are operationally simpler.
 
-Avoid it when you need a validated knowledge base as output. OpenClaw routes and dispatches; it doesn't validate. Adding a review gate is an architecture decision you'll have to make explicitly.
+**Skip OpenClaw for short-lived or stateless sessions.** The memory plugins that differentiate OpenClaw (Hipocampus, lossless-claw, OpenViking) deliver compounding value over many sessions. For one-off tasks or ephemeral CI runs, the setup cost exceeds the benefit.
+
+**Skip OpenClaw when your primary language is not JavaScript/TypeScript or Python.** The plugin interface is TypeScript. While Python memory backends (Memori, Cognee, OpenViking) integrate through API or SDK adapters, the extension surface itself is Node.js. Teams in Go, Rust, or JVM ecosystems will find the extension model awkward.
 
 ## Unresolved Questions
 
-**Governance and maintenance.** No information in the source material establishes who maintains OpenClaw, what the release cadence looks like, or how breaking changes get communicated to downstream integrators like Cognee and Hipocampus.
+**Governance and release cadence.** The v2026.3.7 plugin system was introduced via a PR authored by a plugin developer who also maintains OpenClaw. The governance structure — who controls breaking changes to the ContextEngine interface, how plugin compatibility is versioned — is not documented in the source material. If the interface changes between minor versions, all third-party plugins break simultaneously.
 
-**Cost at scale.** Running cron-dispatched agents across many channels compounds LLM API costs quickly. How OpenClaw handles cost attribution, rate limiting, or backpressure when agent queues back up is undocumented in available sources.
+**Cost at scale.** Every plugin that performs LLM calls during compaction (lossless-claw, OpenViking's VLM summarization) adds token cost to every session. The framework has no built-in metering, rate limiting, or cost reporting across plugins. Teams running many parallel sessions have no visibility into aggregate plugin-generated token spend.
 
-**Conflict resolution across agents.** When two agents produce contradictory outputs routed through the same execution layer, it's unclear whether OpenClaw surfaces the conflict or silently accepts both into raw storage, leaving reconciliation entirely to downstream systems.
+**Conflict resolution between plugins.** The slot system allows one `contextEngine` plugin at a time, which prevents direct conflicts. But plugins can also inject into other surfaces (MCP tools, system prompt additions, session lifecycle). How two plugins that both want to modify the system prompt interact — or whether the slot system prevents this composition entirely — is not documented.
 
 ## Alternatives
 
-**[Claude Code](../projects/claude-code.md)** — Use when your workflow is primarily single-agent coding assistance with Anthropic's models. Better documented, stronger model integration, no orchestration overhead.
+| Alternative | When to Choose It |
+|-------------|------------------|
+| [Claude Code](../projects/claude-code.md) | Need a production-grade managed coding agent with Anthropic support; accept proprietary constraints |
+| Cursor | Need IDE integration rather than terminal-first workflow |
+| OpenCode | Lighter weight terminal agent without the plugin ecosystem overhead |
+| [OpenAI Codex](../projects/openai-codex.md) | Need tight OpenAI API integration and prefer OpenAI's orchestration model |
 
-**OpenCode** — Listed alongside Claude Code and OpenClaw in Hipocampus's platform support. Less information available, but appears to occupy similar territory.
+Use OpenClaw when you need to replace or extend context management with a custom memory strategy, and you have the engineering capacity to operate the plugin ecosystem. The framework's value is proportional to how much of the plugin ecosystem you can actually run and maintain.
 
-**Custom orchestration (LangGraph, CrewAI)** — Use when you need fine-grained control over agent graph topology and state transitions. More setup cost, more flexibility.
+## Related Concepts
 
-**Cognee** — Not an alternative to OpenClaw, but a complement. Use [Cognee](../projects/cognee.md) when agents need persistent knowledge with graph-structured relationships; pair it with OpenClaw for the execution layer.
+- [Agent Memory](../concepts/agent-memory.md)
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
+- [Model Context Protocol](../concepts/model-context-protocol.md)
+- [A-MEM](../concepts/a-mem.md)
+- [claude.md](../concepts/claude-md.md)
 
+## Sources
 
-## Related
-
-- [Claude Code](../projects/claude-code.md) — alternative_to (0.6)
+- [Memori deep analysis](../raw/deep/repos/memorilabs-memori.md)
+- [lossless-claw deep analysis](../raw/deep/repos/martian-engineering-lossless-claw.md)
+- [Hipocampus deep analysis](../raw/deep/repos/kevin-hs-sohn-hipocampus.md)
+- [OpenViking deep analysis](../raw/deep/repos/volcengine-openviking.md)
+- [Cognee repository](../raw/repos/topoteretes-cognee.md)

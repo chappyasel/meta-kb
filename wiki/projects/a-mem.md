@@ -2,135 +2,153 @@
 entity_id: a-mem
 type: project
 bucket: agent-memory
+abstract: >-
+  A-MEM is an LLM agent memory system using Zettelkasten-inspired note linking
+  and autonomous memory evolution; its key differentiator is that new memories
+  actively reorganize existing ones rather than accumulating passively.
 sources:
+  - repos/zhongwanjun-memorybank-siliconfriend.md
+  - repos/aiming-lab-simplemem.md
+  - repos/supermemoryai-supermemory.md
+  - repos/memorilabs-memori.md
+  - repos/thedotmack-claude-mem.md
   - papers/xu-a-mem-agentic-memory-for-llm-agents.md
-  - deep/repos/agenticnotetaking-arscontexta.md
+  - deep/repos/supermemoryai-supermemory.md
+  - deep/repos/memorilabs-memori.md
   - deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md
-  - deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md
-  - deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
-related: []
-last_compiled: '2026-04-05T05:31:03.499Z'
+  - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
+related:
+  - Anthropic
+  - OpenAI
+  - Claude
+  - Retrieval-Augmented Generation
+  - Cursor
+  - Model Context Protocol
+  - OpenClaw
+  - Agent Memory
+  - Retrieval-Augmented Generation
+last_compiled: '2026-04-05T20:36:48.256Z'
 ---
 # A-MEM: Agentic Memory for LLM Agents
 
-**Type:** Research system / memory architecture
-**Authors:** Wujiang Xu, Zujie Liang, Kai Mei, Hang Gao, Juntao Tan, Yongfeng Zhang
-**Published:** 2025-02-17 | **Updated:** 2025-10-08
-**Code:** [Evaluation](https://github.com/WujiangXu/A-mem) · [Memory system](https://github.com/WujiangXu/A-mem-sys)
+## What It Is
 
----
+A-MEM is a memory system for LLM agents where memories are structured notes that link to each other and mutate over time. The central idea comes from the Zettelkasten note-taking method: each memory is an atomic note with rich metadata, and new memories trigger reorganization of existing ones rather than simply appending to a list.
 
-## What It Does
+Most agent memory systems treat storage as a write-once, retrieve-later problem. A-MEM treats it as a continuously evolving knowledge network. When you add a memory about a project cancellation, A-MEM finds related existing memories and updates their contextual descriptions to reflect the new reality. The memory about that project's timeline now knows the project was cancelled.
 
-A-MEM gives LLM agents a memory system that reorganizes itself as new information arrives. Most memory systems store and retrieve; A-MEM adds a third operation: when a new memory enters the system, it updates existing related memories rather than just sitting next to them.
+Two implementations exist: evaluation code at [github.com/WujiangXu/A-mem](https://github.com/WujiangXu/A-mem) and the memory system itself at [github.com/WujiangXu/A-mem-sys](https://github.com/WujiangXu/A-mem-sys).
 
-The inspiration is Zettelkasten, the note-taking method where every new note links to existing ones and the act of linking is itself knowledge work. A-MEM applies this to agent memory: the LLM generates structured metadata for each memory, creates semantic links to related memories, and triggers updates to connected memories when new information changes their meaning.
+The work was published February 2025 by Wujiang Xu, Zujie Liang, Kai Mei, Hang Gao, Juntao Tan, and Yongfeng Zhang.
 
----
+## Core Mechanism
 
-## Architecture
+### Memory Note Structure
 
-Each memory in the network holds seven components: raw content, timestamp, LLM-generated keywords, LLM-generated tags, a contextual description (the LLM's interpretation of what this memory means), a dense vector embedding computed over all textual components concatenated together, and a bidirectional link set to related memories.
+Every memory is stored as a seven-component note:
 
-Three operations run in sequence when a new memory arrives:
+1. **Original content** (c_i): the raw text
+2. **Timestamp** (t_i): creation time
+3. **Keywords** (K_i): LLM-generated key concepts
+4. **Tags** (G_i): categorical labels
+5. **Contextual description** (X_i): the LLM's interpretation of what this memory means
+6. **Dense vector embedding** (e_i): computed over the concatenation of all textual components
+7. **Link set** (L_i): bidirectional semantic relationships to other notes
 
-**Note Construction:** The LLM generates keywords, tags, and a contextual description. A raw snippet like "Let's push the launch to next quarter" becomes a structured note with keywords like "product launch," "schedule change," "Q2 delay" and a description explaining the decision's implications.
+Embedding all components together rather than just raw content is a load-bearing design choice. A memory about "pushing the launch to next quarter" generates keywords like "product launch," "schedule change," "Q2 delay" and a contextual description explaining the decision. The embedding captures all of this, making retrieval more semantically precise.
 
-**Link Generation:** The system retrieves the top-k most similar existing memories by cosine similarity on the dense embeddings, then asks the LLM to determine which pairs have meaningful connections. Links are bidirectional and schema-free — the LLM decides what constitutes a meaningful relationship without predefined types.
+### Three Operations
 
-**Memory Evolution:** Newly connected memories can trigger updates to the contextual descriptions and attributes of the memories they link to. A memory about a project cancellation can cause an earlier memory about that project's timeline to be updated to note the cancellation. The paper shows this step is necessary: removing only memory evolution while keeping link generation drops multi-hop F1 from 45.85 to 31.24 with GPT-4o-mini.
+**Note Construction:** An LLM call generates keywords, tags, and contextual description for each new memory. This enrichment happens at write time.
 
-Retrieval follows the link network: cosine similarity selects initial candidates, then the graph structure pulls in connected memories, enabling multi-hop reasoning without explicit chain-of-thought prompting.
+**Link Generation:** After constructing a note, the system retrieves the top-k most similar existing memories by cosine similarity, then the LLM analyzes pairs and establishes bidirectional links where meaningful connections exist. Links are schema-free — the LLM decides what constitutes a connection, whether causal, topical, contradictory, or otherwise.
 
-[Source](../../raw/papers/xu-a-mem-agentic-memory-for-llm-agents.md)
+**Memory Evolution:** New memories trigger contextual description updates on the existing memories they link to. This is the most novel mechanism. The memory network does not just grow — it reshapes. Existing notes get updated keywords, tags, and descriptions as new information recontextualizes them.
 
----
+### Retrieval
 
-## Key Numbers
+Retrieval uses cosine similarity for initial candidate selection, then follows the link network to pull in connected memories. A query about a person naturally surfaces memories about their projects, which link to memories about related budgets, enabling multi-hop reasoning without explicit graph traversal logic.
 
-All results are self-reported by the authors on the LoCoMo benchmark (7,512 QA pairs, conversations averaging 9K tokens across up to 35 sessions).
+## Benchmarks
 
-**Multi-hop reasoning (F1), GPT-4o-mini:**
-- LoCoMo baseline: 18.41
-- A-MEM: 45.85 (+149%)
+Tested on LoCoMo (7,512 QA pairs across 5 task types, conversations averaging 9K tokens over up to 35 sessions). Results below are from the paper — self-reported, not independently validated.
 
-**Multi-hop reasoning (F1), GPT-4o:**
-- LoCoMo baseline: 9.09
-- A-MEM: 39.41 (+334%)
+**GPT-4o-mini, F1:**
 
-**Token usage at retrieval time:**
-- LoCoMo baseline: 16,910 tokens
-- A-MEM (GPT-4o-mini): 2,520 tokens (85% reduction)
-- A-MEM (GPT-4o): 1,216 tokens (93% reduction)
+| Task | Baseline | A-MEM | Change |
+|------|----------|-------|--------|
+| Single-Hop | 25.02 | 27.02 | +8% |
+| Multi-Hop | 18.41 | 45.85 | +149% |
+| Temporal | 12.04 | 12.14 | +1% |
+| Open Domain | 40.36 | 44.65 | +11% |
+| Adversarial | 69.23 | 50.03 | -28% |
 
-**Smaller models (multi-hop F1):**
-- Qwen2.5-3b: 3.11 → 27.59 (+787%)
-- Qwen2.5-1.5b: 4.25 → 24.32 (+472%)
-- Llama 3.2-1b: 7.38 → 17.80 (+141%)
+**Token usage (GPT-4o-mini):** baseline uses 16,910 tokens/query; A-MEM uses 2,520 — an 85% reduction. With GPT-4o, reduction reaches 93%.
 
-The token numbers reflect retrieval cost only. The paper does not report ingestion-time token costs, which include LLM calls for note construction, link analysis, and memory evolution on every new memory. *These benchmarks are self-reported and not independently validated.*
+**Smaller models:** Qwen2.5-3b improves +787% on multi-hop F1 (3.11 → 27.59). Qwen2.5-1.5b improves +472%. Structured organization compensates substantially for limited model capability.
 
----
+**Ablation:** Removing both Link Generation and Memory Evolution drops multi-hop F1 from 45.85 to 24.55. Removing only Memory Evolution drops it to 31.24. Both components contribute, with evolution specifically critical for multi-hop.
 
 ## Strengths
 
-**Multi-hop reasoning.** The link network enables the system to follow semantic chains across memories without requiring the base LLM to hold long contexts. A query about a person retrieves their memories, which link to their projects, which link to related decisions. The 2.5x improvement on multi-hop tasks is the most credible result because it aligns directly with the architectural mechanism.
+**Multi-hop reasoning.** The 2.5x improvement on multi-hop tasks (45.85 vs 18.41 F1) is the system's clear sweet spot. When answers require synthesizing information across multiple conversations or time periods, the link network provides paths that similarity search alone cannot.
 
-**Smaller models benefit disproportionately.** The 787% multi-hop improvement for Qwen2.5-3b suggests that structured memory organization partially compensates for weaker model capability. If you are running on-device or cost-constrained inference, this matters.
+**Token efficiency.** 85-93% token reduction at retrieval time matters for production deployments. The system delivers more relevant context in fewer tokens by selecting structured notes rather than raw conversation chunks.
 
-**Schema-free linking.** Because the LLM determines what connections are meaningful rather than a predefined schema, the system adapts to arbitrary domains without configuration. A memory system for a coding agent and one for a customer service agent can both use the same mechanism.
+**Smaller models benefit most.** If you cannot afford GPT-4o for every agent call, A-MEM's structured organization provides disproportionate gains on cheaper models. The 787% multi-hop improvement on Qwen2.5-3b suggests this as a viable path to capable agents with small models.
 
----
+**Schema-free linking.** Unlike systems with predefined relationship types, A-MEM lets the LLM discover connection types from content. This makes it adaptable across domains without upfront ontology design.
 
 ## Critical Limitations
 
-**Adversarial regression.** A-MEM scores 28% lower than the LoCoMo baseline on adversarial tasks (50.03 vs 69.23 F1). The enriched contextual descriptions and link structure that help with multi-hop reasoning appear to amplify misleading signals when questions are designed to confuse. If your agent operates in adversarial or untrusted input environments, this is a concrete failure mode, not a theoretical concern.
+**Adversarial regression.** A-MEM scores 28% worse than baseline on adversarial questions (50.03 vs 69.23 F1). The enriched contextual descriptions and semantic links amplify misleading signals — when a question is designed to mislead, having more semantic context reinforces the wrong direction. This is not a minor edge case; adversarial robustness matters for any deployed system where users ask ambiguous or challenging questions.
 
-**Memory evolution is destructive with no version history.** When new information triggers updates to existing memories, those changes overwrite the previous state. If the LLM misinterprets a relationship and updates a memory incorrectly, there is no revert path. Cascading incorrect updates are possible: a wrong evolution in one memory can affect every memory linked to it, which may trigger further evolutions. The paper does not address this.
+**Temporal reasoning is largely unaddressed.** Despite storing timestamps, A-MEM shows only +1% improvement on temporal tasks. The system has no mechanism for "what changed between session 3 and session 7?" queries. [Zep](../projects/zep.md) and similar systems with bi-temporal indexing handle this substantially better. A-MEM's temporal limitation pairs with the adversarial weakness to define the boundary of where this system applies.
 
-**Hidden infrastructure assumption:** The 85-93% token reduction at retrieval hides the ingestion cost. Every new memory requires multiple LLM calls (note construction, top-k cosine search, link analysis for each candidate pair, potential evolution calls on connected memories). For high-frequency memory ingestion, the total token budget may exceed the baseline rather than reduce it. The paper's efficiency claims should be read as retrieval-only.
+**No memory evolution undo.** When a new memory triggers updates to existing memories, those changes appear to be destructive. No version history, no revert. If the LLM misinterprets a relationship and updates 10 existing memories incorrectly, there is no recovery path. Production use requires building audit trails on top of A-MEM's mechanisms.
 
----
+**Ingestion cost is front-loaded but unreported.** The paper documents 85-93% token reduction at retrieval time. It does not report the total cost including ingestion-time LLM calls for note construction, link analysis, and memory evolution. At scale, this could be substantial.
 
-## When Not to Use It
+**Embedding staleness after evolution.** Memory evolution updates contextual descriptions and tags, which should invalidate existing embeddings. The paper does not address whether embeddings are recomputed after evolution. If they are not, retrieval operates on embeddings that no longer match the current note content.
 
-**Temporal reasoning is the primary concern.** A-MEM achieves +1% F1 on temporal tasks with GPT-4o-mini. If your agent needs to answer questions like "What changed between last week and this week?" or "What did we decide before the meeting on Tuesday?", A-MEM's timestamp storage without temporal-specific retrieval will fail you. Zep's bi-temporal indexing handles this substantially better.
+**Scale untested.** All experiments use conversations of ~9K tokens across 35 sessions. Production agent memory can accumulate orders of magnitude more data. Top-k similarity search degrades at scale, and LLM-based link analysis does not scale linearly with memory count.
 
-**High-volume, low-latency ingestion.** Every memory requires LLM calls on write, not just on read. Systems ingesting hundreds of memories per minute cannot afford LLM-mediated organization at write time.
+## When Not to Use A-MEM
 
-**Production systems requiring auditability.** Memory evolution changes existing records without tracking what changed or why. Regulated environments (healthcare, legal, finance) need history and reversibility.
+**Temporal queries are primary.** If your use case requires reasoning about change over time — "what did the user prefer last month vs now?" or "what decisions changed between sprint 5 and sprint 8?" — A-MEM's +1% improvement on temporal tasks makes it a poor fit. Systems with explicit temporal indexing address this directly.
 
-**Adversarial input environments.** The -28% adversarial regression is large enough that any system where users might craft misleading queries should not rely on A-MEM's enriched representations without additional filtering.
+**Adversarial or ambiguous user input.** The -28% adversarial regression means A-MEM performs meaningfully worse than baseline on tricky questions. Customer-facing agents where users ask edge-case or adversarial questions should not rely on A-MEM without additional robustness layers.
 
----
+**High-frequency, low-context agent calls.** Every new memory requires multiple LLM calls for note construction and link analysis. For agents making thousands of short-lived calls — code completions, form processing, classification — the ingestion overhead is not justified.
+
+**Simple single-hop recall.** The +8% single-hop improvement does not justify the system's complexity. If your use case is primarily "remember what the user told me earlier in this session," a simpler vector store suffices.
 
 ## Unresolved Questions
 
-**Embedding staleness after evolution.** When memory evolution updates a note's keywords, tags, or contextual description, the dense embedding should be recomputed because it covers all textual components. The paper does not clearly state whether recomputation happens after evolution updates. If it does not, retrieval operates on stale embeddings that no longer reflect the memory's current semantic content.
+**Ingestion cost at production scale.** The paper validates retrieval efficiency but does not quantify what it costs to ingest memories — specifically the LLM calls for note construction, link generation across growing memory sets, and cascading evolution updates. A system that ingests 1,000 memories/day and triggers evolution updates on 10 existing memories per new memory makes 10,000+ LLM calls for memory organization alone.
 
-**Scale behavior.** All experiments use ~9K token conversations. Production agent memory accumulates orders of magnitude more. The top-k cosine search, LLM-based link analysis, and evolution propagation are each O(n) or worse. At what memory count does the system become impractical?
+**Governance and quality control for evolution.** When memory evolution runs automatically, who reviews the changes? Enterprise deployments likely require approval workflows before existing memories are modified, especially if those memories inform decisions. A-MEM's architecture has no mechanism for this.
 
-**Cost accounting.** The paper reports retrieval token savings but not total ingestion cost. Without this number, comparing A-MEM's total token budget against a simple RAG baseline is impossible.
+**Embedding recomputation policy.** If evolved memories do not get re-embedded, retrieval quality degrades over time. If they do, the re-embedding cost needs to be accounted for. The paper is silent on this.
 
-**Governance of evolution.** Who decides when an evolution update is wrong? There is no human-in-the-loop mechanism, no confidence threshold, no rollback. For long-running agents where memory coherence matters, this is an open design problem, not a minor detail.
-
----
+**Contradiction handling.** When two memories make conflicting claims about the same fact, does evolution resolve the contradiction or do both persist? The paper describes evolution as updating contextual representations but does not address contradictions explicitly. Compare [Supermemory](../projects/supermemory.md), which treats contradiction resolution as a first-class mechanism.
 
 ## Alternatives
 
-| System | Choose when |
-|---|---|
-| **Zep / Graphiti** | Temporal reasoning matters; typed relationships (HIRED_BY, REPORTED_TO) add value; you need bi-temporal indexing for auditable memory history |
-| **MemGPT** | You want a full agent OS with paging between in-context and external memory; the paging mechanism fits your task structure |
-| **Naive RAG + vector store** | Ingestion volume is high; latency is critical; multi-hop reasoning is not required; you want predictable costs |
-| **A-MEM** | Multi-hop reasoning across long agent histories is the primary task; smaller models are in use; schema-free adaptation to new domains matters |
+**Use [Supermemory](../projects/supermemory.md) when** you want a managed cloud service with explicit forgetting, contradiction handling, and benchmark-validated performance (#1 on LongMemEval and LoCoMo). Supermemory's three-tier profile structure (static/dynamic/search) provides structured organization without requiring LLM calls at ingestion time. The tradeoff is cloud dependency and no self-hosted option for the core engine.
 
----
+**Use [Memori](../projects/memori.md) when** you need middleware that works transparently with existing LLM SDK code (zero application changes), want BYODB self-hosting on PostgreSQL/SQLite, and care about token efficiency (81.95% LoCoMo accuracy at 4.97% of full-context token footprint). Memori's monkey-patching approach is fragile across SDK versions but the simplest integration path.
 
-## Relationship to Zettelkasten
+**Use Zep/Graphiti when** temporal reasoning over memory is a primary requirement. A-MEM's +1% improvement on temporal tasks versus Zep's bi-temporal indexing is not comparable.
 
-The Zettelkasten influence is more than aesthetic. The core claim is that knowledge work happens at the moment of connection, not retrieval. A-MEM's memory evolution mechanism is the direct translation: integrating a new memory is also the moment you update what you already know. The ablation results validate this — removing memory evolution (keeping link generation) costs 14.61 F1 points on multi-hop tasks, which is the empirical case that connection-at-ingestion matters.
+**Use vanilla [RAG](../concepts/retrieval-augmented-generation.md) when** your memory needs are single-session or single-document. A-MEM's complexity earns its cost specifically for long-horizon, multi-session, multi-hop reasoning scenarios.
 
-Ars Contexta uses the same Zettelkasten inspiration for a different problem: generating human knowledge management systems from first principles via a 249-claim research graph. The two systems share the linking philosophy but differ in that Ars Contexta is designed for human-agent cognitive offloading while A-MEM targets agent-to-agent memory persistence.
+**Use A-MEM when** your agents need multi-hop reasoning across long conversation histories, you are running smaller models that benefit from structured context, and you can accept schema-free link generation without adversarial robustness guarantees. The Zettelkasten pattern is particularly well-suited to knowledge workers' agents — research assistants, project management agents, learning systems — where accumulating context across many sessions and synthesizing across topics is the core challenge.
 
-[Source](../../raw/papers/xu-a-mem-agentic-memory-for-llm-agents.md) · [Source](../../raw/papers/xu-a-mem-agentic-memory-for-llm-agents.md)
+## Related
+
+- [Agent Memory](../concepts/agent-memory.md)
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
+- [Supermemory](../projects/supermemory.md)
+- [Memori](../projects/memori.md)
+- [Model Context Protocol](../concepts/model-context-protocol.md)

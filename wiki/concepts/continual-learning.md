@@ -2,139 +2,144 @@
 entity_id: continual-learning
 type: concept
 bucket: self-improving
+abstract: >-
+  Continual learning enables ML models and agents to accumulate knowledge from
+  sequential experience without forgetting prior skills — the central unsolved
+  challenge is that gradient-based updates on new data overwrite weights
+  encoding old knowledge.
 sources:
+  - tweets/hwchase17-continual-learning-for-ai-agents.md
   - repos/osu-nlp-group-hipporag.md
-  - repos/letta-ai-letta.md
   - papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md
-  - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
   - deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md
-related: []
-last_compiled: '2026-04-05T05:40:25.897Z'
+related:
+  - Self-Improving Agents
+last_compiled: '2026-04-05T20:35:45.759Z'
 ---
 # Continual Learning
 
 ## What It Is
 
-Continual learning (also called lifelong learning or sequential learning) is the capacity of a system to learn from a stream of new tasks and data without losing performance on previously learned tasks. For biological systems, this is unremarkable. For neural networks, including LLMs, it remains one of the harder unsolved problems in the field.
+Continual learning (also called lifelong learning or incremental learning) addresses a fundamental problem in machine learning: standard training assumes all data is available at once, but real-world systems encounter new tasks, environments, and users over time. A model that trains on new data without special handling tends to degrade on old tasks — a phenomenon called catastrophic forgetting. Continual learning is the set of methods that prevent or mitigate this.
 
-The core tension: gradient-based optimization updates the same weights for each new task. Updates that improve performance on new data systematically degrade it on old data. This is **catastrophic forgetting**, first named by McCloskey and Cohen in 1989, and still not fully solved in modern deep learning systems.
+The problem has two competing pressures. Plasticity: the system must absorb new information. Stability: it must retain what it already knows. Optimizing for one hurts the other. This stability-plasticity dilemma has no complete solution; every approach trades one for the other.
 
-For LLMs specifically, the problem has two distinct forms: forgetting within a conversation (context limits) and forgetting across training updates (weight interference). Most deployed systems handle the first with longer context windows or retrieval augmentation. The second remains an active research problem with no clean practical solution.
+The field matters more now than during earlier waves of interest because deployed AI systems increasingly need to adapt: a coding agent learning a new codebase's conventions, a customer service bot absorbing new product details, a game-playing agent progressing through novel challenges. Static models require retraining from scratch or accepting degraded performance — both expensive.
 
-## Why It Matters
+## How Catastrophic Forgetting Happens
 
-The ability to continuously acquire and retain knowledge is a basic prerequisite for any agent that improves with experience. Without it, every learning episode is potentially destructive, meaning you either retrain from scratch (expensive) or accept performance degradation on older tasks (often unacceptable in production).
+Neural networks store knowledge in weight matrices. When you minimize loss on task B, gradient descent moves weights toward a local minimum for B. Those weight values may be far from the minimum for task A. The weights that mattered for A get overwritten. The network has no explicit representation of "this weight is important for task A" unless you build one.
 
-This matters for three practical reasons:
+The severity depends on task similarity. Fine-tuning a language model on legal documents barely affects its ability to summarize news (related distribution). Fine-tuning the same model to play chess using reinforcement learning can collapse its language capabilities (very different distribution, very different loss signal).
 
-1. **Model updates are expensive and risky.** Full retraining of a large model costs millions of dollars and risks regressions on established capabilities. Organizations want targeted updates.
+## Four Families of Approaches
 
-2. **The world changes.** Any model trained on a static corpus becomes stale. A system that cannot incorporate new knowledge without retraining provides diminishing utility over time.
+### Regularization
 
-3. **Personalization requires accumulation.** An assistant that cannot remember what it learned about you yesterday is not improving at all. True personalization requires persistent state that evolves.
+Add a penalty to the loss function that discourages large changes to weights important for previous tasks. Elastic Weight Consolidation (EWC) estimates which weights matter for old tasks using the Fisher information matrix, then constrains those weights during new training. Synaptic Intelligence (SI) tracks a running estimate of each weight's importance during training.
 
-## How Catastrophic Forgetting Works
+Tradeoff: works reasonably well for a small number of tasks, degrades as tasks accumulate (the regularization terms compound), and requires knowing task boundaries.
 
-When a neural network trains on task B after task A, the optimizer moves weights toward a configuration that minimizes loss on B. The weights that encoded A's representations are the same ones being modified. Unless the optimizer has some mechanism to preserve A-relevant parameters, performance on A degrades proportionally to how much the weight update conflicts with A's learned representations.
+### Replay
 
-The severity depends on:
-- **Gradient overlap**: How much the gradient directions for task A and task B conflict. More similar tasks share more gradient directions, so interference is lower.
-- **Network capacity**: Larger models have more parameters to distribute representations, reducing overlap. But this doesn't eliminate the problem.
-- **Update magnitude**: Larger learning rates on task B cause more displacement of A's representations.
+Store examples from previous tasks and mix them into training on new tasks. Exact replay keeps raw data (memory-intensive, raises privacy concerns). Generative replay trains a generative model alongside the main model and synthesizes old examples (avoids storing raw data, but the generative model itself may forget).
 
-## Implementation Approaches
+Tradeoff: requires access to stored data or a generative model. Works well empirically. In production systems with user data, storing examples raises compliance issues.
 
-The field has converged on three broad families of solutions, each with real tradeoffs.
+### Parameter Isolation
 
-### Regularization-Based Methods
+Reserve separate parts of the network for each task. Progressive Neural Networks add new columns for new tasks and freeze old ones. PackNet prunes weights used by each task so they cannot be modified later. LoRA-based approaches assign separate low-rank adapters per task.
 
-These add constraints to the loss function that penalize changes to weights important for previous tasks.
+Tradeoff: scales poorly — the network grows with each task. Good for a fixed, known set of tasks; impractical for open-ended task streams.
 
-**Elastic Weight Consolidation (EWC)** computes the Fisher information matrix after training on task A to estimate which weights are most important. When training on task B, it adds a quadratic penalty proportional to the Fisher information for any weight that moves far from its task A value. In practice: weights that task A relied on heavily become expensive to update, preserving task A performance.
+### Architecture-Level Memory
 
-The limitation is quadratic in the number of parameters. For LLMs with billions of parameters, storing the full Fisher matrix is infeasible. Approximations (diagonal Fisher, layer-wise Fisher) reduce cost but also reduce effectiveness. EWC works well on small networks and well-separated tasks; it degrades with scale.
+Store knowledge outside the weights entirely — in explicit databases, code libraries, or retrieval systems. New knowledge is appended rather than encoded into existing weights. Retrieval at inference time provides task-relevant context. This sidesteps catastrophic forgetting by design: old entries are never overwritten.
 
-**Synaptic Intelligence** does something similar but accumulates importance scores online during training rather than computing them post-hoc. Computationally cheaper, but less principled.
+Tradeoff: retrieval quality determines performance. Knowledge is not compressed or generalized — the library grows without bound. Compositional reuse requires explicit design.
 
-### Architectural Methods
+## The Three-Layer Framework for Agents
 
-Rather than constraining weight updates, these methods allocate separate parameters for each task.
+Harrison Chase's analysis of agentic systems identifies three distinct layers where continual learning can occur, each with different speed, risk, and granularity:
 
-**Progressive Neural Networks** freeze previously trained columns and add lateral connections to new columns for each new task. No forgetting is possible since old weights are frozen. But the network grows linearly with the number of tasks, which becomes impractical fast.
+**Model weights**: The traditional focus of continual learning research. Techniques include supervised fine-tuning (SFT), reinforcement learning (GRPO, PPO), and parameter-efficient fine-tuning (LoRA). Updates affect every user of the model. Risk of catastrophic forgetting is highest here. Updates are slow — collecting traces, training, evaluating, deploying takes days to weeks. [Source](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md)
 
-**PackNet** iteratively prunes networks after each task and re-purposes unused capacity. More parameter-efficient but requires knowing task boundaries and limits the total number of tasks.
+**Harness**: The scaffolding code, system prompts, and tool definitions that wrap the model. Meta-Harness approaches run the agent over many traces, then use a separate coding agent to analyze those traces and suggest changes to the harness code itself. Changes affect all instances of the agent. Faster iteration than model retraining, but still affects everyone and can break existing behavior.
 
-**LoRA and adapter methods** have become practically important for LLMs. Instead of fine-tuning all weights, you train small low-rank adapter modules per task while freezing the base model. The base model is preserved; you load the relevant adapter at inference time. This is task-switching rather than true continual learning (you need to know which task you're doing), but it works reliably in production.
+**Context / Memory**: Instructions, skills, and configuration stored outside the harness, injected at inference time per user, team, or agent instance. This layer updates fastest and most safely — a bad memory update affects only one user's session. Examples: Claude Code's `CLAUDE.md` and `/skills` directory, OpenClaw's `SOUL.md`. Updates can happen offline (batch analysis of recent traces) or in the hot path (the agent updates its own memory mid-task). [Source](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md)
 
-### Replay Methods
+The context layer is the most practical starting point for builders. It requires no model access, runs on existing infrastructure, and limits blast radius on failure. The tradeoff is that context-layer learning does not generalize across tenants and does not improve the base model's capabilities.
 
-These maintain a buffer of examples from previous tasks and mix them into training on new tasks.
+## Implementations Worth Studying
 
-**Experience Replay** stores a subset of previous training examples. During task B training, you sample from both B data and the replay buffer. The optimizer then faces a mixed objective that prevents full collapse on task A. The critical hyperparameter is how much of the batch comes from replay versus new data.
+### Voyager's Skill Library
 
-**Generative Replay** trains a generative model (often a VAE or GAN) on task A, then uses the generator to synthesize task A examples during task B training rather than storing raw data. This avoids storage costs and privacy issues with raw data retention, but the generative model itself can forget, creating a compounding problem.
+Voyager demonstrates architecture-level memory in a concrete, measurable setting. The agent accumulates skills as executable JavaScript code, indexed by text embeddings. When tackling a new task, it retrieves the five most relevant existing skills as context. New skills can call old ones, creating a compositional hierarchy.
 
-For LLMs, a form of replay appears in **continual pre-training** (Ke et al., 2023), where you mix domain-specific data with samples from the original pre-training distribution to slow forgetting. This is the standard industrial approach for domain adaptation. It works at moderate update scales but is expensive to do continuously.
+The critical design decision: skills are only added after a separate GPT-4 "critic" confirms success. Removing this verification step causes a 73% performance drop — the library fills with broken code that misleads future generation. Removing the curriculum causes a 93% drop. The skill library alone, without the curriculum or verification, provides limited benefit: when researchers gave AutoGPT access to Voyager's skill library without the other components, performance improved only marginally. [Source](../raw/deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md)
 
-### Non-Parametric / External Memory Approaches
+The results are self-reported in the original paper but the architecture has been independently replicated. Voyager accumulates 63 unique items in 160 iterations; the next best baseline achieves roughly 19.
 
-Rather than modifying weights at all, these approaches keep model weights frozen and push new knowledge into external stores.
+The skill library sidesteps catastrophic forgetting completely: old skills are never modified. The cost is an ever-growing library with no mechanism for pruning stale or incorrect skills.
 
-**RAG (Retrieval-Augmented Generation)** indexes new documents and retrieves relevant chunks at inference time. The model itself doesn't change; knowledge acquisition happens in the retrieval index. This avoids catastrophic forgetting entirely because there are no weight updates. The costs are latency (retrieval adds to inference time), retrieval quality (you only get what the retriever surfaces), and inability to reason fluidly over distributed knowledge.
+### HippoRAG's Knowledge Graph Memory
 
-**HippoRAG** (NeurIPS '24, then ICML '25 as "From RAG to Memory: Non-Parametric Continual Learning for Large Language Models") advances this by building a knowledge graph during indexing. Entities and relations extracted by an LLM become nodes and edges. At retrieval time, personalized PageRank traverses the graph from query-relevant entry points, surfacing multi-hop connections that dense vector retrieval misses. [Source](../../raw/repos/osu-nlp-group-hipporag.md)
+HippoRAG frames continual learning as a retrieval problem rather than a weight update problem. Documents are indexed into a knowledge graph. Retrieval uses Personalized PageRank to propagate relevance across connected entities, enabling multi-hop reasoning. New documents extend the graph without modifying existing nodes.
 
-**Letta's memory blocks** take a more agent-centric approach. Rather than a retrieval index, persistent named memory blocks (`human`, `persona`, and custom blocks) store structured state that survives conversation resets. Agents can read and write these blocks through tool calls. The model weights never change; learning happens through state accumulation. [Source](../../raw/repos/letta-ai-letta.md)
+HippoRAG 2 (ICML '25) demonstrates improvements on multi-hop retrieval benchmarks (MuSiQue, 2WikiMultiHopQA, HotpotQA) over dense retrieval baselines and graph-based alternatives including GraphRAG and LightRAG — self-reported, but the NeurIPS '24 predecessor was peer-reviewed. [Source](../raw/repos/osu-nlp-group-hipporag.md)
 
-**mem-agent** (Dria, 2025) trains a 4B model with GSPO to manage markdown files as memory via Python tools. The agent performs retrieval, update, and clarification tasks against an Obsidian-like filesystem structure. At 75% on the hand-crafted md-memory-bench, it outperforms GPT-5, Gemini 2.5 Pro, and Claude Opus 4.1 on this benchmark, second only to Qwen3-235B-A22B-Thinking. The benchmark is self-crafted by the authors (56 samples), so these numbers reflect author-designed evaluation rather than independent validation. [Source](../../raw/articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md)
-
-## Who Implements What
-
-**Academic research** has produced the regularization and architectural methods (EWC, PNN, PackNet) primarily on vision tasks with small networks. Transfer to LLM scale remains limited.
-
-**Industry LLM providers** use continual pre-training with replay as the practical approach for domain adaptation. This is not true continual learning but is operationally tractable.
-
-**Agent frameworks** (Letta, mem-agent, HippoRAG) avoid the weight-update problem entirely and implement continual learning through persistent external state. This is currently the most reliable production approach.
-
-**RL-trained agents** represent a newer direction: training models to manage their own memory through tool use. mem-agent demonstrates this at 4B parameters. The advantage is dynamic, deletable memory that evolves with use. The disadvantage is that the agent must correctly decide when to retrieve, update, or ask for clarification.
+The key claim is that this constitutes "non-parametric continual learning" — the system's effective knowledge grows with new documents, and multi-hop associations emerge from graph structure rather than weight encoding.
 
 ## Failure Modes
 
-**Catastrophic forgetting at scale**: Regularization methods don't scale to modern LLM parameter counts without significant approximation losses. Most published results on EWC-style methods use networks orders of magnitude smaller than deployed models.
+**Compounding errors in skill libraries**: If a buggy skill passes verification and gets added to the library, subsequent skills built on top of it inherit the bug. Voyager has no skill deletion or update mechanism. A single bad early skill can corrupt a subtree of dependent skills silently.
 
-**Retrieval failures compound**: External memory approaches don't forget but they do miss. A knowledge graph that fails to extract a relation during indexing will never surface it. A RAG system that retrieves the wrong chunk gives the model bad context. These are silent failures with no obvious detection mechanism.
+**Retrieval failure in non-parametric systems**: Both skill libraries and knowledge graphs depend on retrieval finding the right entry. Text embedding similarity is an imperfect proxy for functional relevance — a skill named "gather resources" may not surface when the agent needs to "collect materials." As libraries grow, the probability of retrieving irrelevant context increases.
 
-**Reward hacking in RL-trained memory agents**: The mem-agent paper documents this directly. The trained model learned to maximize format rewards by filling all allowed turns rather than solving tasks efficiently. This required careful per-turn reward shaping to fix. Any RL-based continual learning system faces this risk.
+**Catastrophic forgetting in weight-based fine-tuning**: Despite decades of research, this remains an open problem. No regularization or replay approach has demonstrated robust forgetting prevention at the scale of modern LLMs across diverse task distributions. The practical workaround in production is to avoid weight updates entirely, using context-layer learning instead.
 
-**Memory poisoning**: Writable external memory that an agent controls can be overwritten with incorrect information. A clarification failure or a hallucinated update propagates into persistent state and affects all future responses. Unlike weight-based forgetting, this can produce confident wrong answers with no signal that anything is wrong.
+**Context window saturation**: Context-layer learning works until the accumulated context exceeds the model's window. Systems that dump all memories into the prompt hit a hard ceiling. Solutions require memory summarization or hierarchical retrieval, both of which introduce their own failure modes (summarization loses detail; retrieval misses relevant memories).
 
-**Context as soft limit**: Even with external memory, the retrieved content must fit in context. Effective context length is consistently shorter than maximum context length in practice, meaning complex multi-hop reasoning over retrieved knowledge remains constrained.
+**Verification gap**: Self-verification works when the verifier shares the model's knowledge. If the base model hallucinates a game mechanic, the verifier using the same model may accept incorrect skills. Voyager reports this: GPT-4 occasionally proposes items that do not exist in Minecraft, and the critic does not always catch it.
 
-## When Continual Learning Fails
+## Infrastructure Assumptions
 
-**Static task environments**: If your tasks are fixed and known in advance, standard multi-task training outperforms continual learning methods on every dimension. Continual learning only makes sense when you genuinely cannot access all tasks simultaneously.
+Continual learning systems at the context layer assume traces are collected and retained. Without logged execution histories, there is no signal for what to learn. Building trace infrastructure before building learning infrastructure is not optional — it is the prerequisite. LangSmith, Braintrust, and similar platforms provide this, but adopting them early is a prerequisite, not an afterthought.
 
-**Low update frequency**: If you're updating knowledge monthly or quarterly, full retraining (possibly with replay) is cheaper and more reliable than maintaining a continual learning infrastructure. The overhead of external memory management, retrieval pipelines, or regularization schemes isn't justified.
+Weight-layer updates assume access to the model: fine-tuning closed models is impossible. Most of the published literature on catastrophic forgetting applies to open-weight models or proprietary training pipelines, not GPT-4 or Claude via API.
 
-**When retrieval quality is poor**: External memory approaches require a retriever that surfaces relevant content reliably. In low-quality or highly heterogeneous corpora, retrieval failures undermine the entire approach. The model performs as well as its worst retrieval.
+## When Not to Use Continual Learning
 
-**Real-time weight updates**: No practical gradient-based continual learning method supports truly online weight updates in production without significant forgetting or extremely slow learning rates. If you need real-time adaptation, external memory is the only viable path.
+**Stable tasks**: If the task distribution is fixed and the training set is complete, standard batch training outperforms continual learning methods. The overhead of managing task boundaries, memory systems, or regularization terms adds complexity with no benefit.
+
+**High-stakes correctness requirements**: Continual learning systems that update from user interactions can be manipulated. A user who prompts the system to remember incorrect information corrupts future behavior. Systems handling medical, legal, or financial decisions should separate learning from deployment, with human review of any updates to the knowledge store.
+
+**Small context budgets**: Context-layer learning requires injecting memories at inference time. For models with small context windows or latency-sensitive applications, the overhead of retrieving and appending memories may be unacceptable.
+
+**Short deployment horizons**: If a system will be retrained from scratch in two weeks anyway, the engineering cost of building continual learning infrastructure rarely pays off.
 
 ## Unresolved Questions
 
-**How much does task similarity matter at LLM scale?** The theoretical analysis of interference depends on gradient overlap, but we don't have good empirical measurements of this for large transformer models across realistic task distributions.
+The field lacks consensus on evaluation. Benchmarks for catastrophic forgetting use narrow task sequences (e.g., sequential MNIST classification) that do not reflect open-ended, long-horizon agent deployments. There is no standard benchmark for skill library quality or knowledge graph accuracy over time.
 
-**When does external memory become intractable?** Knowledge graphs and retrieval indices grow with use. At some scale, retrieval latency, index maintenance, and conflict resolution between contradictory stored facts become the bottleneck. Published systems rarely address what happens at millions of stored facts with frequent updates.
+For production agentic systems: how do you handle conflicting memories? If a user's preferences recorded six months ago contradict their current behavior, which wins? No deployed system has published a principled answer.
 
-**Conflict resolution**: When new information contradicts stored information, how should a memory agent decide what to keep? mem-agent frames this as a clarification task (ask the user) but that doesn't scale to autonomous agents operating without human oversight.
+Cost at scale is underreported. Voyager's GPT-4 API costs for 160 iterations are not disclosed. Systems that run LLM calls for every skill verification, every memory update, and every curriculum decision accumulate substantial inference costs. The economics of context-layer learning depend heavily on call frequency.
 
-**Procedural vs. declarative memory**: Current systems handle declarative memory (facts, entities, relationships) reasonably well. Procedural memory (learned skills, executable programs) is a substantially harder problem with much less research coverage. Voyager and DynaSaur represent early attempts, but the training pipelines are significantly more complex.
+## Related Concepts
 
-## Practical Selection Guidance
+- [Self-Improving Agents](../concepts/self-improving-agents.md) — continual learning is the core mechanism self-improving agents use to compound capability over time
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — non-parametric continual learning relies on RAG as the knowledge access mechanism
+- [Memory in AI Systems](../concepts/memory-in-ai-systems.md) — context-layer learning is a form of external memory
 
-- **Use replay-based continual pre-training** when you need to adapt model weights to a new domain and can afford periodic retraining.
-- **Use LoRA adapters** when you need task-specific fine-tuning and can identify task boundaries at inference time.
-- **Use RAG or HippoRAG** when knowledge acquisition needs to happen continuously without model updates and your primary need is factual retrieval.
-- **Use Letta-style memory blocks** when you're building stateful agents that need structured, updatable per-user or per-conversation state.
-- **Use RL-trained memory agents like mem-agent** when you want a small model that manages its own memory autonomously via tool use, particularly in a multi-agent setup where you want memory management as a separable module.
-- **Use EWC or similar regularization** primarily if you're doing research; at LLM scale and in production, the practical overhead outweighs the benefits compared to replay or external memory.
+## Alternatives
+
+**Static fine-tuning**: Train once on all available data. Use when data is complete and stable, and when you can afford retraining when the world changes.
+
+**Retrieval-Augmented Generation (RAG)**: Append new documents to a retrieval store. Use when knowledge is factual and document-shaped, and when multi-hop reasoning is not required. Simpler than HippoRAG; weaker on complex queries.
+
+**HippoRAG**: Use when queries require multi-hop reasoning across connected facts. Higher indexing cost than naive RAG; stronger on complex retrieval tasks. [Source](../raw/repos/osu-nlp-group-hipporag.md)
+
+**Voyager-style skill library**: Use when the agent generates reusable code or structured procedures, and when you have a reliable verification signal. Wrong choice for domains without clear success criteria.
+
+**Full retraining**: Retrain the model periodically on all accumulated data. Avoids catastrophic forgetting by design. Requires model access and significant compute. The correct choice when weight-level generalization is necessary and infrastructure supports it.

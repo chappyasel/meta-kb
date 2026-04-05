@@ -114,14 +114,70 @@ function generateD3Html(graph: KnowledgeGraph): string {
     "self-improving": "#8b5cf6",
   };
 
-  // Filter to only nodes that have at least 1 edge (no orphans)
-  const connectedIds = new Set<string>();
+  const bucketLabels: Record<string, string> = {
+    "knowledge-bases": "Knowledge Bases",
+    "agent-memory": "Agent Memory",
+    "context-engineering": "Context Engineering",
+    "agent-systems": "Agent Systems",
+    "self-improving": "Self-Improving",
+  };
+
+  // --- Data augmentation ---
+
+  // Compute degree for each node
+  const degreeMap = new Map<string, number>();
   for (const edge of graph.edges) {
-    connectedIds.add(edge.source);
-    connectedIds.add(edge.target);
+    degreeMap.set(edge.source, (degreeMap.get(edge.source) ?? 0) + 1);
+    degreeMap.set(edge.target, (degreeMap.get(edge.target) ?? 0) + 1);
   }
-  const filteredNodes = graph.nodes.filter((n) => connectedIds.has(n.id));
-  const filteredEdges = graph.edges; // all edges are valid since nodes are filtered from edges
+
+  // Filter orphans
+  const connectedNodes = graph.nodes.filter((n) => (degreeMap.get(n.id) ?? 0) > 0);
+  const entityEdges = [...graph.edges]; // original edges only
+
+  // Classify tiers and compute radius
+  const maxDegree = Math.max(...[...degreeMap.values()]);
+  const augmentedNodes: any[] = connectedNodes.map((n) => {
+    const degree = degreeMap.get(n.id) ?? 0;
+    let tier: string;
+    let radius: number;
+    if (degree >= 10) {
+      tier = "primary";
+      radius = 10 + Math.sqrt((degree - 10) / (maxDegree - 10)) * 11;
+    } else if (degree >= 3) {
+      tier = "secondary";
+      radius = 6 + ((degree - 3) / 6) * 3;
+    } else {
+      tier = "leaf";
+      radius = 4;
+    }
+    return { ...n, _tier: tier, _degree: degree, _radius: radius };
+  });
+
+  // Add 5 hub nodes
+  const hubNodes = Object.keys(bucketColors).map((bucket) => ({
+    id: `hub-${bucket}`,
+    name: bucketLabels[bucket],
+    type: "hub",
+    bucket,
+    _tier: "hub",
+    _degree: 0,
+    _radius: 40,
+  }));
+
+  // Add hub edges (invisible, structural only)
+  const hubEdges = augmentedNodes.map((n) => ({
+    source: n.id,
+    target: `hub-${n.bucket}`,
+    type: "cluster",
+    weight: 0.5,
+  }));
+
+  const allNodes = [...hubNodes, ...augmentedNodes];
+  const allEdges = [...entityEdges, ...hubEdges];
+
+  const entityCount = augmentedNodes.length;
+  const edgeCount = entityEdges.length;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -132,115 +188,301 @@ function generateD3Html(graph: KnowledgeGraph): string {
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
   svg { width: 100vw; height: 100vh; }
-  .link { stroke-opacity: 0.3; }
-  .link:hover { stroke-opacity: 0.8; }
-  .node circle { stroke: #1e293b; stroke-width: 1.5; cursor: pointer; }
-  .node circle:hover { stroke: #fff; stroke-width: 2.5; }
-  .node text { fill: #94a3b8; font-size: 10px; pointer-events: none; }
-  .node.project text { fill: #e2e8f0; font-size: 11px; font-weight: 500; }
-  .tooltip { position: absolute; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px 14px; color: #e2e8f0; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.15s; max-width: 250px; }
-  .tooltip .bucket { color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
-  .tooltip .type { color: #64748b; font-size: 10px; }
-  .legend { position: fixed; bottom: 20px; left: 20px; display: flex; gap: 16px; }
-  .legend-item { display: flex; align-items: center; gap: 6px; color: #94a3b8; font-size: 11px; }
-  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
-  h1 { position: fixed; top: 20px; left: 20px; color: #e2e8f0; font-size: 16px; font-weight: 500; }
-  .stats { position: fixed; top: 44px; left: 20px; color: #64748b; font-size: 11px; }
+  .tooltip { position: absolute; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px 14px; color: #e2e8f0; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.15s; max-width: 300px; line-height: 1.5; }
+  .tooltip .bucket-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .tooltip .name { font-weight: 600; font-size: 14px; }
+  .tooltip .meta { color: #64748b; font-size: 10px; }
+  .tooltip .connections { margin-top: 6px; border-top: 1px solid #334155; padding-top: 6px; font-size: 11px; color: #94a3b8; }
+  .tooltip .connections div { margin-bottom: 2px; }
+  .tooltip .conn-type { color: #64748b; font-size: 9px; }
+  h1 { position: fixed; top: 20px; left: 20px; color: #e2e8f0; font-size: 16px; font-weight: 500; z-index: 10; }
+  .stats { position: fixed; top: 44px; left: 20px; color: #64748b; font-size: 11px; z-index: 10; }
 </style>
 </head>
 <body>
 <h1>meta-kb Knowledge Graph</h1>
-<div class="stats">${filteredNodes.length} entities · ${filteredEdges.length} relationships</div>
+<div class="stats">${entityCount} entities · 5 clusters · ${edgeCount} relationships</div>
 <div class="tooltip" id="tooltip"></div>
-<div class="legend">
-  ${Object.entries(bucketColors)
-    .map(([bucket, color]) => {
-      const label = bucket
-        .split("-")
-        .map((w) => w[0].toUpperCase() + w.slice(1))
-        .join(" ");
-      return `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div>${label}</div>`;
-    })
-    .join("\n  ")}
-</div>
 <svg></svg>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script>
-const graph = ${JSON.stringify({ nodes: filteredNodes, edges: filteredEdges })};
+const graph = ${JSON.stringify({ nodes: allNodes, edges: allEdges })};
 const colors = ${JSON.stringify(bucketColors)};
+const bucketLabels = ${JSON.stringify(bucketLabels)};
 
 const width = window.innerWidth;
 const height = window.innerHeight;
+const cx = width / 2, cy = height / 2;
+const hubRadius = Math.min(width, height) * 0.28;
 
-const svg = d3.select("svg")
-  .attr("viewBox", [0, 0, width, height]);
+// Pentagon positions for 5 hubs (starting from top, clockwise)
+const bucketOrder = ["knowledge-bases", "agent-systems", "self-improving", "context-engineering", "agent-memory"];
+const hubPositions = {};
+bucketOrder.forEach((bucket, i) => {
+  const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+  hubPositions[bucket] = { x: cx + Math.cos(angle) * hubRadius, y: cy + Math.sin(angle) * hubRadius };
+});
 
-// Zoom
-const g = svg.append("g");
-svg.call(d3.zoom().scaleExtent([0.2, 5]).on("zoom", (e) => g.attr("transform", e.transform)));
+// Seeded PRNG for deterministic layout
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const rng = mulberry32(42);
 
-// Force simulation
+// Initialize node positions
+graph.nodes.forEach(d => {
+  if (d._tier === "hub") {
+    const hp = hubPositions[d.bucket];
+    d.x = d.fx = hp.x;
+    d.y = d.fy = hp.y;
+  } else {
+    const hp = hubPositions[d.bucket];
+    const angle = rng() * Math.PI * 2;
+    const dist = 30 + rng() * 120;
+    d.x = hp.x + Math.cos(angle) * dist;
+    d.y = hp.y + Math.sin(angle) * dist;
+  }
+});
+
+// Custom cluster force
+function clusterForce(strength) {
+  let nodes;
+  const force = (alpha) => {
+    for (const d of nodes) {
+      if (d._tier === "hub") continue;
+      const hp = hubPositions[d.bucket];
+      d.vx += (hp.x - d.x) * strength * alpha;
+      d.vy += (hp.y - d.y) * strength * alpha;
+    }
+  };
+  force.initialize = (n) => { nodes = n; };
+  return force;
+}
+
+// Boundary force
+function boundaryForce(w, h, padding) {
+  let nodes;
+  const force = () => {
+    for (const d of nodes) {
+      if (d._tier === "hub") continue;
+      if (d.x < padding) d.vx += (padding - d.x) * 0.1;
+      if (d.x > w - padding) d.vx += (w - padding - d.x) * 0.1;
+      if (d.y < padding) d.vy += (padding - d.y) * 0.1;
+      if (d.y > h - padding) d.vy += (h - padding - d.y) * 0.1;
+    }
+  };
+  force.initialize = (n) => { nodes = n; };
+  return force;
+}
+
+// Only real edges for link force (include hub edges for clustering)
 const simulation = d3.forceSimulation(graph.nodes)
-  .force("link", d3.forceLink(graph.edges).id(d => d.id).distance(d => 120 - d.weight * 60).strength(d => d.weight * 0.3))
-  .force("charge", d3.forceManyBody().strength(-200))
-  .force("center", d3.forceCenter(width / 2, height / 2))
-  .force("collision", d3.forceCollide().radius(d => d.type === "project" ? 30 : 20))
-  .force("x", d3.forceX(width / 2).strength(0.03))
-  .force("y", d3.forceY(height / 2).strength(0.03));
+  .force("link", d3.forceLink(graph.edges).id(d => d.id)
+    .distance(d => d.type === "cluster" ? 80 : 100 - d.weight * 40)
+    .strength(d => d.type === "cluster" ? 0.7 : d.weight * 0.15))
+  .force("cluster", clusterForce(0.25))
+  .force("charge", d3.forceManyBody().strength(d => d._tier === "hub" ? -400 : d._tier === "primary" ? -150 : -60))
+  .force("collision", d3.forceCollide().radius(d => d._radius + 3).strength(0.8))
+  .force("bounds", boundaryForce(width, height, 10))
+  .alphaDecay(0.03);
 
-// Links
+const svg = d3.select("svg").attr("viewBox", [0, 0, width, height]);
+
+// Defs for glow filter
+svg.append("defs").html(\`
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+    <feGaussianBlur stdDeviation="6" result="blur"/>
+    <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+  </filter>
+\`);
+
+const g = svg.append("g");
+const zoom = d3.zoom().scaleExtent([0.2, 8]).on("zoom", (e) => g.attr("transform", e.transform));
+svg.call(zoom);
+// Initial 1.1x zoom centered on the graph
+const initScale = 1.1;
+svg.call(zoom.transform, d3.zoomIdentity.translate(cx * (1 - initScale), cy * (1 - initScale)).scale(initScale));
+
+// Render only entity-to-entity edges (not hub edges)
+const visibleEdges = graph.edges.filter(e => e.type !== "cluster");
 const link = g.append("g")
   .selectAll("line")
-  .data(graph.edges)
+  .data(visibleEdges)
   .join("line")
-  .attr("class", "link")
-  .attr("stroke", "#475569")
-  .attr("stroke-width", d => 0.5 + d.weight * 2);
+  .attr("stroke", "#64748b")
+  .attr("stroke-width", d => 0.8 + d.weight * 2)
+  .attr("stroke-opacity", d => 0.35 + d.weight * 0.25);
 
-// Nodes
+// Separate hub nodes and entity nodes
+const entityData = graph.nodes.filter(d => d._tier !== "hub");
+const hubData = graph.nodes.filter(d => d._tier === "hub");
+
+// Entity nodes (rendered BEFORE hubs so hubs appear on top)
 const node = g.append("g")
   .selectAll("g")
-  .data(graph.nodes)
+  .data(entityData)
   .join("g")
-  .attr("class", d => "node " + d.type)
+  .attr("class", d => "node tier-" + d._tier)
   .call(d3.drag()
     .on("start", (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
     .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
-    .on("end", (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+    .on("end", (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }))
+  .style("cursor", "pointer");
 
 node.append("circle")
-  .attr("r", d => d.type === "project" ? 8 : d.type === "concept" ? 5 : 4)
+  .attr("r", d => d._radius)
   .attr("fill", d => colors[d.bucket] || "#64748b")
-  .attr("opacity", d => d.type === "project" ? 0.9 : 0.5);
+  .attr("opacity", d => d._tier === "primary" ? 1.0 : d._tier === "secondary" ? 0.7 : 0.35)
+  .attr("stroke", d => d._tier === "primary" ? "rgba(255,255,255,0.3)" : "none")
+  .attr("stroke-width", d => d._tier === "primary" ? 1 : 0);
 
+// Labels: always visible for primary, hidden for others
 node.append("text")
-  .attr("dx", d => (d.type === "project" ? 12 : 8))
+  .attr("dx", d => d._radius + 4)
   .attr("dy", 3)
+  .attr("fill", "#e2e8f0")
+  .attr("font-size", d => d._degree >= 20 ? "14px" : "13px")
+  .attr("font-weight", d => d._degree >= 20 ? "600" : "500")
+  .attr("pointer-events", "none")
+  .attr("opacity", d => d._tier === "primary" ? 1 : 0)
+  .text(d => d.name);
+
+// Hub nodes — rendered AFTER entities so they appear on top
+const hubNode = g.append("g")
+  .selectAll("g")
+  .data(hubData)
+  .join("g")
+  .attr("class", "hub-node")
+  .style("cursor", "pointer");
+
+// Background rect to occlude nodes behind hub labels
+hubNode.append("rect")
+  .attr("x", -82).attr("y", -24)
+  .attr("width", 164).attr("height", 48)
+  .attr("rx", 13).attr("ry", 13)
+  .attr("fill", "#0f172a")
+  .attr("opacity", 0.85);
+
+hubNode.append("rect")
+  .attr("x", -80).attr("y", -22)
+  .attr("width", 160).attr("height", 44)
+  .attr("rx", 12).attr("ry", 12)
+  .attr("fill", d => colors[d.bucket])
+  .attr("fill-opacity", 0.2)
+  .attr("stroke", d => colors[d.bucket])
+  .attr("stroke-width", 1.5)
+  .attr("filter", "url(#glow)");
+
+hubNode.append("text")
+  .attr("text-anchor", "middle")
+  .attr("dy", 5)
+  .attr("fill", "#fff")
+  .attr("font-size", "16px")
+  .attr("font-weight", "700")
+  .attr("pointer-events", "none")
   .text(d => d.name);
 
 // Tooltip
 const tooltip = d3.select("#tooltip");
-node.on("mouseover", (e, d) => {
-  tooltip.style("opacity", 1)
-    .html('<div class="bucket">' + d.bucket + '</div><strong>' + d.name + '</strong><div class="type">' + d.type + '</div>')
+
+function showTooltip(e, d) {
+  // Build connection list
+  const connections = [];
+  visibleEdges.forEach(l => {
+    const src = typeof l.source === "object" ? l.source : { id: l.source };
+    const tgt = typeof l.target === "object" ? l.target : { id: l.target };
+    if (src.id === d.id) connections.push({ name: tgt.name || tgt.id, type: l.type, label: l.label });
+    if (tgt.id === d.id) connections.push({ name: src.name || src.id, type: l.type, label: l.label });
+  });
+  const topConns = connections.slice(0, 5);
+
+  const color = colors[d.bucket] || "#94a3b8";
+  let html = '<div class="bucket-label" style="color:' + color + '">' + (bucketLabels[d.bucket] || d.bucket) + '</div>';
+  html += '<div class="name">' + d.name + '</div>';
+  html += '<div class="meta">' + d.type + (d._degree ? ' · ' + d._degree + ' connections' : '') + '</div>';
+  if (topConns.length > 0) {
+    html += '<div class="connections">';
+    topConns.forEach(c => {
+      html += '<div>' + c.name + ' <span class="conn-type">' + (c.label || c.type) + '</span></div>';
+    });
+    if (connections.length > 5) html += '<div style="color:#475569">+' + (connections.length - 5) + ' more</div>';
+    html += '</div>';
+  }
+
+  tooltip.style("opacity", 1).html(html)
     .style("left", (e.pageX + 15) + "px")
     .style("top", (e.pageY - 10) + "px");
-  // Highlight connections
-  const connected = new Set();
-  graph.edges.forEach(l => { if (l.source.id === d.id) connected.add(l.target.id); if (l.target.id === d.id) connected.add(l.source.id); });
-  node.select("circle").attr("opacity", n => n.id === d.id || connected.has(n.id) ? 1 : 0.1);
-  node.select("text").attr("opacity", n => n.id === d.id || connected.has(n.id) ? 1 : 0.1);
-  link.attr("stroke-opacity", l => l.source.id === d.id || l.target.id === d.id ? 0.8 : 0.05);
-}).on("mouseout", () => {
-  tooltip.style("opacity", 0);
-  node.select("circle").attr("opacity", d => d.type === "project" ? 0.9 : 0.5);
-  node.select("text").attr("opacity", 1);
-  link.attr("stroke-opacity", 0.3);
-});
+}
 
+function highlightNeighborhood(d) {
+  const connected = new Set();
+  visibleEdges.forEach(l => {
+    const sid = typeof l.source === "object" ? l.source.id : l.source;
+    const tid = typeof l.target === "object" ? l.target.id : l.target;
+    if (sid === d.id) connected.add(tid);
+    if (tid === d.id) connected.add(sid);
+  });
+
+  node.select("circle").attr("opacity", n => n.id === d.id || connected.has(n.id) ? 1 : 0.05);
+  node.select("text").attr("opacity", n => {
+    if (n.id === d.id || connected.has(n.id)) return 1;
+    return 0;
+  });
+  link.attr("stroke-opacity", l => {
+    const sid = typeof l.source === "object" ? l.source.id : l.source;
+    const tid = typeof l.target === "object" ? l.target.id : l.target;
+    return (sid === d.id || tid === d.id) ? 0.8 : 0.02;
+  });
+  hubNode.select("rect").attr("fill-opacity", h => h.bucket === d.bucket ? 0.25 : 0.05);
+  hubNode.select("text").attr("opacity", h => h.bucket === d.bucket ? 1 : 0.2);
+}
+
+function highlightCluster(bucket) {
+  node.select("circle").attr("opacity", n => n.bucket === bucket ? 1 : 0.05);
+  node.select("text").attr("opacity", n => n.bucket === bucket && n._tier === "primary" ? 1 : n.bucket === bucket && n._tier === "secondary" ? 1 : 0);
+  link.attr("stroke-opacity", l => {
+    const src = typeof l.source === "object" ? l.source : { bucket: null };
+    const tgt = typeof l.target === "object" ? l.target : { bucket: null };
+    if (src.bucket === bucket && tgt.bucket === bucket) return 0.5;
+    if (src.bucket === bucket || tgt.bucket === bucket) return 0.15;
+    return 0.02;
+  });
+  hubNode.select("rect").attr("fill-opacity", h => h.bucket === bucket ? 0.3 : 0.05);
+  hubNode.select("text").attr("opacity", h => h.bucket === bucket ? 1 : 0.2);
+}
+
+function resetHighlight() {
+  tooltip.style("opacity", 0);
+  node.select("circle").attr("opacity", d => d._tier === "primary" ? 1.0 : d._tier === "secondary" ? 0.7 : 0.35);
+  node.select("text").attr("opacity", d => d._tier === "primary" ? 1 : 0);
+  link.attr("stroke-opacity", d => 0.35 + d.weight * 0.25);
+  hubNode.select("rect").attr("fill-opacity", 0.15);
+  hubNode.select("text").attr("opacity", 1);
+}
+
+// Entity node events
+node.on("mouseover", (e, d) => {
+  showTooltip(e, d);
+  highlightNeighborhood(d);
+}).on("mouseout", resetHighlight);
+
+// Hub node events
+hubNode.on("mouseover", (e, d) => {
+  showTooltip(e, d);
+  highlightCluster(d.bucket);
+}).on("mouseout", resetHighlight);
+
+// Tick
 simulation.on("tick", () => {
-  link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+  link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
   node.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+  hubNode.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
 });
 </script>
 </body>
@@ -258,11 +500,9 @@ async function main() {
 
   await mkdir(join(WIKI_DIR, "images"), { recursive: true });
 
-  // 1. D2 architecture diagram
-  const d2Content = generateD2(graph);
+  // 1. D2 architecture diagram (hand-authored, not generated — just compile to SVG)
   const d2Path = join(WIKI_DIR, "images", "field-map.d2");
   const svgPath = join(WIKI_DIR, "images", "field-map.svg");
-  await writeFile(d2Path, d2Content);
 
   const proc = Bun.spawn(["d2", "--layout=elk", d2Path, svgPath], {
     stdout: "pipe",

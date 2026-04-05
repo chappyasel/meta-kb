@@ -2,107 +2,112 @@
 entity_id: hotpotqa
 type: project
 bucket: knowledge-bases
+abstract: >-
+  HotpotQA is a multi-hop QA benchmark requiring reasoning across 2+ Wikipedia
+  documents, used to measure whether retrieval and reasoning systems can bridge
+  disjoint evidence.
 sources:
   - repos/vectorspacelab-general-agentic-memory.md
   - repos/bytedtsinghua-sia-memagent.md
-  - repos/gepa-ai-gepa.md
-  - deep/repos/osu-nlp-group-hipporag.md
   - deep/repos/wangyu-ustc-mem-alpha.md
   - deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md
-  - deep/repos/michaelliv-napkin.md
-  - deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md
-  - deep/repos/topoteretes-cognee.md
   - deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
 related:
-  - Retrieval-Augmented Generation
-last_compiled: '2026-04-05T05:24:18.870Z'
+  - Multi-Hop Reasoning
+last_compiled: '2026-04-05T20:30:44.347Z'
 ---
 # HotpotQA
 
 ## What It Is
 
-HotpotQA is a reading comprehension benchmark dataset released in 2018 by Yang et al. (Carnegie Mellon, Stanford, MIT). It contains roughly 113,000 question-answer pairs drawn from English Wikipedia, where answering each question requires reading and reasoning across two separate documents. The dataset comes in two settings: a "distractor" setting (10 paragraphs provided, 2 relevant) and a "fullwiki" setting (the entire Wikipedia corpus as the retrieval pool). A subset of questions also carry supporting fact annotations, which evaluators use to score both answer accuracy and explanation quality.
+HotpotQA is a question answering dataset released in 2018 (Yang et al., CMU/Stanford/Salesforce) containing roughly 113,000 crowd-sourced questions that require a system to read and reason across multiple Wikipedia passages to produce an answer. A question like "What nationality is the director of the film that won the 1932 Academy Award for Best Picture?" cannot be answered from a single document; the system must find the film, then find the director, then find the director's nationality.
 
-HotpotQA is widely used as a standard benchmark for Retrieval-Augmented Generation systems and multi-hop reasoning research.
+Two question types appear in the dataset: bridge questions (where one entity connects two documents) and comparison questions (where two entities are evaluated against each other). The dataset ships with supporting fact annotations marking which sentences are required for the correct answer, enabling evaluation of both answer accuracy and reasoning chain quality.
 
-## Why It Matters
+HotpotQA has become the standard benchmark for evaluating [multi-hop reasoning](../concepts/multi-hop-reasoning.md) in retrieval-augmented systems. If a system claims to handle complex knowledge base queries, HotpotQA is usually the number it reports.
 
-Most QA benchmarks test single-document lookup. A system can achieve high scores by retrieving one passage and extracting a span. HotpotQA breaks that pattern by requiring the system to chain two or more retrieval steps: find the first document, extract a bridge entity, use that entity to find the second document, then synthesize both into an answer. This makes it a useful proxy for whether a retrieval or reasoning system can actually compose information rather than pattern-match.
+## Why It Matters for RAG and Knowledge Base Systems
 
-The fullwiki setting is the harder and more operationally realistic variant. Given an open question and no pre-selected candidates, a system must retrieve, filter, and reason from scratch.
+Single-hop benchmarks like Natural Questions measure whether a retriever can find the right document. HotpotQA measures something harder: whether the system can retrieve two or more documents that are jointly necessary but individually insufficient, and then reason across them.
 
-## How It Works
+This creates two distinct failure modes that single-hop benchmarks cannot expose:
 
-**Dataset structure.** Each example contains: the question text, the gold answer (usually a short string or yes/no), two gold supporting paragraphs, and sentence-level supporting fact labels. In the distractor setting, eight additional irrelevant paragraphs are bundled with the two gold ones.
+1. **Retrieval failure**: the system never finds both required documents, so even perfect reasoning yields a wrong answer.
+2. **Reasoning failure**: the system retrieves both documents but cannot synthesize them into a multi-step inference.
 
-**Multi-hop structure types.** Questions break into two main categories:
-- *Bridge questions*: the answer to a sub-question (bridge entity) unlocks the path to the final answer. Example: "Where was the director of [Film X] born?" requires knowing who directed the film before querying birthplace.
-- *Comparison questions*: two entities must be retrieved and compared on an attribute.
+Separating these failures requires HotpotQA's supporting fact annotations, which allow researchers to measure retrieval precision independently from answer accuracy.
 
-**Evaluation metrics.** Systems are scored on answer F1 (token overlap), exact match (EM), supporting fact F1, and a joint F1 that multiplies answer and supporting fact scores. The joint metric is the hardest to game because it punishes retrieving the right answer through wrong reasoning paths.
+## Performance Numbers in Context
 
-**Retrieval chain mechanics.** In the fullwiki setting, strong systems implement iterative retrieval: query once with the original question, extract entities from top results, reformulate a second query using those entities, retrieve again, then pass both document sets to a reader model. The GEPA repository includes an optimized prompt for this exact pipeline, where the second-hop query generator takes `question` and `summary_1` as inputs and produces a targeted search query for the missing document. [Source](../../raw/repos/gepa-ai-gepa.md)
+Scores on HotpotQA appear across multiple sources in this knowledge base. A few concrete reference points:
 
-## Who Uses It and How
+- **RAG (semantic retrieval, 256-token chunks, top-10, Llama 70B)**: 63.88 F1 [Source](../raw/deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md)
+- **GraphRAG Community-Local (Llama 70B)**: 64.60 F1 [Source](../raw/deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md)
+- **Reflexion (CoT, ground-truth context provided)**: 75% accuracy [Source](../raw/deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md)
+- **MemAgent training data**: Included as part of the RL training corpus for multi-hop tasks [Source](../raw/repos/bytedtsinghua-sia-memagent.md)
+- **Mem-alpha training data**: HotpotQA is one of seven datasets used to construct the 30K-token training examples [Source](../raw/deep/repos/wangyu-ustc-mem-alpha.md)
 
-HotpotQA appears in benchmarks for:
+These are self-reported numbers from individual papers, each using different generation models, chunking strategies, and evaluation protocols. Comparing them directly is unreliable. The Han et al. RAG vs. GraphRAG evaluation is the most methodologically controlled comparison because it standardizes retrieval configuration, generation model, and evaluation across systems.
 
-- **RAG pipelines**: testing whether retrieval reformulation (re-ranking, query rewriting, iterative search) improves multi-hop accuracy over single-shot retrieval.
-- **Agent memory systems**: the GAM research codebase uses HotpotQA alongside LoCoMo, RULER, and NarrativeQA to evaluate hierarchical memory retrieval from long documents. [Source](../../raw/repos/vectorspacelab-general-agentic-memory.md)
-- **Long-context models**: MemAgent's RL training pipeline uses HotpotQA as a verifiable-reward task, with a strict `\boxed{}` answer format during training and a lenient verifier (stripping articles like "a/the") at test time. The dataset is distributed on HuggingFace under `BytedTsinghua-SIA/hotpotqa`. [Source](../../raw/repos/bytedtsinghua-sia-memagent.md)
-- **Prompt optimization**: GEPA uses HotpotQA to demonstrate that evolved prompts can encode explicit second-hop retrieval logic, showing that optimization pressure can discover the bridge-entity retrieval pattern without hand-engineering it. [Source](../../raw/repos/gepa-ai-gepa.md)
+The Reflexion 75% figure uses ground-truth supporting sentences as context, bypassing retrieval entirely. This measures reasoning quality in isolation, not full pipeline performance.
 
-## Key Numbers
+## What HotpotQA Exposes in RAG Systems
 
-The original paper reported human performance at ~91% answer F1 and ~80% joint F1 on the distractor setting. State-of-the-art model performance on the fullwiki leaderboard has exceeded 70% joint F1 as of 2023, with top systems using retrieval-augmented readers and iterative search. These figures come from the official leaderboard and published papers; they are not independently re-verified here.
+The Han et al. evaluation finds that GraphRAG (Local search) outperforms flat RAG on HotpotQA by 0.72 F1 points, while RAG beats GraphRAG on single-hop NQ by 1.77-2.74 F1 points. The gap is small, but the direction is consistent across model sizes: graph structure helps when answers require connecting entities.
 
-The dataset has ~90,500 training examples, ~7,400 dev examples. Test set labels are held by the original authors and require submission for scoring.
+More telling is the entity extraction finding from the same paper: only 65.8% of answer-relevant entities appear in KG-based GraphRAG's knowledge graphs on HotpotQA. That ~34% miss rate creates a hard ceiling. A system cannot answer a multi-hop question if either of the two required entities was dropped during graph construction. HotpotQA is sensitive to this bottleneck in a way that single-hop benchmarks are not, because missing one entity kills the entire reasoning chain.
 
-## Strengths
+The GAM research system lists HotpotQA alongside LoCoMo, RULER, and NarrativeQA as its benchmark suite, using a dual-agent (Memorizer + Researcher) implementation. [Source](../raw/repos/vectorspacelab-general-agentic-memory.md)
 
-**Bridge-entity signal.** The supporting fact annotations let you audit whether a system found the right path or got lucky. Systems that score well on joint F1 are doing something structurally correct, not just extracting the right token from random context.
+## Dataset Structure
 
-**Controlled difficulty levels.** The distractor setting is tractable for ablations during development. The fullwiki setting approximates production conditions. You can use both without changing your model.
+- **Full wiki split**: ~90,000 training questions, ~7,400 development questions, ~7,400 test questions
+- **Distractor setting**: Each question comes with 10 paragraphs (2 gold, 8 distractors), simulating realistic retrieval noise
+- **Full wiki setting**: The system must retrieve from all of Wikipedia, making retrieval harder
+- **Answer format**: Extractive span or yes/no
+- **Supporting facts**: Sentence-level labels marking which sentences contain the required reasoning steps
 
-**Wide adoption.** Results are directly comparable across a large body of literature, which matters when positioning a system or paper.
+Most system evaluations use the distractor setting because it provides a controlled retrieval environment. The full wiki setting more accurately represents production conditions but is more expensive to evaluate.
 
-## Limitations
+## Evaluation Metrics
 
-**Concrete failure mode: single-hop shortcuts.** Many HotpotQA questions can be answered from a single document if the second-hop answer happens to appear in the first retrieved paragraph as background context. Researchers have shown that strong single-hop baselines achieve surprisingly high answer F1 on the distractor setting, undermining the benchmark's premise. Systems that score well here may not generalize to harder multi-hop tasks where shortcuts don't exist.
+HotpotQA uses token-level F1 and exact match (EM) for answer quality, plus F1 and EM for supporting fact prediction. The combined joint metric (answer correct AND supporting facts correct) is the strictest measure, requiring both answer accuracy and correct attribution of the reasoning chain.
 
-**Unspoken infrastructure assumption: Wikipedia as a closed world.** The fullwiki setting assumes your retrieval corpus is a fixed Wikipedia snapshot from 2018. Systems trained or tuned on this setting often embed implicit assumptions about entity naming, article structure, and link patterns specific to that snapshot. Deploying the same retrieval logic against a different corpus (internal documents, a newer Wikipedia dump, a domain-specific knowledge base) typically degrades performance in ways that are hard to predict before you run it.
+Text normalization before scoring strips articles, punctuation, and extra whitespace, following the SQuAD convention. The MemAgent training verifier applies stricter matching (exact case, answer in `\boxed{}`), while the testing verifier applies the standard lenient normalization. [Source](../raw/repos/bytedtsinghua-sia-memagent.md)
 
-**Answer format brittleness.** Answers are short strings. The EM metric punishes minor formatting differences. Production QA systems that generate longer, more explanatory answers need separate evaluation infrastructure; HotpotQA scores don't transfer cleanly.
+## Limitations as a Benchmark
 
-**Annotation artifacts.** Question authors knew which two documents they were working from when writing questions. This introduces lexical overlap between questions and gold paragraphs that retrieval systems can exploit, partly explaining why keyword-based retrieval still competes with learned retrievers on the distractor setting.
+**Bridge question dominance.** The dataset is weighted toward bridge-style questions. Comparison questions are a smaller portion, which means aggregate scores mostly reflect bridge reasoning performance.
 
-## When Not to Use It
+**Wikipedia-only scope.** All questions are grounded in Wikipedia snapshots from 2017-2018. Systems trained on newer Wikipedia data have a distributional advantage. Domain-specific knowledge bases (legal, medical, code) are not represented.
 
-Skip HotpotQA as your primary benchmark if:
+**Two-hop maximum.** Most HotpotQA questions require exactly two hops. Systems that handle two-hop reasoning may not generalize to three or more hops. Benchmarks like MuSiQue and 2WikiMultiHopQA extend the hop depth.
 
-- You care about multi-hop reasoning over more than two documents. HotpotQA is almost entirely two-hop; it won't stress-test longer chains.
-- Your domain is outside general encyclopedic knowledge. Performance on Wikipedia facts doesn't predict performance on legal documents, scientific papers, or enterprise data.
-- You need to evaluate open-ended generation quality. The short-answer format and F1 scoring don't capture whether a system produces coherent, useful explanations.
-- You're evaluating retrieval in a streaming or incremental context. The dataset is static; there's no notion of document arrival order or freshness.
+**Distractor setting reduces retrieval difficulty.** Providing 10 candidate paragraphs per question is easier than open-domain retrieval over millions of documents. High scores in the distractor setting do not guarantee equivalent performance in production retrieval environments.
 
-## Unresolved Questions
+**Annotation artifacts.** Crowd workers writing questions while looking at gold paragraphs sometimes produce lexical overlap between the question and the gold passage. Systems can exploit this overlap without genuine multi-hop reasoning.
 
-**Leakage from pre-training.** Large language models have seen Wikipedia extensively during pre-training. It's not clear how much HotpotQA scores reflect genuine retrieval-augmented reasoning versus memorized associations. No standard protocol decontaminates evaluations.
+## When to Use HotpotQA
 
-**Second-hop retrieval formulation.** The dataset doesn't specify how systems should structure iterative retrieval. Different implementations (entity extraction vs. query rewriting vs. full-document summarization as a bridge) produce different results on the same underlying capability, making cross-system comparison noisy.
+Use it when:
+- Evaluating whether a retrieval system can handle queries that require connecting two entities
+- Comparing RAG against graph-based retrieval under controlled conditions
+- Measuring whether a reasoning component improves over a retrieval-only baseline
 
-**Leaderboard maintenance.** The original leaderboard has had inconsistent uptime and submission requirements. Test-set access depends on the original authors, creating a dependency that academic groups sometimes work around by over-fitting to the dev set.
+Do not rely on it exclusively when:
+- Your target domain differs from general Wikipedia knowledge
+- You need evaluation beyond two-hop reasoning
+- You care about retrieval at scale (use the full wiki setting, not distractor)
+- Your queries include temporal, numerical, or comparison-heavy patterns (consider MultiHop-RAG's query-type breakdown instead)
 
-## Alternatives
+## Alternatives and Complements
 
-| Benchmark | Use when |
-|---|---|
-| **MuSiQue** | You need genuine multi-hop reasoning that resists single-hop shortcuts; MuSiQue was designed explicitly to close the shortcut gap in HotpotQA |
-| **2WikiMultiHopQA** | You want two-hop reasoning with explicit cross-document structural annotations and a cleaner evidence chain |
-| **QASPER** | Your domain is scientific papers rather than encyclopedic facts |
-| **FRAMES** | You need longer reasoning chains (5+ hops) or want to stress-test agent memory across many retrieval steps |
-| **NarrativeQA** | You're evaluating comprehension of long narrative documents rather than factoid retrieval |
+- **Natural Questions / TriviaQA**: Single-hop baselines; use alongside HotpotQA to separate retrieval from multi-hop reasoning
+- **MuSiQue**: Three and four-hop questions; harder than HotpotQA
+- **2WikiMultiHopQA**: Multi-hop questions grounded in two Wikipedia articles; closer controlled setup
+- **MultiHop-RAG**: Broader query-type taxonomy (inference, comparison, temporal, null); useful for diagnosing where specific systems break [Source](../raw/deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md)
+- **RULER / NarrativeQA**: Longer-context evaluation; used alongside HotpotQA in systems targeting extended context windows
 
 ## Related Concepts
 
-- Retrieval-Augmented Generation
+- [Multi-Hop Reasoning](../concepts/multi-hop-reasoning.md)

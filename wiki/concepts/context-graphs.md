@@ -16,6 +16,10 @@ Systems build nodes for entities or notes, edges for relationships, and often at
 - [Cognee](../projects/cognee.md) — hybrid graph plus vector knowledge engine. [Cognee source](../../raw/repos/topoteretes-cognee.md)
 - [OpenViking](../projects/openviking.md) — not a graph-first system, but it approaches structured navigation through hierarchy and recursive retrieval. [OpenViking source](../../raw/repos/volcengine-openviking.md)
 
+## Emerging Direction: Shared Context Graphs
+
+Individual context graphs store what one agent knows. [Shared context graphs](shared-context-graphs.md) extend the pattern to multi-agent systems that need to coordinate decisions, capture organizational precedent, and verify trust across agents. See the dedicated concept card for the decision-trace and provenance framing.
+
 ## Open Questions
 
 - When does graph structure pay for its complexity versus staying with flat retrieval? [RAG vs. GraphRAG](../../raw/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md)
