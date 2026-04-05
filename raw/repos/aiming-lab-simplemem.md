@@ -33,6 +33,8 @@ relevance_scores:
     topics 2 (agent memory) and 3 (context engineering/compression), with
     meaningful novelty in its unified multimodal compression approach and strong
     practitioner value given PyPI availability and multi-platform support.
+language: Python
+license: MIT
 ---
 ## SimpleMem
 

@@ -1,0 +1,52 @@
+# Topics Index
+
+- [Retrieval-Augmented Generation](../concepts/rag.md) — A technique that enhances LLM outputs by retrieving relevant information from external knowledge sources before generating a response. Foundational approach for grounding LLMs in external knowledge.
+- [Context Engineering](../concepts/context-engineering.md) — The practice of deliberately designing and managing the information provided to LLMs in their context window to optimize performance. Goes beyond prompt engineering to include memory, retrieval, and context structure.
+- [Model Context Protocol](../concepts/mcp.md) — Anthropic's open protocol that standardizes how applications provide context to LLMs and how LLMs interact with external tools and data sources. Enables modular agent tool integration.
+- [Episodic Memory](../concepts/episodic-memory.md) — A type of agent memory that stores specific past experiences or interactions, analogous to human episodic memory. Allows agents to recall and reference prior events in context.
+- [Agent Skills](../concepts/agent-skills.md) — Reusable, composable capabilities or functions that agents can invoke to perform specific tasks. Often stored in a skill registry and composed to solve complex problems.
+- [Agent Memory](../concepts/agent-memory.md) — The various mechanisms by which AI agents store, retrieve, and update information across interactions, including episodic, semantic, procedural, and core memory types.
+- [CLAUDE.md](../concepts/claude-md.md) — A special markdown file used in Claude Code projects to provide persistent instructions and context to the Claude agent across sessions. Part of the .claude/ project structure.
+- Prompt Engineering — The craft of designing effective prompts to elicit desired behaviors from language models. Precursor to and component of context engineering.
+- [Long-Term Memory](../concepts/long-term-memory.md) — Memory systems in AI agents that persist information across sessions and over extended time horizons, enabling continuity and personalization.
+- [GraphRAG](../concepts/graphrag.md) — A retrieval-augmented generation approach that uses knowledge graphs to structure and retrieve information, enabling multi-hop reasoning and relationship-aware retrieval.
+- [Agentic RAG](../concepts/agentic-rag.md) — An advanced RAG paradigm where agents autonomously decide when, what, and how to retrieve information, going beyond static retrieval pipelines.
+- [Semantic Memory](../concepts/semantic-memory.md) — A type of agent memory that stores general factual knowledge and concepts, analogous to human semantic memory. Supports knowledge retrieval independent of specific episodes.
+- [Knowledge Graphs](../concepts/knowledge-graphs.md) — Structured representations of entities and their relationships, used to organize knowledge for retrieval, reasoning, and agent memory systems.
+- [Skill Composition](../concepts/skill-composition.md) — The technique of combining multiple atomic agent skills to solve complex tasks, enabling modular and reusable agent behavior.
+- Vector Database — A database optimized for storing and querying high-dimensional vector embeddings, foundational infrastructure for semantic search and RAG systems.
+- ReAct — A prompting framework that interleaves reasoning and acting steps for LLM agents, enabling more grounded and interpretable decision-making.
+- [Self-Improving Agent](../concepts/self-improving-agent.md) — An AI agent capable of modifying its own behavior, skills, or memory based on experience, enabling autonomous capability growth over time.
+- [Context Bloat](../concepts/context-bloat.md) — The problem of context windows becoming overly large and noisy, degrading model performance and increasing inference costs in long-running agent sessions.
+- [Karpathy Loop](../concepts/karpathy-loop.md) — An iterative agent development loop popularized by Andrej Karpathy, emphasizing tight feedback cycles between data, training, and evaluation.
+- [Synthetic Data Generation](../concepts/synthetic-data-generation.md) — The process of generating artificial training data using LLMs or other methods, used to bootstrap or improve agent capabilities without human annotation.
+- [LLM-as-Judge](../concepts/llm-as-judge.md) — A technique where a language model evaluates the quality of outputs from another model or itself, used for automated evaluation and reward modeling.
+- [Hybrid Retrieval](../concepts/hybrid-retrieval.md) — A retrieval strategy combining dense vector search with sparse keyword search (e.g., BM25) to improve recall and precision in RAG systems.
+- GRPO — Group Relative Policy Optimization, a reinforcement learning algorithm used to train LLMs with reward signals, related to RLVR approaches.
+- [Context Compression](../concepts/context-compression.md) — Techniques for reducing the size of context passed to LLMs while preserving relevant information, including summarization, prompt compression, and KV cache compression.
+- State Management — The mechanisms by which agents track and update their internal state across steps, tools, and sessions in long-running workflows.
+- Continual Learning — The ability of AI systems to learn and adapt from new data over time without forgetting previously acquired knowledge, relevant to evolving agent memory.
+- [Core Memory](../concepts/core-memory.md) — A persistent, always-present memory store for agents containing fundamental facts about the user and agent persona, inspired by MemGPT's memory architecture.
+- [Procedural Memory](../concepts/procedural-memory.md) — Memory that encodes how to perform tasks and skills, analogous to human procedural memory. In agents, often manifested as stored workflows or skill programs.
+- Reinforcement Learning — A machine learning paradigm where agents learn through trial and error with reward signals, increasingly used to improve LLM agent behavior and memory systems.
+- [Reflexion](../concepts/reflexion.md) — A framework where LLM agents reflect on past failures and generate verbal feedback to improve future performance, a form of self-improvement without weight updates.
+- [Personal Knowledge Management](../concepts/personal-knowledge-management.md) — Systems and practices for organizing, storing, and retrieving personal knowledge, increasingly integrated with AI for automated capture and retrieval.
+- [Execution Traces](../concepts/execution-traces.md) — Records of an agent's step-by-step actions and decisions during task execution, used for debugging, learning, and workflow induction.
+- [Self-Healing Knowledge Bases](../concepts/self-healing-knowledge-bases.md) — Knowledge bases that automatically detect and correct errors, inconsistencies, or outdated information through automated linting and validation processes.
+- [Multi-Hop Retrieval](../concepts/multi-hop-retrieval.md) — Retrieval strategies that chain multiple retrieval steps to answer complex questions requiring synthesis of information from multiple sources.
+- [Temporal Reasoning](../concepts/temporal-reasoning.md) — The ability of AI systems to reason about time, including tracking when events occurred and resolving temporal contradictions in memory.
+- [Meta-Evolution](../concepts/meta-evolution.md) — The process by which agent systems evolve not just their behaviors but their own learning or improvement mechanisms, enabling higher-order self-improvement.
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — Architectures involving multiple AI agents collaborating or competing, including supervisor-worker patterns and agent swarms for distributed task solving.
+- Low-Rank Adaptation — A parameter-efficient fine-tuning technique (LoRA) that adapts large models with minimal trainable parameters, used to personalize or specialize agent models.
+- [Progressive Disclosure](../concepts/progressive-disclosure.md) — A context management strategy that reveals information to agents incrementally based on relevance and need, reducing context bloat in complex workflows.
+- Mechanistic Interpretability — Research area focused on understanding the internal mechanisms of neural networks, relevant to understanding how LLMs store and retrieve knowledge.
+- [Hallucination Compounding](../concepts/hallucination-compounding.md) — The phenomenon where errors in agent reasoning or memory accumulate over multi-step processes, leading to increasingly inaccurate outputs.
+- [User Profiling](../concepts/user-profiling.md) — The process of building and maintaining structured representations of user preferences, history, and characteristics to personalize agent interactions.
+- [Knowledge Base Retrieval](../concepts/knowledge-base-retrieval.md) — The processes and techniques for querying and retrieving relevant information from structured or unstructured knowledge bases to support LLM responses.
+- [Conversation Continuity](../concepts/conversation-continuity.md) — The ability of AI systems to maintain coherent, contextually aware interactions across multiple sessions by preserving and referencing past conversation history.
+- [Memory Consolidation](../concepts/memory-consolidation.md) — The process by which agent memories are organized, compressed, and integrated from short-term to long-term storage, analogous to human sleep-based consolidation.
+- World Model — An internal representation that an agent maintains of its environment, used to predict outcomes and plan actions in complex tasks.
+- [Eval-Driven Development](../concepts/eval-driven-development.md) — A development methodology where automated evaluations drive iterative improvement of agent systems, including test-driven skill iteration and deterministic testing.
+- [Chunking](../concepts/chunking.md) — The process of splitting documents or text into smaller segments for embedding and retrieval in RAG systems, with chunk size significantly affecting retrieval quality.
+- [Research Orchestration](../concepts/research-orchestration.md) — Coordinating multiple agents, tools, and knowledge sources to conduct complex research tasks autonomously, as in AutoResearch and similar systems.
+- [Multimodal Memory](../concepts/multimodal-memory.md) — Memory systems that can store and retrieve information across multiple modalities including text, images, and other data types.

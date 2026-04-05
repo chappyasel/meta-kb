@@ -30,6 +30,7 @@ relevance_scores:
     knowledge bases, covering agentic skill composition, Obsidian workflows, and
     dynamic KB operations—core to topics 1, 3, and 4—with a production-ready,
     installable library and clear documentation.
+license: MIT
 ---
 ## obsidian-skills
 

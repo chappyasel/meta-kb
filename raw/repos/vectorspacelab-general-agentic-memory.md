@@ -36,6 +36,7 @@ relevance_scores:
     long-context agents, featuring a production-ready Python SDK, CLI, and REST
     API with clear documentation—though the video memory component is out of
     scope, the core agentic memory architecture is highly applicable.
+language: Python
 ---
 ## general-agentic-memory
 

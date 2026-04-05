@@ -31,6 +31,8 @@ relevance_scores:
     performance, temporal/contradiction handling, and a unified memory
     ontology—directly addressing core agent memory architecture patterns (topic
     2) with a deployable API and clear docs.
+language: TypeScript
+license: MIT
 ---
 ## supermemory
 

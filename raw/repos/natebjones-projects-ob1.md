@@ -30,6 +30,8 @@ relevance_scores:
     memory infrastructure using vector DB + MCP protocol to enable
     cross-agent/cross-model memory sharing—core to agent memory and knowledge
     base topics with a clear setup guide and active community.
+language: TypeScript
+license: NOASSERTION
 ---
 ## OB1
 

@@ -20,7 +20,7 @@ const TAXONOMY_BUCKETS = [
   "knowledge-bases — Karpathy pattern, Obsidian, markdown wikis, RAG alternatives, personal second brains",
   "agent-memory — Mem0, Letta, A-MEM, Zep/Graphiti, episodic/semantic/working memory",
   "context-engineering — Context window management, CLAUDE.md/AGENTS.md/SKILL.md standards, context graphs",
-  "agentic-skills — Skill composition, agentic skill evolution, skill registries, modular agent capabilities",
+  "agent-systems — Skills, harnesses, orchestration (gstack, everything-claude-code, Anthropic Skills), modular agent capabilities, skill composition",
   "self-improving — Auto-improvement loops, observation/correction patterns, health checks, linting",
 ];
 
@@ -31,7 +31,7 @@ const insightSchema = z.object({
     "1-2 sentences on why this matters for builders of LLM knowledge bases. Be specific and non-obvious.",
   ),
   tags: z.array(z.string()).describe(
-    "3-7 tags. At least one from taxonomy buckets (knowledge-bases, agent-memory, context-engineering, agentic-skills, self-improving), plus topic-specific tags.",
+    "3-7 tags. At least one from taxonomy buckets (knowledge-bases, agent-memory, context-engineering, agent-systems, self-improving), plus topic-specific tags.",
   ),
 });
 
@@ -98,7 +98,7 @@ The knowledge base covers 5 topic areas:
 1. Knowledge Bases — The Karpathy pattern (raw sources -> LLM-compiled .md wiki), Obsidian workflows, markdown wikis, compiled vs curated approaches, NotebookLM, personal second brains, RAG alternatives
 2. Agent Memory — Persistent memory for LLM agents (Mem0, Letta, A-MEM, Zep/Graphiti, LangMem, Cognee), episodic/semantic/working memory architectures, cross-session knowledge retention
 3. Context Engineering — Context window management, CLAUDE.md/AGENTS.md/SKILL.md standards, prompt engineering for knowledge, context graphs, context compression
-4. Agentic Skills & Composition — Modular agent capabilities, skill composition patterns, skill registries, how agents discover and chain tools, agentic skill evolution
+4. Agent Systems — Skills, harnesses, orchestration (gstack, everything-claude-code, Anthropic Skills), modular agent capabilities, skill composition patterns, how agents discover and chain tools
 5. Self-Improving Systems — Autonomous observe/correct/improve loops in ANY domain (not just knowledge bases). Includes: autoresearch (Karpathy's pattern for autonomous ML experimentation), self-optimizing evaluation harnesses, agents that modify their own code/skills/architecture, self-healing systems, reward hacking and failure modes of improvement loops, health checks, gap detection, linting. The PATTERN of self-improvement matters more than the specific domain it's applied to.
 
 IMPORTANT: Topics 1 and 5 are the primary pillars. A source about self-improving loops applied to ML training, code generation, eval harnesses, or any other domain is STILL highly relevant if the improvement pattern itself is transferable to knowledge base systems. Score based on the reusability of the pattern, not the specific domain.

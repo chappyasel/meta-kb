@@ -31,6 +31,8 @@ relevance_scores:
     skill composition, persistent memory hooks, and continuous learning loops
     for Claude agents—core to topics 2, 3, and 4—with a production-ready,
     widely-adopted implementation.
+language: JavaScript
+license: MIT
 ---
 ## everything-claude-code
 

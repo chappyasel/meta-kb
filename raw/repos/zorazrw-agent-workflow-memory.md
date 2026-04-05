@@ -31,6 +31,8 @@ relevance_scores:
     both offline/online modes, SOTA benchmarks, and runnable code—highly
     relevant to agentic skill composition, self-improving loops, and episodic
     memory patterns.
+language: Python
+license: Apache-2.0
 ---
 ## agent-workflow-memory
 

@@ -30,6 +30,8 @@ relevance_scores:
     knowledge persistence, credit assignment, playbook distillation, and model
     compression—hitting topics 2, 4, and 5 with high fidelity and a real Python
     implementation.
+language: Python
+license: Apache-2.0
 ---
 ## autocontext
 

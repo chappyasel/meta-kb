@@ -31,6 +31,8 @@ relevance_scores:
     generation—a transferable pattern for automated skill composition and agent
     design optimization, though it's applied to benchmarks rather than KB
     systems specifically.
+language: Python
+license: Apache-2.0
 ---
 ## ADAS
 

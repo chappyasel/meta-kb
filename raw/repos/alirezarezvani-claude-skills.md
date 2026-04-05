@@ -29,6 +29,8 @@ relevance_scores:
     4) with 248 production-ready modular agent capabilities deployable across 11
     platforms, providing concrete examples of skill packaging and composition
     that practitioners building multi-agent systems can immediately reference.
+language: Python
+license: MIT
 ---
 ## claude-skills
 

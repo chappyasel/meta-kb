@@ -30,6 +30,8 @@ relevance_scores:
     own codebase, benchmarks itself, and iterates—a canonical pattern for Topic
     5 with a working Docker-based implementation, multi-provider LLM support,
     and a workshop paper backing it.
+language: Python
+license: MIT
 ---
 ## self_improving_coding_agent
 

@@ -31,6 +31,7 @@ relevance_scores:
     human-editable agent context driving iterative code modification and
     evaluation), which is directly the 'autoresearch' pattern named in Topic 5
     and highly transferable to KB self-improvement systems.
+language: Python
 ---
 ## autoresearch
 

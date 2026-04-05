@@ -32,6 +32,8 @@ relevance_scores:
     concrete Manus-style pattern for session continuity via file artifacts
     rather than vector DBs—highly relevant to topics 1, 2, 3, and 4, with strong
     community adoption and benchmarks.
+language: Python
+license: MIT
 ---
 ## planning-with-files
 

@@ -33,6 +33,8 @@ relevance_scores:
     long-context processing—highly relevant to agent memory and context
     engineering pillars, with released model weights, training framework, and
     detailed benchmarks making it practically actionable.
+language: Python
+license: Apache-2.0
 ---
 ## MemAgent
 

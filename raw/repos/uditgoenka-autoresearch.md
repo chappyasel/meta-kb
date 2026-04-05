@@ -31,6 +31,8 @@ relevance_scores:
     (modify→verify→keep/discard→repeat), git-as-episodic-memory, and explicit
     generalization beyond ML to any domain — hitting multiple primary pillars of
     the KB with an active, production-ready tool.
+language: Shell
+license: MIT
 ---
 ## autoresearch
 

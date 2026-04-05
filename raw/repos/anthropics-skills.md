@@ -30,6 +30,7 @@ relevance_scores:
     SKILL.md-based modular skill composition, skill registries, and dynamic
     skill loading—directly addressing core topics 3 and 4 (context engineering
     and agentic skills) with 110k stars and production-grade examples.
+language: Python
 ---
 ## skills
 

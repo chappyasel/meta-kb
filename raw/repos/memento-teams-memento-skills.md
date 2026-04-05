@@ -33,6 +33,7 @@ relevance_scores:
     pattern covering topics 4 (skill composition/registries) and 5
     (self-improving systems) with a production-ready Python framework, 916
     stars, and detailed architecture documentation.
+language: Python
 ---
 ## Memento-Skills
 

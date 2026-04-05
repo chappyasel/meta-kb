@@ -30,6 +30,8 @@ relevance_scores:
     Mem0 is a production-ready, widely-adopted agent memory library directly
     solving persistent/adaptive memory for LLM agents with documented
     benchmarks, multi-level abstraction, and a clear API.
+language: Python
+license: Apache-2.0
 ---
 ## mem0
 

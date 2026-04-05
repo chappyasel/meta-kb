@@ -30,6 +30,8 @@ relevance_scores:
     production-ready TypeScript extension with clear try/measure/keep/revert
     loop architecture, well-documented tools, and practical usage examples
     highly relevant to Topic 5 self-improving systems.
+language: TypeScript
+license: MIT
 ---
 ## pi-autoresearch
 

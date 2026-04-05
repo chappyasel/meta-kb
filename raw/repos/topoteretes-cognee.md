@@ -29,6 +29,8 @@ relevance_scores:
     combining vector search, knowledge graphs, and continuous learning for
     dynamic AI agent memory, with 15K stars, active development, and a
     production-ready Python library with docs.
+language: Python
+license: Apache-2.0
 ---
 ## cognee
 

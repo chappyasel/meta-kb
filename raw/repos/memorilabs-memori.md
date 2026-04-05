@@ -29,6 +29,8 @@ relevance_scores:
     structured extraction from agent actions, directly addressing persistent
     agent memory (Topic 2) with a differentiated architecture and strong
     adoption signals (13k stars).
+language: Python
+license: NOASSERTION
 ---
 ## Memori
 

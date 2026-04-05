@@ -32,6 +32,8 @@ relevance_scores:
     directly addressing context engineering (topic 3) with 20x compression,
     LangChain/LlamaIndex integration, peer-reviewed papers, and active Microsoft
     development making it immediately actionable for KB and RAG builders.
+language: Python
+license: MIT
 ---
 ## LLMLingua
 

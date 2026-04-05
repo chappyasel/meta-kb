@@ -30,6 +30,8 @@ relevance_scores:
     using hierarchical tree indexing that directly addresses chunking and
     embedding limitations in knowledge base retrieval systems, with a
     production-ready Python library and strong community adoption.
+language: Python
+license: MIT
 ---
 ## PageIndex
 

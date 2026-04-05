@@ -35,6 +35,7 @@ relevance_scores:
     goals to guide compression) directly relevant to context engineering and
     agent memory, backed by benchmarks and integration examples for real agents
     like Claude Code and OpenHands.
+language: Python
 ---
 ## swe-pruner
 

@@ -25,6 +25,19 @@ export interface RawSourceFrontmatter {
   points?: number;
   // Media
   images?: string[]; // Relative paths to downloaded images: ["images/{slug}/image.jpg"]
+  // Structured fields for repos (extracted from body by migration)
+  language?: string;
+  license?: string;
+  maturity?: string; // "production" | "beta" | "alpha" | "concept" | "archived"
+  // Relevance scores (added by ingestion scoring)
+  relevance_scores?: {
+    topic_relevance: number;
+    practitioner_value: number;
+    novelty: number;
+    signal_quality: number;
+    composite: number;
+    reason: string;
+  };
 }
 
 // ─── Engagement Metrics ────────────────────────────────────────────────
@@ -41,7 +54,7 @@ export type TaxonomyBucket =
   | "knowledge-bases"
   | "agent-memory"
   | "context-engineering"
-  | "agentic-skills"
+  | "agent-systems"
   | "self-improving";
 
 export type EntityType = "concept" | "project" | "person" | "approach";
@@ -56,6 +69,8 @@ export interface Entity {
   description: string;
   source_refs: string[];
   aliases: string[];
+  article_level: "full" | "stub";
+  relevance_composite?: number;
 }
 
 export type EdgeType =

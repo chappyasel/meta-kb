@@ -30,6 +30,8 @@ relevance_scores:
     learned strategies across sessions, combining self-improving feedback loops
     with agentic skill composition—core to topics 1, 2, 4, and 5—and has a
     production-ready hosted solution with 2k+ stars.
+language: Python
+license: MIT
 ---
 ## agentic-context-engine
 

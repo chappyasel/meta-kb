@@ -32,6 +32,8 @@ relevance_scores:
     blast-radius dependency analysis for LLM agents—highly relevant to context
     engineering and knowledge base compilation patterns, with production-ready
     tooling and measurable token reduction benchmarks.
+language: Python
+license: MIT
 ---
 ## code-review-graph
 

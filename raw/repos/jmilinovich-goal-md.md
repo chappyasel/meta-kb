@@ -29,6 +29,7 @@ relevance_scores:
     GOAL.md directly generalizes Karpathy's autoresearch pattern to domains with
     constructed metrics, providing a concrete, immediately-applicable framework
     for autonomous self-improvement loops—a core pillar of this knowledge base.
+language: Shell
 ---
 ## goal-md
 

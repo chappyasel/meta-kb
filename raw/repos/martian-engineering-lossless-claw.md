@@ -31,6 +31,8 @@ relevance_scores:
     is a directly relevant and novel approach to context engineering and agent
     memory, with a working TypeScript plugin, SQLite persistence, and
     agent-accessible recall tools.
+language: TypeScript
+license: MIT
 ---
 ## lossless-claw
 

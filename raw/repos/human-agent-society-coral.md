@@ -29,6 +29,8 @@ relevance_scores:
     CORAL is a directly on-topic autoresearch/self-evolving multi-agent
     framework with persistent shared knowledge infrastructure, paper, code, and
     CLI—exactly the kind of self-improvement pattern the KB is built around.
+language: Python
+license: MIT
 ---
 ## CORAL
 

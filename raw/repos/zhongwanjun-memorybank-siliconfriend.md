@@ -33,6 +33,8 @@ relevance_scores:
     mechanism is a genuinely novel approach to agent episodic memory with
     working code, paper, and evaluation data, directly addressing long-horizon
     memory management in LLM agents.
+language: Python
+license: MIT
 ---
 ## MemoryBank-SiliconFriend
 

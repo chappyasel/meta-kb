@@ -29,6 +29,7 @@ relevance_scores:
     Mem-α directly addresses agent memory construction using RL to dynamically
     choose episodic/semantic/core memory strategies—a genuinely novel approach
     to a core topic with released model weights, training code, and benchmarks.
+language: Python
 ---
 ## Mem-alpha
 

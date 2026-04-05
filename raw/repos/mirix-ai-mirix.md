@@ -33,6 +33,8 @@ relevance_scores:
     architecture with screen grounding, Docker deployment, Python client API,
     and an arXiv paper—directly relevant to agent memory systems with a novel
     multi-agent routing approach that addresses flat vector index limitations.
+language: Python
+license: Apache-2.0
 ---
 ## MIRIX
 

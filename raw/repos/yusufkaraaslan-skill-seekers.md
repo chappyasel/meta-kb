@@ -31,6 +31,8 @@ relevance_scores:
     structured Claude AI skills with conflict detection and MCP integration,
     making it immediately actionable for practitioners building LLM-powered
     knowledge systems.
+language: Python
+license: MIT
 ---
 ## Skill_Seekers
 

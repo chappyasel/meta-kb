@@ -32,6 +32,8 @@ relevance_scores:
     (meta-evolution of the interface schema), directly relevant to agent memory
     systems and self-improving loops with working Python implementation and
     arXiv paper.
+language: Python
+license: Apache-2.0
 ---
 ## MemEvolve
 

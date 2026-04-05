@@ -33,6 +33,8 @@ relevance_scores:
     includes benchmarks, a working SDK, and a clear architecture—highly
     actionable for practitioners building agentic knowledge systems without
     vector infrastructure.
+language: TypeScript
+license: MIT
 ---
 ## napkin
 

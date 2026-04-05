@@ -34,6 +34,8 @@ relevance_scores:
     (self-evolving skills), and self-repair loops in pure Python—all core
     patterns for agent memory and self-improving systems with 3500 lines of
     production code to learn from.
+language: Python
+license: MIT
 ---
 ## 724-office
 

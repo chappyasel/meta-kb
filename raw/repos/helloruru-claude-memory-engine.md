@@ -30,6 +30,8 @@ relevance_scores:
     pairs and reflection cycles—directly relevant to agent memory and
     self-improving loop patterns, though the implementation is relatively
     straightforward and domain-specific to Claude Code.
+language: JavaScript
+license: MIT
 ---
 ## claude-memory-engine
 

@@ -31,6 +31,8 @@ relevance_scores:
     prompt, agent architecture, and skill composition evolution—core to topics
     3, 4, and 5—with production-ready code, benchmarks, and a clear pattern of
     reflective mutation transferable to KB and agent memory systems.
+language: Jupyter Notebook
+license: MIT
 ---
 ## gepa
 

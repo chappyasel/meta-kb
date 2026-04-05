@@ -32,6 +32,8 @@ relevance_scores:
     commands as specialist agents) directly applicable to agentic skill
     composition and modular agent capabilities, with a real-world 23-tool
     implementation that practitioners can fork and adapt.
+language: TypeScript
+license: MIT
 ---
 ## gstack
 

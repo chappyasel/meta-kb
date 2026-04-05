@@ -31,6 +31,7 @@ relevance_scores:
     GEPA and TextGrad prompt optimization with real production setup, dataset
     curation, and multi-optimizer comparison—highly actionable for practitioners
     building LLM knowledge bases with retrieval pipelines.
+language: Python
 ---
 ## context-compression-experiments-2508
 

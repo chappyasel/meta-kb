@@ -32,6 +32,8 @@ relevance_scores:
     a production-ready Python implementation with PostgreSQL+Qdrant backends,
     benchmarks against LoCoMo, and an arxiv paper—highly relevant to agent
     memory architecture topic area.
+language: Python
+license: MIT
 ---
 ## nemori
 

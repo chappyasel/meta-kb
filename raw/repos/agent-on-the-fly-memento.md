@@ -33,6 +33,8 @@ relevance_scores:
     continual improvement without weight updates—which is highly transferable to
     agent memory and self-improving KB systems, with production-ready
     open-source code, benchmarks, and clear architecture.
+language: Python
+license: MIT
 ---
 ## Memento
 

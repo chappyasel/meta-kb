@@ -33,6 +33,8 @@ relevance_scores:
     tracking—core to topics 1, 2, and 3—with 24k stars, an arXiv paper, MCP
     server integration, and a detailed README indicating high signal quality and
     immediate practitioner applicability.
+language: Python
+license: Apache-2.0
 ---
 ## graphiti
 

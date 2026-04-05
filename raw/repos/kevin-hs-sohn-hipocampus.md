@@ -31,6 +31,8 @@ relevance_scores:
     approach for cross-session recall, includes benchmark data, production-ready
     npm install, and detailed architecture—highly actionable for agent memory
     system builders.
+language: JavaScript
+license: MIT
 ---
 ## hipocampus
 

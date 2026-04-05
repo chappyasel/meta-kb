@@ -30,6 +30,8 @@ relevance_scores:
     directly addresses agent memory, context engineering, and skill management
     through a file system paradigm with hierarchical L0/L1/L2 loading and
     session compression—core to topics 1-4 and partially 5.
+language: Python
+license: AGPL-3.0
 ---
 ## OpenViking
 

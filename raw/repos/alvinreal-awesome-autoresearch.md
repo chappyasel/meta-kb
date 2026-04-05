@@ -31,6 +31,7 @@ relevance_scores:
     covering general-purpose descendants, research agents, evaluation harnesses,
     and domain-specific adaptations, making it immediately useful for
     practitioners building self-improving systems.
+license: NOASSERTION
 ---
 ## awesome-autoresearch
 

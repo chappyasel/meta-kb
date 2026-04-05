@@ -28,6 +28,8 @@ relevance_scores:
     agents with persistent memory_blocks, directly addressing agent memory,
     self-improvement, and cross-session knowledge retention—core topics 1, 2,
     and 5.
+language: Python
+license: Apache-2.0
 ---
 ## letta
 

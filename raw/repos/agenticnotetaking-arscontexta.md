@@ -38,6 +38,8 @@ relevance_scores:
     approach (not templating), producing CLAUDE.md-style context files and skill
     registries—highly relevant to topics 1, 2, 3, and 4 with a working Claude
     Code plugin and 2.9k stars.
+language: Shell
+license: MIT
 ---
 ## arscontexta
 

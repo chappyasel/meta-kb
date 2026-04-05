@@ -31,6 +31,8 @@ relevance_scores:
     PageRank, with benchmarks, papers, Colab demos, and clear architecture
     documentation—highly relevant to both agent memory and RAG-alternative
     knowledge base patterns.
+language: Python
+license: MIT
 ---
 ## HippoRAG
 

@@ -33,6 +33,8 @@ relevance_scores:
     production-ready SKILL.md-style documents that developers can immediately
     load into Claude/Codex agents—highly transferable to knowledge base and
     agent memory system builders.
+language: TeX
+license: MIT
 ---
 ## AI-Research-SKILLs
 

@@ -32,6 +32,8 @@ relevance_scores:
     human-readable skill files distilled from execution traces—a genuinely novel
     approach with a production-ready TypeScript/Python library, active
     community, and 3K+ stars.
+language: TypeScript
+license: Apache-2.0
 ---
 ## Acontext
 

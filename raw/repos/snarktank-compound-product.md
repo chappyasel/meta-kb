@@ -30,6 +30,7 @@ relevance_scores:
     with persistent state, skill composition (SKILL.md), and autonomous
     execution phases—core patterns for Topics 4 and 5, with a clear architecture
     and actionable shell-based implementation.
+language: Shell
 ---
 ## compound-product
 

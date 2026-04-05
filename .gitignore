@@ -5,3 +5,4 @@ dist/
 *.bun-build
 scripts/research/
 build/research/
+wiki-api-backup/
