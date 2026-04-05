@@ -6,33 +6,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A living, LLM-compiled knowledge base about building LLM knowledge bases. Sources (tweets, repos, papers, articles) are ingested into `raw/` as markdown with YAML frontmatter, scored for relevance by LLM, then compiled into a structured wiki in `wiki/`.
 
-## Commands
+## Compiling the Wiki
+
+Two compilation paths exist. Both read from `raw/` and produce the same output structure.
+
+### Path A: Skill graph (agent-native, primary method)
+
+Ask any agent that supports skills: **"Compile the wiki from raw sources."**
+This triggers the `compile-wiki` skill (`.claude/skills/compile-wiki/SKILL.md`),
+which orchestrates 6 phase-specific skills via subagents:
+
+| Skill | What it does |
+|-------|-------------|
+| `compile-wiki` | Orchestrator — scans sources, sequences phases, spawns subagents |
+| `compile-synthesis` | Writes one synthesis article per bucket (parallelizable — 5 subagents) |
+| `compile-cards` | Writes reference cards for entities (parallelizable) |
+| `compile-field-map` | Writes the systems overview connecting all 5 areas |
+| `compile-index` | Generates ROOT.md, indexes, README, comparison table |
+| `compile-claims` | Extracts claims from articles + runs self-eval |
+
+Works with Claude Code, Codex, or any agent that can read `.claude/skills/`.
+For comparison runs, tell the agent to write to `wiki-{name}/` instead of `wiki/`.
+
+### Path B: Script pipeline (deterministic, API-based)
 
 ```bash
-# Install dependencies
-bun install
+bun run compile                    # full 8-pass compilation → wiki/, build/
+bun run compile --from-pass=3a     # resume from synthesis articles
+bun run compile --wiki-dir=wiki-v3 --build-dir=build-v3  # alternate output dir
+```
 
-# Ingest sources (auto-detects platform from URL)
-bun run ingest <url1> [url2] ...
+### Other commands
 
-# Platform-specific ingestion (reads from config/sources.json if no args)
-bun run ingest:twitter [urls...]
+```bash
+bun install                        # install dependencies
+bun run ingest <url1> [url2] ...   # ingest sources (auto-detects platform)
+bun run ingest:twitter [urls...]   # platform-specific ingestion
 bun run ingest:github [urls...]    # supports --min-stars N --min-relevance N
 bun run ingest:arxiv [urls...]
 bun run ingest:article [urls...]
-
-# Score all unscored raw sources for relevance
-bun run rescore                    # unscored only
+bun run rescore                    # score unscored sources for relevance
 bun run rescore --force            # re-score everything
-bun run rescore --dry-run          # preview what would be scored
-
-# Compile wiki from raw sources
-bun run compile                    # full 8-pass compilation
-bun run compile --from-pass=3a     # resume from synthesis articles
-bun run compile --from-pass=3c     # just claims + indexes + eval
-bun run compile --from-pass=7      # just self-eval
-
-# Tests
 bun test
 ```
 

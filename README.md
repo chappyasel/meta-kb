@@ -41,21 +41,21 @@ Raw sources (tweets, repos, papers, articles) go into `raw/`. The deep research 
 
 ## Two ways to compile
 
-### Path A: API pipeline (deterministic)
+### Path A: Skill graph (agent-native)
+
+Ask any AI coding agent: **"Compile the wiki from raw sources."**
+
+The [compile-wiki skill](.claude/skills/compile-wiki/SKILL.md) orchestrates a 6-phase pipeline using subagents — each phase has its own skill with focused context. Synthesis articles and reference cards compile in parallel via subagents. Works with Claude Code, Codex, Cursor, or any agent that can read `.claude/skills/`.
+
+### Path B: Script pipeline (deterministic)
 
 ```bash
 cp .env.example .env  # add your ANTHROPIC_API_KEY
 bun install
 bun run compile       # raw/ → build/ → wiki/
-bun run lint          # verify structural integrity
-bun run diagrams      # generate D2 + D3 visualizations
 ```
 
-### Path B: Agent session (editorial)
-
-Give any AI coding agent the [SKILL.md](SKILL.md) and point it at `raw/`. The agent reads all sources, reasons about them, and writes the wiki directly. Works with Claude Code, Codex, Cursor, or any agent that supports the SKILL.md standard.
-
-Both paths produce the same output structure. The shipped wiki was compiled via three independent paths and merged best-of-three.
+Both paths produce the same output structure. Run both for a comparison diff between agent-native and deterministic compilation.
 
 ## Deep research
 
