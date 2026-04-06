@@ -27,9 +27,7 @@ Raw sources (tweets, repos, papers, articles) go into `raw/`. The deep research 
 
 **Compare tools:** [Landscape Comparison Table](wiki/comparisons/landscape.md) | [Interactive Knowledge Graph](wiki/graph.html)
 
-| Knowledge Graph | Compilation Pipeline |
-|:---:|:---:|
-| [![Knowledge Graph](wiki/images/graph-preview.png)](wiki/graph.html) | [![Compilation Pipeline](wiki/images/pipeline-preview.png)](wiki/field-map.md) |
+[![Compilation Pipeline](wiki/images/pipeline-preview.png)](wiki/field-map.md)
 
 **How it was built:** [METHODOLOGY.md](METHODOLOGY.md) | [System Design](DESIGN.md)
 
