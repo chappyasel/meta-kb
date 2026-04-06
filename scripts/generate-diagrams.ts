@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Generate visual diagrams from build/graph.json:
- *   1. D2 architecture diagram → wiki/images/field-map.svg
+ *   1. D2 architecture diagram → wiki/images/pipeline.svg
  *   2. D3 interactive knowledge graph → wiki/graph.html
  *
  * Usage: bun run scripts/generate-diagrams.ts [--build-dir=build-v2] [--wiki-dir=wiki-final]
@@ -10,6 +10,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { KnowledgeGraph } from "./types.js";
+import { domain, BUCKET_NAMES } from "../config/domain.js";
 
 const ROOT = join(import.meta.dir, "..");
 const BUILD_DIR = join(
@@ -21,13 +22,21 @@ const WIKI_DIR = join(
   process.argv.find((a) => a.startsWith("--wiki-dir="))?.split("=")[1] ?? "wiki",
 );
 
-const BUCKET_COLORS: Record<string, { fill: string; stroke: string; label: string }> = {
-  "knowledge-bases": { fill: "#fef3c7", stroke: "#f59e0b", label: "Knowledge Bases" },
-  "agent-memory": { fill: "#dbeafe", stroke: "#3b82f6", label: "Agent Memory" },
-  "context-engineering": { fill: "#d1fae5", stroke: "#10b981", label: "Context Engineering" },
-  "agent-systems": { fill: "#fee2e2", stroke: "#ef4444", label: "Agent Systems" },
-  "self-improving": { fill: "#ede9fe", stroke: "#8b5cf6", label: "Self-Improving" },
+// D2 diagram colors (fill/stroke pairs for each bucket)
+const D2_PALETTE: Record<string, { fill: string; stroke: string }> = {
+  "#e74c3c": { fill: "#fef3c7", stroke: "#f59e0b" },
+  "#3498db": { fill: "#dbeafe", stroke: "#3b82f6" },
+  "#2ecc71": { fill: "#d1fae5", stroke: "#10b981" },
+  "#f39c12": { fill: "#fee2e2", stroke: "#ef4444" },
+  "#9b59b6": { fill: "#ede9fe", stroke: "#8b5cf6" },
 };
+
+const BUCKET_COLORS: Record<string, { fill: string; stroke: string; label: string }> = Object.fromEntries(
+  domain.buckets.map((b) => {
+    const palette = D2_PALETTE[b.color] ?? { fill: "#f3f4f6", stroke: "#6b7280" };
+    return [b.id, { ...palette, label: b.name }];
+  }),
+);
 
 // ─── D2 Architecture Diagram ───────────────────────────────────────────
 
@@ -106,21 +115,11 @@ function generateD2(graph: KnowledgeGraph): string {
 // ─── D3 Interactive Knowledge Graph ────────────────────────────────────
 
 function generateD3Html(graph: KnowledgeGraph): string {
-  const bucketColors: Record<string, string> = {
-    "knowledge-bases": "#f59e0b",
-    "agent-memory": "#3b82f6",
-    "context-engineering": "#10b981",
-    "agent-systems": "#ef4444",
-    "self-improving": "#8b5cf6",
-  };
+  const bucketColors: Record<string, string> = Object.fromEntries(
+    domain.buckets.map((b) => [b.id, BUCKET_COLORS[b.id]?.stroke ?? "#6b7280"]),
+  );
 
-  const bucketLabels: Record<string, string> = {
-    "knowledge-bases": "Knowledge Bases",
-    "agent-memory": "Agent Memory",
-    "context-engineering": "Context Engineering",
-    "agent-systems": "Agent Systems",
-    "self-improving": "Self-Improving",
-  };
+  const bucketLabels: Record<string, string> = BUCKET_NAMES;
 
   // --- Data augmentation ---
 
@@ -183,7 +182,7 @@ function generateD3Html(graph: KnowledgeGraph): string {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>meta-kb Knowledge Graph</title>
+<title>${domain.name} Knowledge Graph</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
@@ -200,7 +199,7 @@ function generateD3Html(graph: KnowledgeGraph): string {
 </style>
 </head>
 <body>
-<h1>meta-kb Knowledge Graph</h1>
+<h1>${domain.name} Knowledge Graph</h1>
 <div class="stats">${entityCount} entities · 5 clusters · ${edgeCount} relationships</div>
 <div class="tooltip" id="tooltip"></div>
 <svg></svg>
@@ -215,11 +214,11 @@ const height = window.innerHeight;
 const cx = width / 2, cy = height / 2;
 const hubRadius = Math.min(width, height) * 0.28;
 
-// Pentagon positions for 5 hubs (starting from top, clockwise)
-const bucketOrder = ["knowledge-bases", "agent-systems", "self-improving", "context-engineering", "agent-memory"];
+// Polygon positions for bucket hubs (starting from top, clockwise)
+const bucketOrder = ${JSON.stringify(domain.buckets.map((b) => b.id))};
 const hubPositions = {};
 bucketOrder.forEach((bucket, i) => {
-  const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+  const angle = -Math.PI / 2 + (i * 2 * Math.PI) / bucketOrder.length;
   hubPositions[bucket] = { x: cx + Math.cos(angle) * hubRadius, y: cy + Math.sin(angle) * hubRadius };
 });
 
@@ -501,10 +500,10 @@ async function main() {
   await mkdir(join(WIKI_DIR, "images"), { recursive: true });
 
   // 1. D2 architecture diagram (hand-authored, not generated — just compile to SVG)
-  const d2Path = join(WIKI_DIR, "images", "field-map.d2");
-  const svgPath = join(WIKI_DIR, "images", "field-map.svg");
+  const d2Path = join(WIKI_DIR, "images", "pipeline.d2");
+  const svgPath = join(WIKI_DIR, "images", "pipeline.svg");
 
-  const proc = Bun.spawn(["d2", "--layout=elk", d2Path, svgPath], {
+  const proc = Bun.spawn(["d2", "--layout=elk", "--pad=40", d2Path, svgPath], {
     stdout: "pipe",
     stderr: "pipe",
   });

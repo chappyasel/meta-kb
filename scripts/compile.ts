@@ -2,7 +2,7 @@
 /**
  * meta-kb compiler: raw/ → build/ → wiki/
  *
- * 8-pass pipeline:
+ * 9-pass pipeline:
  *   Pass 0:  Load & index all raw sources
  *   Pass 1a: Entity extraction (per-source, Haiku, parallel)
  *   Pass 1b: Entity resolution (single Sonnet call, merge/dedup)
@@ -13,7 +13,8 @@
  *   Pass 4:  Field map + ROOT.md + indexes + landscape table
  *   Pass 5:  Mermaid diagrams + backlinks (local, no LLM)
  *   Pass 6:  Changelog (local diff)
- *   Pass 7:  Self-eval (claim verification, Haiku, parallel)
+ *   Pass 7:  Self-eval (claim verification, Sonnet, parallel)
+ *   Pass 8:  Auto-fix (find better sources for failed claims, Sonnet)
  *
  * Usage:
  *   bun run compile                    # Full compilation
@@ -43,6 +44,14 @@ import type {
   EvalResult,
   EvalReport,
 } from "./types.js";
+import {
+  domain,
+  BUCKET_IDS,
+  BUCKET_NAMES,
+  BUCKET_TITLES,
+  BUCKET_COLORS,
+  BUCKET_DESCRIPTIONS,
+} from "../config/domain.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────
 
@@ -52,6 +61,7 @@ const BUILD_DIR = join(ROOT, process.argv.find((a) => a.startsWith("--build-dir=
 const WIKI_DIR = join(ROOT, process.argv.find((a) => a.startsWith("--wiki-dir="))?.split("=")[1] ?? "wiki");
 
 const FROM_PASS = process.argv.find((a) => a.startsWith("--from-pass="))?.split("=")[1];
+const TO_PASS = process.argv.find((a) => a.startsWith("--to-pass="))?.split("=")[1];
 const DRY_RUN = process.argv.includes("--dry-run");
 
 const HAIKU_CONCURRENCY = 10;
@@ -161,13 +171,7 @@ async function loadSources(): Promise<SourceIndex> {
   // Group by bucket (from tags) and by type
   const byBucket: Record<string, ParsedSource[]> = {};
   const byType: Record<string, ParsedSource[]> = {};
-  const bucketNames: TaxonomyBucket[] = [
-    "knowledge-bases",
-    "agent-memory",
-    "context-engineering",
-    "agent-systems",
-    "self-improving",
-  ];
+  const bucketNames: TaxonomyBucket[] = BUCKET_IDS;
 
   for (const src of sources) {
     const type = src.frontmatter.type;
@@ -227,6 +231,10 @@ async function loadSources(): Promise<SourceIndex> {
   return index;
 }
 
+// ─── Shared schema helpers ──────────────────────────────────────────────
+
+const bucketEnum = z.enum(BUCKET_IDS as [string, ...string[]]);
+
 // ─── Pass 1a: Entity Extraction ─────────────────────────────────────────
 
 const rawEntitySchema = z.object({
@@ -234,13 +242,7 @@ const rawEntitySchema = z.object({
     z.object({
       name: z.string().describe("Canonical name (e.g., 'Mem0', 'Episodic Memory')"),
       type: z.enum(["concept", "project", "person", "approach"]),
-      bucket: z.enum([
-        "knowledge-bases",
-        "agent-memory",
-        "context-engineering",
-        "agent-systems",
-        "self-improving",
-      ]),
+      bucket: bucketEnum,
       aliases: z.array(z.string()).describe("Alternative names, e.g., ['mem0', 'mem0ai/mem0']"),
       description: z.string().describe("1 sentence description"),
     }),
@@ -279,7 +281,7 @@ async function extractEntitiesPerSource(index: SourceIndex): Promise<RawEntity[]
           model: getProvider()("claude-haiku-4-5"),
           schema: rawEntitySchema,
           system:
-            "Extract all entities (projects, concepts, people, approaches) mentioned in this source about LLM knowledge bases and agent systems. For projects: use the canonical project name. For concepts: use the standard term. For people: full name.",
+            `Extract all entities (projects, concepts, people, approaches) mentioned in this source about ${domain.topic}. For projects: use the canonical project name. For concepts: use the standard term. For people: full name.`,
           prompt: `Source: ${src.path}\nType: ${src.frontmatter.type}\n\n${truncated}`,
         });
         for (const e of object.entities) {
@@ -310,13 +312,7 @@ const resolvedEntitiesSchema = z.object({
       id: z.string().describe("URL-safe slug, e.g., 'mem0', 'episodic-memory'"),
       name: z.string().describe("Canonical display name"),
       type: z.enum(["concept", "project", "person", "approach"]),
-      bucket: z.enum([
-        "knowledge-bases",
-        "agent-memory",
-        "context-engineering",
-        "agent-systems",
-        "self-improving",
-      ]),
+      bucket: bucketEnum,
       description: z.string().describe("1-3 sentence description"),
       aliases: z.array(z.string()),
       merged_from: z
@@ -353,7 +349,9 @@ async function resolveEntities(
   const { object } = await generateObject({
     model: getProvider()("claude-sonnet-4-6"),
     schema: resolvedEntitiesSchema,
-    system: `You are resolving entity mentions into canonical entities for a knowledge base about LLM knowledge bases, agent memory, context engineering, agent systems, and self-improving systems.
+    system: `You are resolving entity mentions into canonical entities for a knowledge base about ${domain.topic}.
+
+Taxonomy buckets: ${BUCKET_IDS.join(", ")}.
 
 Merge duplicates: "Mem0" and "mem0" and "mem0ai/mem0" become one entity.
 Assign the best bucket for each entity.
@@ -457,7 +455,7 @@ async function buildGraph(entities: Entity[], index: SourceIndex): Promise<Knowl
     // Sort by co-occurrence count so the most-connected pairs make it into the LLM context
     const pairSummary = pairs
       .sort((a, b) => b.sharedSources.length - a.sharedSources.length)
-      .slice(0, 200)
+      .slice(0, 500)
       .map((p) => {
         // Include source context so the LLM can infer WHY these entities co-occur
         const context = p.sharedSources
@@ -473,7 +471,7 @@ async function buildGraph(entities: Entity[], index: SourceIndex): Promise<Knowl
     const { object } = await generateObject({
       model: getProvider()("claude-sonnet-4-6"),
       schema: edgeClassificationSchema,
-      system: `Classify relationships between entity pairs in a knowledge base about LLM knowledge bases and agent systems.
+      system: `Classify relationships between entity pairs in a knowledge base about ${domain.topic}.
 Use the entity IDs (not names) for source and target fields.
 Create edges generously — if two entities co-occur in sources about the same topic, there is likely a relationship. Err on the side of creating edges rather than skipping.
 Weight: 0.1-0.3 = weak/tangential, 0.4-0.6 = moderate, 0.7-1.0 = strong/direct.`,
@@ -487,27 +485,12 @@ Weight: 0.1-0.3 = weak/tangential, 0.4-0.6 = moderate, 0.7-1.0 = strong/direct.`
 
   // Build cluster metadata
   const clusters: Record<string, { label: string; node_count: number; color: string }> = {};
-  const bucketColors: Record<string, string> = {
-    "knowledge-bases": "#e74c3c",
-    "agent-memory": "#3498db",
-    "context-engineering": "#2ecc71",
-    "agent-systems": "#f39c12",
-    "self-improving": "#9b59b6",
-  };
-  const bucketLabels: Record<string, string> = {
-    "knowledge-bases": "Knowledge Bases",
-    "agent-memory": "Agent Memory",
-    "context-engineering": "Context Engineering",
-    "agent-systems": "Agent Systems",
-    "self-improving": "Self-Improving",
-  };
-
-  for (const bucket of Object.keys(bucketLabels)) {
-    const count = entities.filter((e) => e.bucket === bucket).length;
-    clusters[bucket] = {
-      label: bucketLabels[bucket],
+  for (const bucket of domain.buckets) {
+    const count = entities.filter((e) => e.bucket === bucket.id).length;
+    clusters[bucket.id] = {
+      label: bucket.name,
       node_count: count,
-      color: bucketColors[bucket],
+      color: bucket.color,
     };
   }
 
@@ -566,7 +549,7 @@ WRITING RULES (non-negotiable):
 
 // ─── Pass 3a: Synthesis Articles ────────────────────────────────────────
 
-const SYNTHESIS_SYSTEM = `You are writing a landscape analysis for practitioners who build with LLM agents. This is NOT a catalog of projects. It's a synthesis that changes how practitioners THINK about this space.
+const SYNTHESIS_SYSTEM = `You are writing a landscape analysis for ${domain.audience}. This is NOT a catalog of projects. It's a synthesis that changes how practitioners THINK about this space.
 
 FIRST: Output a 1-2 sentence abstract inside <abstract></abstract> tags. The abstract states the main insight or shift this article documents — not "this article covers X" but the actual finding, e.g. "X has shifted from A to B because C." Maximum 300 characters. Then write the full article.
 
@@ -620,13 +603,7 @@ Rules:
 - Output 3000-5000 words of markdown.
 ${WRITING_STYLE}`;
 
-const BUCKET_TITLES: Record<string, string> = {
-  "knowledge-bases": "The State of LLM Knowledge Bases",
-  "agent-memory": "The State of Agent Memory",
-  "context-engineering": "The State of Context Engineering",
-  "agent-systems": "The State of Agent Systems",
-  "self-improving": "The State of Self-Improving Systems",
-};
+// BUCKET_TITLES imported from config/domain.ts
 
 async function generateSynthesisArticles(
   entities: Entity[],
@@ -635,6 +612,15 @@ async function generateSynthesisArticles(
 ): Promise<void> {
   console.log("\n═══ Pass 3a: Synthesis Articles (Sonnet, sequential) ═══");
   await mkdir(WIKI_DIR, { recursive: true });
+
+  // Build entity link reference for LLM prompts — maps names to correct file paths
+  const entityLinkRef = entities
+    .filter((e) => e.article_level === "full")
+    .map((e) => {
+      const dir = e.type === "project" ? "projects" : "concepts";
+      return `  ${e.name} → ${dir}/${e.id}.md`;
+    })
+    .join("\n");
 
   for (const [bucket, title] of Object.entries(BUCKET_TITLES)) {
     console.log(`\n  Writing: ${title}...`);
@@ -687,7 +673,10 @@ async function generateSynthesisArticles(
       const { text } = await generateText({
         model: getProvider()("claude-sonnet-4-6"),
         system: SYNTHESIS_SYSTEM,
-        prompt: `Write "# ${title}" for the meta-kb wiki.
+        prompt: `Write "# ${title}" for the ${domain.name} wiki.
+
+## Entity link reference (use these exact paths when linking to projects and concepts):
+${entityLinkRef}
 
 ## Entities in this bucket (${bucketEntities.length}):
 ${entitySummary}
@@ -727,7 +716,7 @@ ${sourceContent}`,
 
 // ─── Pass 3b: Reference Cards ───────────────────────────────────────────
 
-const REFERENCE_CARD_SYSTEM = `Generate a reference card for a project, concept, or person in the LLM knowledge base space.
+const REFERENCE_CARD_SYSTEM = `Generate a reference card for a project, concept, or person in the ${domain.topic} space.
 
 FIRST: Output a 1-sentence abstract inside <abstract></abstract> tags. State what this entity does and its key differentiator in under 200 characters. Not marketing copy — a factual summary an agent can use to decide whether to read the full card. Then write the full reference card.
 
@@ -764,8 +753,16 @@ async function generateReferenceCards(
   const fullEntities = entities.filter((e) => e.article_level === "full");
   console.log(`  Generating cards for ${fullEntities.length} entities`);
 
+  // Build entity link reference for LLM prompts
+  const entityLinkRef = fullEntities
+    .map((e) => {
+      const dir = e.type === "project" ? "projects" : "concepts";
+      return `  ${e.name} → ${dir}/${e.id}.md`;
+    })
+    .join("\n");
+
   // Create output directories
-  for (const dir of ["projects", "concepts", "approaches"]) {
+  for (const dir of ["projects", "concepts"]) {
     await mkdir(join(WIKI_DIR, dir), { recursive: true });
   }
 
@@ -813,6 +810,9 @@ Bucket: ${entity.bucket}
 Description: ${entity.description}
 Related entities: ${neighbors.join(", ") || "none"}
 
+## Entity link reference (use these exact paths when linking to projects and concepts):
+${entityLinkRef}
+
 Source material:
 ${sourceContent || "No direct sources — write from general knowledge, mark claims as [unverified]."}`,
         });
@@ -834,7 +834,10 @@ ${sourceContent || "No direct sources — write from general knowledge, mark cla
           bucket: entity.bucket,
           ...(abstract && { abstract }),
           sources: entity.source_refs,
-          related: neighbors.map((n) => n?.split(" (")[0] ?? ""),
+          related: graph.edges
+            .filter((e) => e.source === entity.id || e.target === entity.id)
+            .map((e) => e.source === entity.id ? e.target : e.source)
+            .filter((id) => entities.some((n) => n.id === id)),
           last_compiled: new Date().toISOString(),
         };
 
@@ -877,7 +880,7 @@ const claimExtractionSchema = z.object({
   ),
 });
 
-const CLAIM_EXTRACTION_SYSTEM = `You are extracting atomic, verifiable claims from a synthesis article about LLM knowledge systems.
+const CLAIM_EXTRACTION_SYSTEM = `You are extracting atomic, verifiable claims from a synthesis article about ${domain.topic}.
 
 Rules:
 1. Each claim is a SINGLE factual statement. Not a compound sentence. Not a summary paragraph.
@@ -974,18 +977,18 @@ async function generateFieldMapAndIndexes(
   try {
     const { text } = await generateText({
       model: getProvider()("claude-sonnet-4-6"),
-      system: `You are writing the flagship overview article for meta-kb, a knowledge base about LLM knowledge bases, agent memory, context engineering, agent systems, and self-improving systems.
+      system: `You are writing the flagship overview article for ${domain.name}, a knowledge base about ${domain.topic}.
 
-This is THE article people read first. It should be 3000-5000 words. It is NOT a taxonomy of separate markets — it is a SYSTEMS MAP showing how these five areas form one emerging stack.
+This is THE article people read first. It should be 3000-5000 words. It is NOT a taxonomy of separate markets — it is a SYSTEMS MAP showing how these ${domain.buckets.length} areas form one emerging stack.
 
-Start with a brief "Five Layers" overview — one paragraph per bucket naming the central engineering problem and linking to its synthesis article. Then move into the systems analysis.
+Start with a brief overview — one paragraph per bucket naming the central engineering problem and linking to its synthesis article. Then move into the systems analysis.
 
 Structure:
-1. **The unifying insight**: Name the single architectural idea that connects all five buckets. Example: "These five areas are five layers of the same stack — knowledge feeds memory, memory shapes context, context enables skills, skills compound via self-improvement."
+1. **The unifying insight**: Name the single architectural idea that connects all ${domain.buckets.length} buckets.
 
 2. **Integration points**: For each pair of adjacent buckets, explain how one feeds the other. What is the interface? What breaks when it's missing?
 
-3. **Paradigm fragmentation**: Where multiple valid approaches coexist (e.g., vector vs graph vs keyword retrieval), explain the ROUTING LOGIC — when to use which, not which is "better."
+3. **Paradigm fragmentation**: Where multiple valid approaches coexist, explain the ROUTING LOGIC — when to use which, not which is "better."
 
 4. **Implementation maturity**: What's production-ready vs research-only? Name specific projects at each level. Be honest.
 
@@ -993,14 +996,14 @@ Structure:
 
 6. **The practitioner's flow**: Describe concretely how a mature stack processes a real task end-to-end, naming specific tools at each step.
 
-7. **Cross-cutting themes**: 4-6 patterns that span all five buckets. Examples: markdown as universal format, git as infrastructure, context as finite budget, agents as authors of their own knowledge, the emergence of forgetting.
+7. **Cross-cutting themes**: ${domain.crossCuttingThemes.length} patterns that span all buckets. Examples: ${domain.crossCuttingThemes.join(", ")}.
 
 8. **Reading guide**: What to read next based on what you're building.
 
-Write as a knowledgeable practitioner, not an academic. Be opinionated. Name specific projects and approaches. Link to synthesis articles: [Agent Memory](agent-memory.md), [Knowledge Bases](knowledge-bases.md), etc.
-Link to project cards: [Mem0](projects/mem0.md), [gstack](projects/gstack.md), etc.
+Write as a knowledgeable practitioner, not an academic. Be opinionated. Name specific projects and approaches. Link to synthesis articles by filename, e.g. [${domain.buckets[0].name}](${domain.buckets[0].id}.md).
+Link to project cards: [ProjectName](projects/slug.md).
 
-Start with "# The Landscape of LLM Knowledge Systems" as the H1.
+Start with "# ${domain.fieldMapTitle}" as the H1.
 ${WRITING_STYLE}`,
       prompt: `Write the field-map.md overview article.
 
@@ -1017,7 +1020,7 @@ ${Object.entries(graph.clusters).map(([k, v]) => `- ${v.label}: ${v.node_count} 
     });
 
     const frontmatter = {
-      title: "The Landscape of LLM Knowledge Systems",
+      title: domain.fieldMapTitle,
       type: "field-map",
       last_compiled: new Date().toISOString(),
     };
@@ -1029,13 +1032,7 @@ ${Object.entries(graph.clusters).map(([k, v]) => `- ${v.label}: ${v.node_count} 
 
   // Generate ROOT.md (agent-optimized topic index, no LLM call)
   {
-    const BUCKET_DESCRIPTIONS: Record<string, string> = {
-      "knowledge-bases": "compiled wikis, RAG, graph retrieval, vectorless approaches",
-      "agent-memory": "persistent memory, temporal KGs, episodic/semantic split",
-      "context-engineering": "CLAUDE.md, progressive disclosure, compression, context graphs",
-      "agent-systems": "SKILL.md, skill registries, harnesses, multi-agent orchestration",
-      "self-improving": "autoresearch, Karpathy loop, reflexion, skill accumulation",
-    };
+    // BUCKET_DESCRIPTIONS imported from config/domain.ts
 
     const topProjects = entities
       .filter((e) => e.type === "project" && e.article_level === "full")
@@ -1057,8 +1054,9 @@ ${Object.entries(graph.clusters).map(([k, v]) => `- ${v.label}: ${v.node_count} 
 
     const projectsSection = topProjects
       .map((p) => {
-        // Find the highest star count across all source refs for this entity
+        // Find star count from this project's repo source(s) only — not from shared articles/papers
         const maxStars = p.source_refs
+          .filter((ref) => ref.startsWith("repos/"))
           .map((ref) => index.sources.find((s) => s.path === ref)?.frontmatter.stars)
           .filter((s): s is number => typeof s === "number" && s > 0)
           .sort((a, b) => b - a)[0];
@@ -1075,7 +1073,7 @@ ${Object.entries(graph.clusters).map(([k, v]) => `- ${v.label}: ${v.node_count} 
       })
       .join("\n");
 
-    const rootBody = `# meta-kb ROOT
+    const rootBody = `# ${domain.name} ROOT
 
 ## Topics
 ${topicsSection}
@@ -1137,6 +1135,43 @@ Last compiled: ${new Date().toISOString().split("T")[0]} | Sources: ${index.sour
   console.log(`  ✓ indexes/topics.md (${concepts.length} topics)`);
   console.log(`  ✓ indexes/missing.md (${stubs.length} stubs)`);
   console.log(`  ✓ comparisons/landscape.md (${projects.length} rows)`);
+
+  // Generate README.md
+  const synthesisTable = domain.buckets
+    .map((b) => `| [${b.title}](${b.id}.md) | ${b.description} |`)
+    .join("\n");
+
+  const readmeMd = `# ${domain.name} wiki
+
+A compiled knowledge base covering ${domain.topic}. Built from ${index.sources.length} curated sources including deep research files with source-code-level analysis.
+
+## Start here
+
+[${domain.fieldMapTitle}](field-map.md) — the overview that connects all ${domain.buckets.length} areas into one system.
+
+For agents: [ROOT.md](ROOT.md) — compact topic index (<2K tokens).
+
+## Synthesis articles
+
+| Article | What it covers |
+|---------|---------------|
+${synthesisTable}
+
+## Browse
+
+- [Project index](indexes/projects.md) — all ${projects.length} projects with links
+- [Topic index](indexes/topics.md) — ${concepts.length} concepts and approaches
+- [Landscape comparison](comparisons/landscape.md) — all projects in one table
+- [Coverage gaps](indexes/missing.md) — ${stubs.length} topics needing more sources
+
+## Stats
+
+- **${index.sources.length}** curated sources
+- **${entities.length}** entities (${entities.filter((e) => e.article_level === "full").length} full articles, ${stubs.length} stubs)
+- **${graph.edges.length}** relationships mapped across ${domain.buckets.length} topic areas
+`;
+  await writeFile(join(WIKI_DIR, "README.md"), readmeMd);
+  console.log(`  ✓ README.md`);
 }
 
 // ─── Pass 5: Mermaid + Backlinks ────────────────────────────────────────
@@ -1243,14 +1278,15 @@ async function generateChangelog(entities: Entity[], graph: KnowledgeGraph): Pro
 - **Reference cards:** ${full} project/concept profiles
 `;
 
-  const changelog = `# Changelog\n\nCompilation history for the meta-kb wiki.\n\n${entry}`;
+  const changelog = `# Changelog\n\nCompilation history for the ${domain.name} wiki.\n\n${entry}`;
   await writeFile(join(WIKI_DIR, "CHANGELOG.md"), changelog);
   console.log("  ✓ CHANGELOG.md written");
 }
 
 // ─── Pass 7: Self-Eval ─────────────────────────────────────────────────
 
-const EVAL_SAMPLE_SIZE = 30;
+const FULL_EVAL = process.argv.includes("--full-eval");
+const EVAL_SAMPLE_SIZE = FULL_EVAL ? Infinity : 30;
 
 const evalVerificationSchema = z.object({
   verdict: z.enum(["PASS", "FAIL"]),
@@ -1270,7 +1306,7 @@ Rules:
 - Reasonable paraphrasing is a PASS. Semantic equivalence counts. Only FAIL when the evidence is genuinely missing or contradicted.`;
 
 async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalReport> {
-  console.log("\n═══ Pass 7: Self-Eval (Haiku, parallel) ═══");
+  console.log("\n═══ Pass 7: Self-Eval (Sonnet, parallel) ═══");
 
   // Filter to claims with at least one source_ref
   const verifiable = claims.filter((c) => c.source_refs.length > 0);
@@ -1301,7 +1337,7 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
   console.log(`  Sampling ${sampled.length} claims (${[...byType.entries()].map(([t, c]) => `${t}: ${sampled.filter((s) => s.type === t).length}`).join(", ")})`);
 
   // Verify each claim against its first source
-  const limit = pLimit(HAIKU_CONCURRENCY);
+  const limit = pLimit(SONNET_CONCURRENCY);
   const results: EvalResult[] = [];
   let completed = 0;
 
@@ -1321,7 +1357,7 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
         const sourceContent = (source.frontmatter.key_insight + "\n\n" + source.body).slice(0, 6000);
 
         const { object } = await generateObject({
-          model: getProvider()("claude-haiku-4-5"),
+          model: getProvider()("claude-sonnet-4-6"),
           schema: evalVerificationSchema,
           system: EVAL_SYSTEM,
           prompt: `Claim: "${claim.content}"\nClaim type: ${claim.type}\nClaim confidence: ${claim.confidence}\n\nSource path: ${sourceRef}\nSource content:\n${sourceContent}`,
@@ -1426,6 +1462,134 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
   return report;
 }
 
+// ─── Pass 8: Auto-Fix ──────────────────────────────────────────────────
+
+async function verifyClaim(claim: Claim, source: ParsedSource): Promise<boolean> {
+  const content = (source.frontmatter.key_insight + "\n\n" + source.body).slice(0, 6000);
+  try {
+    const { object } = await generateObject({
+      model: getProvider()("claude-sonnet-4-6"),
+      schema: evalVerificationSchema,
+      system: EVAL_SYSTEM,
+      prompt: `Claim: "${claim.content}"\nClaim type: ${claim.type}\n\nSource path: ${source.path}\nSource content:\n${content}`,
+    });
+    return object.verdict === "PASS";
+  } catch {
+    return false;
+  }
+}
+
+async function autoFixClaims(claims: Claim[], index: SourceIndex): Promise<void> {
+  console.log("\n═══ Pass 8: Auto-Fix (Sonnet) ═══");
+
+  let evalReport: EvalReport;
+  try {
+    evalReport = await loadBuildArtifact<EvalReport>("eval-report.json");
+  } catch {
+    console.warn("  ⚠ No eval-report.json found — run Pass 7 first");
+    return;
+  }
+
+  if (evalReport.failures.length === 0) {
+    console.log("  No failures to fix.");
+    return;
+  }
+
+  console.log(`  ${evalReport.failures.length} failures to attempt`);
+  let fixed = 0;
+  let unfixable = 0;
+
+  for (const failure of evalReport.failures) {
+    const claim = claims.find((c) => c.id === failure.claim_id);
+    if (!claim || claim.source_refs.length === 0) {
+      unfixable++;
+      console.log(`  ✗ ${failure.claim_id}: no source refs to fix`);
+      continue;
+    }
+
+    const originalRef = failure.source_ref;
+    let newRef: string | null = null;
+
+    // Tier 1: Try deep/ variant of the cited source
+    if (!originalRef.startsWith("deep/")) {
+      const deepVariant = `deep/${originalRef}`;
+      const deepSource = index.sources.find((s) => s.path === deepVariant);
+      if (deepSource) {
+        const pass = await verifyClaim(claim, deepSource);
+        if (pass) newRef = deepVariant;
+      }
+    }
+
+    // Tier 2: Search sources by entity refs
+    if (!newRef && claim.entity_refs.length > 0) {
+      const candidates = index.sources
+        .filter((s) => s.path !== originalRef)
+        .filter((s) =>
+          claim.entity_refs.some(
+            (entity) =>
+              s.path.toLowerCase().includes(entity) ||
+              (s.frontmatter.key_insight ?? "").toLowerCase().includes(entity),
+          ),
+        )
+        .sort((a, b) => {
+          const aDeep = a.path.startsWith("deep/") ? 1 : 0;
+          const bDeep = b.path.startsWith("deep/") ? 1 : 0;
+          if (aDeep !== bDeep) return bDeep - aDeep;
+          return b.relevance - a.relevance;
+        })
+        .slice(0, 5);
+
+      for (const candidate of candidates) {
+        const pass = await verifyClaim(claim, candidate);
+        if (pass) {
+          newRef = candidate.path;
+          break;
+        }
+      }
+    }
+
+    if (newRef) {
+      // Fix the citation in the wiki article
+      const articlePath = join(WIKI_DIR, `${claim.article_ref}.md`);
+      if (existsSync(articlePath)) {
+        let content = await readFile(articlePath, "utf-8");
+        content = content.replaceAll(`../raw/${originalRef}`, `../raw/${newRef}`);
+        await writeFile(articlePath, content);
+      }
+
+      // Update the claim's source_refs
+      claim.source_refs = claim.source_refs.map((r) => (r === originalRef ? newRef! : r));
+      fixed++;
+      console.log(`  ✓ ${failure.claim_id}: ${originalRef} → ${newRef}`);
+    } else {
+      unfixable++;
+      console.log(`  ✗ ${failure.claim_id}: no better source found`);
+    }
+  }
+
+  // Save updated claims
+  const claimsFile: ClaimsFile = {
+    version: 1,
+    compiled_at: new Date().toISOString(),
+    total: claims.length,
+    claims,
+  };
+  await writeFile(join(BUILD_DIR, "claims.json"), JSON.stringify(claimsFile, null, 2));
+
+  // Append to changelog
+  const changelogPath = join(WIKI_DIR, "CHANGELOG.md");
+  if (existsSync(changelogPath)) {
+    const existing = await readFile(changelogPath, "utf-8");
+    await writeFile(
+      changelogPath,
+      existing.trimEnd() +
+        `\n- **Auto-fix:** ${fixed}/${evalReport.failures.length} failures fixed, ${unfixable} flagged for human review.\n`,
+    );
+  }
+
+  console.log(`\n  Auto-fix complete: ${fixed} fixed, ${unfixable} unfixable`);
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────
 
 function extractAbstract(text: string): { abstract: string; body: string } {
@@ -1447,9 +1611,11 @@ function computeStalenessRisk(newestDate: string): "low" | "medium" | "high" {
 }
 
 function shouldRunPass(pass: string): boolean {
-  if (!FROM_PASS) return true;
-  const order = ["0", "1a", "1b", "2", "3a", "3b", "3c", "4", "5", "6", "7"];
-  return order.indexOf(pass) >= order.indexOf(FROM_PASS);
+  const order = ["0", "1a", "1b", "2", "3a", "3b", "3c", "4", "5", "6", "7", "8"];
+  const idx = order.indexOf(pass);
+  if (FROM_PASS && idx < order.indexOf(FROM_PASS)) return false;
+  if (TO_PASS && idx > order.indexOf(TO_PASS)) return false;
+  return true;
 }
 
 async function loadBuildArtifact<T>(filename: string): Promise<T> {
@@ -1457,14 +1623,72 @@ async function loadBuildArtifact<T>(filename: string): Promise<T> {
   return JSON.parse(await readFile(path, "utf-8"));
 }
 
+// ─── README Stats Auto-Patch ───────────────────────────────────────────
+
+async function patchReadmeStats(
+  index: SourceIndex,
+  entities: Entity[],
+  graph: KnowledgeGraph,
+  claims: Claim[],
+): Promise<void> {
+  const readmePath = join(ROOT, "README.md");
+  if (!existsSync(readmePath)) return;
+
+  const readme = await readFile(readmePath, "utf-8");
+  const startMarker = "<!-- stats:start";
+  const endMarker = "<!-- stats:end -->";
+  const startIdx = readme.indexOf(startMarker);
+  const endIdx = readme.indexOf(endMarker);
+  if (startIdx === -1 || endIdx === -1) return;
+
+  // Count sources by type (excluding deep/)
+  const shallow = index.sources.filter((s) => !s.path.startsWith("deep/"));
+  const deep = index.sources.filter((s) => s.path.startsWith("deep/"));
+  const byType: Record<string, number> = {};
+  for (const s of shallow) {
+    const t = s.frontmatter.type;
+    byType[t] = (byType[t] ?? 0) + 1;
+  }
+
+  // Count wiki articles
+  const full = entities.filter((e) => e.article_level === "full");
+  const projects = full.filter((e) => e.type === "project").length;
+  const concepts = full.filter((e) => e.type === "concept" || e.type === "approach" || e.type === "person").length;
+
+  // Count deep research words
+  let deepWords = 0;
+  for (const s of deep) {
+    deepWords += s.body.split(/\s+/).length;
+  }
+  const deepWordsK = Math.round(deepWords / 1000);
+
+  const typeSummary = Object.entries(byType)
+    .map(([t, n]) => `${n} ${t}s`)
+    .join(", ");
+
+  const statsBlock = `<!-- stats:start (auto-updated by bun run compile) -->
+## Stats
+
+- **Sources:** ${shallow.length} curated (${typeSummary}) + ${deep.length} deep research files
+- **Wiki:** ${full.length + domain.buckets.length + 1} articles (${domain.buckets.length} synthesis, ${projects} project cards, ${concepts} concept explainers, field map, indexes)
+- **Deep research:** ${deepWordsK}K words of source-code-level analysis
+- **Self-eval:** ${claims.length} atomic claims extracted, sampled and verified against sources each compilation
+- **Compiled by:** 3 independent systems (script pipeline, Claude Code skill graph, Codex skill graph), best-of-three merged`;
+
+  const patched = readme.slice(0, startIdx) + statsBlock + "\n" + readme.slice(endIdx);
+  await writeFile(readmePath, patched);
+  console.log("  ✓ README.md stats auto-patched");
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────
 
 async function main() {
   console.log("╔══════════════════════════════════════════════╗");
-  console.log("║        meta-kb compiler v0.2.0               ║");
+  console.log(`║        ${domain.name} compiler v0.2.0               ║`);
   console.log("╚══════════════════════════════════════════════╝");
   if (DRY_RUN) console.log("  [DRY RUN — no files will be written]");
   if (FROM_PASS) console.log(`  [Resuming from pass ${FROM_PASS}]`);
+  if (TO_PASS) console.log(`  [Stopping after pass ${TO_PASS}]`);
 
   let index: SourceIndex;
   let rawEntities: RawEntity[];
@@ -1543,6 +1767,14 @@ async function main() {
   if (shouldRunPass("7")) {
     await runSelfEval(claims, index);
   }
+
+  // Pass 8
+  if (shouldRunPass("8")) {
+    await autoFixClaims(claims, index);
+  }
+
+  // Auto-patch README.md stats
+  await patchReadmeStats(index, entities, graph, claims);
 
   const full = entities.filter((e) => e.article_level === "full").length;
   const stub = entities.filter((e) => e.article_level === "stub").length;

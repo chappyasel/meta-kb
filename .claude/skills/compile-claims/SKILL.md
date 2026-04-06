@@ -1,7 +1,7 @@
 ---
 name: compile-claims
 description: >
-  Extracts atomic verifiable claims from meta-kb synthesis articles and runs
+  Extracts atomic verifiable claims from synthesis articles and runs
   self-evaluation by verifying a sample against raw sources. Outputs
   build/claims.json and build/eval-report.json. Use when extracting claims,
   running self-eval, or verifying wiki accuracy.
@@ -14,12 +14,7 @@ against raw sources.
 
 ## Phase 1: Extract Claims
 
-Read all 5 synthesis articles from `wiki/`:
-- `wiki/knowledge-bases.md`
-- `wiki/agent-memory.md`
-- `wiki/context-engineering.md`
-- `wiki/agent-systems.md`
-- `wiki/self-improving.md`
+Read `config/domain.ts` for the taxonomy bucket definitions. Read the synthesis article for each bucket from `wiki/{bucket-id}.md`.
 
 For each article, extract 25-40 atomic claims. Each claim is ONE verifiable
 statement. Not a summary, not a paragraph. One fact.

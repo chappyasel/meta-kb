@@ -50,12 +50,8 @@ export interface Engagement {
 
 // ─── Taxonomy ───────────────────────────────────────────────────────────
 
-export type TaxonomyBucket =
-  | "knowledge-bases"
-  | "agent-memory"
-  | "context-engineering"
-  | "agent-systems"
-  | "self-improving";
+/** Bucket ID string — valid values defined in config/domain.ts */
+export type TaxonomyBucket = string;
 
 export type EntityType = "concept" | "project" | "person" | "approach";
 

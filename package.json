@@ -11,6 +11,8 @@
     "ingest:article": "bun run scripts/ingest-article.ts",
     "research": "bun run scripts/research.ts",
     "diagrams": "bun run scripts/generate-diagrams.ts",
+    "screenshots": "bun run scripts/og-wiki-screenshots.ts",
+    "og": "bun run scripts/og-screenshot-all.ts && bun run scripts/og-grid.ts",
     "rescore": "bun run scripts/rescore-all.ts",
     "compile": "bun run scripts/compile.ts",
     "lint": "bun run scripts/lint.ts",

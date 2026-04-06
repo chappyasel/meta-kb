@@ -1,136 +1,145 @@
 ---
 entity_id: memevolve
 type: project
-bucket: agent-memory
+bucket: self-improving
 abstract: >-
-  MemEvolve generates new Python memory provider implementations via LLM code
-  synthesis, evolving agent memory architectures rather than tuning parameters
-  of fixed schemas.
+  MemEvolve generates entirely new Python memory provider implementations by
+  running LLMs over agent execution trajectories, outperforming all 12
+  hand-designed baseline memory systems on GAIA, WebWalkerQA, and xBench
+  benchmarks.
 sources:
   - repos/bingreeky-memevolve.md
   - deep/repos/bingreeky-memevolve.md
   - deep/repos/zorazrw-agent-workflow-memory.md
-related:
-  - Agent Memory
-  - Self-Improving Agents
-last_compiled: '2026-04-05T20:36:53.941Z'
+related: []
+last_compiled: '2026-04-06T02:09:56.375Z'
 ---
 # MemEvolve
 
+**Type:** Project — Self-Improving Agent Memory  
+**Repository:** Flash-Searcher-main/MemEvolve (OPPO PersonalAI)  
+**Paper:** arXiv:2512.18746 (December 2025)  
+**Stars:** 201 | **Forks:** 24 | **License:** Apache-2.0
+
 ## What It Does
 
-MemEvolve is a subsystem of Flash-Searcher (OPPO PersonalAI's DAG-based parallel execution agent framework) that autonomously generates new memory system implementations by analyzing agent execution trajectories. The key distinction from other self-improving memory systems: it writes new Python classes, not new parameter values. When an agent memory system performs poorly, MemEvolve reads the failure logs, reasons about architectural weaknesses, and synthesizes a replacement implementation from scratch.
+MemEvolve treats memory architecture itself as the optimization target. Most self-improving memory systems (Voyager, ExpeL, [Agent Workflow Memory](../projects/agent-workflow-memory.md)) improve what is stored while leaving the storage mechanism fixed. MemEvolve instead uses LLMs to generate entirely new memory provider implementations in Python, installing them into a running agent system. A four-phase pipeline analyzes task trajectories, writes new code, installs it into the provider registry, and validates it in an isolated environment before deployment.
 
-The accompanying paper "MemEvolve: Meta-Evolution of Agent Memory Systems" (arXiv:2512.18746, December 2025) formalizes this as "dual evolution" -- jointly evolving memory content and memory architecture. The repository has 201 stars and 24 forks as of April 2026.
+The system lives inside Flash-Searcher, OPPO PersonalAI's DAG-based parallel agent framework, and relies on the EvolveLab substrate: a unified interface that reimplements 12 published memory systems under a shared `BaseMemoryProvider` contract.
 
 ## Architecture
 
-MemEvolve is organized around `MemoryEvolver` in `core/memory_evolver.py`, which orchestrates four phases:
+The codebase is organized around two main modules:
 
 ```
 MemEvolve/
   core/
-    memory_evolver.py    -- four-phase orchestrator with state persistence
-    auto_evolver.py      -- multi-round evolution loop with tournament selection
+    memory_evolver.py   -- four-phase orchestrator with state persistence
+    auto_evolver.py     -- multi-round loop with tournament selection
   phases/
-    phase_analyzer.py    -- trajectory analysis agent
-    phase_generator.py   -- memory system code generation
-    memory_creator.py    -- file system manipulation to install new providers
-    phase_validator.py   -- isolated environment testing with auto-fix
+    phase_analyzer.py   -- trajectory analysis via LLM agent
+    phase_generator.py  -- code generation with creativity index
+    memory_creator.py   -- file system installation of new providers
+    phase_validator.py  -- isolated environment testing and auto-fix
   validators/
-    swe_agent_validator.py -- automatic code repair
+    swe_agent_validator.py -- automated code repair (up to 3 attempts)
+  prompts/
+    analysis_prompt.yaml
+    generation_prompt.yaml
 ```
 
-The target environment is **EvolveLab**, a provider framework where each memory system is a Python class implementing `BaseMemoryProvider` with three methods: `initialize()`, `provide_memory(MemoryRequest) -> MemoryResponse`, and `take_in_memory(TrajectoryData) -> (bool, str)`. New providers live in `EvolveLab/providers/` and register via `MemoryType` enum and `PROVIDER_MAPPING` dictionary. MemEvolve dynamically patches both registries using comment markers in source files.
-
-EvolveLab reimplements 12 baseline memory systems from the literature -- including [Agent Workflow Memory](../projects/agent-workflow-memory.md) (`agent_workflow_memory`), Voyager, ExpeL, SkillWeaver, and others -- decomposed along four functional axes: Encode, Store, Retrieve, Manage. These serve as style references for generation and as competition baselines for evaluation.
+The EvolveLab provider registry (`EvolveLab/providers/`) holds 12 baseline implementations: `agent_kb`, `cerebra_fusion_memory`, `voyager_memory`, `generative_memory`, `dynamic_cheatsheet`, `skillweaver`, `memp_memory`, `dilu_memory`, `lightweight_memory`, `evolver_memory`, `mobilee`, `expel`, and `agent_workflow_memory`. Each implements three methods: `initialize()`, `provide_memory(MemoryRequest) -> MemoryResponse`, and `take_in_memory(TrajectoryData) -> (bool, str)`.
 
 ## Core Mechanism: The Four Phases
 
-**Phase 1 -- Analyze** (`phase_analyzer.py`): An `AnalysisAgent` reads task execution logs, collects success/failure statistics, loads the current default provider's source code as a reference template, and constructs an analysis prompt from `prompts/analysis_prompt.yaml`. It runs through Flash-Searcher's tool-calling architecture with up to `ANALYSIS_MAX_STEPS=20` steps. Output: a structured report identifying architectural weaknesses and failure patterns.
+**Analyze** (`phase_analyzer.py`): An `AnalysisAgent` reads task execution logs, collects pass/fail statistics, loads the current provider's source as a reference template, and scans memory database files in `storage/`. The analysis prompt (from `analysis_prompt.yaml`) asks the LLM to identify failure patterns and architectural weaknesses. The analysis agent uses Flash-Searcher's tool-calling interface and is capped at `ANALYSIS_MAX_STEPS=20` log reads.
 
-**Phase 2 -- Generate** (`phase_generator.py`): An LLM receives the analysis report and generates a complete `BaseMemoryProvider` implementation -- a full Python class, enum registration metadata, and configuration parameters. Temperature is controlled via a **creativity index** (0.0-1.0) that maps linearly: `temperature = 0.3 + (creativity_index * 0.9)`, ranging from 0.3 (variations on existing providers) to 1.2 (novel architectures). The config defaults to 0.5 (temperature ~0.75). Response parsing uses regex patterns to extract `**Class Name**`, `**Module Name**`, `**Enum Name**`, and a Python code block from the LLM's output.
+**Generate** (`phase_generator.py`): Takes the analysis report and asks an LLM to produce a complete Python class implementing `BaseMemoryProvider`, plus registration metadata (enum name, enum value, module name). The generator loads `memory_types.py` as interface context and the current default provider as a style reference. A **creativity index** (0.0-1.0) maps to LLM temperature via `temperature = 0.3 + (creativity_index * 0.9)`, giving a range of 0.3 (conservative) to 1.2 (novel). Default is 0.5. Parsed output is extracted with regex: `**Class Name**: ClassName`, `**Module Name**: module_name`, `**Enum Name**: ENUM_NAME`, plus a Python code block.
 
-**Phase 3 -- Create** (`memory_creator.py`): File system surgery:
-1. Write generated code to `EvolveLab/providers/{module_name}.py`
-2. Insert new enum entry above `# add new memory type upside this line(Enum)` marker in `memory_types.py`
-3. Insert new mapping entry above the corresponding marker in `PROVIDER_MAPPING`
-4. Normalize configuration keys, parse values via `ast.literal_eval`, patch `EvolveLab/config.py`
+**Create** (`memory_creator.py`): Installs the generated code by writing a new `.py` file to `EvolveLab/providers/`, then patching `memory_types.py` and `config.py` by inserting new entries above comment markers (`# add new memory type upside this line(Enum)`, `# add new memory type upside this line(PROVIDER_MAPPING)`). Configuration values are parsed via `ast.literal_eval`. The installer checks for name collisions and provides `delete_memory_system()` for rollback.
 
-**Phase 4 -- Validate** (`phase_validator.py`): Static analysis (AST parsing, interface compliance checks) followed by runtime testing in an isolated copy of the EvolveLab directory with Python module cache cleared. If validation fails, `SWEAgentValidator` attempts up to 3 auto-fix rounds. Successful fixes sync back to the real environment.
+**Validate** (`phase_validator.py`): Copies the entire EvolveLab directory to a temp location, clears Python's module cache, imports and instantiates the new provider, calls all three required methods with test data, and monitors for ERROR-level log output. AST parsing checks syntax before import. If validation fails, `SWEAgentValidator` attempts automated repair (up to 3 attempts), then syncs fixed code back to the production environment.
 
-`auto_evolver.py` wraps these phases into a tournament: generate M=3 candidate systems per round, evaluate each on X=20 task batches, select top T=2 finalists, re-evaluate on Y=5 additional tasks, keep the best. One complete round requires roughly 70 task evaluations plus LLM calls for all four phases.
+`auto_evolver.py` wraps these four phases in a tournament loop: generate M=3 candidates, evaluate each on X=20 tasks, select T=2 finalists, run Y=5 additional tasks for finalists, keep the best. One full round requires approximately 70 task evaluations plus LLM calls for all four phases.
 
 ## Benchmark Results
 
-The paper tests across frameworks (Flash-Searcher, SmolAgent, Cognitive Kernel-Pro, OWL), models (GPT-5-Mini, Kimi K2, DeepSeek V3.2), and benchmarks (xBench, WebWalkerQA, GAIA, TaskCraft). Selected results (self-reported by the authors; no independent replication is documented):
+Results come from the paper (arXiv:2512.18746) — self-reported, not independently validated:
 
 | Framework + Model | Benchmark | Baseline | MemEvolve | Relative Gain |
 |---|---|---|---|---|
 | SmolAgent + GPT-5-Mini | xBench | 51% | 57% | +11.8% |
 | Flash-Searcher + GPT-5-Mini | xBench | 69% | 74% | +7.2% |
-| Range across configurations | various | -- | -- | 3.54%–17.06% |
+| Range across all tested conditions | mixed | — | — | +3.54% to +17.06% |
 
-Evolved systems outperformed all 12 baseline providers, including hand-designed ones. The paper also reports cross-task, cross-LLM, and cross-framework transfer: systems evolved with one model transferred positively to others, and systems evolved with Flash-Searcher transferred to Cognitive Kernel-Pro and OWL. Computational overhead was reportedly comparable to no-memory baselines, though this claim lacks third-party verification.
+The paper also reports cross-task generalization (memory systems evolved on TaskCraft transferred to WebWalkerQA and xBench), cross-LLM generalization (systems evolved with GPT-5-Mini transferred to Kimi K2 and DeepSeek V3.2), and cross-framework generalization (architectures evolved with Flash-Searcher transferred to Cognitive Kernel-Pro and OWL). These transfer results are the strongest evidence that evolved architectures capture general improvements rather than benchmark-specific overfitting, though all numbers remain self-reported.
+
+MemEvolve outperformed all 12 baseline providers in EvolveLab, including [Agent Workflow Memory](../projects/agent-workflow-memory.md), which it includes as a baseline and directly supersedes.
 
 ## Strengths
 
-**Qualitative novelty in architecture search**: Unlike parameter-tuning approaches, MemEvolve can discover fundamentally different memory strategies -- knowledge graphs, retrieval-augmented designs, episodic stores -- because the search space is all valid Python implementations of `BaseMemoryProvider`, not just parameter combinations within a fixed design.
+**Architecture generation, not parameter tuning**: The LLM can produce qualitatively different memory strategies — a knowledge graph provider, a retrieval-augmented provider, a compression-first provider — not just variants of an existing design. The 12 baseline providers serve as style references and competition targets simultaneously.
 
-**Modular evaluation substrate**: EvolveLab's 12 reimplemented baselines, unified interface, and dataset-agnostic evaluation (GAIA, WebWalkerQA, xBench, TaskCraft) make it genuinely useful as a benchmarking framework independent of the evolution machinery.
+**Validated installation**: The isolated-environment validation with AST checks, interface verification, and runtime simulation catches most broken code before it touches production. Auto-fix handles transient generation failures.
 
-**Transfer generalization**: Evolved architectures transferred across models and frameworks in reported experiments, suggesting they capture general memory strategies rather than LLM-specific artifacts.
+**The creativity index**: A simple but effective exploration knob. Setting `creativity_index=0.2` produces conservative variants; `creativity_index=0.9` explores genuinely novel architectures. This makes the exploration-exploitation tradeoff explicit and adjustable without changing the pipeline.
 
-**Plug-and-play CLI**: `evolve_cli.py` exposes each phase independently (`analyze`, `generate`, `create`, `validate`), supporting both interactive exploration and automated pipelines.
+**Transfer results**: Evolved architectures generalizing across LLMs and frameworks suggests the pipeline discovers memory strategies with real structural value, not prompt hacks.
 
-## Critical Limitations
+## Limitations
 
-**Regex-based response parsing is brittle**: The generator extracts class names, module names, and code blocks from LLM output via regex patterns like `**Class Name**: ClassName`. Deviations from expected markdown formatting -- different heading styles, nested code blocks, extra whitespace -- cause parse failures with no recovery path beyond a full retry. This is a single-point-of-failure in the most critical phase.
+**Regex parsing is brittle**: Extracting class names, module names, and code from LLM output uses regex against fixed format strings like `**Class Name**: ClassName`. Deviations in markdown formatting, nested code blocks, or extra whitespace cause parse failures. There's no recovery path other than retrying generation.
 
-**Comment marker dependency**: Code patching inserts new registry entries above hardcoded comment markers in `memory_types.py` and `config.py`. If any developer edits these files and removes the markers, the entire Create phase breaks silently. There is no integrity check for marker presence before patching.
+**No cross-generation learning**: Each evolution round generates systems fresh from the analysis report. The system doesn't accumulate a corpus of "what architectures worked and why" across rounds. Insights from successful evolved providers don't feed forward into future generation prompts.
 
-**No cross-generation learning**: Each evolution round generates providers independently. Insights from past failed or successful generations don't feed back into future analysis prompts beyond what the analysis agent can infer from task logs. The system generates fresh each round rather than building a cumulative record of "what architectural patterns worked and why."
+**Monoculture risk in tournament selection**: Selecting top-T systems by raw task performance applies no diversity pressure. The evolved population can converge on architecturally similar providers that happen to score well on current benchmarks, missing approaches that would generalize better.
 
-**Semantic validity gap**: A generated provider can pass AST checks, interface compliance checks, and even the runtime simulation (which only calls methods with test data), yet degrade task performance by, say, always returning empty retrieval results. Tournament selection eventually eliminates such providers, but only after consuming 20+ task evaluations per candidate.
+**Comment marker fragility**: Code installation depends on the presence of specific comment strings in `memory_types.py` and `config.py`. Manual edits that remove or reformat these markers silently break the installation phase.
+
+**ANALYSIS_MAX_STEPS=20 sampling**: The trajectory analysis agent reads at most 20 task logs. On datasets with hundreds of tasks, rare failure modes — which might motivate the most useful architectural innovations — get missed.
+
+**Unspoken infrastructure assumption**: The system assumes stable, cheap access to a strong LLM (the paper recommends `claude-sonnet-4.5` or `gpt-5`) for all four phases simultaneously. Analysis, generation, and validation each make LLM calls. At scale, this is a significant ongoing cost that the paper's "no significant increase in computational cost" framing doesn't address — that claim compares against task evaluation costs, not absolute API spend.
+
+## Concrete Failure Mode
+
+A generated provider can pass all validation checks — correct syntax, correct interface, successful instantiation, no ERROR logs — while implementing semantically broken behavior. For example, `provide_memory` could return contextually plausible but empty `MemoryResponse` objects, or `take_in_memory` could accept data and return `(True, "success")` without persisting anything. Tournament selection will eventually eliminate such providers, but only after consuming their full evaluation budget (20 tasks per candidate). With M=3 candidates and broken providers being plausible, a nontrivial fraction of evaluation compute can go to silent no-ops.
 
 ## When NOT to Use It
 
-**Low LLM API budget**: A single evolution round costs 70+ task evaluations plus four LLM calls per candidate (analysis, generation, validation, potential auto-fix). At scale, this accumulates fast. If API costs are constrained, parameter-tuning approaches or manual selection from EvolveLab's 12 baselines will be more economical.
+**Low task volume**: The tournament loop needs ~70 task evaluations per round to identify a better provider. If your agent deployment runs fewer than a few hundred tasks total, you won't recover the evaluation cost in performance gains.
 
-**Stable, well-characterized task distributions**: If you know your tasks map cleanly to an existing memory paradigm (e.g., procedural web navigation tasks suit [Agent Workflow Memory](../projects/agent-workflow-memory.md)), evolving a new architecture adds cost and risk without corresponding benefit.
+**Tight API budget**: Each evolution round makes LLM calls for analysis, generation (potentially multiple attempts), and validation repair. With strong models as recommended, a single round can cost substantially more than the paper implies.
 
-**Environments where generated code runs with elevated privileges**: MemEvolve installs generated code by writing Python files and patching import registries. Without sandboxing, a maliciously or accidentally generated provider with side effects could corrupt the production environment. The isolated validation environment helps but doesn't fully contain all failure modes.
+**Unstable task distribution**: If the tasks your agent sees shift frequently, an evolved memory provider optimized for one distribution may regress on a new one. The system has no drift detection or re-evaluation triggers.
 
-**Teams without monitoring for the comment marker infrastructure**: The patching mechanism requires that `memory_types.py` and `config.py` maintain their marker comments across all edits. In active development environments with multiple contributors, marker removal is a realistic risk.
+**Production environments requiring deterministic behavior**: MemEvolve installs new Python files into a live codebase and patches registry files. Code-generating systems that modify their own source have audit and compliance implications that most production environments can't accommodate.
+
+**Single-file architecture limit**: Generated providers must fit in one Python module. Memory architectures requiring multiple coordinating components, external services, or async processing exceed what the code generation phase reliably produces.
 
 ## Unresolved Questions
 
-**Evaluation validity under dual evolution**: MemEvolve evolves memory architecture and evaluates quality via task performance -- but the memory system affects which tasks succeed, which affects what gets evolved. There is no dual-score separation (analogous to [goal-directed agent](../concepts/goal-directed-agents.md) patterns) between "does this memory system improve performance?" and "can we trust this evaluation?" The tournament selection provides partial protection, but gaming of specific task formats is a plausible failure mode the paper doesn't address.
+**Who evaluates the evaluator?** MemEvolve uses task pass rate to rank evolved memory systems. But memory systems affect which tasks succeed. A provider that improves performance on easy tasks while degrading it on hard tasks would score well in tournament selection. The dual-score separation that some [self-improving agent](../concepts/self-improving-agents.md) frameworks use to separate "is the system better?" from "can we trust the measurement?" is absent here.
 
-**Production deployment path**: The paper demonstrates research evaluation. How evolved providers move from EvolveLab into OPPO's production agent infrastructure -- versioning, rollback, performance monitoring -- is undocumented.
+**Convergence behavior over many rounds**: The paper demonstrates single-round improvements. What happens after 10 or 50 evolution rounds? Does the system converge on a stable architecture, or does it drift? No multi-round trajectory data appears in the paper or repository.
 
-**Governance of the evolution loop**: Who decides when to trigger a new evolution round in a deployed system? What performance regression threshold triggers rollback to a prior provider? These operational questions have no documented answers.
+**Meta-meta evolution**: MemEvolve evolves memory architectures but not the evolution process itself — the generation prompt, the tournament parameters, the creativity index schedule are all fixed. Whether the meta-evolution approach is itself improvable is unaddressed.
 
-**ANALYSIS_MAX_STEPS=20 sampling limit**: The analysis agent examines at most 20 task logs in detail. For datasets with hundreds of tasks, this sampling may miss rare but systematic failure patterns. The paper doesn't report sensitivity to this limit.
-
-**Module cache reliability**: The validator clears `sys.modules` entries for EvolveLab before isolated testing, but Python's import system has caching behaviors that can load stale code. The code includes retry logic on re-clearing, but no formal guarantee of isolation exists.
+**Cross-organizational deployment**: OPPO PersonalAI built this for Flash-Searcher. The EvolveLab interface is generic, but the analysis and generation prompts are tuned for Flash-Searcher's trajectory format. How much prompt engineering is needed to port MemEvolve to a different agent framework is undocumented.
 
 ## Alternatives
 
-**[Agent Workflow Memory](../projects/agent-workflow-memory.md)**: Use AWM when your tasks have clear procedural structure and you want a proven, lower-cost approach. AWM induces reusable workflow templates from trajectories without generating new code. MemEvolve is one of its 12 baselines and, per published results, outperforms it -- but at substantially higher operational complexity and API cost.
+**[Agent Workflow Memory](../projects/agent-workflow-memory.md)** — Use when you want procedural memory improvement without code generation risk. AWM induces reusable workflow templates from trajectories and injects them as in-context exemplars. Simpler, more auditable, demonstrated 35.5% success on WebArena. Use AWM when your task domain has clear recurring sub-routines and you can't afford unstable code generation.
 
-**Manual selection from EvolveLab baselines**: EvolveLab's 12 reimplemented providers (Voyager, ExpeL, SkillWeaver, generative memory, dynamic cheatsheet, and others) cover a wide range of memory strategies. For teams without the infrastructure to run automated evolution, picking the best-performing baseline on a held-out sample is a reasonable alternative.
+**[Mem0](../projects/mem0.md)** — Use when you need managed memory with a stable API and don't want to generate code. Mem0 handles extraction and retrieval from conversations without touching agent architecture.
 
-**SkillWeaver / Voyager**: Use these when accumulating skill libraries within a fixed architecture is sufficient. They lack MemEvolve's architecture-generation capability but are simpler to operate and have more established track records across diverse evaluations.
+**[Letta](../projects/letta.md)** — Use when you want structured, persistent [core memory](../concepts/core-memory.md) with [continual learning](../concepts/continual-learning.md) across sessions. Letta's MemGPT architecture provides fine-grained memory management without self-modification.
 
-**Parameter search over existing providers**: If the performance gap between providers is mostly explained by configuration (retrieval top-k, memory size, consolidation frequency), a hyperparameter sweep over EvolveLab's existing providers is far cheaper than full architecture evolution.
+**[DSPy](../projects/dspy.md)** — Use when the optimization target is prompt quality rather than memory architecture. DSPy compiles and optimizes prompts against metrics without generating new code, which is considerably safer for production.
 
-## Sources
+**[EvoAgentX](../projects/evoagentx.md)** or [AgentEvolver](../projects/agentevolver.md)** — Use when the goal is evolving agent workflow or tool selection rather than memory architecture specifically.
 
-[Deep analysis: bingreeky-memevolve](../raw/deep/repos/bingreeky-memevolve.md) | [Repository summary](../raw/repos/bingreeky-memevolve.md) | [Agent Workflow Memory deep analysis](../raw/deep/repos/zorazrw-agent-workflow-memory.md)
+MemEvolve's niche is narrow but genuine: if you have sufficient task volume, API budget, and tolerance for code-generating self-modification, it's the only system that treats memory architecture itself as learnable.
 
+## Related Concepts
 
-## Related
-
-- [Agent Memory](../concepts/agent-memory.md) — implements (0.7)
-- [Self-Improving Agents](../concepts/self-improving-agents.md) — implements (0.6)
+[Self-Improving Agents](../concepts/self-improving-agents.md) · [Agent Memory](../concepts/agent-memory.md) · [Procedural Memory](../concepts/procedural-memory.md) · [Memory Consolidation](../concepts/memory-consolidation.md) · [Continual Learning](../concepts/continual-learning.md) · [Meta-Evolution](../concepts/meta-evolution.md) · [Reflexion](../concepts/reflexion.md) · [Execution Traces](../concepts/execution-traces.md)

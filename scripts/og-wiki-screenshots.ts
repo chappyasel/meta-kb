@@ -2,7 +2,7 @@
  * og-wiki-screenshots.ts — Screenshot the knowledge graph and field map for README
  *
  * Usage: bun run scripts/og-wiki-screenshots.ts
- * Output: wiki/images/graph-preview.png, wiki/images/field-map-preview.png
+ * Output: wiki/images/graph-preview.png, wiki/images/pipeline-preview.png
  */
 
 import puppeteer from "puppeteer";
@@ -20,7 +20,7 @@ async function main() {
   // Knowledge graph (interactive HTML)
   {
     const page = await browser.newPage();
-    await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 2 });
+    await page.setViewport({ width: 1000, height: 1000, deviceScaleFactor: 2 });
     const graphPath = path.join(WIKI_DIR, "graph.html");
     await page.goto(`file://${graphPath}`, { waitUntil: "networkidle2", timeout: 30_000 });
     // Let the D3 force simulation settle
@@ -34,24 +34,47 @@ async function main() {
   // Field map (SVG rendered in browser for proper fonts)
   {
     const page = await browser.newPage();
-    await page.setViewport({ width: 1600, height: 900, deviceScaleFactor: 2 });
-    const svgPath = path.join(IMAGES_DIR, "field-map.svg");
+    await page.setViewport({ width: 4000, height: 4000, deviceScaleFactor: 2 });
+    const svgPath = path.join(IMAGES_DIR, "pipeline.svg");
     await page.goto(`file://${svgPath}`, { waitUntil: "networkidle2", timeout: 30_000 });
     await new Promise((r) => setTimeout(r, 1000));
 
-    const dims = await page.evaluate(() => {
-      const svg = document.querySelector("svg");
+    // Clip using full SVG bounds for top/left/right (includes container backgrounds),
+    // but crop the bottom to actual content (grid-rows over-allocates height in shorter rows).
+    const clip = await page.evaluate(() => {
+      const svg = document.querySelector("svg svg") || document.querySelector("svg");
       if (!svg) return null;
-      const bbox = svg.getBoundingClientRect();
-      return { width: bbox.width, height: bbox.height };
+      const svgBox = svg.getBoundingClientRect();
+
+      // Find bottom of actual content (excluding full-width container background rects)
+      const allRects = Array.from(svg.querySelectorAll("rect"));
+      const maxW = Math.max(...allRects.map((r) => parseFloat(r.getAttribute("width") || "0")));
+      const contentEls = allRects.filter((r) => {
+        const x = parseFloat(r.getAttribute("x") || "0");
+        const w = parseFloat(r.getAttribute("width") || "0");
+        return !(x === 0 && w >= maxW - 1);
+      });
+      const texts = Array.from(svg.querySelectorAll("text"));
+      const paths = Array.from(svg.querySelectorAll("path"));
+      let maxBottom = 0;
+      for (const el of [...contentEls, ...texts, ...paths]) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        maxBottom = Math.max(maxBottom, r.bottom);
+      }
+
+      const pad = 30;
+      return {
+        x: svgBox.left,
+        y: svgBox.top,
+        width: svgBox.width,
+        height: maxBottom - svgBox.top + pad,
+      };
     });
 
-    const outPath = path.join(IMAGES_DIR, "field-map-preview.png");
-    if (dims) {
-      await page.screenshot({
-        path: outPath,
-        clip: { x: 0, y: 0, width: dims.width, height: dims.height },
-      });
+    const outPath = path.join(IMAGES_DIR, "pipeline-preview.png");
+    if (clip) {
+      await page.screenshot({ path: outPath, clip });
     } else {
       await page.screenshot({ path: outPath, fullPage: true });
     }

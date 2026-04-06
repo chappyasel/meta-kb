@@ -23,6 +23,7 @@ import { slugify } from "./utils/slugify.js";
 import { extractOwnerRepo } from "./utils/url-extract.js";
 import { scoreRelevance, generateInsightAndTags } from "./utils/llm.js";
 import type { RawSourceFrontmatter } from "./types.js";
+import { domain } from "../config/domain.js";
 
 // ─── Config ────────────────────────────────────────────────────────────
 
@@ -283,7 +284,7 @@ async function fetchPaperFullText(arxivId: string): Promise<string | null> {
 
 // ─── LLM Synthesis Prompts ─────────────────────────────────────────────
 
-const REPO_SYNTHESIS_SYSTEM = `You are a senior software architect conducting a deep technical analysis of an open-source project. Your audience is practitioners who build with LLM agents, knowledge bases, and memory systems.
+const REPO_SYNTHESIS_SYSTEM = `You are a senior software architect conducting a deep technical analysis of an open-source project. Your audience is ${domain.audience}.
 
 Write a structured analysis with these exact sections:
 
@@ -310,7 +311,7 @@ Rules:
 - No marketing language.
 - 3000-6000 words. Depth over breadth.`;
 
-const PAPER_SYNTHESIS_SYSTEM = `You are a researcher writing a detailed technical summary of an academic paper for practitioners who build with LLM agents and knowledge bases.
+const PAPER_SYNTHESIS_SYSTEM = `You are a researcher writing a detailed technical summary of an academic paper for ${domain.audience}.
 
 Write a structured analysis with these exact sections:
 

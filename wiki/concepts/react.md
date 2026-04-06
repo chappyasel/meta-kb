@@ -3,206 +3,185 @@ entity_id: react
 type: approach
 bucket: agent-systems
 abstract: >-
-  ReAct (Reasoning + Acting) interleaves chain-of-thought reasoning traces with
-  tool-use actions in a single LLM prompt loop, letting agents diagnose and
-  correct errors mid-task rather than committing to actions blindly.
+  ReAct interleaves reasoning traces and tool-action steps in a single LLM
+  prompt, letting agents think through problems while executing tools — the
+  foundational loop pattern underlying most production agentic systems.
 sources:
   - articles/lil-log-llm-powered-autonomous-agents.md
   - >-
     articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md
   - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
   - deep/repos/thedotmack-claude-mem.md
-  - deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md
+  - deep/repos/infiniflow-ragflow.md
   - deep/repos/memento-teams-memento-skills.md
-  - deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
+  - deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md
   - deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
+  - deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
 related:
-  - Retrieval-Augmented Generation
-  - Reflexion
-  - GPT-4
-  - Chain-of-Thought
-last_compiled: '2026-04-05T20:24:57.347Z'
+  - reflexion
+  - rag
+  - locomo-bench
+last_compiled: '2026-04-06T01:59:58.275Z'
 ---
 # ReAct: Reasoning and Acting in Language Models
 
 ## What It Is
 
-ReAct is a prompting strategy and agent execution pattern introduced by Yao et al. (2022) that interleaves reasoning traces with action steps in an LLM's output. Where a pure actor ([Chain-of-Thought](../concepts/chain-of-thought.md)) thinks but does not act, and a pure actor (function-calling without reasoning) acts but does not reflect, ReAct alternates between three token types:
+ReAct (Reasoning + Acting) is a prompting framework introduced by Yao et al. (2022) that structures LLM agent behavior as an alternating sequence of **Thought** and **Action** steps. Rather than treating reasoning and tool use as separate pipelines, ReAct interleaves them: the model writes a reasoning trace, takes an action (calls a tool, searches a database, runs code), observes the result, writes another reasoning trace, and continues until the task is complete.
 
-- **Thought**: the model's internal reasoning about the current state
-- **Action**: a tool call or environment interaction (search, code execution, API call)
-- **Observation**: the result returned from the environment
-
-This three-part loop continues until the model produces a final answer or halts. The core bet is that surfacing reasoning in the same context window where observations arrive lets the model course-correct dynamically rather than committing to a plan upfront.
-
-ReAct sits at the base of much of the modern agent stack. [Reflexion](../concepts/reflexion.md) extends it with episodic memory and verbal self-reflection. Voyager's iterative prompting mechanism uses ReAct-style refinement within each skill generation cycle. Memento-Skills builds a full multi-stage agent pipeline on top of a ReAct execution loop with its own loop detection, reflection supervisor, and skill library.
-
----
-
-## Core Mechanism
-
-### The Thought-Action-Observation Loop
-
-A ReAct trace looks like this:
+The canonical step format looks like:
 
 ```
-Thought: I need to find who wrote the 2022 paper on language agents.
-Action: Search("ReAct language agents 2022")
-Observation: "ReAct: Synergizing Reasoning and Acting in Language Models, Yao et al., 2022"
-Thought: The authors are Yao et al. I should verify the first author's affiliation.
-Action: Lookup("Shunyu Yao")
-Observation: "Princeton University, Google Brain"
-Thought: I have enough to answer.
-Action: Finish("Shunyu Yao, Princeton/Google Brain")
+Thought: I need to find the current population of Tokyo to answer this.
+Action: search["Tokyo population 2024"]
+Observation: Tokyo metropolitan area population is approximately 37.4 million.
+Thought: Now I have the data. I should also check if this refers to the city proper or greater metro area.
+Action: search["Tokyo city proper vs metropolitan population difference"]
+Observation: City proper is ~13.9 million; metro area 37.4 million includes surrounding prefectures.
+Thought: The question likely means metro area. I can now answer.
+Action: finish["Tokyo's population is approximately 37.4 million in the metro area"]
 ```
 
-The model generates this sequence autoregressively. Each observation is appended to the context, making the full trace visible when the model generates the next thought. This is the functional difference from a pipeline that runs reasoning and acting as separate stages: in ReAct, observations update the reasoning process in real time.
+This single text-format loop — Thought, Action, Observation, repeat — is the architectural ancestor of nearly every production agent system built since 2023.
 
-### Why Interleaving Matters
+## Why It Matters
 
-Standard chain-of-thought reasoning has no grounding mechanism. The model can hallucinate facts and proceed confidently. A pure action loop can spiral into tool calls without any sense of whether the retrieved information is useful. Interleaving solves both:
+Before ReAct, LLM agents faced a bifurcation: chain-of-thought reasoning worked well for static reasoning tasks but could not interact with external information; tool-using agents could take actions but lacked the ability to reason about what those actions revealed. ReAct dissolved this bifurcation by treating the entire thought-action-observation sequence as a single generation task.
 
-- The thought before an action narrows the action space, reducing irrelevant tool calls
-- The thought after an observation interprets what the retrieval actually means for the task
-- If an observation contradicts a prior assumption, the next thought can revise the plan
+The key insight is that **reasoning and acting are not separate modules — they are the same token stream**. This means the model can:
 
-The Reflexion paper quantifies a related dynamic: self-reflection after failed attempts provides a 12-point accuracy gain over episodic memory alone (63% to 75% on HotPotQA). The observation-triggered thought is the micro-level version of the same principle: pausing to interpret before acting again.
+- Identify when its current knowledge is insufficient and decide to look something up
+- Interpret tool outputs in light of the original question
+- Recover from incorrect actions by reasoning about what went wrong
+- Decompose multi-step problems without a separate planning phase
 
-### Prompt Format and Few-Shot Setup
+The framework proved transferable across radically different task types: interactive QA (HotpotQA, FEVER), web browsing (WebShop), code execution, and API orchestration.
 
-The original ReAct formulation uses few-shot prompting. The prompt contains 2-6 exemplars, each showing a full Thought/Action/Observation trajectory for a solved task. The model pattern-matches to this format and generates its own traces at inference time.
+## How It Works
 
-There is no architectural constraint here. ReAct is a prompting convention, not a framework. You can implement it with a basic text completion API by:
+### The Loop Mechanics
 
-1. Prepending few-shot examples
-2. Intercepting model output at `Action:` lines
-3. Executing the action, getting a result
-4. Appending `Observation: [result]` to the context
-5. Resuming generation
+ReAct operates as a context-extended completion task. The prompt contains:
 
-This simplicity is why ReAct became ubiquitous. Any framework that supports tool-use and interleaved reasoning (LangChain, AutoGPT, smolagents, most production agent systems) is implementing a variant of this pattern.
+1. **Task description** — what the agent should accomplish
+2. **Available tools** — names, descriptions, and argument formats
+3. **Few-shot examples** — 2–6 worked examples showing the Thought/Action/Observation pattern
+4. **Current trajectory** — the running history of the current task's thoughts, actions, and observations
 
----
+The model completes this prompt by generating the next Thought, predicts an Action, which a harness executes, and the harness appends the Observation to the context. This repeats until the model generates a terminal action (finish, answer, etc.) or a step limit is hit.
 
-## How It Works: Implementation Details
+The harness is minimal: a parser to extract action names and arguments from model output, a dispatcher to route actions to tool implementations, and a formatter to convert tool returns into Observation strings.
 
-### Context Window as Working Memory
+### Tool Integration
 
-ReAct uses the context window as the agent's working memory. The entire trace history is passed on every generation step. This means:
+Tools are the only external interface. A tool is anything that takes string input and returns string output: search engines, calculators, databases, code interpreters, web browsers, REST APIs, file systems. The model does not call these directly — it writes structured text that the harness parses and dispatches.
 
-- The model has full trace visibility for reasoning
-- Token costs grow linearly with trace length
-- Long tasks hit context limits unless the trace is truncated or summarized
+Tool design matters enormously. Tools with clear, narrow semantics (search["query"], lookup["entity", "attribute"]) produce more reliable action predictions than tools with broad or ambiguous interfaces.
 
-The ACE paper addresses a downstream version of this problem: when contexts are iteratively rewritten to manage length, they suffer "context collapse" (progressive information loss). ACE's fix is incremental delta updates that append rather than rewrite, a direct response to the memory management problem that long ReAct traces create.
+### Thought Generation
 
-### Action Space Definition
+The Thought step is unconstrained natural language. This is intentional — the model can express uncertainty, backtrack, state sub-goals, or note inconsistencies between observations. Unlike structured planning formats (JSON plans, XML task trees), the free-form thought step lets the model adapt its reasoning strategy within a single trajectory.
 
-The action set must be defined and the model must know about it. In the original paper, actions are: `Search(query)`, `Lookup(entity)`, `Finish(answer)`. In production agents, the action space expands to code execution, API calls, file operations, and custom tools.
+In practice, thought quality varies widely with model capability. Weaker models produce rote thoughts ("I should search for this") that add tokens without aiding reasoning. Stronger models produce substantive inference ("The first observation contradicts the second — I should verify which source is more recent").
 
-The model selects actions via in-context learning from the few-shot examples. More sophisticated implementations constrain action selection to prevent the model from generating malformed tool calls -- Memento-Skills uses `tool_gate.py` for whitelist enforcement, and its `ToolBridge` validates and normalizes arguments before dispatch.
+### Context Growth
 
-### Stopping Conditions
+Every thought-action-observation triplet extends the context. For long tasks, the context grows until it hits the model's context window limit. This is ReAct's primary practical constraint: tasks requiring many steps may exceed available context before completion.
 
-The basic stopping condition is a `Finish` action. Production systems add:
+Production implementations address this through:
+- **Step budgets** — hard limits on maximum iterations
+- **Observation truncation** — summarizing long tool outputs before appending
+- **Context compression** — replacing early trajectory segments with summaries
 
-- Maximum turn limits (Memento-Skills caps at 30 ReAct turns per skill execution)
-- Loop detection (repeated identical action signatures, alternating A-B-A-B patterns, low effect ratios)
-- Information saturation detection (when consecutive observations add no new entities)
+## Experimental Results
 
-Without these, agents can enter observation spirals where they keep searching without producing output. Memento-Skills documents four distinct loop detection patterns in its `LoopDetector` class, which addresses exactly this failure mode.
+The original paper (Yao et al., ICLR 2023) tested on:
 
----
+**HotpotQA** (multi-hop question answering): ReAct achieved 35.1% exact match, substantially above chain-of-thought at 29.4% and standard prompting. The combination of ReAct+CoT reached 38.4%. *Results are self-reported by the paper authors; the HotpotQA benchmark is public and results have been independently reproduced by later work.*
 
-## Relation to Other Approaches
+**FEVER** (fact verification): ReAct achieved 64.0% accuracy vs CoT at 56.3%. *Self-reported.*
 
-### ReAct as Component vs. Architecture
+**WebShop** (web shopping agent): ReAct scored 34.4% task success vs imitation learning baseline at 29.1%. *Self-reported; the WebShop environment is public.*
 
-In the original paper, ReAct is the entire architecture. In practice, it has become a component embedded in larger systems:
+**ALFWorld** (text-based game agent): ReAct with two examples achieved 71% success across six task types. *Self-reported.*
 
-- **Reflexion** uses ReAct as the actor's generation strategy, then wraps it with a self-reflection loop that persists across trials
-- **Voyager** uses ReAct-style iterative refinement within each skill generation cycle, gated by a self-verification critic
-- **Memento-Skills** runs a ReAct loop at execution time within a 4+1 stage pipeline (Intent → Planning → Execution → Reflection → Finalize)
-- **Chain-of-Thought** is the thought component without the action component; ReAct is the extension that adds environment interaction
+The paper also documented ReAct's ability to recover from errors mid-trajectory — a capability chain-of-thought cannot match because it generates a single pass without observing intermediate results.
 
-This layering means "does this system use ReAct?" is often the wrong question. Most agent systems use something like ReAct at the execution layer while adding memory, planning, and reflection above it.
-
-### Relation to [RAG](../concepts/retrieval-augmented-generation.md)
-
-[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) retrieves external context before generation, typically in a single retrieval step. ReAct retrieves iteratively, with each retrieval informed by the model's current reasoning state. For multi-hop questions where the right query depends on a prior answer, ReAct's sequential retrieval substantially outperforms single-step RAG. The original paper reports ReAct halves hallucination rates and error propagation on HotPotQA compared to chain-of-thought alone.
-
----
+Later benchmarks using ReAct as a backbone (GAIA, SWE-Bench, AppWorld) have been independently validated by the research community, with scores tracking model capability rather than the framework itself.
 
 ## Strengths
 
-**Grounding at every step.** Observations arrive in context before the next thought, so the model cannot build a long chain of reasoning on top of a hallucinated fact without encountering contradicting evidence.
+**Interpretability.** The thought trace is human-readable. When an agent fails, you can read its trajectory and identify exactly where the reasoning broke down or which tool call produced bad output. This is genuinely useful during development and debugging.
 
-**Transparent failure diagnosis.** The thought trace is human-readable. When an agent fails, the trace shows exactly where reasoning went wrong. This is not true of pure action loops.
+**Minimal infrastructure.** ReAct requires only a capable LLM and a tool harness. No vector databases, no external memory systems, no fine-tuning. The entire framework is a prompt template and a dispatch loop.
 
-**Composability.** ReAct is format-agnostic. Any LLM that can follow few-shot examples can run it. This has made it the default execution loop in most agent frameworks.
+**Model-agnostic.** The thought-action-observation format works with any model capable of following instructions and generating structured text. The framework transfers across model families.
 
-**Dynamic plan adjustment.** A ReAct agent can abandon an approach mid-trace if observations indicate it will not work. A fixed-plan agent commits to the plan upfront and cannot adapt.
+**Error recovery.** The agent can observe that an action produced unexpected results and change strategy in the next thought step. This distinguishes ReAct from one-shot tool use approaches.
 
----
+**Extensibility.** Adding a new tool requires only updating the tool list in the prompt. The agent learns to use new tools from their description alone (with few-shot reinforcement for complex interfaces).
 
 ## Critical Limitations
 
-### Long-Horizon Task Degradation
+**Context collapse under long trajectories.** As the Thought/Action/Observation sequence grows, older context gets pushed toward the edge of the model's attention window. Models hallucinate or repeat earlier actions when trajectory length exceeds roughly 30–40 steps, depending on the model and context window size. The ACE framework paper documents the more general phenomenon: when agents iteratively summarize their own context, information degrades over rounds. ReAct compounds this problem because every observation extends the context. Production systems (LangChain, LangGraph, Memento-Skills) all implement step budgets or context compression as workarounds — not as enhancements, but as requirements.
 
-**Concrete failure mode:** On WebShop (web-based shopping agent requiring creative exploration), Reflexion with ReAct shows zero improvement across trials. The model generates confident-sounding thoughts but cannot diagnose why its search queries return irrelevant results. The ReAct loop provides no benefit when the problem requires diverse exploration rather than corrective refinement of a known approach. Reflection quality is bounded by whether the model can identify what went wrong -- and for ambiguous retrieval failures, it often cannot.
+**Unspoken infrastructure assumption: reliable tool execution.** ReAct assumes tools return string outputs that are accurate and relevant. In practice, search APIs return noisy results, code execution environments have sandboxing edge cases, and web scraping produces malformed HTML. The model's ability to reason about tool failures is limited — it can notice that an observation seems wrong, but it cannot independently verify tool outputs or retry with different error handling. Production deployments require robust tool implementations that sanitize outputs before they enter the context.
 
-**Unspoken infrastructure assumption:** ReAct assumes observations are reliable and fast. If tool calls are slow (API latency, database queries), the sequential Thought-Action-Observation loop is slow by construction -- you cannot parallelize it without breaking the interleaving that makes it work. Production systems that need concurrency must add parallel tool dispatch layers on top of the basic loop, which complicates trace integrity.
+## When NOT to Use ReAct
 
-### Context Window as Bottleneck
+**Simple single-step tasks.** If the task requires one tool call and direct synthesis (e.g., "What is the weather in Berlin?"), ReAct's overhead adds latency and cost without benefit. A direct function call with a single completion is faster and cheaper.
 
-Every step appends to the context. For tasks requiring 50+ tool calls, the trace itself becomes a significant fraction of the available context, leaving less room for relevant retrieved content. Truncation or compression introduces the context collapse problem that ACE identifies. There is no clean solution within the basic ReAct formulation.
+**Tasks requiring parallel execution.** ReAct is sequential by design — each action waits for the previous observation. Tasks that benefit from concurrent tool calls (running multiple searches simultaneously, parallel API queries) need multi-agent or parallel execution frameworks rather than a single ReAct loop. [Agent Orchestration](../concepts/agent-orchestration.md) addresses this.
 
-### Weak Model Failure
+**Extremely long tasks.** If a task requires 50+ tool interactions (complex software engineering tasks on SWE-Bench, multi-day research workflows), the context window becomes a hard constraint. Architectures with persistent external memory ([Agent Memory](../concepts/agent-memory.md), [Episodic Memory](../concepts/episodic-memory.md)) or hierarchical decomposition ([Task Decomposition](../concepts/task-decomposition.md)) handle these better.
 
-The Reflexion paper tests ReAct on StarChat-beta and reports zero improvement over baseline. ReAct's benefits are an emergent property of sufficient model capability -- the model must be able to generate coherent thoughts that actually influence subsequent actions. Smaller or fine-tuned models often produce thoughts that are syntactically correct but semantically disconnected from the observations they follow.
+**High-frequency, low-latency production services.** Each ReAct step adds a full LLM round-trip. A 10-step trajectory means 10 sequential LLM calls. For latency-sensitive applications, this is often unacceptable.
 
----
+**When reasoning traces are structurally misleading.** Research on LLM faithfulness shows that thought traces sometimes do not reflect actual model computation — the model can generate a plausible-sounding thought while the actual prediction is driven by different factors. When you need auditable reasoning (high-stakes decisions, regulated domains), treat thought traces as hypotheses about model reasoning, not ground truth.
 
-## When Not to Use It
+## Relationship to Neighbors
 
-**Single-step retrieval tasks.** If your task requires one lookup and one answer, the overhead of a reasoning loop adds latency and token cost with no benefit. Use direct RAG.
+### Chain-of-Thought
 
-**Latency-sensitive applications.** Each Thought-Action-Observation cycle is a synchronous round-trip: LLM call, tool call, LLM call. Tasks that require 10+ turns will have 10x the latency of a single-shot approach.
+[Chain-of-Thought](../concepts/chain-of-thought.md) (Wei et al., 2022) is the immediate predecessor. CoT elicits multi-step reasoning within a single completion, but generates the full reasoning chain without observing external information. ReAct extends CoT by interleaving external observations into the reasoning trace. The difference: CoT reasons from fixed context; ReAct reasons from accumulating evidence.
 
-**Tasks requiring broad exploration.** When the problem demands trying many diverse approaches rather than refining one approach, ReAct's convergent reasoning traces bias the agent toward exploitation over exploration. Diversity-promoting sampling or explicit exploration strategies are better fits.
+### Reflexion
 
-**Weak base models.** If your model cannot reliably follow few-shot trace formats or generate coherent mid-trace reasoning, ReAct's thoughts become noise that misleads rather than guides the next action.
+[Reflexion](../concepts/reflexion.md) (Shinn et al., 2023) extends ReAct by adding a self-evaluation layer after task completion or failure. Where ReAct recovers from errors within a single trajectory, Reflexion stores verbal reflections across trajectories in an external memory and uses them to improve future attempts. Reflexion requires multiple attempts at the same task; ReAct operates in a single trajectory.
 
----
+### RAG
+
+[Retrieval-Augmented Generation](../concepts/rag.md) and ReAct overlap when retrieval is one of the agent's available actions. In Agentic RAG ([Agentic RAG](../concepts/agentic-rag.md)), the agent decides when to retrieve and what to retrieve based on ReAct-style reasoning traces. RAGFlow's multi-recall retrieval pipeline (running dense, sparse, GraphRAG, and TreeRAG retrieval in parallel) represents a more sophisticated version of the retrieval action available within a ReAct loop.
+
+### Voyager and Skill Libraries
+
+[Voyager](../projects/voyager.md)'s iterative self-verification mechanism is a domain-specific ReAct instantiation: Thought (curriculum proposal) → Action (code execution) → Observation (game state change) → Thought (self-verification). The skill library stores successful ReAct trajectories as reusable code. Memento-Skills implements the same pattern with its Read-Execute-Reflect-Write loop.
+
+### Production Frameworks
+
+[LangChain](../projects/langchain.md), [LangGraph](../projects/langgraph.md), and [CrewAI](../projects/crewai.md) all implement ReAct as a built-in agent type. LangChain's `create_react_agent` function and LangGraph's prebuilt agent graph both follow the Thought/Action/Observation loop with configurable tool sets and step limits. [Claude Code](../projects/claude-code.md) runs a ReAct-style loop where tools (Bash, Read, Edit, Write, Glob, Grep) are the available actions — claude-mem captures these as PostToolUse hook events.
 
 ## Unresolved Questions
 
-**Optimal thought verbosity.** How long should thoughts be? Very short thoughts ("I need more information") add structure without content. Very long thoughts consume tokens that could be used for observations. No systematic study has established the right thought length as a function of task complexity.
+**Thought trace faithfulness.** The extent to which generated thought traces reflect actual model computation versus post-hoc rationalization remains an open research question. This matters for debugging — if the thought trace does not explain the action prediction, reading the trace misleads rather than informs.
 
-**Thought quality measurement.** Traces are human-readable but it is unclear how to measure whether a thought is actually good -- does it correctly identify the current state? Does it lead to a better action? Most evaluations measure final task success, not intermediate reasoning quality.
+**Optimal step budget.** No published research establishes principled guidance for setting step budgets across task types and models. Practitioners use heuristics (10 steps for simple tasks, 50 for complex) without systematic justification.
 
-**Scaling to large action spaces.** The original paper uses 3 actions. Production agents have dozens to hundreds of tools. How the model selects relevant actions as the action space grows is not well characterized. Few-shot examples cannot cover the full space, and tool descriptions in the context compete with task-relevant content for attention.
+**Multi-agent coordination.** ReAct is single-agent. When multiple ReAct agents must coordinate (one agent's action produces an observation another agent needs), the interaction protocol is not defined by the framework. [Agent Orchestration](../concepts/agent-orchestration.md) frameworks address this at the infrastructure level, but ReAct itself provides no coordination primitives.
 
-**Failure detection.** When should a ReAct agent conclude it cannot complete a task? Fixed turn limits are blunt. The agent may give up just before success or persist far past the point of utility. Building a reliable "I am stuck" detector without false positives is an open problem.
+**Thought verbosity tradeoff.** Longer, more detailed thoughts improve reasoning quality but consume tokens and increase latency. The optimal thought length for different task types and models has not been characterized.
 
----
+**Context management at scale.** ACE's research on context collapse and the incremental delta pattern suggest that ReAct's naive context-append approach is fundamentally flawed for long tasks. How to integrate evolving context management (ACE's delta updates, Voyager's skill library growth) with ReAct's trajectory format is an active research area rather than a solved problem.
 
 ## Alternatives
 
-| Alternative | When to choose it |
-|-------------|-------------------|
-| Chain-of-Thought | No external tools needed; pure reasoning task |
-| Single-step RAG | One retrieval is sufficient; latency matters |
-| [Reflexion](../concepts/reflexion.md) | Multi-trial task with clear success/failure signal; want learning across attempts |
-| Plan-and-execute | Task structure is known upfront; can parallelize sub-tasks |
-| Voyager-style curriculum + skill library | Open-ended long-horizon task; agent needs to accumulate reusable capabilities over many tasks |
-| ReAct + ACE | Production agent that must improve over time without fine-tuning; context length management is a concern |
-
-
-## Related
-
-- [Retrieval-Augmented Generation](../concepts/rag.md) — implements (0.4)
-- [Reflexion](../concepts/reflexion.md) — implements (0.6)
-- [GPT-4](../projects/gpt-4.md) — implements (0.5)
-- [Chain-of-Thought](../concepts/chain-of-thought.md) — part_of (0.6)
+| Framework | Choose When |
+|-----------|-------------|
+| **[Chain-of-Thought](../concepts/chain-of-thought.md)** | Task requires multi-step reasoning but no external information. Cheaper and faster than ReAct when tools are unnecessary. |
+| **[Reflexion](../concepts/reflexion.md)** | You can afford multiple attempts at the same task and want the agent to learn from failure across attempts, not just within a single trajectory. |
+| **[Agentic RAG](../concepts/agentic-rag.md)** | Task is primarily information retrieval with dynamic query reformulation. The agent needs to decide what to retrieve, not what to do. |
+| **Direct function calling** | Single tool call, no reasoning required. GPT-4/Claude function calling with no ReAct wrapper is faster for simple lookup tasks. |
+| **[Task Decomposition](../concepts/task-decomposition.md) + parallel agents** | Task has independent sub-tasks that benefit from concurrent execution. ReAct's sequential constraint becomes a bottleneck. |
+| **[Voyager](../projects/voyager.md)-style skill library** | Agent will encounter the same task types repeatedly and should accumulate reusable capabilities. ReAct alone does not persist learned behaviors across sessions. |
+| **[ACE](../concepts/ace.md) evolving playbooks** | Agent needs to improve over time through task experience without model fine-tuning. ACE's delta update pattern prevents the context collapse that plagues long-running ReAct agents. |

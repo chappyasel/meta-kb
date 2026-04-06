@@ -1,11 +1,9 @@
 ---
 name: compile-synthesis
 description: >
-  Writes a single synthesis article (3000-5000 words) for one of the five
-  meta-kb taxonomy buckets. Produces landscape analysis with approach categories,
-  convergence, failure modes, and selection guide. Use when writing a
-  knowledge-bases, agent-memory, context-engineering, agent-systems, or
-  self-improving synthesis article for meta-kb.
+  Writes a single synthesis article (3000-5000 words) for one taxonomy bucket.
+  Produces landscape analysis with approach categories, convergence, failure
+  modes, and selection guide. Use when writing a synthesis article for a bucket.
 ---
 
 # Compile Synthesis Article
@@ -14,11 +12,7 @@ Write a single synthesis article (3000-5000 words) for one taxonomy bucket.
 
 ## Taxonomy Buckets
 
-1. **knowledge-bases** -- Karpathy pattern, markdown wikis, compiled vs curated
-2. **agent-memory** -- Mem0, Letta, Graphiti, episodic/semantic/working memory
-3. **context-engineering** -- CLAUDE.md standards, context graphs, compression
-4. **agent-systems** -- Skill composition, registries, modular capabilities
-5. **self-improving** -- Autoresearch, observe/correct/improve loops, health checks
+Read `config/domain.ts` for the taxonomy bucket definitions (IDs, names, descriptions, and examples).
 
 ## Source Tiers
 

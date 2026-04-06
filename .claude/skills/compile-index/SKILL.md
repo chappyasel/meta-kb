@@ -2,12 +2,13 @@
 name: compile-index
 description: >
   Generates the agent-optimized ROOT.md topic index, project/topic indexes,
-  missing coverage list, landscape comparison table, and wiki README for meta-kb.
-  Use when generating meta-kb indexes, the ROOT.md entry point, or the
-  comparison table.
+  missing coverage list, landscape comparison table, and wiki README.
+  Use when generating indexes, the ROOT.md entry point, or the comparison table.
 ---
 
 # Compile Indexes
+
+Read `config/domain.ts` for the domain name, topic, and taxonomy bucket definitions.
 
 Read all compiled articles from `wiki/` to understand what exists, then
 generate the 6 files below.
@@ -61,9 +62,9 @@ char max). Sorted by bucket, then alphabetically.
 ### 6. wiki/README.md
 
 Human entry point for the wiki. Include:
-- What meta-kb is (1-2 sentences)
+- What this knowledge base is (1-2 sentences, using name and topic from `config/domain.ts`)
 - Link to field-map.md
-- Table of 5 synthesis articles (bucket name, title, word count)
+- Table of synthesis articles (one per bucket, with name, title, word count)
 - Links to indexes (projects, topics, missing) and graph
 - Stats: source count, entity count, total word count
 

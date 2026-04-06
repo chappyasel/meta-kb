@@ -1,15 +1,16 @@
 ---
 name: compile-wiki
 description: >
-  Compiles the meta-kb wiki from raw markdown sources about LLM knowledge bases,
-  agent memory, context engineering, agent systems, and self-improving systems.
-  Orchestrates a multi-phase pipeline using subagents: read sources, write synthesis
-  articles, write reference cards, generate field map and indexes, extract claims,
-  and run self-eval. Use when asked to compile, build, or generate the wiki from
-  raw sources.
+  Compiles the wiki from raw markdown sources. Read `config/domain.ts` for the
+  domain topic and taxonomy. Orchestrates a multi-phase pipeline using subagents:
+  read sources, write synthesis articles, write reference cards, generate field
+  map and indexes, extract claims, and run self-eval. Use when asked to compile,
+  build, or generate the wiki from raw sources.
 ---
 
-# Compile meta-kb Wiki
+# Compile Wiki
+
+Read `config/domain.ts` for the domain topic, audience, and taxonomy bucket definitions.
 
 Compile the wiki from raw sources in `raw/` and `raw/deep/`. Output goes to
 `wiki/` by default, or `wiki-{agent}/` when running as a comparison alongside
@@ -29,8 +30,7 @@ Phase 6: Claims + eval     (sequential — needs synthesis articles)
 ## Phase 1: Scan Sources
 
 Read every `.md` file in `raw/{tweets,repos,papers,articles}/` and
-`raw/deep/{repos,papers}/`. There are ~171 sources including ~51 deep
-research files with source-code-level analysis.
+`raw/deep/{repos,papers}/`.
 
 For each source, extract from YAML frontmatter: `url`, `type`, `author`,
 `date`, `tags`, `key_insight`, `stars` (if present), and
@@ -50,7 +50,7 @@ Write `build/bucket-sources.json` with this structure:
 
 ## Phase 2: Synthesis Articles (Parallel)
 
-Launch **5 subagents in parallel**, one per bucket. Each subagent's task:
+Launch **one subagent per bucket** (as defined in `config/domain.ts`) **in parallel**. Each subagent's task:
 
 > "Use the compile-synthesis skill to write a synthesis article for the
 > {bucket} bucket. Sources for this bucket: {list paths + key_insights from
@@ -58,16 +58,15 @@ Launch **5 subagents in parallel**, one per bucket. Each subagent's task:
 
 Each subagent reads the raw sources it needs and writes one article.
 
-**After all 5 complete:** Verify `wiki/{bucket}.md` exists for all 5 buckets.
+**After all complete:** Verify `wiki/{bucket-id}.md` exists for all buckets.
 If any are missing, retry that subagent.
 
 ## Phase 3: Field Map (Sequential)
 
 Launch **1 subagent**:
 
-> "Use the compile-field-map skill to write wiki/field-map.md. The 5 synthesis
-> articles are in wiki/knowledge-bases.md, wiki/agent-memory.md,
-> wiki/context-engineering.md, wiki/agent-systems.md, wiki/self-improving.md."
+> "Use the compile-field-map skill to write wiki/field-map.md. Read config/domain.ts
+> for bucket definitions. The synthesis articles are at wiki/{bucket-id}.md for each bucket."
 
 ## Phase 4: Reference Cards (Parallel)
 
@@ -94,9 +93,9 @@ Launch **1 subagent**:
 
 Launch **1 subagent**:
 
-> "Use the compile-claims skill to extract claims from the 5 synthesis articles
-> in wiki/ and run self-eval against raw sources. Write build/claims.json and
-> build/eval-report.json."
+> "Use the compile-claims skill to extract claims from the synthesis articles
+> in wiki/ (one per bucket from config/domain.ts) and run self-eval against
+> raw sources. Write build/claims.json and build/eval-report.json."
 
 ## Quality Rules
 

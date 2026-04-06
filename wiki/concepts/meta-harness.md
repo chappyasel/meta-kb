@@ -151,7 +151,7 @@ The paper does not address:
 
 ## Relationship to Related Work
 
-**vs. ACE:** ACE manages context content (what knowledge to include through incremental deltas). Meta-Harness optimizes context construction code (how to retrieve, filter, and format). These are orthogonal and could be combined. [Related Concept](../concepts/ace-adaptive-context-engineering.md)
+**vs. ACE:** ACE manages context content (what knowledge to include through incremental deltas). Meta-Harness optimizes context construction code (how to retrieve, filter, and format). These are orthogonal and could be combined. [Related Concept](ace.md)
 
 **vs. Darwin Gödel Machine / DGM:** DGM self-modifies its own code through recursive improvement. Meta-Harness optimizes a harness without modifying the proposer itself. The outer loop is fixed; the inner harness is variable. [Related Project](../projects/darwin-godel-machine.md)
 

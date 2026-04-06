@@ -1,13 +1,15 @@
 ---
 name: compile-cards
 description: >
-  Writes reference cards for projects, concepts, or people in the meta-kb wiki.
+  Writes reference cards for projects, concepts, or people in the wiki.
   Projects get 800-1500 words with architecture, benchmarks, limitations, and
   alternatives. Concepts get 1500-2500 words. People get 150-250 words. Use when
-  writing wiki reference cards for specific entities in meta-kb.
+  writing wiki reference cards for specific entities.
 ---
 
 # Compile Reference Cards
+
+Read `config/domain.ts` for domain context and taxonomy bucket definitions.
 
 Write reference cards for projects, concepts, or people.
 

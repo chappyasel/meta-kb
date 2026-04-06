@@ -1,13 +1,15 @@
 ---
 name: deep-research
 description: >
-  Deep-researches a project or paper for the meta-kb knowledge base. Clones
-  repos to read source code, fetches full paper text, and produces structured
-  analysis files in raw/deep/. Use when asked to deep-research, deep-dive,
-  analyze source code, or enrich a source with implementation details.
+  Deep-researches a project or paper for the knowledge base. Clones repos to
+  read source code, fetches full paper text, and produces structured analysis
+  files in raw/deep/. Use when asked to deep-research, deep-dive, analyze
+  source code, or enrich a source with implementation details.
 ---
 
-# Deep Research for meta-kb
+# Deep Research
+
+Read `config/domain.ts` for the domain topic and taxonomy bucket definitions.
 
 Produce a structured deep-research source file for a project (repo) or paper.
 Output goes to `raw/deep/repos/` or `raw/deep/papers/`.

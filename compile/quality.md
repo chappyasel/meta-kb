@@ -63,7 +63,7 @@
 
 ## Tone
 
-- Write for practitioners who build with AI agents daily
+- Write for the domain's target audience (defined in `config/domain.ts`)
 - Be direct and opinionated. Not academic, not corporate.
 - Use concrete examples: project names, specific techniques, actual numbers
 - Short paragraphs. Direct sentences.

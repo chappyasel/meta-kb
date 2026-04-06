@@ -2,92 +2,93 @@
 entity_id: synthetic-data-generation
 type: approach
 bucket: self-improving
+abstract: >-
+  Synthetic data generation uses LLMs to produce training or evaluation data
+  automatically, enabling dataset scaling without proportional human labeling
+  effort; its key differentiator is closing the feedback loop between knowledge
+  retrieval and model weight updates.
 sources:
   - tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md
   - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
   - tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md
-related: []
-last_compiled: '2026-04-05T05:40:23.277Z'
+related:
+  - Obsidian
+  - Retrieval-Augmented Generation
+  - Andrej Karpathy
+last_compiled: '2026-04-05T23:14:58.458Z'
 ---
 # Synthetic Data Generation
 
 ## What It Is
 
-Synthetic data generation means using LLMs or other generative models to produce training or evaluation data automatically, rather than collecting and labeling it by hand. You give a model a task, some examples, or a description of what you need, and it writes the data for you.
+Synthetic data generation uses LLMs or other models to produce training examples, evaluation sets, or structured knowledge artifacts that would otherwise require human annotation. The outputs range from question-answer pairs to full markdown articles to preference tuples for RLHF. In the context of self-improving agent systems, it specifically refers to generating data from a running system's own outputs so that accumulated knowledge can migrate from context windows into model weights via fine-tuning.
 
-The approach spans a spectrum. At one end: simple prompt templates that produce question-answer pairs. At the other: multi-step pipelines where a teacher model generates examples, a separate judge model filters them, and the surviving examples finetune a student model that then generates harder examples for the next round.
-
-In the self-improving systems context, synthetic data generation is the mechanism that moves knowledge from a context window into model weights. Karpathy frames this explicitly: as a markdown wiki grows, the "natural desire is to also think about synthetic data generation + finetuning to have your LLM 'know' the data in its weights instead of just context windows." [Source](../../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
-
-## Why It Matters
-
-Two problems make human-curated data expensive: labeling costs time, and some capabilities have no natural data source. A model that needs to critique its own reasoning, generate step-by-step proofs, or answer questions about a private corpus cannot rely on crawled web data. Synthetic generation sidesteps both problems.
-
-The compounding dynamic matters more than the cost savings. When query outputs get filed back into the knowledge base, and the knowledge base eventually becomes training data, the system accumulates expertise over time without human annotation at each step. Every query adds signal. The bottleneck shifts from "can we label enough examples" to "can we generate examples that are actually good."
+The approach sits at the intersection of two problems: the cost of human-labeled data at scale, and the hard ceiling on what fits in a context window. Synthetic generation addresses both by treating the model as both producer and consumer of training signal.
 
 ## How It Works
 
-### The Basic Loop
+The core mechanism involves three steps that compound over time.
 
-1. A teacher model (often the largest available) generates candidate examples given a prompt or seed document.
-2. A filter step rejects low-quality outputs. This can be a separate judge model, a deterministic verifier (for code or math), or a self-consistency check across multiple samples.
-3. Surviving examples finetune a student model.
-4. The student, now more capable, generates harder seeds for the next iteration.
+**Compilation.** Raw source documents (papers, articles, code) enter a `raw/` directory. An LLM reads them and writes structured markdown articles into a wiki directory, generating summaries, cross-links, and concept-level synthesis. The LLM maintains index files so later queries don't require embedding-based retrieval.
 
-### Applied to Knowledge Bases
+**Linting and enrichment.** Periodic health-check passes run the LLM over the existing wiki to find inconsistencies, impute missing data via web search, and surface candidate articles for new topics. This is where synthetic data diverges from simple summarization: the model generates content that wasn't explicitly present in any source, drawing inferences across documents. [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
 
-In Karpathy's setup, the pipeline is less formal but follows the same logic. Raw sources land in `raw/`. An LLM compiles them into wiki articles in a `wiki/` directory. Query outputs get filed back into the wiki. At some point, the wiki content becomes training data via finetuning, so the model carries domain knowledge in weights rather than relying on context retrieval. [Source](../../raw/tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md)
+**Weight incorporation.** Once the wiki grows large enough that even context-window-based Q&A shows friction, the accumulated markdown becomes a fine-tuning corpus. The wiki articles, Q&A outputs, and linting passes are converted into training examples. Fine-tuning then bakes the domain knowledge into model weights, eliminating retrieval at inference time for well-covered topics.
 
-The linting loop runs separately: the LLM scans for inconsistencies, imputes missing data via web search, and suggests new article candidates. This functions as a quality filter on the corpus before it ever becomes training data.
+Karpathy frames this last step as the natural endpoint: "the natural desire is to also think about synthetic data generation + finetuning to have your LLM 'know' the data in its weights instead of just context windows." [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
 
-### Data Types Produced
+The feedback loop is the key mechanism. Queries filed back into the wiki expand the training corpus. Linting passes generate new synthetic articles. Each fine-tuning run produces a model slightly better at handling the specific domain, which in turn produces higher-quality synthetic articles in the next cycle.
 
-- **Question-answer pairs** from source documents
-- **Chain-of-thought traces** showing reasoning steps
-- **Preference pairs** (chosen/rejected) for RLHF-style training
-- **Skill demonstrations** for agent training (tool use, multi-step planning)
-- **Adversarial examples** to stress-test edge cases
+## Where It Fits in Agent Architectures
+
+Synthetic generation replaces or supplements [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) at sufficient scale. At small-to-medium corpus sizes (~100 articles, ~400K words), an LLM maintaining its own index files can answer complex queries without a vector database. Beyond that scale, or for latency-sensitive production use, synthetic fine-tuning becomes the more practical path because it removes the retrieval step entirely.
+
+[Obsidian](../projects/obsidian.md) functions as the human-readable interface for inspecting the wiki during this process. Marp and matplotlib handle visual output formats. The actual synthesis happens in CLI tool calls the LLM makes against the markdown files. [Source](../raw/tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md)
 
 ## Strengths
 
-**No labeling bottleneck.** A domain expert who cannot annotate 10,000 examples can write 20 seed examples and prompt a model to extrapolate.
+**Scalable corpus construction.** Human annotators cannot keep pace with a research domain evolving weekly. An LLM writing 50 articles per run scales with API rate limits, not headcount.
 
-**Targeted coverage.** You can directly generate examples for failure modes the model currently gets wrong, rather than hoping they appear in a scraped dataset.
+**Inspectability.** Markdown files are human-readable. Every generated article, every linting pass, every Q&A output can be audited. This contrasts with RAG vector stores, where the retrieval logic is opaque and errors surface only at query time.
 
-**Iterative improvement.** Each finetuning round produces a better generator, which produces better training data. This compounds in a way that static datasets cannot.
+**Compounding returns.** Each query that gets filed back into the wiki adds a training example. The corpus grows with use rather than requiring separate annotation campaigns.
 
-**Inspectable.** Unlike opaque retrieval systems, the generated data sits in files you can read and audit before training.
+**No specialized retrieval infrastructure.** At small-to-medium scale, LLM-maintained index files outperform naive RAG implementations without requiring embedding models, vector databases, or chunking pipelines. [Source](../raw/tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md)
 
 ## Critical Limitations
 
-**Quality ceiling from the generator.** The teacher model cannot produce examples that exceed its own understanding. A model that reasons poorly about a domain will generate plausible-sounding but subtly wrong training examples. Finetuning on those examples moves the student toward confident incorrectness. This failure mode is hard to detect without a ground-truth verifier, which often does not exist for open-ended tasks.
+**Error propagation and hallucination laundering.** The most serious failure mode: when the LLM generates synthetic articles containing confident-sounding errors, those errors enter the training corpus. Fine-tuning on them reinforces the mistakes. Linting passes may not catch errors in domains where the base model is already wrong, because the linter uses the same model with the same biases. A single plausible hallucination in cycle one can become a hardcoded model belief by cycle three.
 
-**Infrastructure assumption: you have a finetuning pipeline.** Generating synthetic data is cheap. Using it requires infrastructure for data formatting, training runs, evaluation, and deployment. The Karpathy workflow describes the data generation half; the finetuning half requires GPU access, experiment tracking, and regression testing that most practitioners do not have running. The approach implicitly assumes this pipeline exists.
+**Infrastructure assumption: stable document provenance.** The system assumes raw sources are well-organized, clearly attributed, and don't contradict each other. Messy real-world corpora with duplicate, outdated, or conflicting documents stress the linting loop in ways the wiki metaphor obscures. The LLM has no ground truth to adjudicate conflicts, so it picks one version or averages them, and the provenance of that choice disappears.
 
 ## When Not to Use It
 
-**Safety-critical domains without verifiable ground truth.** Medical diagnosis, legal reasoning, financial advice: a model-as-judge cannot reliably distinguish correct from plausible. Human expert review becomes mandatory, which defeats the cost argument.
+Skip synthetic data generation when the domain requires factual precision that can be externally verified at low cost. If you can hire annotators or tap structured databases, human-labeled data beats synthetic for factual tasks because error rates are lower and auditable. Synthetic generation earns its place where human annotation is prohibitively slow or expensive relative to the volume needed.
 
-**When the base model already covers the domain.** If GPT-4 or Claude already answers your questions well from general training, synthetic finetuning on a small private corpus is unlikely to help and may hurt generalization. Context injection is cheaper and reversible.
+Avoid the fine-tuning step specifically when the knowledge base changes faster than fine-tuning cycles. If the source documents update daily, a fine-tuned model lags behind a RAG system that queries fresh documents. The wiki + index approach without fine-tuning is better in high-churn domains.
 
-**When your source corpus is small and noisy.** Synthetic generation amplifies whatever is in the seeds. A 50-document wiki with inconsistent terminology produces 5,000 training examples with inconsistent terminology. The linting step must precede generation, not follow it.
-
-**Rapidly changing domains.** Weights trained on synthetic data freeze a snapshot. A wiki that gets daily updates needs retrieval, not finetuning, to stay current.
+Don't use it for safety-critical applications without a separate human review gate on every synthetic article before it enters the training corpus. The self-healing linting loop has no mechanism for catching systematic bias introduced by the base model.
 
 ## Unresolved Questions
 
-**How do you evaluate synthetic data quality before training?** The standard answer is "use a judge model," but judge models share failure modes with generator models. No consensus exists on what rigorous pre-training quality filtering looks like for open-ended domains.
+**Quality threshold for training corpus inclusion.** No published methodology specifies when a synthetic article is good enough to include in a fine-tuning run. Karpathy's description treats all wiki content as implicitly training-eligible, but in practice the quality variance across a 100-article wiki is substantial. [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
 
-**What is the compounding failure rate?** Each generation round introduces some error. Over many rounds of self-improvement, do errors cancel out or accumulate? The research literature on iterated distillation is thin outside of math and code, where verifiers exist.
+**Catastrophic forgetting.** Fine-tuning on domain-specific synthetic data risks degrading general capabilities. The tradeoff between domain specialization and breadth isn't addressed in the self-improving wiki framing.
 
-**How much data justifies a finetuning run versus retrieval?** At 100 wiki articles (Karpathy's scale), finetuning seems premature. At 10,000? 100,000? The crossover point where weights beat context windows for private domain knowledge is not established.
+**Cost at scale.** The approach works at ~100 articles. What happens at 10,000? Token costs for linting passes grow with corpus size. No benchmarks exist for the crossover point where RAG becomes cheaper than synthetic-corpus maintenance plus fine-tuning.
 
-**Who controls the feedback loop?** In a production system where synthetic data automatically flows into training, a single bad generation cycle can degrade the model that generates future data. Governance around when to halt, retrain from scratch, or revert to a prior checkpoint is rarely documented.
+**Governance of the feedback loop.** Who reviews the linting suggestions before they become wiki articles? The described system has no human checkpoint between a linting pass and a wiki update. At personal research scale that's acceptable. At team or product scale, it's a liability.
 
-## Relationship to Adjacent Approaches
+## Alternatives
 
-Synthetic data generation sits inside the broader self-improving systems pattern. It is the step that makes context-window knowledge persistent. Without it, every new conversation starts from scratch. With it, accumulated wiki knowledge can travel with the model.
+**[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md):** Use when knowledge updates frequently and you need fresh-document access at query time. RAG retrieves from current sources rather than from fine-tuned weights, making it better for high-churn domains.
 
-It differs from retrieval in a key way: retrieval is runtime, synthetic training is compile-time. Retrieval stays current; trained weights stay frozen. Most production systems will use both, with retrieval handling recency and weights handling deep domain fluency.
+**Human annotation pipelines:** Use when factual precision matters and the annotation volume is bounded. Higher per-example cost, lower error rate, clearer audit trail.
 
-The linting loop in Karpathy's setup functions as a data quality pipeline before any training happens. Running health checks over the wiki, finding inconsistencies, and imputing missing data all improve the eventual training corpus even if finetuning never happens. [Source](../../raw/tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md)
+**Distillation from larger models:** Use when you want to compress a large model's capabilities into a smaller one without domain specificity. Synthetic generation from teacher models for student fine-tuning is a well-studied variant of this approach.
+
+## Related Concepts
+
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
+- [Andrej Karpathy](../people/andrej-karpathy.md)
+- [Obsidian](../projects/obsidian.md)

@@ -3,121 +3,159 @@ entity_id: dspy
 type: project
 bucket: context-engineering
 abstract: >-
-  DSPy compiles LLM pipelines by automatically optimizing prompts and few-shot
-  examples through teleprompters, replacing hand-written prompt engineering with
-  systematic search over program parameters.
+  DSPy compiles declarative LLM pipelines by optimizing prompts and few-shot
+  examples automatically, replacing hand-crafted prompt engineering with
+  algorithmic search over instruction and demonstration space.
 sources:
   - repos/laurian-context-compression-experiments-2508.md
   - deep/repos/gepa-ai-gepa.md
   - deep/repos/osu-nlp-group-hipporag.md
   - deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md
-related:
-  - Prompt Engineering
-  - Context Engineering
-last_compiled: '2026-04-05T20:32:24.524Z'
+related: []
+last_compiled: '2026-04-06T02:08:20.366Z'
 ---
 # DSPy
 
 ## What It Does
 
-DSPy is a Python framework from Stanford that treats LLM pipelines as programs with optimizable parameters rather than static prompt templates. Instead of manually crafting prompts, you write a pipeline using typed `Signature` objects and `Module` components, then run an optimizer (called a "teleprompter") that searches for prompts and few-shot examples that maximize a metric on your data.
+DSPy is a Python framework from Stanford NLP that treats LLM pipelines as programs to be compiled rather than prompts to be written. You define a pipeline using typed `Signature` objects (specifying inputs, outputs, and descriptions), compose them into `Module` classes, and then run an optimizer (called a "teleprompter") that automatically finds good instructions and few-shot examples for each module.
 
-The core bet: prompt engineering is a form of hyperparameter tuning, and it should be automated the same way neural network training is automated.
+The core bet: prompt engineering is an empirical search problem. DSPy automates that search given a metric function and a small training set, rather than having engineers hand-write instructions through trial and error.
 
-## Architecture
+## Core Mechanism
 
 ### Signatures and Modules
 
-A `Signature` declares the typed interface of an LLM call:
+A `dspy.Signature` declares what a step does:
 
 ```python
-class GenerateAnswer(dspy.Signature):
+class AnswerQuestion(dspy.Signature):
     """Answer questions with short factoid answers."""
-    context: list[str] = dspy.InputField()
-    question: str = dspy.InputField()
-    answer: str = dspy.OutputField()
+    context = dspy.InputField(desc="may contain relevant facts")
+    question = dspy.InputField()
+    answer = dspy.OutputField(desc="often between 1 and 5 words")
 ```
 
-`Module` subclasses compose these signatures into pipelines. Built-in modules include `dspy.Predict` (single call), `dspy.ChainOfThought` (adds reasoning field), `dspy.ReAct` (tool use loop), and `dspy.ProgramOfThought` (code generation). Users subclass `dspy.Module` and wire these together in `forward()`.
+A `dspy.Module` composes these into pipelines:
 
-At compile time, optimizers inspect the module tree, identify every `Predict` call, and modify their parameters (the instruction text, few-shot demonstrations) to maximize the evaluation metric.
+```python
+class RAGPipeline(dspy.Module):
+    def __init__(self):
+        self.retrieve = dspy.Retrieve(k=3)
+        self.generate = dspy.ChainOfThought(AnswerQuestion)
+    
+    def forward(self, question):
+        context = self.retrieve(question).passages
+        return self.generate(context=context, question=question)
+```
+
+Built-in module types include `Predict` (direct prediction), `ChainOfThought` (adds reasoning steps), `ReAct` (tool-using agents), and `MultiChainComparison`. Each module type translates its signature into a different prompting pattern.
 
 ### Teleprompters (Optimizers)
 
-DSPy ships several optimizers with different tradeoffs:
+The compilation step runs a teleprompter against a training set and metric:
 
-- **`BootstrapFewShot`**: Runs the pipeline on training examples, collects traces where the final metric passes, and uses passing intermediate outputs as few-shot demonstrations. Cheap but limited to what the unoptimized program can already do.
-- **`BootstrapFewShotWithRandomSearch`**: Same as above but samples multiple candidate demonstration sets and keeps the best.
-- **`MIPROv2`**: Proposes instruction candidates via a meta-prompt ("what task is this module doing?"), then runs Bayesian optimization over (instruction, demonstration) combinations. More expensive but finds better instructions.
-- **`GEPA`**: The newest addition. Uses genetic-Pareto evolutionary search with LLM-readable execution traces as the feedback signal, rather than scalar rewards. See the [GEPA source analysis](../raw/deep/repos/gepa-ai-gepa.md) for details on how it achieves 35x fewer evaluations than RL-based approaches.
+```python
+optimizer = dspy.MIPROv2(metric=validate_answer, auto="medium")
+compiled = optimizer.compile(pipeline, trainset=trainset)
+```
 
-Optimizers write back to the module in place. The compiled module is serializable to JSON via `save()` / `load()`.
+The main optimizers:
 
-### LM Abstraction
+**BootstrapFewShot**: Generates candidate demonstrations by running the uncompiled program on training examples, keeping examples where the metric passes. Simple but requires a labeled training set.
 
-`dspy.LM` wraps any LLM provider (OpenAI, Anthropic, local via litellm). You configure it globally with `dspy.configure(lm=...)` or thread-locally with `dspy.context(lm=...)`. Every `Predict` call goes through the configured LM, capturing inputs and outputs into a trace for the optimizer to inspect.
+**MIPRO / MIPROv2**: Proposes instruction candidates using a meta-prompt that reasons about the task, then uses Bayesian optimization (via `optuna`) to search the joint space of instructions and demonstrations. MIPROv2 is the recommended default for most tasks.
 
-### Assertions and Constraints
+**COPRO**: Generates instruction candidates using a teacher LLM and hill-climbs toward the best instructions.
 
-`dspy.Assert` and `dspy.Suggest` let you add runtime constraints on LLM outputs. `Assert` raises an exception if the constraint fails; `Suggest` triggers a retry with the failure message appended to the prompt. This gives the optimizer feedback signals beyond the final metric.
+**GEPA**: Available as `dspy.GEPA`, uses genetic-Pareto evolutionary search with LLM-readable execution traces (see [GEPA](../concepts/gepa.md)). Reported as 35x faster than RL-based approaches (self-reported, source: GEPA authors).
+
+**BetterTogether**: Jointly optimizes prompts and model weights (via fine-tuning) for maximum efficiency.
+
+The compiled program saves to JSON with optimized instructions and demonstrations baked in, deployable without re-running optimization.
+
+### How MIPROv2 Works Internally
+
+MIPROv2 runs in three phases:
+
+1. **Bootstrapping**: Run the uncompiled program on training examples to collect labeled traces (input/output pairs with intermediate reasoning).
+
+2. **Proposal generation**: Use a meta-prompt to generate N candidate instructions for each module, seeded by the bootstrapped traces and the signature description.
+
+3. **Bayesian search**: Use `optuna` (TPE sampler) to select combinations of instruction candidates and demonstration sets. Each trial evaluates the full pipeline on a dev set using the metric function.
+
+The search space grows exponentially with pipeline depth, so MIPROv2 uses early stopping and a configurable `num_trials` budget.
+
+### Storage and Serialization
+
+Compiled programs serialize to JSON with a structure like:
+```json
+{
+  "generate_answer.predict.signature.instructions": "...",
+  "generate_answer.predict.demos": [...]
+}
+```
+
+The `load`/`save` methods handle this. Programs can be shared and loaded without the original training set.
 
 ## Key Numbers
 
-- GitHub stars: ~23,000 (as of mid-2025)
-- MIPROv2 on MATH benchmark: moves `ChainOfThought` from 67% to 93% accuracy when used with GEPA for full program optimization [Source](../raw/deep/repos/gepa-ai-gepa.md) — these figures are from the GEPA paper (self-reported, Oral at ICLR 2026, not independently replicated in the DSPy repo itself)
-- Context compression case study: GEPA running as `dspy.GEPA` improved gpt-4o-mini extraction success from 0% to 62% baseline, with a TextGrad+GEPA hybrid reaching 100% on a 296-example held-out set [Source](../raw/repos/laurian-context-compression-experiments-2508.md) — practitioner-reported, small dataset
+| Benchmark | Baseline | DSPy (MIPROv2) | Notes |
+|-----------|----------|-----------------|-------|
+| MATH | 67% (CoT) | 93% (full program opt) | Self-reported by GEPA authors on DSPy integration |
+| Context compression (gpt-4o-mini) | 0% success | 45% val / 62% test | Independent test (laurian/context-compression-experiments) |
+| AIME 2025 (GPT-4.1 Mini) | 46.67% | 60.00% | Self-reported by GEPA |
+
+GitHub stars: ~22k (as of mid-2025). Credibility caveat: most benchmark numbers are self-reported by the DSPy team or downstream users. Independent replication is limited, and performance gains depend heavily on metric design and training set quality.
 
 ## Strengths
 
-**Systematic over ad-hoc.** When you have evaluation data and a metric, DSPy converts "tweak prompts until it works" into a measurable optimization run. Improvements are reproducible and auditable.
+**Prompt-model decoupling**: Because signatures describe intent rather than encoding model-specific prompt tricks, the same pipeline can be recompiled when you switch models. Migrating from GPT-4o to Claude means re-running the optimizer, not rewriting prompts.
 
-**Pipeline-level optimization.** Unlike tools that optimize a single prompt in isolation, DSPy optimizes all prompts in a pipeline jointly. A three-hop retrieval + reasoning + answer pipeline gets coherent prompts tuned against the end metric, not optimized step by step.
+**Metric-driven development**: Optimization requires a metric function, which forces teams to define what "good" means quantitatively before building. This is a forcing function toward evaluability.
 
-**Backend agnosticism.** The same program compiles against OpenAI, Anthropic, or local models. Switching backends and recompiling often recovers performance lost from using a cheaper model.
+**Composability**: Modules nest cleanly. A `ChainOfThought` module inside a larger agent pipeline gets optimized in context, not in isolation.
 
-**Typed interfaces reduce output failures.** Signatures with typed output fields parse structured data from LLM responses, and `dspy.Assert` / `dspy.Suggest` add retry logic without manual try/except chains.
+**Gradient-free optimization for discrete text**: No differentiability required. The optimizer treats prompt space as a combinatorial search problem, which is appropriate for discrete tokens.
+
+**Integration surface**: The ecosystem has grown to include adapters for LangChain, LangGraph, Pydantic AI, and now GEPA. HippoRAG uses DSPy's optimizer to train its recognition memory filter (the `DSPyFilter` class in `rerank.py`), demonstrating real-world adoption beyond benchmarks.
 
 ## Critical Limitations
 
-**One concrete failure mode: optimizer overfitting on small training sets.** Bootstrap-based optimizers sample demonstrations from training traces. With fewer than 50-100 diverse training examples, the demonstrations tend to cluster around similar inputs, and the optimized module degrades on distribution shifts. There is no built-in detection for this: the validation metric can look fine while generalization collapses.
+**Concrete failure mode -- metric gaming**: DSPy optimizes toward whatever your metric function rewards. A metric that checks substring match will produce prompts that inject expected answers. A metric that uses an LLM judge inherits that judge's biases. The optimizer has no awareness of overfitting and will happily find instructions that exploit metric quirks. In the context-compression experiment, the GEPA-optimized prompt reached 62% on test data but evolved domain-specific instructions that hardcoded knowledge about the specific corpus (visible in the redacted examples -- domain terms leaked into the prompt template itself). This prompt may generalize poorly to different document types.
 
-**Unspoken infrastructure assumption: you need fast, cheap evaluation.** Every optimizer variant runs your pipeline tens to hundreds of times during optimization. MIPROv2 with 100 candidates needs ~100 full pipeline evaluations. If your pipeline costs $0.05/run and takes 10 seconds, MIPROv2 costs $5 and takes ~17 minutes. GEPA can cost more per iteration (it calls a separate reflection LLM) while needing fewer iterations total. Without rate limits, caching, or batching, optimization runs block for hours and generate unexpected API bills. DSPy provides a cache for LLM calls but not for full pipeline evaluations.
+**Unspoken infrastructure assumption**: MIPROv2 requires running your full pipeline N times (default: 50-200 trials × training set size). For a pipeline with API-based retrieval, tool calls, or expensive LLM steps, this means hundreds to thousands of API calls during optimization. A pipeline that costs $0.01 per query becomes $5-20 in optimization overhead at minimum. At production scale (thousands of unique pipeline configurations), the cost compounds. The framework provides no built-in cost estimation or budget guardrails -- you set `num_trials` and pay accordingly.
 
-## When Not to Use It
+## When NOT to Use DSPy
 
-**Your pipeline has no evaluation data.** DSPy optimization requires a training set with ground-truth labels or a metric function that reliably scores outputs. If you are in early exploration and cannot define success, the optimizer has nothing to optimize toward and you get arbitrary output.
+**One-off tasks with no stable metric**: If you cannot write a metric function that accurately reflects quality, the optimizer has nothing to optimize toward. Ad-hoc exploratory prompting is faster.
 
-**You need sub-100ms latency.** Compiled modules have the same runtime cost as their underlying LLM calls. DSPy adds no runtime overhead, but it does not reduce it either. If your baseline pipeline is too slow, optimization will not help.
+**Very short optimization horizon**: Compiling a pipeline takes time and money. If you plan to use a prompt five times total, hand-writing it is cheaper.
 
-**You have one LLM call and a stable task.** For a single prompt on a well-understood task with consistent inputs, careful manual prompt engineering or a few-shot template is faster than setting up a DSPy pipeline and optimizer. DSPy pays off on multi-step pipelines or tasks with measurable variance.
+**Pipelines that change topology per query**: DSPy optimizes a fixed module graph. If your pipeline structure changes dramatically based on input (e.g., you sometimes use 3 retrieval steps and sometimes 0), the compiled optimizations apply inconsistently.
 
-**Your metric cannot be automated.** Some quality judgments require human review. DSPy has no built-in human-in-the-loop optimization loop. Workarounds exist (LLM-as-judge metrics) but introduce their own reliability problems.
+**Teams without evaluation infrastructure**: The real prerequisite for DSPy is a test set and a reliable metric. Teams that lack these are not ready to use DSPy -- they will compile a program with a proxy metric and deploy something that tests well on the wrong thing.
+
+**Latency-critical paths where prompt size matters**: Compiled DSPy programs include multi-shot demonstrations in every prompt. On latency-sensitive endpoints, the extra tokens (often 2-5x longer prompts post-compilation) may outweigh the accuracy gains.
 
 ## Unresolved Questions
 
-**Optimizer selection guidance is weak.** The documentation describes what each optimizer does but offers minimal guidance on which to pick for a given dataset size, pipeline complexity, or budget. Practitioners often have to run multiple optimizers to find which fits their situation, which compounds cost.
+**Conflict resolution between modules**: When two modules in a pipeline produce contradictory intermediate outputs, DSPy has no built-in conflict resolution. The downstream module receives the contradiction and handles it however the LLM handles it. The optimizer does not learn to resolve conflicts -- it just finds instructions that reduce overall metric loss.
 
-**How compiled modules degrade over time.** A module compiled against data from last month may produce worse results as the task distribution shifts. There is no built-in staleness detection, re-optimization trigger, or monitoring hook. The burden of deciding when to recompile falls entirely on the user.
+**Cost at scale is undocumented**: The documentation describes `num_trials` but does not provide guidance on when optimization plateaus or how to estimate total API cost before running. Real-world users have reported optimization runs costing $50-200 for moderately complex pipelines with large training sets.
 
-**Cost at scale is opaque.** The optimization cost depends on training set size, module depth, optimizer choice, and LLM pricing — none of which is surfaced in a pre-run estimate. The [context compression case study](../raw/repos/laurian-context-compression-experiments-2508.md) notes that GEPA ran for over an hour on 50 training examples. Scaling to 500 examples is not straightforwardly 10x.
+**Governance for compiled programs**: Who owns a compiled program? If the teacher LLM (used for instruction proposal) changes, does the compiled program need re-optimization? The JSON artifacts have no versioning metadata linking them to the LLM versions used during compilation, creating reproducibility issues.
 
-**Governance of compiled artifacts.** Compiled modules are JSON blobs containing optimized prompt strings. There is no built-in versioning, diff tooling, or audit trail. Teams that compile frequently need external infrastructure to track which compiled model is in production.
-
-## Relationship to Context Engineering
-
-DSPy implements [context engineering](../concepts/context-engineering.md) through optimization rather than manual construction. Where manual context engineering asks "what should I put in this prompt?", DSPy asks "what should the optimizer put in this prompt, given this metric and data?" The `Signature` fields define the structured context schema; the optimizer fills it with the right instructions and examples.
-
-The agentic computation graph survey [Source](../raw/deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md) classifies DSPy as "node-level optimization within fixed scaffolds" — it keeps the pipeline topology fixed and optimizes parameters at each node, which it distinguishes from topology-search approaches like AFlow. That classification identifies the ceiling: DSPy cannot discover that your pipeline needs an extra reasoning step, only that the existing steps should have different prompts.
+**Cross-module interference in optimization**: MIPROv2 optimizes instructions for all modules simultaneously via Bayesian search. It is unclear how much the optimizer accounts for interaction effects (module A's instruction quality conditional on module B's output). The search space treats modules more independently than they actually are.
 
 ## Alternatives
 
-- **TextGrad**: Gradient-based text optimization using LLMs as differentiators. Works well on single-prompt tasks and can refine DSPy-optimized prompts further (the [hybrid approach](../raw/repos/laurian-context-compression-experiments-2508.md) demonstrates this). Use TextGrad when you want iterative refinement without the Pareto-search overhead.
-- **GEPA standalone**: The same optimizer available as `dspy.GEPA` can be used independently of the DSPy program abstraction via its `optimize_anything` API. Use GEPA standalone when you are optimizing non-prompt artifacts (CUDA kernels, configuration files, agent skills) or when you want explicit control over the evolutionary search.
-- **Manual prompt engineering**: For single-step tasks with stable distributions and fewer than ~20 training examples, manual iteration with structured evaluation is faster than DSPy setup overhead.
-- **PromptLayer / LangSmith**: If you want prompt versioning and A/B testing without automated optimization, these are monitoring tools rather than optimizers. They complement DSPy rather than competing with it.
+| Alternative | When to Choose |
+|-------------|---------------|
+| [LangChain](../projects/langchain.md) | When you want a broader ecosystem with more integrations and are comfortable with manual prompt engineering |
+| [LangGraph](../projects/langgraph.md) | When you need stateful, graph-based agent execution with explicit control flow over optimization |
+| [LlamaIndex](../projects/llamaindex.md) | When the primary task is RAG with complex retrieval strategies and you want purpose-built retrieval primitives |
+| Manual [Prompt Engineering](../concepts/prompt-engineering.md) | When your task lacks a reliable metric, your training set is too small (<20 examples), or your pipeline runs too infrequently to justify compilation cost |
+| [GEPA](../concepts/gepa.md) | When you have execution traces with rich diagnostic information and want faster convergence than MIPROv2 (GEPA is available as `dspy.GEPA`) |
 
-
-## Related
-
-- [Prompt Engineering](../concepts/prompt-engineering.md) — extends (0.8)
-- [Context Engineering](../concepts/context-engineering.md) — implements (0.7)
+Use DSPy when you have a stable pipeline structure, a reliable evaluation metric, a training set of at least 50 examples, and a task where prompt quality demonstrably affects outcomes. It pays off most on pipelines you will run thousands of times against consistent task types.

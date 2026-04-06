@@ -3,224 +3,141 @@ entity_id: vector-database
 type: concept
 bucket: knowledge-bases
 abstract: >-
-  A database optimized for storing and querying high-dimensional vector
-  embeddings via approximate nearest neighbor algorithms, enabling semantic
-  similarity search for RAG pipelines, agent memory, and knowledge retrieval at
-  scale.
+  A database system storing and querying high-dimensional vectors via
+  approximate nearest neighbor search, enabling semantic similarity retrieval
+  for RAG pipelines and agent memory — differentiated from traditional databases
+  by indexing geometry rather than exact values.
 sources:
   - repos/natebjones-projects-ob1.md
   - repos/thedotmack-claude-mem.md
   - repos/caviraoss-openmemory.md
-  - repos/topoteretes-cognee.md
-  - repos/michaelliv-napkin.md
-  - articles/fabricio-q-memory-in-agents-episodic-vs-semantic-and-the-h.md
   - articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md
   - >-
     articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md
-  - deep/repos/caviraoss-openmemory.md
 related:
-  - Retrieval-Augmented Generation
-  - Model Context Protocol
-  - Episodic Memory
-  - Semantic Memory
-  - Mem0
-  - Procedural Memory
-  - ChromaDB
-  - Qdrant
-  - pgvector
-  - Pinecone
-  - Weaviate
-  - Milvus
-  - FAISS
-  - LanceDB
-last_compiled: '2026-04-05T20:26:26.865Z'
+  - rag
+  - mcp
+  - claude-code
+last_compiled: '2026-04-06T02:07:58.983Z'
 ---
 # Vector Database
 
 ## What It Is
 
-A vector database stores and retrieves high-dimensional numerical arrays (embeddings) that encode semantic meaning. Unlike relational databases that match exact values or text databases that match keywords, vector databases find items by geometric proximity in embedding space. A query embedding representing "machine that learns from data" will retrieve documents about neural networks even if they never use those exact words, because the embeddings cluster near each other in high-dimensional space.
+A vector database stores numeric arrays (embeddings) of hundreds to thousands of dimensions and retrieves records by geometric proximity rather than exact match. Ask for the 10 most similar vectors to a query vector, and the database returns them ranked by cosine similarity, dot product, or Euclidean distance. The embeddings themselves come from models like OpenAI's `text-embedding-3-small` or local alternatives via Ollama — the database stores and indexes what the embedding model produces.
 
-This is the foundational infrastructure for [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md), [Semantic Memory](../concepts/semantic-memory.md), [Episodic Memory](../concepts/episodic-memory.md), and most [Procedural Memory](../concepts/procedural-memory.md) systems. When an agent needs to recall relevant past context, or a RAG system needs to surface relevant documents, a vector database handles the retrieval step.
+This matters because meaning lives in geometry. Two sentences with zero words in common can sit close together in embedding space if they describe the same idea. A traditional SQL `WHERE content LIKE '%refund%'` misses "I want my money back." A vector search finds it.
 
-## Core Mechanism: Approximate Nearest Neighbor Search
+## Why It Matters for LLM Systems
 
-The defining algorithm is **Approximate Nearest Neighbor (ANN) search**. Exact nearest neighbor search requires comparing a query vector against every stored vector, which scales as O(n) per query. At millions of documents, this becomes untenable. ANN algorithms trade exact accuracy for orders-of-magnitude speedup.
+LLMs have no persistent memory. Every session starts blank. Vector databases are the primary mechanism for giving agents and RAG pipelines access to knowledge that exceeds the context window or persists across sessions.
 
-### HNSW (Hierarchical Navigable Small World)
+The core pattern in [Retrieval-Augmented Generation](../concepts/rag.md): embed a corpus of documents at index time, embed a user query at runtime, retrieve the top-K closest document chunks, inject them into the prompt. The model answers with grounding it couldn't have from training alone.
 
-The dominant index type across Qdrant, Weaviate, Milvus, and others. HNSW builds a layered graph where each layer is progressively sparser:
+[Agent Memory](../concepts/agent-memory.md) systems build on this further. Projects like [Mem0](../projects/mem0.md), [Zep](../projects/zep.md), and [Letta](../projects/letta.md) use vector databases as the retrieval layer for [Semantic Memory](../concepts/semantic-memory.md) and [Episodic Memory](../concepts/episodic-memory.md) — storing facts, preferences, and past interactions that agents need across conversations.
 
-- The bottom layer contains all vectors with short-range edges
-- Upper layers contain sampled nodes with long-range edges
-- Search starts at the top (few nodes, fast traversal) then descends to the bottom (dense, precise)
+## How It Works
 
-Insert time is O(log n). Search time is approximately O(log n) in practice. Memory usage is the tradeoff: HNSW indexes are typically 1.5-3x the size of the raw vectors.
+### Indexing
 
-**Key parameters:**
-- `M`: Number of edges per node (higher = better recall, more memory)
-- `ef_construction`: Search depth during index build (higher = better quality, slower build)
-- `ef`: Search depth at query time (higher = better recall, slower query)
+When a document arrives, the pipeline calls an embedding model and stores the resulting float array alongside the original content and metadata. A naive implementation would compare every query vector against every stored vector — which works at thousands of records but breaks at millions. Production systems use Approximate Nearest Neighbor (ANN) algorithms:
 
-### IVF (Inverted File Index)
+**HNSW (Hierarchical Navigable Small World):** Builds a multi-layer graph where each node connects to its neighbors at progressively coarser resolutions. At query time, the search starts at the top layer, greedy-descends toward the query region, then refines at lower layers. [Qdrant](../projects/qdrant.md) implements HNSW in Rust with configurable `m` (connections per node) and `ef_construction` (search width during build) parameters. Higher values improve recall at the cost of memory and build time.
 
-Used by FAISS as its primary index type. Clusters vectors into Voronoi cells, then searches only nearby clusters for a query:
+**IVF (Inverted File Index):** Clusters vectors using k-means, then at query time searches only nearby clusters. Faster to build than HNSW, but recall drops if the query's nearest neighbors span multiple clusters.
 
-1. During build: k-means clusters the dataset into `nlist` centroids
-2. During query: find the `nprobe` nearest centroids, then search within those clusters
+**Product Quantization (PQ):** Compresses vectors by splitting them into subvectors and replacing each with a centroid ID. Dramatically reduces memory — a 1536-dim float32 vector drops from 6KB to ~128 bytes — at the cost of some accuracy.
 
-IVF indexes are smaller than HNSW but require a training step and degrade for small datasets. IVF is typically combined with Product Quantization (IVF-PQ) to compress vectors to fractions of their original size, reducing memory at the cost of recall.
+### Querying
 
-### Product Quantization (PQ)
+A query vector arrives. The index narrows candidate space using ANN, scores candidates by similarity metric, and returns top-K results with their associated payloads (original text, metadata, timestamps). This typically runs in single-digit milliseconds for collections up to tens of millions of vectors.
 
-Splits each vector into `m` sub-vectors, quantizes each to one of `k` codewords. A 1536-dimensional float32 vector (6144 bytes) can compress to 96 bytes with PQ at moderate recall loss. LanceDB uses a variant called IVF-PQ as its default. This is what makes billion-scale vector search feasible on commodity hardware.
+The similarity metric choice matters:
 
-### Similarity Metrics
+- **Cosine similarity:** Measures angle between vectors, ignoring magnitude. Standard for text embeddings.
+- **Dot product:** Equivalent to cosine when vectors are normalized. Faster to compute.
+- **Euclidean (L2):** Measures absolute distance. Used for image embeddings and spatial data.
 
-**Cosine similarity**: Measures angle between vectors, ignoring magnitude. Standard for text embeddings from OpenAI, Cohere, etc., where vector magnitude is not semantically meaningful.
+### Metadata Filtering
 
-**Dot product**: Measures both angle and magnitude. Used with embeddings trained with dot product objectives (some bi-encoders). Computationally cheaper than cosine but sensitive to embedding scale.
+Pure vector similarity is insufficient for most agent systems. You also need to filter by user ID, timestamp range, document type, or access level. Most vector databases support pre-filtering or post-filtering on structured metadata fields stored alongside vectors.
 
-**Euclidean distance (L2)**: Measures geometric distance. Less common for text, more common for image embeddings or when training explicitly optimized for L2.
+The Elasticsearch article in the sources demonstrates this with document-level security: an agent querying as user "Peter" automatically receives only memories tagged `memory_type: outie`, because Elasticsearch's role-based filters apply before vector scoring. [Qdrant](../projects/qdrant.md) handles this via payload filters in the query request. [ChromaDB](../projects/chromadb.md) supports `where` clause filtering on metadata.
 
-Most systems default to cosine similarity for text. Choosing the wrong metric for an embedding model's training objective degrades retrieval quality.
+## The Hybrid Retrieval Gap
 
-## Embedding Generation
+Vector search alone fails on queries requiring exact matches. Searching for an invoice number, a specific function name, or a technical identifier produces poor results because these strings have no meaningful semantic neighborhood — similar-sounding strings aren't semantically related.
 
-Vector databases store vectors but typically do not generate them. The embedding model is a separate component:
+Production RAG systems combine dense retrieval (vector search) with sparse retrieval ([BM25](../concepts/bm25.md) keyword matching) and merge results using Reciprocal Rank Fusion or learned rankers. This is [Hybrid Retrieval](../concepts/hybrid-retrieval.md). Elasticsearch and Qdrant both support hybrid natively. Systems using [ChromaDB](../projects/chromadb.md) or [Pinecone](../projects/pinecone.md) alone typically miss this.
 
-1. Text chunks pass through an embedding model (e.g., `text-embedding-3-small`, `nomic-embed-text`, `bge-m3`)
-2. The model outputs a fixed-dimensional vector (commonly 768, 1536, or 3072 dimensions)
-3. That vector is stored in the database alongside metadata and the original text
-
-Model choice determines the semantic quality of search. An embedding from `text-embedding-ada-002` and one from `nomic-embed-text` are not interchangeable — they occupy different geometric spaces with different clustering properties. Switching embedding models mid-deployment requires reindexing every stored vector.
-
-## Filtered Search
-
-Real applications rarely want to search all vectors. A customer support system might search only tickets from the last 30 days for one customer. Metadata filtering adds structured predicates to ANN search:
-
-- **Pre-filtering**: Apply metadata filter first, then ANN search within the filtered set. Precise but slow for sparse filters (small result sets).
-- **Post-filtering**: Run ANN search first, then filter results. Fast but may return fewer results than requested if many top-k candidates fail the filter.
-- **ACORN (Qdrant's approach)**: Interleaves filter checks during graph traversal. Balances speed and accuracy for arbitrary filters.
-
-Weaviate, Qdrant, and Milvus all implement some form of interleaved filtering. pgvector's filtering performance depends on PostgreSQL query planning and tends to degrade for small filtered subsets.
+The claude-mem project (44,950 stars) implements exactly this: SQLite with FTS5 full-text search combined with ChromaDB for semantic search, merged through its three-layer MCP workflow (`search` → `timeline` → `get_observations`).
 
 ## Major Implementations
 
-### Purpose-Built Vector Databases
+**[Qdrant](../projects/qdrant.md):** Rust-native, self-hostable, strong filtering, supports named vectors per document (useful for storing multiple embedding types per record). Active development, good performance benchmarks.
 
-**Qdrant** (Rust): Payload filtering during HNSW traversal, named vectors for multi-modal search, sparse+dense hybrid search in a single query. Strong performance benchmarks on the ANN-Benchmarks suite (self-reported; independently reproducible). Suited for production workloads needing fine-grained payload filtering.
+**[ChromaDB](../projects/chromadb.md):** Python-first, embedded or server mode, minimal setup. Common in prototypes and local agent systems. Used in claude-mem for its lightweight footprint.
 
-**Weaviate** (Go): GraphQL and REST APIs, built-in support for BM25 hybrid search, multi-tenancy at the collection level. Larger operational footprint than Qdrant. Suited for teams that need hybrid search and structured querying in one system.
+**[Pinecone](../projects/pinecone.md):** Fully managed cloud service. Handles scaling automatically. No self-hosting option. Introduces vendor lock-in and per-query costs at scale.
 
-**Milvus** (Go/C++): Designed for billions of vectors, distributed architecture with separate storage and compute layers. Complex to operate — requires etcd, MinIO or S3, and multiple service components. Suited for large-scale production deployments where operational complexity is acceptable.
+**pgvector:** PostgreSQL extension adding vector column types and HNSW/IVF indexes. Lets teams add vector search to an existing Postgres database without running a separate service. Open Brain (OB1) uses Supabase (Postgres + pgvector) as its foundation — one database handles both relational data and vector search.
 
-**Pinecone** (managed): Serverless and pod-based deployment options, no infrastructure to manage. Proprietary; no self-hosted option. Suited for teams that want to avoid vector database operations entirely, at cloud pricing.
+**Elasticsearch:** Full-featured search engine with vector support added via the `dense_vector` field type and HNSW indexing. Strongest option when you need hybrid retrieval, complex metadata filters, and document-level security in one system. Higher operational complexity.
 
-**LanceDB** (Rust): Columnar storage using the Lance format, IVF-PQ indexing, embedded or serverless deployment. No separate server process needed — the library reads and writes directly to local or object storage. Suited for local-first applications and embedded deployments. Used as the storage layer by some memory systems including [Mem0](../projects/mem0.md).
-
-### Library (Not a Database)
-
-**FAISS** (Facebook AI Similarity Search, C++/Python): A library of ANN algorithms, not a standalone database. No persistence layer, no metadata filtering, no client-server protocol. You build the index, save it to disk, load it back, and manage everything yourself. The fastest option for in-process search when you control the surrounding infrastructure. Used as a component inside higher-level systems. [ChromaDB](../projects/chromadb.md) originally used FAISS internally.
-
-**ChromaDB**: Embeds in Python (or runs as a server), stores vectors and metadata together, handles embedding generation optionally. Designed for rapid prototyping. Production use at scale is less established than Qdrant or Weaviate.
-
-### Relational Extension
-
-**pgvector** (PostgreSQL extension): Adds a `vector` column type and IVF and HNSW indexes to PostgreSQL. Lets you run vector search alongside relational queries in one database. Strong for applications already on Postgres where unified transactions and SQL joins matter more than maximum ANN throughput. Performance at scale is lower than purpose-built systems — pgvector HNSW at 10M vectors is slower than Qdrant at the same scale (ANN-Benchmarks results, independently reproducible). [Open Brain](../projects/ob1.md) uses pgvector via Supabase as its primary storage.
+**Weaviate, Milvus, LanceDB:** Each targets different tradeoffs between managed/self-hosted, write throughput, and multimodal support.
 
 ## Strengths
 
-**Semantic recall without keyword matching**: The defining capability. Documents that describe the same concept with different vocabulary cluster together in embedding space. BM25 misses documents that use synonyms; ANN search finds them.
+**Semantic recall at scale.** Once documents are indexed, retrieving semantically relevant chunks takes milliseconds regardless of collection size (at ANN accuracy levels).
 
-**Sub-linear query time at scale**: HNSW delivers ~1ms queries at millions of vectors on commodity hardware. Exact search at that scale would take seconds.
+**Decouples storage from inference.** Embed once, query many times with different models or prompts. The Open Brain architecture stores memories once and lets any AI tool query them via MCP — Claude, Cursor, ChatGPT share the same vector backend.
 
-**Flexible metadata coexistence**: Modern vector databases store payloads (JSON metadata) alongside vectors, enabling hybrid queries that combine semantic similarity with structured predicates.
+**Metadata-aware filtering.** Modern vector databases support filtering on structured fields before or after vector scoring, enabling user-scoped, time-bounded, and type-restricted retrieval critical for multi-user agent systems.
 
-**Multi-modal support**: Vectors are model-agnostic — you can store text, image, audio, and code embeddings in the same infrastructure if the embeddings share a space or you use separate named vector collections.
+**Composable with other memory types.** [Graphiti](../projects/graphiti.md) and [HippoRAG](../projects/hipporag.md) layer knowledge graph structures on top of vector retrieval. [RAPTOR](../projects/raptor.md) uses vector databases to retrieve hierarchically summarized document trees.
 
 ## Critical Limitations
 
-**Concrete failure mode — embedding model lock-in**: Switching embedding models invalidates every stored vector. A team that starts with `text-embedding-ada-002`, decides to migrate to a newer model for cost or quality reasons, must re-embed their entire corpus and rebuild all indexes. At 10 million documents, that reindexing job takes hours and costs real money. There is no migration path that preserves existing indexes across model changes.
+**Concrete failure mode — the exact match problem:** A developer asks an agent "what does function `calculate_adjusted_basis` do?" The vector search returns chunks about tax basis calculation in general, missing the specific function definition because similar-sounding code elsewhere scores higher than exact string matches. This failure is silent — the agent confidently answers from wrong context. BM25 or code-aware indexing would have caught it. Teams that ship vector-only systems discover this in production when users report confident wrong answers, not retrieval errors.
 
-**Unspoken infrastructure assumption**: Vector databases assume that the embedding model's training distribution matches your retrieval domain. An embedding model trained on general web text will underperform on specialized technical documents (clinical notes, legal contracts, source code) because the semantic neighborhoods in embedding space do not reflect domain-specific similarity. This shows up as recall failures that are invisible unless you measure retrieval quality against ground truth.
+**Unspoken infrastructure assumption:** Embedding models must remain consistent. If you index 2 million documents with `text-embedding-ada-002` and later switch to `text-embedding-3-large` for new documents, your index is now split across incompatible embedding spaces. Queries return inconsistent results because the geometric relationships don't hold across models. Re-embedding the entire corpus is expensive and creates a downtime window or dual-index complexity. Most documentation glosses over embedding model lifecycle management.
 
-**Recall is approximate, not guaranteed**: ANN search by definition trades exact recall for speed. An index configured for 0.95 recall will miss 5% of the true nearest neighbors on every query. For most applications this is acceptable; for applications where missing a specific document is a critical failure (compliance, legal discovery), you need exact search or a hybrid approach.
+## When NOT to Use a Vector Database
 
-## When NOT to Use It
+**Exact lookup requirements.** If users query by ID, exact phrase, or structured filter, a relational database with proper indexes is faster and more reliable.
 
-**When the corpus is small** (under ~10,000 documents): The overhead of managing embeddings, indexes, and an additional database does not pay off. BM25 full-text search — as demonstrated by [napkin](../projects/napkin.md) achieving 91% on LongMemEval with zero embeddings — matches or beats vector retrieval on many benchmarks at this scale, with no embedding API costs and no additional infrastructure.
+**Relationship-heavy data.** When the answer requires traversing connections between entities ("who worked with Alice on projects that touched module X?"), a [Knowledge Graph](../concepts/knowledge-graph.md) outperforms vector similarity. [GraphRAG](../projects/graphrag.md) specifically addresses the multi-hop reasoning gap.
 
-**When you need exact matching**: Vector search finds semantically similar items. If you need to find the exact document with ID "invoice-2024-0042", use a key-value lookup. If you need to find all documents with `status = "pending"` created last week, use a relational database. Vector search answers "what is semantically similar to this query?", not "what matches these exact criteria?"
+**Tiny corpora.** Under ~1,000 documents, full-text search with BM25 is simpler, faster, and requires no embedding infrastructure. Vector databases add operational overhead without meaningful benefit at this scale.
 
-**When your queries are out-of-distribution**: If user queries consistently fall outside the embedding model's training domain, vector search will return plausible-looking but wrong results. Legal or medical deployments often discover this after deployment when recall metrics reveal systematic gaps. Evaluate retrieval quality on domain-specific queries before committing to vector infrastructure.
+**Strict latency SLAs under load.** ANN search time grows with collection size and concurrent queries. At very high QPS with millions of vectors, managing HNSW index memory and search parallelism requires non-trivial tuning. Managed services like Pinecone abstract this at cost; self-hosted requires engineering investment.
 
-**When you need full transaction semantics**: Updating a document in a vector database typically requires deleting the old vector and inserting a new one. Transactional consistency across metadata updates and vector updates is not guaranteed in most implementations.
-
-## Architecture in Agent Memory Systems
-
-In agent memory architectures, vector databases handle one or two specific retrieval tasks:
-
-**[Semantic Memory](../concepts/semantic-memory.md)**: Facts, concepts, and declarative knowledge. Stored as embeddings, retrieved by semantic similarity. The vector database finds the most relevant facts for a given context.
-
-**[Episodic Memory](../concepts/episodic-memory.md)**: Past events and interactions. Embeddings capture the semantic content of episodes; metadata fields store timestamps, session IDs, participants. Hybrid search (vector similarity + time filter) retrieves relevant past episodes.
-
-Systems like [Mem0](../projects/mem0.md) use vector databases as one layer in a larger architecture. [Cognee](../projects/cognee.md) combines vector search with graph databases, using ANN retrieval to identify entry points and then graph traversal to surface relationships. [OpenMemory](../projects/openmemory.md) uses vector embeddings inside an HNSW-backed store but adds sector classification, decay scoring, and composite ranking on top of raw cosine similarity.
-
-The [Model Context Protocol](../concepts/model-context-protocol.md) does not specify a storage mechanism, but MCP memory servers (like OpenMemory's MCP server) typically use a vector database for retrieval and expose the results as MCP tool responses.
-
-## Benchmarks and Performance Claims
-
-The [ANN-Benchmarks](http://ann-benchmarks.com) project provides independently reproducible comparisons of ANN algorithms across multiple datasets (GLUE, SIFT, GIST, Yandex T2I). Key findings:
-
-- HNSW consistently achieves the best recall-throughput tradeoff across datasets
-- The gap between algorithms narrows when recall targets are set at 0.90 vs. 0.99
-- Hardware matters as much as algorithm choice: NVMe SSDs change the calculus for disk-based indexes
-
-Vendor-published benchmarks (Qdrant's benchmark suite, Weaviate's performance claims, Pinecone's latency numbers) are self-reported. They are generally reproducible but tested under conditions favorable to the vendor (single-tenant, no concurrent writes, pre-warmed caches). Production workloads with mixed read/write patterns will see different numbers.
-
-napkin's LongMemEval benchmark (91% at ~500 sessions with BM25, self-reported) is a meaningful challenge to the assumption that vector search is necessary for good retrieval, though the result has not been independently validated across diverse corpora.
+**Highly structured tabular data.** Finance, inventory, and scheduling data with precise numeric and categorical attributes belongs in SQL. Embedding structured rows loses the precision that makes the data useful.
 
 ## Unresolved Questions
 
-**Cost at scale**: At 100 million vectors at 1536 dimensions, an HNSW index consumes roughly 500GB of RAM in a purpose-built system. Moving to disk-based HNSW (Qdrant's memory map mode, DiskANN) reduces RAM but increases latency. The tradeoff curves are not well-documented for mixed workloads.
+**Chunking strategy is underdetermined.** Every RAG guide recommends "chunk by meaning, not length," but there's no standard method for doing this. Fixed-size with overlap, sentence boundaries, semantic clustering, document section hierarchy — each choice affects retrieval quality substantially and interacts with the embedding model in ways that require empirical testing per domain.
 
-**Embedding model versioning in production**: No standard practice exists for managing embedding model versioning across a live vector database. Some teams maintain multiple parallel indexes during transitions; others accept a brief degradation window during reindexing. The operational playbook is underdeveloped.
+**Retrieval quality measurement is absent in most deployments.** Teams typically measure end-to-end answer quality but not retrieval precision/recall separately. Silent retrieval failures (returning wrong context confidently) go undetected until user complaints accumulate.
 
-**Hybrid search calibration**: Systems that combine BM25 keyword scores with vector similarity scores (reciprocal rank fusion or learned fusion) require tuning the relative weights. The optimal balance is dataset-dependent and typically requires a labeled evaluation set that most teams do not have.
+**Cost at scale is underspecified.** Embedding 10 million documents with OpenAI's API costs real money. Re-embedding after a model change multiplies that cost. Self-hosted embedding models (via Ollama) eliminate per-token charges but introduce GPU infrastructure requirements. Most vendor documentation avoids explicit cost projections at realistic production scales.
+
+**Stale index management lacks standard patterns.** When source documents change, how do you update embeddings? Delete-and-reinsert works for single documents but gets complex when chunking produces multiple records per source. No established pattern exists for incremental index updates with consistency guarantees.
 
 ## Alternatives and Selection Guidance
 
-Use **pgvector** when you are already on PostgreSQL and need vector search alongside relational queries, and your scale is under ~5M vectors with moderate query throughput.
+| Use Case | Better Choice |
+|----------|--------------|
+| Multi-hop reasoning over connected entities | [Knowledge Graph](../concepts/knowledge-graph.md) + [GraphRAG](../projects/graphrag.md) |
+| Exact keyword and phrase matching | [BM25](../concepts/bm25.md) full-text search |
+| Combined semantic + keyword | [Hybrid Retrieval](../concepts/hybrid-retrieval.md) with vector + BM25 |
+| Agent long-term memory with relationships | [Graphiti](../projects/graphiti.md) or [Zep](../projects/zep.md) |
+| Small corpus, simple setup | SQLite FTS5 or Elasticsearch without vector |
+| Existing Postgres infrastructure | pgvector extension |
+| Managed, zero-ops | [Pinecone](../projects/pinecone.md) |
+| Self-hosted, high performance | [Qdrant](../projects/qdrant.md) |
+| Local dev, Python-first | [ChromaDB](../projects/chromadb.md) |
 
-Use **Qdrant** when you need production-grade performance with payload filtering, are running self-hosted, and want strong operational documentation.
+## Connections
 
-Use **Weaviate** when you need hybrid BM25+vector search in one system and are comfortable with a larger operational footprint.
-
-Use **Milvus** when you need distributed vector search at billion-scale and have the engineering capacity to operate a multi-component system.
-
-Use **FAISS** when you need the fastest possible in-process ANN search and are building your own persistence and metadata layer around it.
-
-Use **LanceDB** when you need an embedded vector store with no server process, particularly for local-first or serverless deployments.
-
-Use **Pinecone** when you want managed infrastructure and acceptable cloud pricing, and self-hosting is not a requirement.
-
-Use **BM25 full-text search (no vector database)** when your corpus is small, your queries are keyword-oriented, or you want to avoid embedding costs and infrastructure complexity, particularly for [RAG](../concepts/retrieval-augmented-generation.md) systems with well-structured documents.
-
-
-## Related
-
-- [Retrieval-Augmented Generation](../concepts/rag.md) — implements (0.8)
-- [Model Context Protocol](../concepts/mcp.md) — implements (0.5)
-- [Episodic Memory](../concepts/episodic-memory.md) — implements (0.6)
-- [Semantic Memory](../concepts/semantic-memory.md) — implements (0.6)
-- [Mem0](../projects/mem0.md) — implements (0.5)
-- [Procedural Memory](../concepts/procedural-memory.md) — implements (0.4)
-- [ChromaDB](../projects/chromadb.md) — implements (0.9)
-- [Qdrant](../projects/qdrant.md) — implements (0.9)
-- [pgvector](../projects/pgvector.md) — implements (0.8)
-- [Pinecone](../projects/pinecone.md) — implements (0.9)
-- [Weaviate](../projects/weaviate.md) — implements (0.9)
-- [Milvus](../projects/milvus.md) — implements (0.9)
-- [FAISS](../projects/faiss.md) — implements (0.9)
-- [LanceDB](../projects/lancedb.md) — implements (0.9)
+Vector databases are the retrieval substrate for [Retrieval-Augmented Generation](../concepts/rag.md), [Agentic RAG](../concepts/agentic-rag.md), and most implementations of [Agent Memory](../concepts/agent-memory.md). [Context Engineering](../concepts/context-engineering.md) decisions about what to retrieve and inject build on top of what vector search makes available. [Memory Consolidation](../concepts/memory-consolidation.md) systems write compressed memories back into vector stores for future retrieval. [Progressive Disclosure](../concepts/progressive-disclosure.md) patterns, as implemented in claude-mem, use vector databases as the first layer of a tiered retrieval strategy that fetches full content only for filtered results.

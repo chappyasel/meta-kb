@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What is meta-kb?
 
-A living, LLM-compiled knowledge base about building LLM knowledge bases. Sources (tweets, repos, papers, articles) are ingested into `raw/` as markdown with YAML frontmatter, scored for relevance by LLM, then compiled into a structured wiki in `wiki/`.
+A self-improving LLM knowledge base about self-improving LLM knowledge systems. Sources (tweets, repos, papers, articles) are ingested into `raw/` as markdown with YAML frontmatter, scored for relevance by LLM, then compiled into a structured wiki in `wiki/`.
 
 ## Compiling the Wiki
 
@@ -33,6 +33,7 @@ For comparison runs, tell the agent to write to `wiki-{name}/` instead of `wiki/
 ```bash
 bun run compile                    # full 8-pass compilation → wiki/, build/
 bun run compile --from-pass=3a     # resume from synthesis articles
+bun run compile --to-pass=2        # just rebuild entities + graph (passes 0-2)
 bun run compile --wiki-dir=wiki-v3 --build-dir=build-v3  # alternate output dir
 ```
 
@@ -104,15 +105,9 @@ Two LLM functions, both using Vercel AI SDK (`generateObject` with Zod schemas):
 - **`generateInsightAndTags`** — Haiku 4.5. Produces `key_insight` + taxonomy tags for every source.
 - **`scoreRelevance`** — Sonnet 4.6. 4-dimension scoring (topic_relevance, practitioner_value, novelty, signal_quality) with weighted composite (0.4/0.3/0.15/0.15). Called at write time by `writeRawSource()`.
 
-### Taxonomy Buckets
+### Domain Configuration (config/domain.ts)
 
-All tags and scoring reference these 5 topic areas:
-
-1. **knowledge-bases** — Karpathy pattern, markdown wikis, compiled vs curated
-2. **agent-memory** — Mem0, Letta, Graphiti, episodic/semantic/working memory
-3. **context-engineering** — CLAUDE.md standards, context graphs, compression
-4. **agentic-skills** — Skill composition, registries, modular capabilities
-5. **self-improving** — Autoresearch, observe/correct/improve loops, health checks
+All domain-specific content (topic, audience, taxonomy buckets, scoring calibration, cross-cutting themes) is defined in `config/domain.ts`. This is the single file to edit when forking for a new topic. The script pipeline, agent skill graph, and ingestion scripts all read from this config.
 
 ### Research Pipeline (scripts/research/)
 
@@ -123,21 +118,22 @@ Two-phase discovery system (gitignored, not committed):
 
 ### Compilation Pipeline (scripts/compile.ts)
 
-8-pass pipeline, resumable via `--from-pass`:
+9-pass pipeline, resumable via `--from-pass` and `--to-pass`:
 
 | Pass | Model | What |
 |------|-------|------|
 | 0 | — | Load & index all raw sources |
-| 1a | Haiku (×170, parallel) | Entity extraction per source |
+| 1a | Haiku (parallel) | Entity extraction per source |
 | 1b | Sonnet (×1) | Entity resolution & dedup |
 | 2 | Sonnet (×1) | Graph construction from co-occurrences |
-| 3a | Sonnet (×5, sequential) | Synthesis articles with abstracts + staleness markers |
-| 3b | Sonnet (×67, parallel) | Reference cards with abstracts |
-| 3c | Sonnet (×5, sequential) | Claim extraction from synthesis articles |
-| 4 | — | Field map, ROOT.md (template), indexes |
+| 3a | Sonnet (per bucket, sequential) | Synthesis articles with abstracts + staleness markers |
+| 3b | Sonnet (per entity, parallel) | Reference cards with abstracts |
+| 3c | Sonnet (per bucket, sequential) | Claim extraction from synthesis articles |
+| 4 | — | Field map, ROOT.md (template), indexes, README |
 | 5 | — | Mermaid diagrams + backlinks |
 | 6 | — | Changelog |
-| 7 | Haiku (×30, parallel) | Self-eval: verify claims against sources |
+| 7 | Sonnet (×30 or --full-eval, parallel) | Self-eval: verify claims against sources |
+| 8 | Sonnet (~15, sequential) | Auto-fix: find better sources for failed claims |
 
 Full article threshold: 3+ source refs AND 7.0+ relevance (both required).
 
@@ -146,6 +142,6 @@ Full article threshold: 3+ source refs AND 7.0+ relevance (both required).
 - **Never overwrite existing raw files.** `writeRawSource()` skips if file exists. To re-ingest, delete the file first.
 - **Claims are atomic.** Each claim in `build/claims.json` is one verifiable statement with source provenance, enabling automated quality verification.
 - **Progressive disclosure.** ROOT.md (<2K tokens) → abstracts in frontmatter → full articles → raw sources. Agents load minimum context needed.
-- **Self-eval as fitness function.** Pass 7 samples 30 claims and verifies against sources. Accuracy metric enables Karpathy-loop style prompt improvement across compilations.
+- **Self-improvement loop.** Pass 7 verifies claims against sources. Pass 8 auto-fixes source attribution errors by finding better sources. The loop is closed: detect → fix → verify.
 
 Runtime: **Bun** (uses `Bun.write`, `Bun.file`, `import.meta.main`). TypeScript with ESNext modules.

@@ -3,148 +3,159 @@ entity_id: hipporag
 type: project
 bucket: knowledge-bases
 abstract: >-
-  HippoRAG is a RAG framework that builds a knowledge graph from
-  OpenIE-extracted triples, then uses Personalized PageRank to traverse entity
-  relationships for multi-hop retrieval — outperforming dense retrieval on
-  questions requiring cross-document reasoning.
+  HippoRAG: RAG framework using OpenIE knowledge graphs + Personalized PageRank
+  to enable multi-hop associative retrieval, outperforming dense retrieval on
+  multi-hop QA benchmarks.
 sources:
   - repos/osu-nlp-group-hipporag.md
   - deep/repos/osu-nlp-group-hipporag.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
 related:
-  - GraphRAG
-  - Personalized PageRank
-  - Multi-Hop Reasoning
-last_compiled: '2026-04-05T20:34:32.078Z'
+  - knowledge-graph
+last_compiled: '2026-04-06T02:11:09.914Z'
 ---
 # HippoRAG
 
 ## What It Does
 
-HippoRAG is a retrieval-augmented generation framework from OSU-NLP-Group (NeurIPS '24, ICML '25) that trades the standard "embed-and-retrieve" approach for a knowledge graph pipeline with graph traversal. The key bet: multi-hop questions fail with dense retrieval because the relevant documents aren't individually similar to the query — they're connected through shared entities. Graph traversal finds those connections.
+HippoRAG is a [Retrieval-Augmented Generation](../concepts/rag.md) framework from Ohio State's NLP group (NeurIPS 2024, ICML 2025) that replaces standard dense passage retrieval with a knowledge graph traversal system modeled on hippocampal memory indexing theory. The central claim: human associative memory works by indexing facts into a web of entity relationships, then using pattern completion to traverse that web during recall. HippoRAG implements this as OpenIE extraction into an igraph knowledge graph, followed by Personalized PageRank (PPR) to surface documents connected through multi-hop entity chains rather than direct query similarity.
 
-The biological framing comes from hippocampal memory indexing theory. Pattern separation encodes documents into a graph of entity relationships; pattern completion retrieves through that graph starting from query-relevant nodes. Whether the neuroscience analogy holds up is less important than whether the mechanism works — the benchmarks on MuSiQue, HotpotQA, and 2WikiMultiHopQA suggest it does for multi-hop tasks.
+Version 2 ("From RAG to Memory") extends the framework toward continual learning, positioning it as a non-parametric alternative to fine-tuning for knowledge integration.
 
-Version 2 (HippoRAG 2) extends the original to cover "sense-making" tasks involving large narrative contexts, not just entity-chaining multi-hop QA.
+The system targets multi-hop QA tasks where the answer requires connecting information across documents that don't individually match the query well.
 
-**GitHub:** 3,332 stars, MIT license, Python 3.10+
+## Architecture
 
-## Core Architecture
+```
+Documents
+  → OpenIE (NER pass → triple extraction pass)
+  → Knowledge Graph (igraph, Pickle-persisted)
+  → Synonymy edges (KNN on entity embeddings)
+  → [Query time]
+  → Fact embedding retrieval
+  → DSPy recognition memory filter
+  → Personalized PageRank from surviving entity nodes
+  → Hybrid score (PPR + dense passage similarity)
+  → Retrieved chunks
+```
 
-The system lives in a single monolithic `HippoRAG` class (`src/hipporag/HippoRAG.py`, ~950 lines). Three subsystems interact:
+Three parallel embedding stores back the system, each as a Parquet file with in-memory numpy arrays for similarity computation:
+- **chunk_embedding_store**: raw document passages
+- **entity_embedding_store**: extracted entity names
+- **fact_embedding_store**: extracted triples as strings
 
-**Three embedding stores** backed by Parquet files with in-memory numpy arrays:
-- `chunk_embedding_store`: raw document passages
-- `entity_embedding_store`: extracted entity names
-- `fact_embedding_store`: subject-predicate-object triples as strings
+Content is addressed by MD5 hash with namespace prefixes (`chunk-`, `entity-`, `fact-`), giving natural deduplication and enabling incremental indexing.
 
-Content is addressed by MD5 hashes with namespace prefixes (`chunk-`, `entity-`, `fact-`), which gives deduplication and incremental indexing for free.
+The entire system lives in `src/hipporag/HippoRAG.py` (~950 lines), a single monolithic class with no pipeline abstraction. All components share state through instance attributes.
 
-**An igraph knowledge graph** persisted as a Pickle file, with three edge types: fact edges (subject → object from triples), passage edges (chunk → entities it contains), and synonymy edges (semantically similar entities connected by KNN over embeddings).
+## Core Mechanism
 
-**A DSPy-optimized recognition memory filter** (`rerank.py`) that calls an LLM to filter irrelevant facts before graph traversal, using a few-shot prompt loaded from `filter_default_prompt.py`.
+### Indexing
 
-## How Indexing Works
+The `OpenIE` class (`information_extraction/openie_openai.py`) runs two sequential LLM passes per chunk:
 
-The `index()` method runs a two-pass OpenIE pipeline per document chunk:
+1. **NER pass**: Extracts named entities via `prompts/templates/ner.py`. Response parsed with regex: `\{[^{}]*"named_entities"\s*:\s*\[[^\]]*\][^{}]*\}`. Results deduplicated by insertion order (`dict.fromkeys()`).
 
-1. **NER pass** via `information_extraction/openie_openai.py`: sends the passage through a prompt template, parses the JSON response with regex (`\{[^{}]*"named_entities"\s*:\s*\[[^\]]*\][^{}]*\}`), deduplicates entities via `dict.fromkeys()`.
+2. **Triple extraction pass**: Takes passage plus extracted entities, generates subject-predicate-object triples via `prompts/templates/triple_extraction.py`. Triples go through `filter_invalid_triples()`. The conditioning on pre-extracted entities constrains output to known entities, reducing hallucinated relations — but errors compound. Entities missed in pass 1 produce missed triples in pass 2.
 
-2. **Triple extraction pass**: takes the passage plus extracted entities and produces subject-predicate-object triples, validated by `filter_invalid_triples()`. Conditioning on NER output reduces hallucinated relations.
+Results cache to `openie_results_ner_{model_name}.json`. `load_existing_openie()` handles incremental re-indexing.
 
-Both passes run in parallel via `ThreadPoolExecutor`. Results cache to `openie_results_ner_{model_name}.json` so re-indexing skips already-processed chunks. The `load_existing_openie()` method handles incremental additions.
+Graph construction adds three edge types:
 
-After extraction, synonymy edges are computed: KNN over all entity embeddings finds pairs above `synonymy_edge_sim_threshold`. This is the most expensive indexing step — it requires all-pairs embedding comparison, capped at `synonymy_edge_topk=100` neighbors per entity. These edges are what allow "Obama" and "Barack Obama" to behave as the same node in retrieval.
+- **Fact edges** (`add_fact_edges()`): subject → object via extracted triples, weighted by co-occurrence frequency
+- **Passage edges** (`add_passage_edges()`): chunk nodes → entity nodes they contain
+- **Synonymy edges** (`add_synonymy_edges()`): KNN over all entity embeddings, pairs above `synonymy_edge_sim_threshold` get edges weighted by similarity score, capped at `synonymy_edge_topk=100` neighbors
 
-## How Retrieval Works
+Synonymy edges are the architecturally distinctive component. "Barack Obama" and "Obama" appearing as separate entities get connected here, enabling cross-document reasoning that would otherwise fail. The threshold and top-k values control graph density — too aggressive introduces false connections, too conservative breaks multi-hop traversal.
 
-Four stages per query:
+The graph persists as a Pickle file (`graph.pickle`). Fast, but not portable across Python versions and not externally queryable.
 
-1. **Fact retrieval**: query embedding vs. all facts in `fact_embedding_store` by cosine similarity.
+### Retrieval
 
-2. **Recognition memory filter**: the `DSPyFilter` class calls an LLM with a trained few-shot prompt to remove irrelevant facts. Response is parsed by looking for `[[ ## fact_after_filter ## ]]` markers. If nothing survives this step, the system falls back to pure dense passage retrieval.
+`retrieve()` runs four steps:
 
-3. **Personalized PageRank**: surviving facts identify seed entity nodes. PPR propagates relevance scores through the graph, following fact edges and synonymy edges across multiple hops. Passage nodes accumulate scores.
+1. **Fact retrieval**: Query embedding vs. fact embedding store, cosine similarity.
 
-4. **Hybrid scoring**: PPR scores for passage nodes combine with direct dense retrieval scores, weighted by `passage_node_weight`. This lets the system blend associative graph reasoning with semantic similarity.
+2. **Recognition memory filter**: `DSPyFilter` (`rerank.py`) calls the LLM with a [DSPy](../projects/dspy.md)-optimized few-shot prompt (loaded from `filter_default_prompt.py`) to filter irrelevant facts. Responses parsed via section markers `[[ ## fact_after_filter ## ]]`. This adds one LLM call per query at `max_completion_tokens=512`, which can truncate results for queries with many relevant facts.
 
-The system tracks `self.ppr_time`, `self.rerank_time`, and `self.all_retrieval_time` per query for bottleneck profiling.
+3. **PPR traversal**: `graph_search_with_fact_entities()` seeds PPR from entity nodes in surviving facts, propagates through the graph. Passage nodes accumulate scores reflecting both direct and transitive relevance.
 
-## Benchmarks
+4. **Hybrid scoring**: PPR scores combined with direct chunk embedding similarity, weighted by `passage_node_weight`. Falls back to pure dense retrieval when no facts survive step 2.
 
-Self-reported on MuSiQue, HotpotQA, and 2WikiMultiHopQA (multi-hop QA), NaturalQuestions and PopQA (factual memory), NarrativeQA (long-context sense-making). The repository includes pre-computed OpenIE results under `retrieve/` for reproducibility.
+## Key Numbers
 
-The claimed improvement pattern: HippoRAG 2 outperforms standard dense RAG, GraphRAG, RAPTOR, and LightRAG across all benchmark categories while using fewer resources than other graph-based approaches for offline indexing. These results are **self-reported** by the authors and haven't been independently replicated at scale outside the paper. The multi-hop improvement is most credible — the mechanism directly addresses why dense retrieval struggles there.
+From the repository and papers (self-reported by OSU-NLP-Group, not independently verified):
+
+- **3,332 GitHub stars**, 333 forks (as of early 2026)
+- Benchmarks on MuSiQue, [HotpotQA](../projects/hotpotqa.md), and 2WikiMultiHopQA show consistent improvements over vanilla dense retrieval on multi-hop tasks
+- Comparison against [GraphRAG](../projects/graphrag.md), RAPTOR, and LightRAG claims lower offline indexing cost while matching or exceeding multi-hop performance
+- The survey context ([Context Engineering survey](../concepts/context-engineering.md)) cites graph-enhanced RAG showing "10-20% over vanilla RAG" on multi-hop reasoning, consistent with HippoRAG's reported gains
+
+These benchmarks come from the authors' own papers. No independent replication studies are cited in the repository.
 
 ## Strengths
 
-**Multi-hop retrieval** is where HippoRAG has a genuine architectural advantage. Queries requiring two or three entity hops ("What county contains the birthplace of the person who founded X?") benefit from graph traversal in a way that cosine similarity cannot replicate.
+**Multi-hop retrieval**: Standard dense retrieval finds documents that look like the query. HippoRAG finds documents connected to the query through entity chains. For a query like "What county is Erik Hort's birthplace in?" requiring chains like `Erik Hort → Montebello → Rockland County`, PPR traversal finds the relevant document even though it never mentions Erik Hort.
 
-**Incremental indexing** works properly: OpenIE results and embeddings cache, and the `delete()` method propagates removals through entity and triple layers with referential integrity checks, preventing orphaned graph nodes.
+**Incremental indexing**: OpenIE results and embedding stores both support incremental updates via the MD5 content-addressing scheme. New documents get processed; existing ones are skipped.
 
-**Backend flexibility**: OpenAI, Azure, Bedrock, local vLLM, and local Transformers models all work for both the LLM (OpenIE, filter) and embedding (NVEmbed, GritLM, Contriever, Cohere, OpenAI) components.
+**Referential deletion**: `delete()` propagates document removal through triples and entities, only removing nodes with no remaining document references. Orphaned graph nodes don't accumulate.
 
-**Offline indexing cost** is lower than GraphRAG or RAPTOR, which build community summaries or tree structures requiring many more LLM calls.
+**Model-agnostic**: Supports OpenAI, Azure, Bedrock, local [vLLM](../projects/vllm.md), and local Transformers backends for both LLM and embedding layers. Demo scripts cover all four backends.
+
+**Interpretable retrieval path**: The knowledge graph is explicit and inspectable. You can trace why a document was retrieved by following entity edges from query-relevant facts.
 
 ## Limitations
 
-**Memory scaling**: the igraph loads entirely into RAM. Corpora producing millions of entities hit a hard memory ceiling. The Parquet embedding stores handle lazy loading, but PPR requires the full graph.
+**Entity normalization fragility** (concrete failure mode): "US", "U.S.", and "United States of America" may embed dissimilarly enough to fall below synonymy threshold, appearing as disconnected entities in the graph. A multi-hop query requiring connections through "the United States" will fail if your corpus uses "US" and the graph has no synonymy edge linking them. The NER pass has no normalization step — whatever the LLM extracts becomes the entity string.
 
-**Synonymy edge computation is not truly incremental**: the code comments suggest incremental synonymy updates were intended, but the current implementation recomputes all-pairs KNN over all entities when new documents arrive.
+**Synonymy edge computation doesn't scale** (unspoken infrastructure assumption): `add_synonymy_edges()` runs all-pairs KNN over all entity embeddings. The code comments suggest incremental computation was intended but not implemented — every re-index recomputes over the full entity set. For corpora producing tens of thousands of distinct entities, this becomes a significant indexing bottleneck. The `entity_embedding_store` and Parquet files scale reasonably, but the igraph must live entirely in memory for PPR computation.
 
-**Entity normalization fragility**: "US", "U.S.A.", and "United States of America" may not embed similarly enough to generate synonymy edges, depending on the embedding model. Short abbreviations are especially prone to this. Errors in the NER pass propagate to triple extraction — missed entities mean missed triples.
+**Two LLM calls per chunk at index time**: Every document chunk requires two LLM calls (NER + triple extraction). For large corpora, this is the primary cost driver. The JSON caching mitigates re-indexing cost, but initial indexing of a 100K-document corpus requires 200K+ LLM API calls.
 
-**Recognition memory filter latency**: the DSPy filter adds an LLM call per query. With large fact sets, the filter prompt can exceed context limits, and the `max_completion_tokens=512` cap may truncate responses for queries with many relevant facts.
+**One LLM call per query**: The DSPy recognition memory filter adds latency and cost at query time. With `max_completion_tokens=512`, fact-heavy queries risk truncation.
 
-**Pickle persistence**: the graph saves as a Python Pickle file — fast but not portable across Python versions and not queryable externally.
+**Pickle graph**: Production deployment carries the standard Pickle risks — Python version dependency, no external queryability, deserialization security concerns.
 
-## Concrete Failure Mode
+## When NOT to Use It
 
-A query about "The US economy" generates entities including "US", "United States", "America", and "the American economy" as separate graph nodes. If the embedding model doesn't place these close enough in vector space (common with short tokens), no synonymy edges form between them. PPR seeds off whichever entity the query matches, missing documents connected through the other entity forms. The result looks like retrieval failure on a simple factual query — harder to diagnose than a dense retrieval miss because the failure is in graph structure, not similarity scores.
+**Skip HippoRAG when**:
 
-## Infrastructure Assumption
-
-The system assumes LLM API access (or local GPU) at **both index time and query time**. Indexing requires LLM calls for NER and triple extraction; retrieval requires an LLM call for the recognition memory filter. This makes HippoRAG unsuitable for air-gapped environments or latency-sensitive applications unless you run local models and pre-warm the filter. Standard dense RAG requires no LLM at retrieval time.
-
-## When Not to Use HippoRAG
-
-- **Single-hop factual retrieval**: for queries where one document contains the answer, HippoRAG adds indexing cost and latency with no benefit over BM25 or dense retrieval.
-- **Real-time indexing requirements**: the two-pass OpenIE pipeline adds significant latency per document. If documents arrive and need to be searchable within seconds, this doesn't work.
-- **Very large corpora**: graph RAM requirements and all-pairs synonymy KNN don't scale past a few million entities without architectural changes.
-- **Cost-sensitive applications at scale**: every indexed document costs LLM tokens (NER + triple extraction), and every query costs LLM tokens (filter). At millions of documents, this compounds.
-- **Teams without GPU or API budget**: local models work but require hardware; OpenAI usage adds up quickly for large corpora.
+- Queries are primarily single-document lookups. PPR adds cost and latency over simple dense retrieval with no benefit when the answer lives in one document.
+- Your corpus updates frequently in real time. The synonymy edge recomputation on re-index makes this expensive. Streaming document ingestion pipelines will hit the all-pairs KNN bottleneck hard.
+- Latency is critical. Two LLM calls at index time and one at query time, plus PPR computation on large graphs, will miss sub-200ms SLAs without significant infrastructure investment.
+- Your entity vocabulary is highly domain-specific with non-standard abbreviations. The NER pass depends on LLM entity recognition; specialized domains (medical codes, legal citations, financial tickers) will produce poor entity extraction without custom prompts.
+- You need a managed cloud service. HippoRAG is a research codebase — no hosted API, no SLA, no production support.
 
 ## Unresolved Questions
 
-The documentation doesn't address:
+**Governance and maintenance**: The repository is an academic project from OSU-NLP-Group. No clear policy exists on long-term maintenance, versioning stability, or support. The jump from v1 to v2 involved significant architectural changes (the `legacy` branch holds v1). Future breaking changes are likely.
 
-- **Synonymy threshold tuning guidance**: the `synonymy_edge_sim_threshold` parameter critically controls graph connectivity, but there's no guidance on setting it for new domains or embedding models.
-- **Production deployment**: no discussion of serving HippoRAG as an API, managing multiple indexes, or handling concurrent queries safely.
-- **Evaluation on non-English corpora**: all benchmarks are English. The two-pass OpenIE approach's quality on other languages is unclear.
-- **PPR fallback conditions**: when PPR is too slow for a given graph size, the `passage_node_weight` parameter lets you degrade toward pure DPR, but there's no documented threshold for when this tradeoff is appropriate.
-- **Long-term maintenance**: OSU-NLP-Group is an academic lab. Governance, release cadence, and break-in-production response time follow academic norms, not production software norms.
+**Synonymy threshold selection**: The documentation describes `synonymy_edge_sim_threshold` and `synonymy_edge_topk` as configurable but provides no principled guidance on setting them for a new domain. The examples use default values tuned on the benchmark datasets. Performance on different corpora may require re-tuning with no systematic method provided.
+
+**DSPy filter portability**: The recognition memory filter uses a DSPy-optimized prompt trained on specific datasets. How well this transfers to new domains is not documented. The `filter_default_prompt.py` contains few-shot examples presumably optimized for the benchmark distributions — a corpus with different entity types or relationship structures may need re-optimization.
+
+**Scale ceiling**: No benchmarks report performance on corpora above the QA dataset scales (tens of thousands of passages). The behavior of PPR on graphs with millions of entity nodes is not characterized.
+
+**Cost at scale**: The paper claims HippoRAG is "cost and latency efficient" compared to [GraphRAG](../projects/graphrag.md), but no absolute cost figures are provided for indexing at scale. "Fewer resources than GraphRAG" is not the same as "cheap."
 
 ## Alternatives
 
-| Alternative | When to choose it |
-|---|---|
-| [GraphRAG](../projects/graphrag.md) | Community-level summarization matters more than entity-level traversal; cost less constrained |
-| Standard dense RAG (e.g., LlamaIndex, LangChain) | Single-hop retrieval, latency-sensitive, no LLM budget at query time |
-| RAPTOR | Hierarchical document summarization needed; multi-hop via abstraction rather than entity chaining |
-| LightRAG | Simpler graph construction with less indexing overhead; trade retrieval quality for speed |
-| BM25 + reranker | Baseline that outperforms neural retrieval on many factual QA benchmarks; build before adding graph complexity |
+| Use case | Alternative | Rationale |
+|----------|-------------|-----------|
+| Single-hop factual retrieval | Standard dense retrieval (FAISS + embedding model) | No graph overhead, lower latency, easier ops |
+| Multi-hop with large corpora | [GraphRAG](../projects/graphrag.md) | Microsoft's production-grade implementation with community summarization; higher cost but better operational support |
+| Hierarchical document summarization | [RAPTOR](../projects/raptor.md) | Tree-based summarization better suited to sense-making over long documents than to entity-level multi-hop |
+| Agent memory across sessions | [Graphiti](../projects/graphiti.md), [Zep](../projects/zep.md) | Built for incremental, real-time knowledge graph updates rather than batch indexing |
+| Knowledge graph + RAG in production | [LlamaIndex](../projects/llamaindex.md) KnowledgeGraphIndex | Better-maintained abstractions, more backend options, larger community |
 
-For [Multi-Hop Reasoning](../concepts/multi-hop-reasoning.md) tasks specifically, HippoRAG's Personalized PageRank mechanism is one of the few architectures that addresses the problem structurally rather than through prompt engineering. The [Personalized PageRank](../concepts/personalized-pagerank.md) traversal finds transitively related documents in a way that no amount of query expansion with dense retrieval replicates.
+**Use HippoRAG when**: You need multi-hop associative retrieval over a relatively static corpus, you can afford 2 LLM calls per chunk at index time, and you want an interpretable graph that shows why each document was retrieved. Academic benchmarks and research prototypes are its strongest use case.
 
-## Sources
+## Related Concepts
 
-- [Deep implementation analysis](../raw/deep/repos/osu-nlp-group-hipporag.md)
-- [Repository overview](../raw/repos/osu-nlp-group-hipporag.md)
-- [Context engineering survey](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md)
-
-
-## Related
-
-- [GraphRAG](../concepts/graphrag.md) — alternative_to (0.6)
-- [Personalized PageRank](../concepts/personalized-pagerank.md) — implements (0.8)
-- [Multi-Hop Reasoning](../concepts/multi-hop-reasoning.md) — implements (0.7)
+- [Knowledge Graph](../concepts/knowledge-graph.md): The core data structure HippoRAG builds and traverses
+- [Retrieval-Augmented Generation](../concepts/rag.md): The broader paradigm HippoRAG extends
+- [Hybrid Retrieval](../concepts/hybrid-retrieval.md): HippoRAG combines PPR graph scores with dense retrieval scores
+- [Agentic RAG](../concepts/agentic-rag.md): The iterative retrieval direction HippoRAG 2 moves toward
+- [Memory Consolidation](../concepts/memory-consolidation.md): The biological process HippoRAG's indexing phase models
+- [Agent Memory](../concepts/agent-memory.md): Broader context for why persistent knowledge integration matters

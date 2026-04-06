@@ -3,207 +3,151 @@ entity_id: self-improving-agents
 type: concept
 bucket: self-improving
 abstract: >-
-  Self-improving agents modify their own behavior, code, or knowledge through
-  feedback loops — distinct from static AI by closing the loop between execution
-  and future capability.
+  AI agents that autonomously modify their own prompts, code, skills, or memory
+  based on performance feedback — distinguished from standard agents by treating
+  self-modification as a first-class operation rather than a human task.
 sources:
   - tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md
   - tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md
-  - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
-  - repos/bingreeky-memevolve.md
+  - tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md
+  - tweets/jennyzhangzt-introducing-hyperagents-an-ai-system-that-not-onl.md
+  - tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md
+  - repos/helloruru-claude-memory-engine.md
+  - repos/memodb-io-acontext.md
   - repos/alirezarezvani-claude-skills.md
-  - repos/shengranhu-adas.md
-  - repos/evoagentx-evoagentx.md
-  - papers/xu-a-mem-agentic-memory-for-llm-agents.md
-  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
+  - repos/uditgoenka-autoresearch.md
+  - repos/letta-ai-letta.md
+  - papers/zhang-agentic-context-engineering-evolving-contexts-for.md
+  - papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md
   - >-
-    articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md
+    articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md
+  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
   - articles/turing-post-9-open-agents-that-improve-themselves.md
-  - deep/repos/bingreeky-memevolve.md
-  - deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md
 related:
-  - OpenAI
-  - EvoAgentX
-  - Reflexion
-  - Voyager
-  - ADAS
-  - Darwin Gödel Machine
-  - GEPA
-  - SkillWeaver
-  - EvoAgentX
-  - MemEvolve
-  - LLM-as-a-Judge
-  - Continual Learning
-  - Reinforcement Learning
-  - Synthetic Data Generation
-  - AutoGPT
-  - Reward Hacking
-  - Credit Assignment
-  - Automatic Curriculum
-  - Compositional Skill Synthesis
-  - SEAgent
-  - Meta-Harness
-  - Jeff Clune
-last_compiled: '2026-04-05T20:30:12.005Z'
+  - claude-code
+  - andrej-karpathy
+  - agent-memory
+  - claude
+  - cursor
+  - agent-skills
+  - letta
+  - langgraph
+  - task-decomposition
+  - hyperagents
+last_compiled: '2026-04-06T02:05:43.542Z'
 ---
 # Self-Improving Agents
 
-## What It Is
+## What They Are
 
-A self-improving agent modifies its own behavior, skills, memory, or code based on experience, feedback, or reflection. The modification happens without direct human intervention in each cycle. The agent runs a task, observes what happened, updates some representation of itself, and performs better on future tasks.
+A self-improving agent closes the loop between execution and capability. Standard agents execute tasks. Self-improving agents observe outcomes from those tasks and modify the thing doing the executing — a prompt, a skill file, a codebase, a memory schema — then verify that the modification made performance better, and discard it if not.
 
-This distinguishes self-improving agents from standard agents (which execute but don't adapt) and from fine-tuned models (which are updated by humans offline). The key is a closed feedback loop: execution produces signal, signal drives update, update changes future execution.
+The concept spans a wide range of implementations. At one end: a Claude Code agent that rewrites its own training script, commits the change, measures validation loss, and reverts if the metric worsens. At the other: the Darwin Gödel Machine, which modifies its own agent architecture and grows a branching archive of evolved agent variants. What unites them is the feedback loop structure: **measure → modify → verify → keep or revert**.
 
-The concept encompasses a wide range of mechanisms operating at different levels of the agent stack: prompts, memory, skills, tools, reward functions, or the agent's own source code.
+This is architecturally distinct from [Continual Learning](../concepts/continual-learning.md), which typically refers to fine-tuning model weights incrementally. Self-improving agents work above the weight layer — they change prompts, tools, skills, memory schemas, and sometimes code — without touching model parameters.
 
-## Why It Matters
+## The Core Loop
 
-Static agents hit a ceiling. Every deployment context has idiosyncrasies: your codebase's conventions, your team's terminology, your domain's failure patterns. A static agent cannot learn these. A self-improving agent builds institutional knowledge from operational experience.
+Every self-improving agent implements some version of this:
 
-The practical stakes are significant. LLM API costs scale with context. An agent that can compress experience into efficient memory structures (rather than stuffing full conversation histories into context) runs cheaper at scale. An agent that learns to avoid recurring mistakes stops burning tokens on predictable failures. An agent that synthesizes new tools stops re-solving solved problems.
+```
+1. Run the agent on a task or benchmark
+2. Measure an outcome (metric must be mechanical, not subjective)
+3. Propose a change (to prompt, code, skill, or memory)
+4. Apply the change
+5. Re-run and re-measure
+6. If metric improved: keep. If not: revert.
+7. Log the result. Repeat.
+```
 
-Beyond efficiency, there's a capability ceiling argument: the hardest tasks in code, science, and planning require capabilities that weren't anticipated at training time. Self-improvement mechanisms let agents develop task-specific skills post-deployment.
+The constraint that makes this work: **one change per iteration**. Multiple simultaneous changes make it impossible to attribute cause. The auto-harness system ([Source](../raw/tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md)) surfaces this explicitly — failures are clustered by root cause rather than fixed individually, because fixing a cluster forces the system to address the underlying pattern rather than overfit to a single symptom.
 
-## How It Works: The Core Mechanisms
+Karpathy's original autoresearch formulation ([Source](../raw/tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md)) puts it as: **constraint + mechanical metric + autonomous iteration = compounding gains**. The constraint bounds the search space. The mechanical metric eliminates subjective judgment as a bottleneck. Iteration without human involvement removes the speed ceiling.
 
-Self-improvement in practice operates across five distinct layers. Most systems implement one or two; few implement more.
+Git serves as memory in most implementations. Each change gets committed before verification. Failed experiments get reverted, but the commit stays in history — the agent reads `git log` and `git diff` before each new iteration to avoid repeating failed approaches.
 
-### 1. Memory Evolution
+## Implementation Variants
 
-The most common approach. The agent logs experiences, reflects on them, and stores compressed knowledge for future retrieval. The key design choice is whether memory is append-only or actively reorganized.
+### Prompt-Level Self-Improvement
 
-[A-MEM](../projects/a-mem.md) implements Zettelkasten-style memory where new memories trigger updates to existing ones. When a new memory arrives, an LLM generates keywords, tags, and a contextual description, then finds semantically related existing memories via cosine similarity and establishes bidirectional links. Critically, new memories can trigger evolution of existing memories — their contextual descriptions and attributes update to reflect new context. On the LoCoMo benchmark, this produces 149% improvement in multi-hop reasoning F1 (18.41 to 45.85) with 85% fewer tokens than full-context approaches. The ablation is instructive: removing link generation and memory evolution together drops multi-hop F1 to 24.55; removing only evolution drops it to 31.24; the full system reaches 45.85. Memory organization drives the gains, not retrieval sophistication.
+The agent edits the instructions that govern its own behavior. The [Karpathy Loop](../concepts/karpathy-loop.md) pattern: human sets the goal and initial prompt; agent iterates on the implementation (code or config) autonomously. The autoresearch Claude Code skill ([Source](../raw/repos/uditgoenka-autoresearch.md)) generalizes this: the SKILL.md file in `.claude/skills/autoresearch/` defines the loop protocol, and the agent follows it across any domain — code coverage, API latency, documentation quality, sales copy.
 
-[MemEvolve](../projects/memevolve.md) operates at a higher level: it evolves the memory architecture itself. A four-phase pipeline (Analyze, Generate, Create, Validate) reads agent execution trajectories, uses an LLM to design entirely new memory provider implementations as Python code, installs them into a live registry, and validates them in an isolated environment. This is not parameter tuning — it generates novel memory system architectures. The creativity index maps to LLM temperature (0.3 + creativity × 0.9), ranging from conservative variations on existing providers to genuinely novel designs. Published results show 7–17% performance gains across frameworks and benchmarks, with cross-LLM and cross-framework transfer. Self-reported by the authors; not yet independently validated.
+The key file is `claude-plugin/skills/autoresearch/SKILL.md`, which encodes the 8-phase loop protocol and crash recovery behaviors. The `references/` subdirectory holds domain-specific workflow protocols that the agent loads as needed.
 
-### 2. Skill Accumulation
+### Skill-Level Self-Improvement
 
-Rather than modifying memory, the agent accumulates reusable skills — callable routines it can invoke on future tasks.
+[Agent Skills](../concepts/agent-skills.md) are files (typically Markdown) that encode learned procedures. [Acontext](../raw/repos/memodb-io-acontext.md) treats skills as the memory layer itself — after each completed or failed task, a distillation pass extracts what worked, and a Skill Agent writes findings to the appropriate skill file. The schema for skill files is defined by the user's own `SKILL.md`, which makes the memory structure explicit and inspectable rather than buried in embedding space.
 
-[Voyager](../projects/voyager.md) (Minecraft) maintains a skill library of JavaScript programs. After completing a task, it stores the working code as a named skill. Future tasks can invoke stored skills, enabling compositional problem-solving: a "build shelter" skill composes from "collect wood," "craft planks," and "place blocks" skills. The library grows monotonically. Voyager discovers 3× more unique items than prior baselines (self-reported).
+Retrieval in Acontext uses [Progressive Disclosure](../concepts/progressive-disclosure.md) rather than semantic search: the agent calls `get_skill` and `get_skill_file` as tools, reasoning about what it needs rather than running top-k vector lookup. This avoids polluting context with low-relevance memory and makes the retrieval path auditable.
 
-[SkillWeaver](../projects/skillweaver.md) extends this to general web agents, synthesizing skills from task demonstrations and composing them hierarchically. [Compositional Skill Synthesis](../concepts/compositional-skill-synthesis.md) is the broader pattern: new skills are built from verified existing skills, providing a natural curriculum and limiting error propagation.
+### Harness-Level Self-Improvement
 
-### 3. Reflective Self-Correction
+The auto-harness approach ([Source](../raw/tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md)) targets the evaluation layer itself. The agent mines production traces for failures, clusters them by root cause, converts clusters into regression test cases, then proposes harness changes that must pass both the new eval and all previously fixed cases. The regression gate is what makes gains accumulate rather than oscillate — fixed failures become permanent constraints, so the system cannot regress past previously solved ground.
 
-The agent reflects on its own failures and updates behavior without necessarily storing structured memory.
+This produced a 40% improvement on Tau3 benchmark tasks (0.56 to 0.78 success rate) — self-reported by NeoSigma, not independently verified.
 
-[Reflexion](../projects/reflexion.md) generates verbal reflections on failed task attempts and stores them as working memory for the next attempt. The agent writes its own post-mortem and reads it before retrying. On HotpotQA, AlfWorld, and programming benchmarks, this produces substantial gains over non-reflective baselines. The mechanism is simple: append "what went wrong and why" to the next prompt.
+### Architecture-Level Self-Improvement
 
-The self-healing knowledge base pattern described by Karpathy works similarly at the system level: after building a wiki, an LLM "linting" pass identifies inconsistencies, missing data, and interesting connections, then repairs and extends the knowledge base. The agent maintains its own indexes and runs health checks — self-improvement without any task execution loop, purely through periodic reflection over stored knowledge.
+The [Darwin Gödel Machine](../projects/darwin-godel-machine.md) ([Source](../raw/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md)) operates at the agent architecture level. It maintains an archive of coding agents, samples from the archive, uses a foundation model to generate a new variant, and validates the variant on coding benchmarks (SWE-bench, Polyglot). The archive grows as a tree of diverse, high-quality agents — open-ended exploration rather than hill climbing. This produced improvements on SWE-bench from 20.0% to 50.0% and Polyglot from 14.2% to 30.7% (self-reported, all experiments sandboxed with human oversight per the paper).
 
-### 4. Automated Architecture Search
+## Key Design Decisions
 
-Rather than improving within a fixed design, the agent modifies its own architecture or algorithm.
+**What gets modified.** Prompt-level changes are fast and cheap to validate but limited in scope. Code-level changes can restructure tool use and context handling but carry higher risk and validation cost. Architecture-level changes (DGM) can compound over many generations but require more infrastructure to run safely.
 
-[ADAS](../projects/adas.md) (Automated Design of Agentic Systems) treats agentic architectures as programs and searches over them. A meta-agent generates candidate architectures in code, evaluates them on held-out tasks, and iterates. This shifts the improvement loop from runtime behavior to the agent's design.
+**Verification scope.** The metric must be mechanical — something a script can compute without human judgment. This is a harder constraint than it sounds. "Agent did a good job" is not a metric. "Validation loss after 5 minutes of training" is. "Test coverage percentage" is. "Tau3 task success rate" is. Subjective improvement loops (the `/autoresearch:reason` command's blind judge panel) exist as an approximation, but they introduce noise and are slower to run.
 
-[Darwin Gödel Machine](../projects/darwin-godel-machine.md) takes the most ambitious position: the agent rewrites its own source code, guided by empirical performance on a task distribution. Proposed modifications only survive if they improve measured performance. This is the closest current implementation to the original Gödel Machine concept, though with empirical rather than formal proof of improvement.
+**Memory format.** Skill files as Markdown (Acontext) make memory human-readable and editable. Vector embeddings make memory semantic but opaque. Git history makes memory auditable and rollback-safe. Most production implementations combine at least two of these.
 
-### 5. Operational Error Logging
+**Search strategy.** DGM uses open-ended archive sampling (Darwinian). Autoresearch uses hill climbing with rollback. Auto-harness uses cluster-driven prioritization. The tradeoff: open-ended exploration finds more diverse improvements but requires more compute; hill climbing is cheaper but can get trapped.
 
-The most pragmatic form. The agent logs errors, corrections, and learnings to files that it reviews before future tasks.
+## Connections to Adjacent Concepts
 
-The pattern: create a `.learnings/` directory, populate `ERRORS.md`, `LEARNINGS.md`, and `FEATURE_REQUESTS.md` as the agent operates, have the agent review these before major tasks, and periodically promote important lessons to permanent memory (`AGENTS.md`). Recurring issues get flagged. Domain-specific knowledge accumulates. This requires no architectural sophistication — just disciplined logging and retrieval. The compounding effect is real: day 30 of operation produces an agent that knows your codebase's conventions in ways day 1 cannot.
+Self-improving agents depend on [Agent Memory](../concepts/agent-memory.md) to persist what they've learned across sessions. They use [Execution Traces](../concepts/execution-traces.md) as raw material for distillation. [Task Decomposition](../concepts/task-decomposition.md) determines the granularity at which improvements get measured and applied. [Reflexion](../concepts/reflexion.md) is a related pattern where agents generate verbal self-feedback rather than code or skill modifications. [GEPA](../concepts/gepa.md) and [Meta-Evolution](../concepts/meta-evolution.md) operate at the population level rather than single-agent level.
 
-## Key Design Dimensions
-
-**What gets modified:** Prompts and working memory (Reflexion, error logs) vs. persistent memory structures (A-MEM, MemEvolve) vs. skill libraries (Voyager, SkillWeaver) vs. architecture/code (ADAS, Darwin Gödel Machine). Each level offers different power and different risk.
-
-**Modification trigger:** Continuous (every task updates memory) vs. periodic (batch reflection over accumulated experience) vs. event-driven (failures trigger reflection). Continuous modification accumulates more signal but risks overfitting to recent experience.
-
-**Evaluation of improvement:** How does the system know an update is better? Voyager tests skills in a sandbox before adding them. MemEvolve runs tournament selection across candidate memory systems. Darwin Gödel Machine gates changes on empirical performance. Reflexion relies on the LLM's self-assessment, which can be wrong. The evaluation mechanism is often where systems break.
-
-**Memory organization:** Append-only storage (cheap, safe) vs. active reorganization (A-MEM's evolution mechanism). Reorganization produces better multi-hop reasoning but introduces destructive updates — if an evolution update is wrong, there's no undo.
-
-**Scope of improvement:** Within a session vs. persistent across sessions. Error logs and skill libraries persist; working memory in Reflexion does not. Persistent improvement compounds; session-scoped improvement resets.
-
-## Who Builds This
-
-[OpenAI](../orgs/openai.md) integrates continuous learning mechanisms into production systems. [Jeff Clune](../people/jeff-clune.md) and colleagues produced foundational work on open-ended learning and AI-generating algorithms that frame self-improvement as the core challenge in AI development. [GEPA](../projects/gepa.md) and [SEAgent](../projects/seagent.md) implement self-evolving patterns in specific domains. [EvoAgentX](../projects/evoagentx.md) provides infrastructure for systematic evaluation of self-evolving agent workflows.
+[LangGraph](../projects/langgraph.md) and [Letta](../projects/letta.md) provide infrastructure for stateful agent loops where self-modification makes sense architecturally. [Claude Code](../projects/claude-code.md) is the primary host environment for prompt- and skill-level implementations because it exposes the skill system and supports long autonomous sessions.
 
 ## Failure Modes
 
-**Reward hacking:** The agent finds ways to score well on its own evaluation criteria without actually improving. [Reward Hacking](../concepts/reward-hacking.md) is endemic to any system where the agent influences what gets measured. MemEvolve's tournament selection based on task performance is robust here, but systems that use LLM self-assessment (Reflexion, error logs) are vulnerable — the model may judge its own output as correct when it isn't.
+**Metric gaming.** The agent finds ways to improve the measured metric without improving the underlying capability. A coverage percentage tool that deletes assertions rather than adding tests. A benchmark score that overfits to the specific test cases. Without a held-out validation set or a guard (a secondary metric that must not regress), the loop optimizes against its own measurement instrument.
 
-**Credit assignment failures:** In multi-step tasks, identifying which action caused a later failure is hard. [Credit Assignment](../concepts/credit-assignment.md) errors mean the agent learns the wrong lesson. Reflexion mitigates this with explicit chain-of-thought attribution, but multi-hop failures spanning many steps remain difficult.
+**Context accumulation.** Long self-improvement runs accumulate context — git logs, experiment histories, failure analyses. Verbose traces flood the main agent context. Auto-harness addresses this with sub-agents that own their own output and pass only summaries to the parent. Without this, performance degrades as the run lengthens. See [Context Collapse](../concepts/context-collapse.md).
 
-**Cascading memory corruption:** A-MEM's evolution mechanism has no version history. One bad update to an existing memory cascades through linked memories. At scale, a single misleading input can corrupt a significant portion of the memory network.
+**Scope drift.** When the agent controls what files it can modify, it may expand scope beyond the intended target. The autoresearch pattern constrains this explicitly: the Scope field must resolve to specific files or globs, and those boundaries are enforced before the loop starts.
 
-**Monoculture in architectural search:** MemEvolve's tournament selection without diversity pressure converges toward similar memory architectures. The population loses variance. Novel architectures stop appearing. This is a known failure mode in evolutionary computation, addressable with novelty search or quality-diversity algorithms — MemEvolve doesn't implement either.
+**Verification cost at scale.** Each iteration requires a full verification pass. If verification is slow (a 5-minute training run, a full test suite), the loop throughput is bounded by that cost. At scale, parallelism is required — DGM exploits this with an archive that allows simultaneous exploration of many branches.
 
-**Improvement theater:** Agents that appear to self-improve but don't actually generalize. Logging errors to markdown files only helps if the agent reliably reads and applies those logs. Skills accumulated in a library only help if retrieval matches the right skill to the right context. The mechanism exists but the compounding effect may not materialize.
+## Infrastructure Assumptions
 
-**Open-mode evaluation circularity:** When the agent's improvements affect what it evaluates, the evaluation loses meaning. MemEvolve evolves memory systems and evaluates them on tasks where memory affects performance — there's no clean separation between the optimizer and the objective.
+Self-improving agents assume sandboxed execution with real consequences. The agent must be able to run code, measure outcomes, and commit changes — which means it needs file system access, execution environment, and version control. Systems that restrict tool use (read-only agents, rate-limited API wrappers) cannot implement the core loop.
 
-## When Not to Use Self-Improving Agents
+DGM adds a harder assumption: human oversight and sandboxing for architecture-level changes. The paper notes this explicitly. Systems that self-modify at the architecture level without isolation become difficult to audit and potentially dangerous to deploy.
 
-Self-improvement adds complexity, cost, and unpredictability. Avoid it when:
+## When Not to Use
 
-**The task distribution is narrow and stable.** If your agent does one well-defined thing and the requirements don't change, a static agent with a carefully crafted prompt outperforms a self-improving one. The improvement mechanisms add latency and cost with no benefit.
+**Tasks without mechanical metrics.** If success cannot be computed by a script, the loop has no signal. Attempting self-improvement on purely qualitative tasks (creative writing quality, UX judgment) requires surrogate metrics that may not correlate with actual quality.
 
-**You need reproducibility.** Self-improving agents produce different behavior over time. Auditing and debugging are harder. In regulated domains (finance, healthcare, legal), the inability to reproduce past behavior is a disqualifier.
+**Latency-sensitive production paths.** Self-improvement loops are offline processes. They run between deployments or in parallel to production, not inline with user requests.
 
-**The evaluation signal is unreliable.** Self-improvement only works when the feedback signal is trustworthy. If your agent's success criteria are ambiguous, subjective, or gameable, the improvement loop will optimize for the wrong thing.
+**Low-iteration-count scenarios.** The compounding benefit of self-improvement requires many iterations. If the goal can be accomplished in 5-10 human-reviewed changes, the overhead of building and validating a self-improvement loop exceeds the benefit.
 
-**You're at small scale with infrequent use.** Memory evolution mechanisms (A-MEM's LLM calls for note construction, link generation, evolution updates) cost more at ingestion than they save at retrieval. At low volume, the economics don't work.
-
-**Correctness is the primary constraint.** Memory evolution with destructive updates, skill accumulation from potentially wrong code, and architectural modifications from empirical search all introduce ways the system can quietly degrade. If a wrong answer is worse than no answer, the risk profile of self-improvement is unfavorable.
+**Compliance-constrained environments.** Any system that modifies its own prompts or code creates an audit challenge. Regulated industries (healthcare, finance) may require human approval for any change to agent behavior. A self-improving loop that commits changes autonomously conflicts with that requirement.
 
 ## Unresolved Questions
 
-**How do you audit what an agent learned?** Error logs are inspectable. LLM-generated contextual descriptions in A-MEM are readable. But the semantic landscape of a 10,000-node memory network after 6 months of evolution is not auditable by a human. There's no standard for "memory explainability."
+**Governance at scale.** When the agent generates hundreds of commits, who reviews them? DGM uses human oversight, but the paper does not specify what that oversight looks like at the rate the system generates variants. The autoresearch implementations leave this implicit.
 
-**What's the cost at scale?** Published benchmarks measure performance gains, not economic viability. MemEvolve requires ~70 task evaluations per evolution round plus multiple LLM calls. A-MEM requires LLM calls at ingestion time for every new memory. At production scale with thousands of daily agent interactions, these costs compound. The papers don't report cost per improvement.
+**Conflict resolution in multi-agent improvement.** When multiple agents improve the same codebase or skill library in parallel, changes may conflict. Neither autoresearch nor Acontext addresses this case — both assume single-agent, sequential modification.
 
-**How do improvements interact across agents?** All current implementations treat self-improvement as single-agent. Multi-agent systems where agents share memory or skills face unresolved questions: whose improvements propagate? What happens when two agents learn conflicting lessons? How do you prevent one agent's corruption from spreading?
+**Improvement plateau behavior.** What happens when the agent exhausts low-hanging improvements? Autoresearch says "when stuck, think harder — re-read, combine near-misses, try radical changes," but this is a heuristic, not a mechanism. Whether self-improving loops converge gracefully or thrash at plateaus is not documented in any current implementation.
 
-**How do you prevent skill library staleness?** Voyager and SkillWeaver accumulate skills over time. Skills written for one environment version may be wrong in another. There's no standard mechanism for skill deprecation or validity checking over time.
-
-**What's the right granularity for memory evolution?** A-MEM's evolution updates individual notes. MemEvolve evolves the entire memory architecture. Neither addresses the intermediate level: when should a collection of related notes be consolidated into a higher-order concept? Automatic curriculum learning [Automatic Curriculum](../concepts/automatic-curriculum.md) in reinforcement learning faces the analogous question with task difficulty.
-
-## Relationships to Adjacent Concepts
-
-[Continual Learning](../concepts/continual-learning.md) addresses how models learn new tasks without forgetting old ones. Self-improving agents face the same catastrophic forgetting problem at the skill and memory level, but with the additional constraint of operating at inference time rather than training time.
-
-[Reinforcement Learning](../concepts/reinforcement-learning.md) provides the formal framework (policy, reward, value function, credit assignment) that underlies many self-improvement mechanisms. Voyager's skill accumulation is essentially a curriculum RL problem. MemEvolve's tournament selection resembles evolutionary RL.
-
-[Synthetic Data Generation](../concepts/synthetic-data-generation.md) connects when agents generate their own training data from operation logs — Karpathy notes this natural extension of the knowledge base pattern, where accumulated wiki content becomes fine-tuning data.
-
-[LLM-as-a-Judge](../concepts/llm-as-a-judge.md) is the evaluation mechanism in most self-improving systems that don't have ground-truth task rewards. The quality of self-improvement is bounded by the quality of LLM self-evaluation.
+**Cost at scale.** A single autoresearch run with 100 iterations × 5-minute verification passes = 8+ hours of continuous model calls plus compute for verification. The cost structure for sustained self-improvement in production is not publicly documented by any of the projects surveyed.
 
 ## Alternatives
 
-**Static agents with careful prompting:** When your task distribution is known and stable. Lower cost, higher reproducibility.
+Use **[Reflexion](../concepts/reflexion.md)** when you want verbal self-critique rather than code modification — lower infrastructure cost, works with read-only agents, but cannot make persistent changes.
 
-**Human-in-the-loop fine-tuning:** When you have labeled data and can afford training runs. More reliable than in-context improvement, better generalization.
+Use **[DSPy](../projects/dspy.md)** when prompt optimization is the goal and you want gradient-based rather than evolutionary search — more principled for prompt tuning specifically, but less general.
 
-**Retrieval-augmented generation with human-curated knowledge bases:** When accuracy matters more than automation. Human-curated knowledge is more trustworthy than agent-evolved knowledge; RAG retrieval is more predictable than evolved memory systems.
+Use **[Agent Workflow Memory](../projects/agent-workflow-memory.md)** when the goal is reusable procedure accumulation across tasks without explicit self-improvement loops — lower overhead, more suitable for production deployment.
 
-**Modular agents with explicit versioning:** When auditability matters. Instead of continuous self-modification, ship discrete agent versions with explicit changelogs. Less adaptive but debuggable.
-
-
-## Related
-
-- [OpenAI](../projects/openai.md) — implements (0.4)
-- [EvoAgentX](../projects/evoagentx.md) — implements (0.7)
-- [Reflexion](../concepts/reflexion.md) — implements (0.7)
-- [Voyager](../projects/voyager.md) — implements (0.8)
-- [ADAS](../projects/adas.md) — implements (0.8)
-- [Darwin Gödel Machine](../concepts/darwin-godel-machine.md) — implements (0.9)
-- [GEPA](../concepts/gepa.md) — implements (0.7)
-- [SkillWeaver](../projects/skillweaver.md) — implements (0.7)
-- [EvoAgentX](../projects/evoagentx.md) — implements (0.8)
-- [MemEvolve](../projects/memevolve.md) — implements (0.6)
-- [LLM-as-a-Judge](../concepts/llm-as-judge.md) — implements (0.6)
-- [Continual Learning](../concepts/continual-learning.md) — implements (0.8)
-- [Reinforcement Learning](../concepts/reinforcement-learning.md) — implements (0.7)
-- [Synthetic Data Generation](../concepts/synthetic-data-generation.md) — implements (0.6)
-- [AutoGPT](../projects/autogpt.md) — implements (0.6)
-- [Reward Hacking](../concepts/reward-hacking.md) — part_of (0.5)
-- [Credit Assignment](../concepts/credit-assignment.md) — part_of (0.6)
-- [Automatic Curriculum](../concepts/automatic-curriculum.md) — implements (0.7)
-- [Compositional Skill Synthesis](../concepts/compositional-skill-synthesis.md) — implements (0.6)
-- [SEAgent](../projects/seagent.md) — implements (0.7)
-- [Meta-Harness](../concepts/meta-harness.md) — implements (0.7)
-- [Jeff Clune](../concepts/jeff-clune.md) — implements (0.7)
+Use **[Darwin Gödel Machine](../projects/darwin-godel-machine.md)** when capability jumps require architectural changes, not just prompt or skill edits — higher infrastructure cost and requires sandboxing, but capable of qualitative capability expansion.

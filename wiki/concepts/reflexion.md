@@ -3,163 +3,170 @@ entity_id: reflexion
 type: approach
 bucket: self-improving
 abstract: >-
-  Reflexion is a framework for improving LLM agent performance across trials
-  using verbal self-reflection stored in episodic memory, achieving 91% pass@1
-  on HumanEval vs GPT-4's 80% without any weight updates.
+  Reflexion enables LLM agents to improve across trials by storing verbal
+  self-reflections of past failures in episodic memory, achieving gains
+  equivalent to fine-tuning without any weight updates.
 sources:
-  - tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md
   - papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
   - articles/lil-log-llm-powered-autonomous-agents.md
-  - articles/turing-post-9-open-agents-that-improve-themselves.md
-  - deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
-  - deep/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md
-  - deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
   - deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md
+  - deep/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
+  - deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
+  - deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
 related:
-  - Episodic Memory
-  - ReAct
-  - GPT-4
-  - Letta
-  - Self-Improving Agents
-last_compiled: '2026-04-05T20:26:22.368Z'
+  - react
+  - locomo-bench
+  - episodic-memory
+last_compiled: '2026-04-06T02:02:18.612Z'
 ---
 # Reflexion
 
 ## What It Is
 
-Reflexion lets LLM agents learn from failure without fine-tuning. After each failed attempt, the agent generates a verbal critique of what went wrong, stores that critique in a short episodic memory buffer, and uses it to condition the next attempt. The result: meaningful performance gains within 3-5 trials on coding, reasoning, and decision-making tasks.
+Reflexion is a framework published by Shinn et al. (2023) that lets LLM agents learn from failure through natural language self-analysis rather than gradient updates. When an agent fails a task, a self-reflection model analyzes the failed trajectory and produces a verbal critique. That critique gets stored in an [Episodic Memory](../concepts/episodic-memory.md) buffer, and the agent reads it before its next attempt.
 
-The core insight is that verbal feedback carries far more information than scalar reward signals. Traditional reinforcement learning tells an agent it scored 0.3. Reflexion tells the agent "you attempted to use the lamp before picking it up — check inventory before use actions." That specificity is what drives improvement.
+The core claim: verbal feedback stored in memory can substitute for weight updates in many settings, enabling agents to improve across trials using only inference-time compute.
 
 ## Architecture
 
 Three components form the loop:
 
-**Actor (M_a):** An LLM generating text or actions conditioned on the current trajectory plus reflective memory. The actor can use any generation strategy — Chain-of-Thought, [ReAct](../concepts/react.md), or direct generation.
+**Actor (M_a):** Any LLM that generates actions or text. Works with [ReAct](../concepts/react.md), [Chain-of-Thought](../concepts/chain-of-thought.md), or direct generation as the underlying reasoning strategy.
 
-**Evaluator (M_e):** Assesses actor outputs through task-specific signals. For reasoning: exact match grading. For decision-making: heuristic environment functions. For code: test execution results. The evaluator produces the reward signal that feeds into reflection.
+**Evaluator (M_e):** Produces a feedback signal from the actor's trajectory. Exact match for reasoning tasks, code execution results for programming, heuristic functions for sequential decision-making. The evaluator is task-specific by design -- no general-purpose LLM-as-judge.
 
-**Self-Reflection Model (M_sr):** Takes the trajectory and reward, produces a verbal analysis of what failed and what to try differently. This reflection is stored in a bounded episodic memory buffer, typically 1-3 entries.
+**Self-Reflection Model (M_sr):** Takes the full trajectory plus the evaluator's reward signal and generates a verbal critique in natural language. This critique names what went wrong and suggests what to try differently.
 
-Memory has two tiers:
-- **Short-term:** The current trial's trajectory (observations, actions, results)
-- **Long-term:** A sliding window of 1-3 self-reflection summaries from prior trials
+Memory runs on two tiers. Short-term memory holds the current trial's trajectory. Long-term memory holds a bounded buffer of 1-3 self-reflection summaries from previous trials. On the next attempt, the actor reads both. The buffer is a sliding window, not a growing archive.
 
-At inference time, the actor reads both tiers. The analogy the authors use: fine-grained recent details in short-term, distilled lessons from past failures in long-term.
+## How the Loop Runs
 
-## The Verbal Reinforcement Loop
+1. Actor attempts the task, generating trajectory τ_t
+2. Evaluator scores it: r_t = M_e(τ_t)
+3. Self-reflection model analyzes {τ_t, r_t} and writes verbal summary sr_t
+4. sr_t appended to long-term buffer
+5. Actor retries, now conditioned on past reflections
+6. Repeat until success or trial limit
 
-Each trial follows this sequence:
+The difference from simple retry is step 3. Without reflection, each attempt is essentially independent -- the agent knows it failed but not why. With reflection, the agent carries a distillation of its failure modes into the next attempt.
 
-1. Actor generates trajectory τ_t for the current task
-2. Evaluator produces reward r_t = M_e(τ_t)
-3. Self-reflection model analyzes {τ_t, r_t}, produces summary sr_t
-4. sr_t appends to long-term episodic memory
-5. Actor retries, now conditioned on prior reflections
-6. Loop continues until success or trial limit
+## Why Verbal Feedback
 
-For code generation, the loop adds a self-test generation phase before the main attempt. The agent writes its own unit tests, then writes code to pass them. Test failures give specific, actionable feedback — which line broke, which case failed — that reflection can convert into directed improvement. This requires no human-labeled tests.
+Traditional RL feedback is scalar ("you scored 0.3"). Reflexion's verbal feedback is diagnostic ("you tried to use the lamp before picking it up -- check inventory before using items"). Four practical advantages:
 
-## What the Numbers Show
+- No model weights to update
+- Free-form language encodes richer failure analysis than a number
+- The agent's "learning" is human-readable and auditable
+- Reflections include explicit correction hints
 
-### HumanEval (pass@1)
+## Programming: Self-Generated Unit Tests
 
-| System | Score |
-|--------|-------|
-| GPT-4 baseline | 80.1% |
-| Reflexion | **91.0%** |
-| Prior SOTA (CodeT) | 65.8% |
+For code generation, Reflexion adds a clever mechanism before submission: the agent generates its own unit tests, runs the solution against them, and reflects on failures. This creates automated evaluation without human-labeled test suites.
 
-Self-reported. The 91% figure is consistently cited but comes from the original paper's experiments.
+The mechanism depends heavily on test quality. HumanEval has a 1.4% false-positive rate (tests pass on incorrect code) -- acceptable. MBPP has a 16.3% false-positive rate -- problematic. At 16.3%, the agent frequently submits wrong code because its self-generated tests gave it a false green light. There is no internal mechanism to detect this failure.
 
-### AlfWorld (sequential decision-making)
+The ablation on HumanEval Rust (50 hardest problems) isolates the contributions:
 
-Reflexion completes 130/134 tasks (97%) within 12 trials. The baseline agent (ReAct alone) hallucinates item possession 22% of the time — believing it holds objects it does not. Reflexion nearly eliminates this through trajectory-based self-analysis.
+| Configuration | Pass@1 |
+|---|---|
+| No tests, no reflection | 60% |
+| Reflection only (no tests) | 52% |
+| Tests only (no reflection) | 60% |
+| Tests + reflection | 68% |
 
-### HotPotQA (reasoning, 100 questions, CoT with ground-truth context)
+Self-reflection without reliable test feedback actively degrades performance (-8pp). The agent generates confident but incorrect analysis of why it failed. Reliable evaluation is the binding constraint -- reflection quality is secondary.
+
+## Experimental Results (Self-Reported)
+
+All results below come from the Reflexion paper itself, not independent replication.
+
+**Programming:**
+
+| Benchmark | Baseline | Reflexion |
+|---|---|---|
+| HumanEval Python pass@1 | 80.1% (GPT-4) | 91.0% |
+| HumanEval Rust (hard 50) | 60% | 68% |
+| MBPP Python | 80.1% | 77.1% (regression) |
+| LeetcodeHardGym Python | 7.5% | 15.0% |
+
+The MBPP regression (-3pp vs GPT-4 baseline) is attributed to high false-positive test rates causing premature incorrect submission.
+
+**Sequential Decision-Making (AlfWorld):**
+- ReAct baseline: ~81% task completion
+- Reflexion: 97% (130/134 tasks) within 12 trials
+- Baseline agents hallucinated item possession at 22% rate; Reflexion nearly eliminates this through reflected trajectory analysis
+
+**Reasoning (HotPotQA, 100 questions):**
 
 | Configuration | Accuracy |
-|---------------|----------|
+|---|---|
 | CoT baseline | 61% |
-| + Episodic memory only | 63% |
-| + Self-reflection (Reflexion) | **75%** |
+| CoT + episodic memory only | 63% |
+| CoT + self-reflection (Reflexion) | 75% |
 
-The 12-point gap between episodic memory and self-reflection is the paper's most important finding. Remembering that you failed adds 2 points. Analyzing *why* you failed adds 12 more. Reflection quality dominates memory quantity.
+The 12-point gap between episodic memory and self-reflection is the paper's most important finding. Remembering that you failed adds 2pp. Analyzing why you failed adds 14pp total. Reflection quality dominates memory quantity.
 
-### MBPP regression
+## Strengths
 
-Reflexion scores **77.1%** vs GPT-4's **80.1%** on MBPP Python. Self-generated tests have a 16.3% false-positive rate on this benchmark — the agent submits wrong code after passing its own flawed tests. HumanEval has 1.4% false positives, explaining why Reflexion helps there but hurts here.
+**No fine-tuning required.** Reflexion runs entirely at inference time. Any team that can call a GPT-4-class API can implement the full loop without access to training infrastructure.
 
-## Critical Ablation: Tests + Reflection Must Co-occur
+**The three-component pattern is minimal and transferable.** Actor, evaluator, reflection model -- this is the smallest viable architecture for trial-and-error learning. Zep's entity extraction pipeline uses a reflection step described as "inspired by Reflexion." The [Darwin Gödel Machine](../projects/darwin-godel-machine.md) applies the same self-analysis-of-failure-logs pattern to agent code modification. [Voyager](../projects/voyager.md)'s self-verification critic is a domain-specific instantiation of the evaluator component.
 
-On HumanEval Rust (50 hardest problems):
+**Self-reflection provides disproportionate value on refinement tasks.** AlfWorld (+16pp over baseline) and HumanEval (+11pp over GPT-4) are tasks where the agent's approach is directionally correct but needs corrective adjustment. Reflexion handles this category well.
 
-| Test Generation | Self-Reflection | Pass@1 |
-|-----------------|-----------------|--------|
-| No | No | 60% |
-| No | Yes | **52%** |
-| Yes | No | 60% |
-| Yes | Yes | **68%** |
+## Failure Mode: WebShop
 
-Self-reflection without reliable test feedback *hurts* performance by 8 points. The agent generates confident but wrong analysis of its failures. Tests alone provide no benefit. Both together deliver the full +8 point gain. If your evaluation signal is unreliable, adding reflection makes things worse.
+Reflexion fails completely on WebShop, showing zero improvement after 4 trials. WebShop requires creative exploration -- generating diverse product search queries to find items matching ambiguous natural language descriptions. Reflexion cannot generate useful self-reflections for this because the agent cannot diagnose why its searches return irrelevant results. The task needs exploration of different approaches, not refinement of a single approach.
 
-## Failure Modes
+The pattern generalizes: Reflexion helps on tasks where the failure is "I made a mistake in the right approach." It does not help when the failure is "I need to try a fundamentally different approach."
 
-**WebShop (local minima):** Reflexion shows zero improvement across 4 trials on WebShop. The task requires creative exploration of search query strategies rather than corrective refinement of a known approach. The agent cannot diagnose why its searches return irrelevant results, so its reflections provide no useful direction. Tasks requiring exploration rather than correction are outside Reflexion's scope.
+## Unspoken Infrastructure Assumptions
 
-**Model capability floor:** StarChat-beta gains nothing from Reflexion (0.26 → 0.26). The framework is an emergent property of sufficiently capable models. As of the paper, GPT-3.5+ class models are required. This is not a universal improvement technique.
+**Model capability.** Reflexion is an emergent behavior of strong LLMs. StarChat-beta shows 0.00 improvement across configurations (0.26 baseline, 0.26 with Reflexion). The framework requires a model capable of generating diagnostic self-analysis. As of the paper's 2023 publication, this meant GPT-3.5+ class models. Weaker models generate confident but incorrect reflections that make performance worse.
 
-**Bounded memory:** The 1-3 reflection sliding window means the agent forgets lessons from earlier trials. For tasks requiring accumulation of many distinct insights across long horizons, the fixed buffer becomes a bottleneck. The authors flag external memory systems as future work.
+**Reliable automated evaluation.** The evaluator is assumed to produce accurate feedback signals. For code: executable tests. For navigation: simulator state. For reasoning: ground-truth answer matching. Domains without reliable automated evaluation cannot use Reflexion as described -- the self-reflection model needs accurate failure signals to analyze.
 
-**No convergence guarantee:** The agent can converge to a non-optimal local minimum, particularly when reflection cannot diagnose root causes. The paper provides no formal analysis.
+## Critical Limitation: Bounded Memory
 
-## Infrastructure Assumption Worth Naming
+The long-term memory buffer holds 1-3 reflections from recent trials. This is not architectural -- it is a context window constraint the authors explicitly acknowledge as a limitation and identify as future work.
 
-Reflexion assumes you have a reliable automated evaluator for your domain. Code execution is a natural fit. For most other domains — form completion, research tasks, customer support interactions — building that evaluator is non-trivial. The technique's apparent simplicity (just ask the model why it failed) obscures this dependency. Without reliable evaluation, reflection degrades performance.
+For tasks requiring accumulation of many distinct insights (long-horizon agents, knowledge-building tasks, anything operating across many sessions), the sliding window loses earlier lessons as the buffer fills. Reflexion by itself cannot accumulate compounding knowledge. Combining it with external memory systems ([Zep](../projects/zep.md), [Mem0](../projects/mem0.md), or a vector store) is the standard extension for production use.
 
-## When Not to Use Reflexion
+## When NOT to Use It
 
-- Tasks requiring diverse exploration strategies rather than iterative refinement of a known approach (see WebShop)
-- Domains where you cannot build a reliable automated evaluator
-- Deployments where latency per task matters — each trial adds at least one extra LLM call for reflection generation
-- Workflows where each attempt has significant real-world side effects (you cannot "retry" an email sent or a database row deleted)
-- Systems built on models below GPT-3.5 capability class
+**Tasks requiring exploration over refinement.** WebShop demonstrated this failure mode clearly. If your agent fails because it needs to discover the right approach rather than correct mistakes in an approach it already has, Reflexion adds no value.
+
+**Weak base models.** Below GPT-3.5-class capability, reflection quality degrades to the point where Reflexion can actively harm performance. Test with and without reflection before deploying.
+
+**Unreliable evaluation signals.** If your evaluator has a false-positive rate above ~5%, self-generated tests will cause the agent to submit wrong answers with high confidence and no recovery path. Evaluate your evaluator before enabling reflection.
+
+**Single-attempt, low-latency requirements.** The loop requires multiple LLM calls per task. For applications where latency matters more than success rate on a per-attempt basis, the overhead is unjustifiable.
 
 ## Unresolved Questions
 
-The paper does not address:
-- **Cost accounting at scale.** Each failed trial adds an extra reflection LLM call. For agents operating on thousands of tasks, aggregate costs are unstated.
-- **Reflection quality degradation.** Does reflection quality hold as the memory buffer fills with similar failed attempts? The paper does not test whether 3 reflections performs meaningfully better than 1.
-- **Interaction with long-horizon memory.** The paper treats Reflexion's episodic buffer as the full memory story. How reflection integrates with persistent cross-session memory systems (like [Zep's temporal knowledge graph](../projects/zep.md)) is left open.
-- **Multi-agent reflection.** When multiple agents collaborate on a task, whose reflections go into which buffer? The paper's architecture assumes a single actor.
+**Convergence properties.** The paper provides no formal analysis of when Reflexion converges, how many trials are needed for different task types, or what happens when the agent reaches a local minimum in its reflection-guided search.
 
-## Relationship to Other Self-Improvement Patterns
+**Reflection evaluation.** There is no benchmark for reflection quality independent of downstream task performance. A reflection could be confident, plausible, and wrong -- this is what happens in the reflection-without-tests ablation (-8pp), but there is no way to detect it without independent evaluation.
 
-Reflexion established verbal self-reflection as a standard technique. The pattern appears throughout subsequent work:
+**Current model amplification.** Results use GPT-3.5/GPT-4 (2023). Models with stronger self-analysis capabilities (reasoning models, 2025-era frontier models) likely amplify Reflexion's benefits substantially, but this has not been systematically measured in the original framework.
 
-- The [Darwin Godel Machine](../projects/darwin-godel-machine.md) uses self-analysis of benchmark logs as its mutation operator — architecturally identical to Reflexion's self-reflection model, applied to an agent's own code rather than its task trajectories
-- Voyager's self-verification critic implements the evaluator component for the specific case of Minecraft skill acquisition
-- Zep's entity extraction pipeline uses "a reflection technique inspired by Reflexion" to reduce hallucinations during knowledge graph construction
-- Letta's memory management architecture treats each conversation as a trial with reflection-driven memory updates
+**Scaling memory beyond 3 reflections.** The bounded buffer is a recognized limitation but no published work from the original authors studies how to integrate Reflexion's reflection mechanism with long-term persistent memory at scale.
 
-Reflexion is best understood as defining the actor-evaluator-self-reflection loop that more complex self-improvement systems build on top of.
+## Relationship to Other Concepts
+
+Reflexion extends [ReAct](../concepts/react.md) by adding memory and a self-improvement loop. ReAct handles a single trajectory; Reflexion handles learning across trajectories. The actor in Reflexion can use ReAct as its reasoning strategy.
+
+Reflexion implements [Episodic Memory](../concepts/episodic-memory.md) through its bounded buffer of verbal reflections from past trials. The episodic memory provides the context that separates Reflexion from simple retry.
+
+Reflexion is one mechanism within the broader [Self-Improving Agents](../concepts/self-improving-agents.md) space. Unlike the [Darwin Gödel Machine](../projects/darwin-godel-machine.md) (which modifies agent code) or [DSPy](../projects/dspy.md) (which optimizes prompts), Reflexion does not modify any persistent artifact -- it improves only through memory conditioning at inference time.
 
 ## Alternatives
 
-**Use [ReAct](../concepts/react.md) alone** when you have single-shot budget constraints or when the task is simple enough that interleaved reasoning and action suffices without multi-trial learning.
+**[DSPy](../projects/dspy.md):** Use when you want to optimize prompts or agent pipelines systematically across a dataset rather than improve a single agent across trials. DSPy modifies the agent's instructions; Reflexion modifies the agent's memory.
 
-**Use [Voyager](../projects/voyager.md)'s skill library pattern** when the goal is accumulating reusable capabilities across many distinct tasks rather than improving performance on one repeated task class.
+**[Voyager](../projects/voyager.md):** Use when you need persistent, reusable skill accumulation across many tasks in a single domain. Voyager stores skills as executable code that compounds; Reflexion stores verbal reflections that expire with the session.
 
-**Use the [Darwin Godel Machine](../projects/darwin-godel-machine.md)** when you need recursive self-improvement at the agent architecture level rather than task-level performance improvement. DGM modifies agent code; Reflexion improves task execution within a fixed agent.
+**[Darwin Gödel Machine](../projects/darwin-godel-machine.md):** Use when you want self-improvement to persist across deployments and compound over generations. DGM modifies agent code that gets saved; Reflexion's improvements disappear when the conversation ends.
 
-**Use [Self-Improving Agents](../concepts/self-improving-agents.md) with fine-tuning** when you have labeled data, compute budget for weight updates, and need improvements that persist beyond the context window's reflection buffer.
-
-
-## Related
-
-- [Episodic Memory](../concepts/episodic-memory.md) — implements (0.6)
-- [ReAct](../concepts/react.md) — implements (0.6)
-- [GPT-4](../projects/gpt-4.md) — implements (0.6)
-- [Letta](../projects/letta.md) — implements (0.5)
-- [Self-Improving Agents](../concepts/self-improving-agents.md) — implements (0.7)
+**Simple retry with temperature:** Use when the task failure is probabilistic rather than systematic (the agent could succeed if it just tried again with different sampling). Reflection adds cost without benefit if failures are random rather than diagnostic.

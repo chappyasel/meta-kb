@@ -3,107 +3,132 @@ entity_id: deepseek
 type: project
 bucket: agent-systems
 abstract: >-
-  DeepSeek is a Chinese AI lab's family of open-weight LLMs (V3, R1, Coder
-  series) notable for strong reasoning/coding at low training cost, widely used
-  as a backbone in agent frameworks and coding tools.
+  DeepSeek is a Chinese AI lab and open-source model family producing
+  high-capability LLMs at low training cost, best known for DeepSeek-R1 which
+  matches frontier reasoning performance using GRPO-based RL without supervised
+  fine-tuning warmup.
 sources:
+  - repos/modelscope-agentevolver.md
   - repos/evoagentx-evoagentx.md
-  - repos/maximerobeyns-self-improving-coding-agent.md
+  - repos/aiming-lab-agent0.md
+  - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
   - deep/repos/maximerobeyns-self-improving-coding-agent.md
-related:
-  - OpenAI
-  - Google Gemini
-last_compiled: '2026-04-05T20:35:43.890Z'
+  - deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
+  - deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md
+related: []
+last_compiled: '2026-04-06T02:16:51.676Z'
 ---
 # DeepSeek
 
 ## What It Is
 
-DeepSeek is a family of large language models developed by DeepSeek AI, a Chinese research lab. The model family spans general-purpose chat models (DeepSeek-V3), reasoning-specialized models (DeepSeek-R1), and coding-focused variants (DeepSeek-Coder series). The models are released with open weights under licenses permitting commercial use, distinguishing them from fully closed competitors.
+DeepSeek is a Chinese AI research company (founded 2023, backed by High-Flyer hedge fund) that develops and open-sources large language models. Its models span general chat, code, and long chain-of-thought reasoning. The lab gained international attention in early 2025 when DeepSeek-R1 matched or exceeded GPT-o1 on several reasoning benchmarks at a fraction of the reported training cost.
 
-The R1 series uses chain-of-thought reasoning with explicit "thinking" tokens, making the reasoning process visible before a final answer. V3 uses a mixture-of-experts (MoE) architecture, activating only a subset of parameters per forward pass to keep inference costs lower than dense models of equivalent parameter count.
+The model family includes:
 
-DeepSeek attracted significant attention in early 2025 when DeepSeek-R1 matched or approached frontier reasoning benchmarks at a fraction of the reported training cost of comparable US models. That cost figure (widely cited as ~$6M) is self-reported and unverified by independent auditors.
+- **DeepSeek-V3**: A 671B mixture-of-experts model (37B active parameters per forward pass), positioned as a general-purpose frontier model
+- **DeepSeek-R1**: A reasoning-focused model trained entirely with reinforcement learning, producing explicit chain-of-thought traces before answering
+- **DeepSeek-Coder / DeepSeek-Coder-V2**: Code-specialized variants
+- **DeepSeek-R1-Zero**: An ablation of R1 trained with RL from a base model only, no SFT warmup, demonstrating that reasoning behaviors can emerge from RL alone
 
-## Architecture and Key Variants
+All weights are released under a permissive license (MIT for R1, custom for some variants) and available on Hugging Face. The API is priced well below OpenAI equivalents.
 
-**DeepSeek-V3**: 671B total parameters, ~37B activated per token via MoE routing. Trained on 14.8T tokens. Outperforms prior open-weight models on coding and math benchmarks. Uses Multi-head Latent Attention (MLA) to reduce KV cache memory during inference.
+## Architectural Differentiators
 
-**DeepSeek-R1**: A reasoning model trained with reinforcement learning (GRPO, not PPO) rather than supervised fine-tuning on chain-of-thought data. Produces extended reasoning traces before answering. Competitive with OpenAI o1 on AIME 2024 and MATH benchmarks. R1-Zero (trained with pure RL, no SFT cold start) showed emergent reasoning behaviors, though its outputs were verbose and inconsistent without the SFT warm-up that R1 uses.
+### DeepSeek-V3 Architecture
 
-**DeepSeek-Coder / Coder-V2**: Variants fine-tuned specifically on code. Coder-V2 is a 236B MoE model with 21B active parameters, strong on HumanEval and LiveCodeBench. Used as a backend in several agent frameworks including the SICA self-improving coding agent ([Source](../raw/deep/repos/maximerobeyns-self-improving-coding-agent.md)) and EvoAgentX ([Source](../raw/repos/evoagentx-evoagentx.md)).
+V3 uses a mixture-of-experts transformer with Multi-Head Latent Attention (MLA), which compresses key-value caches by projecting into a low-dimensional latent space. This cuts inference memory substantially compared to standard multi-head attention at equivalent parameter counts. The MoE routing uses an auxiliary-loss-free load balancing strategy that penalizes overloaded experts through bias terms rather than adding a loss term, avoiding the gradient conflicts that degrade model quality in earlier MoE designs.
 
-**DeepSeek-R1-Distill series**: Smaller dense models (1.5B, 7B, 8B, 14B, 32B, 70B) distilled from R1's reasoning traces. The 7B and 14B distills perform competitively with much larger models on math tasks. These are the most commonly deployed variants in resource-constrained settings.
+V3 also introduced Multi-Token Prediction (MTP) as a training auxiliary objective, predicting multiple future tokens in parallel. At inference, MTP modules can optionally serve as speculative decoding draft heads, improving throughput without changing output distribution.
 
-## Role in Agent Systems
+### DeepSeek-R1 and GRPO
 
-DeepSeek models appear as interchangeable LLM backends in multi-agent frameworks. In SICA, the `src/llm/` module supports DeepSeek direct inference (V3, R1) via `DEEPSEEK_API_KEY`, as well as DeepSeek models hosted on Fireworks AI via `FIREWORKS_AI_API_KEY`. EvoAgentX integrates DeepSeek through LiteLLM, SiliconFlow, and OpenRouter adapter paths.
+R1's training process is the architecturally notable part. Rather than the standard RLHF pipeline (SFT → reward model → PPO), DeepSeek applied [GRPO](../concepts/grpo.md) directly to a base model. GRPO (Group Relative Policy Optimization) estimates policy gradient advantages by comparing multiple rollouts within a batch rather than training a separate critic network. This cuts memory and compute versus PPO while achieving similar or better training stability on verifiable tasks.
 
-This plug-in positioning reflects DeepSeek's practical role: not a framework or orchestration layer, but a model that agent builders swap in for cost or capability reasons. The V3 and R1 models are particularly common choices when teams want near-frontier reasoning without OpenAI pricing.
+R1-Zero, trained without any SFT data, spontaneously developed:
+- Self-verification behavior (the model checks its own reasoning mid-chain)
+- Extended thinking traces with explicit reconsideration steps
+- Variable thinking length calibrated to problem difficulty
+
+R1 then used a cold-start procedure: a small set of human-curated long chain-of-thought examples bootstrapped the model before RL, which stabilized early training and improved readability of the output reasoning traces.
+
+The RL reward function used binary correctness signals (verifiable math, code execution results) plus a format reward enforcing the `<think>...</think>` structure. No learned reward model is in the loop for R1's primary training phase.
+
+### Distilled Variants
+
+DeepSeek released R1-distill models (Qwen-7B, Qwen-14B, Llama-8B, Llama-70B base architectures) fine-tuned on R1-generated chain-of-thought traces. These small models achieve reasoning performance well above their parameter count relative to standard instruction-tuned equivalents. The distillation finding is significant: reasoning capability transfers through behavioral cloning of long-chain outputs, without requiring the student to run RL itself.
 
 ## Key Numbers
 
-| Metric | Value | Source Credibility |
-|---|---|---|
-| DeepSeek-R1 AIME 2024 | 79.8% pass@1 | Self-reported; matches independent community evals |
-| DeepSeek-R1 MATH-500 | 97.3% | Self-reported |
-| DeepSeek-V3 training cost | ~$5.6M | Self-reported; no third-party audit |
-| DeepSeek-V3 training tokens | 14.8T | Self-reported |
-| R1 vs o1 on Codeforces | 96.3 vs 96.6 percentile | Self-reported; close enough that noise dominates |
+| Model | Parameters | Context | Notable Benchmark |
+|-------|------------|---------|-------------------|
+| DeepSeek-V3 | 671B (37B active) | 128K tokens | MMLU 88.5%, HumanEval 96.3% (self-reported) |
+| DeepSeek-R1 | 671B (37B active) | 128K tokens | AIME 2024 79.8%, MATH-500 97.3% (self-reported) |
+| R1-Distill-Qwen-7B | 7B | 128K | AIME 55.5% (self-reported) |
 
-Independent evaluations on LMSYS Chatbot Arena and community benchmarks broadly confirm the ranking claims, though exact numbers vary. The training cost figure has not been independently verified and excludes infrastructure amortization.
+All benchmarks above are self-reported by DeepSeek in their technical reports. Independent replication on AIME and MATH-500 by third parties has generally confirmed the R1 numbers within a few percentage points, though exact reproduction depends on generation parameters (temperature, thinking budget). The training cost claims ($5.6M for V3) have not been independently verified and likely exclude prior infrastructure investment.
+
+## Influence on Agent Systems
+
+DeepSeek's relevance to agent and knowledge base systems comes through several channels:
+
+**GRPO adoption**: R1's RL training recipe using GRPO has been widely replicated. The mem-agent paper (a 4B model trained to manage markdown memory files) used GSPO, a direct descendant of GRPO, and explicitly cites R1 as the catalyst for the current wave of RL-trained tool-calling agents. Multiple agent training frameworks now default to GRPO variants.
+
+**Reasoning traces as training data**: R1's distillation approach demonstrated that LLM-generated reasoning chains are high-quality training signal. This pattern has been adopted by systems training agents on synthetic trajectories, including self-improving agents that generate their own training data.
+
+**Cost-effective inference at the frontier**: V3 and R1 changed the economic calculus for agent systems. Running frontier-class reasoning models at low cost per token makes multi-agent orchestration (where many model calls happen per task) economically viable at smaller scales.
+
+**Open weights for local deployment**: Via [Ollama](../projects/ollama.md) and [vLLM](../projects/vllm.md), R1 distilled variants run locally. Agent systems with privacy requirements or offline constraints can use 7B-14B R1-distill models that retain substantial chain-of-thought capability.
 
 ## Strengths
 
-**Reasoning tasks with visible chain-of-thought**: R1's explicit thinking tokens let users inspect and validate reasoning steps, which matters in agent pipelines that need to catch errors mid-chain.
+**Coding and math reasoning**: R1 and V3 consistently rank near the top on code generation (HumanEval, LiveCodeBench) and math reasoning (AIME, MATH-500) benchmarks. For agent systems that execute code or do quantitative reasoning, these models are a practical first choice.
 
-**Cost efficiency at inference**: MoE architecture means V3 costs less per token than dense models of comparable quality. Providers like Fireworks, Together, and DeepSeek's own API offer V3/R1 at significantly lower rates than GPT-4o or Claude 3.5 Sonnet.
+**Chain-of-thought transparency**: R1's thinking traces are visible and auditable. Agents built on R1 expose their intermediate reasoning, which aids debugging and the kind of iterative verification that research frameworks like the Agentic Researcher require.
 
-**Open weights**: Teams can self-host, fine-tune, or inspect weights. This matters for compliance, latency control, and avoiding vendor lock-in.
+**Distillation signal**: The R1-distill series provides strong small-model performance for constrained deployments. The SICA self-improving agent framework lists DeepSeek as a supported LLM provider alongside Anthropic and OpenAI.
 
-**Strong coding performance**: Coder-V2 and V3 both score well on HumanEval, SWE-Bench, and LiveCodeBench. In SICA's benchmark suite, DeepSeek appears alongside Claude and GPT-4o as a viable backbone for the coding agent.
+**API cost**: DeepSeek's API runs roughly 10-30x cheaper per token than GPT-4 class models (as of mid-2025). For agent frameworks doing many LLM calls per task, this changes what's economically feasible.
 
 ## Critical Limitations
 
-**Censorship on politically sensitive topics**: DeepSeek models trained on the standard Chinese data pipeline refuse or deflect questions about Tiananmen Square, Taiwan sovereignty, and related topics. This is a hard constraint in the base models and cannot be prompt-engineered away without fine-tuning on open weights.
+**Concrete failure mode — instruction following regression in extended reasoning**: R1's thinking-then-answering architecture creates a specific failure in multi-turn agentic contexts. The model can produce a correct answer inside `<think>` tags, then give a different (sometimes contradictory) answer in the final response. In tool-calling loops where the agent output is parsed and executed, this split between reasoning and action creates non-deterministic behavior that's difficult to catch without explicit validation.
 
-**Infrastructure assumption**: Using DeepSeek's own API requires routing traffic through servers in China, which creates data residency concerns for regulated industries. Self-hosting V3 (671B) requires multi-node GPU infrastructure that most teams lack. The practical assumption for most users is that they route through third-party providers (Fireworks, Together, OpenRouter), adding a dependency layer.
+**Unspoken infrastructure assumption**: The full V3 and R1 models require substantial GPU infrastructure (multiple H100s for inference at reasonable throughput). DeepSeek's API is the practical path for most users, but it routes through Chinese infrastructure. For agent systems handling sensitive data or operating in regulated environments, this is a non-trivial dependency that the model's open-source framing can obscure. The weights are open, but running 671B MoE at production throughput is not accessible to most teams.
 
-## When NOT to Use It
+## When NOT to Use DeepSeek
 
-**Regulated industries with data residency requirements**: If data cannot leave a specific jurisdiction, DeepSeek's API is off-limits and self-hosting V3 requires substantial infrastructure.
+**Safety-critical or regulated deployments**: DeepSeek models have been shown to produce content that [Anthropic](../projects/anthropic.md) and [OpenAI](../projects/openai.md) refuse, particularly on politically sensitive topics related to China. Red-teaming results from independent researchers found systematic gaps in content refusals. If your agent system operates in consumer-facing or regulated contexts, the safety alignment properties of DeepSeek models are less well characterized than Claude or GPT-4 class models.
 
-**Applications requiring content neutrality on geopolitical topics**: The censorship baked into base models makes them unsuitable for journalism tools, political research applications, or any product where topic refusal would be a defect.
+**Low-latency production systems**: R1's chain-of-thought generation is verbose by design. For agent loops requiring sub-second response times or high-frequency tool calls, the extended thinking traces add latency. R1 is optimized for quality of reasoning, not throughput.
 
-**Latency-sensitive production workloads needing SLAs**: DeepSeek's own API has had availability issues during high-demand periods. Third-party provider SLAs vary. For guaranteed uptime, Claude or GPT-4o through their native APIs are more reliable.
+**Multi-modal tasks**: DeepSeek's text models have no vision capability (as of mid-2025). Agent systems requiring image understanding, screenshot analysis, or document parsing with visual elements need a different base model.
 
-**Tasks requiring the absolute frontier**: On non-coding, non-math reasoning tasks, GPT-4o and Claude 3.5/3.7 Sonnet still show consistent edges. DeepSeek R1 is competitive on structured tasks but can be inconsistent on open-ended complex reasoning.
+**High-reliability multi-turn tool calling**: R1's training focused on single-turn reasoning tasks. For complex multi-turn agent workflows with structured tool call formats, models trained specifically for agentic interaction (Claude Sonnet, GPT-4o) have more predictable behavior.
 
 ## Unresolved Questions
 
-**Actual training cost breakdown**: The $5.6M figure excludes prior research compute, infrastructure amortization, and failed runs. No methodology for that estimate has been published.
+**Governance and export controls**: The models are trained and released by a Chinese company. U.S. export control regulations around advanced AI models are evolving, and it is unclear what compliance requirements apply to enterprises incorporating DeepSeek weights into commercial products or fine-tuning pipelines.
 
-**Weight licensing edge cases**: The DeepSeek model license permits commercial use but restricts training other models using DeepSeek outputs as labels. Exactly how this interacts with distillation or RLHF on DeepSeek-generated data is ambiguous.
+**Reproducibility of training costs**: The $5.6M training cost figure for V3 covers only the final training run on H800 clusters, not the cost of prior experiments, infrastructure, or the base model development. Independent researchers cannot verify the total cost. The figure has been widely cited as evidence of efficiency but the accounting boundary is unstated.
 
-**Governance and model updates**: DeepSeek does not publish a model card changelog or deprecation schedule. API versions can change without notice.
+**Context length reliability**: Both V3 and R1 claim 128K token context windows. Independent evaluations using needle-in-a-haystack and multi-hop retrieval tasks at long contexts show degradation beyond 32-64K tokens that is not reflected in official benchmarks. For [RAG](../concepts/rag.md) or [Context Engineering](../concepts/context-engineering.md) applications relying on long-context retrieval, this gap matters.
 
-**Reasoning trace length control**: R1's thinking tokens can run very long (thousands of tokens) on complex problems, inflating costs in agent loops that call the model many times. There is no reliable mechanism to cap thinking length without affecting answer quality.
+**Post-training alignment depth**: The R1 technical report describes the RL reward shaping in detail but is sparse on constitutional AI-style alignment, adversarial testing methodology, and red-team coverage. The depth of safety evaluation relative to Anthropic's or OpenAI's published work is unclear.
 
 ## Alternatives
 
-**OpenAI o3/o4-mini**: Use when you need the strongest available reasoning and cost is secondary. Independently validated on competition math. No open weights.
+**Use [Claude](../projects/claude.md) (Anthropic) when**: safety alignment, multi-turn agentic reliability, or multi-modal capability matters. Claude Sonnet is the current standard for complex agentic coding tasks like [Claude Code](../projects/claude-code.md) and [Cursor](../projects/cursor.md).
 
-**Claude 3.5/3.7 Sonnet (Anthropic)**: Use when you need strong instruction-following, long context, and reliable API availability. Better on open-ended tasks. No open weights.
+**Use [Gemini](../projects/gemini.md) when**: very long context (1M+ tokens) is the primary constraint. Gemini 1.5 Pro has a substantially larger verified effective context than DeepSeek.
 
-**Qwen2.5 / QwQ**: Use when you need open weights with strong multilingual support and want to avoid DeepSeek's content restrictions. QwQ-32B is competitive with R1 on math reasoning at a smaller parameter count.
+**Use DeepSeek R1-distill (7B/14B) when**: you need chain-of-thought reasoning locally, have privacy requirements, or are building agent systems where per-token cost is a binding constraint. The distilled models via [Ollama](../projects/ollama.md) are the most accessible path to R1-class reasoning without API dependency.
 
-**Llama 3.3 70B**: Use when you need open weights that are fully self-hostable on accessible hardware (single A100 node) and don't need frontier reasoning.
+**Use GPT-4o (OpenAI) when**: structured tool calling, function calling reliability, or vision + reasoning combinations are required. OpenAI's tool call format and reliability in multi-turn agentic settings is more thoroughly characterized.
 
-**DeepSeek-R1-Distill-14B or 32B**: Use when you need R1-class reasoning on hardware you control and can tolerate some quality degradation versus the full model.
+## Related Concepts
 
-## Related Concepts and Projects
-
-- [Self-Improving Coding Agent (SICA)](../projects/maximerobeyns-self-improving-coding-agent.md): Uses DeepSeek V3/R1 as one of several swappable LLM backends
-- [EvoAgentX](../projects/evoagentx-evoagentx.md): Integrates DeepSeek through LiteLLM/SiliconFlow/OpenRouter
-- [OpenAI](../projects/openai.md): Primary reasoning benchmark competitor
-- [Google Gemini](../projects/google-gemini.md): Competes on coding and multimodal tasks
+- [GRPO](../concepts/grpo.md) — The RL training algorithm central to R1's training
+- [Chain-of-Thought](../concepts/chain-of-thought.md) — The reasoning paradigm R1 exemplifies
+- [Prompt Engineering](../concepts/prompt-engineering.md) — R1's thinking traces change how prompting interacts with model behavior
+- [Self-Improving Agents](../concepts/self-improving-agents.md) — R1's RL-from-base-model approach is a direct antecedent to agent self-improvement via RL

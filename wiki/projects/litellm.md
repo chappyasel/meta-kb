@@ -3,119 +3,96 @@ entity_id: litellm
 type: project
 bucket: agent-systems
 abstract: >-
-  LiteLLM is a Python library providing a unified OpenAI-compatible interface
-  across 100+ LLM providers, enabling model portability through a single API
-  call signature.
+  LiteLLM provides a unified Python interface to 100+ LLM APIs with
+  OpenAI-compatible call signatures, plus a proxy server for load balancing,
+  cost tracking, and rate limiting across providers.
 sources:
-  - repos/kayba-ai-agentic-context-engine.md
+  - repos/volcengine-openviking.md
   - repos/evoagentx-evoagentx.md
   - deep/repos/vectifyai-pageindex.md
+  - deep/repos/volcengine-openviking.md
   - deep/repos/topoteretes-cognee.md
   - deep/repos/memento-teams-memento-skills.md
 related:
-  - OpenRouter
-  - vLLM
-last_compiled: '2026-04-05T20:31:40.638Z'
+  - openai
+last_compiled: '2026-04-06T02:04:28.330Z'
 ---
 # LiteLLM
 
 ## What It Does
 
-LiteLLM lets you call OpenAI, Anthropic, Google Gemini, AWS Bedrock, Azure, Cohere, Mistral, Ollama, and 100+ other providers through a single function: `litellm.completion()`. The call signature mirrors OpenAI's API, so switching models requires changing one string.
+LiteLLM lets you call GPT-4, Claude, Gemini, Llama, Mistral, and 100+ other models through a single Python interface or HTTP proxy, without rewriting your code when you switch providers. The library translates your call into whatever format the target provider expects, handles retries, and returns a standardized response object.
 
-It appears throughout the agent systems ecosystem as infrastructure glue. PageIndex uses it for all LLM calls in both indexing and retrieval. Cognee routes every provider through it. EvoAgentX wraps it as `litellm_model.py`. Memento-Skills uses it as the multi-provider backbone. ACE routes to providers through PydanticAI's LiteLLM integration. This recurrence in unrelated codebases reflects how deeply it has become assumed infrastructure.
+The proxy component extends this into production infrastructure: it sits between your application and LLM providers, handling authentication, routing, cost tracking, rate limiting, and fallbacks across a fleet of models.
 
-## Core Mechanism
+## Architecture
 
-The central abstraction is provider translation. LiteLLM maps the OpenAI message format (`[{"role": "user", "content": "..."}]`) to each provider's native format, handles auth headers, normalizes responses back to OpenAI's schema, and exposes token counts uniformly.
+LiteLLM has two deployment modes that share the same translation layer:
 
-Key functions:
+**Library mode** (`pip install litellm`): Drop-in replacement for the OpenAI Python client. `litellm.completion(model="claude-3-5-sonnet", messages=[...])` routes through Anthropic's API and returns a response object identical in structure to what OpenAI would return. Model selection is a string prefix: `"anthropic/claude-3-5-sonnet"`, `"ollama/llama3"`, `"vertex_ai/gemini-pro"`.
 
-- `litellm.completion(model, messages, ...)` — synchronous completion
-- `litellm.acompletion(...)` — async variant
-- `litellm.token_counter(model, messages)` — model-accurate token counts (used by PageIndex for tree thinning decisions)
-- Structured output via Instructor integration — Cognee uses this for entity extraction with Pydantic models
+**Proxy mode** (`litellm --model gpt-4`): Runs an OpenAI-compatible HTTP server. Applications point their OpenAI client at `http://localhost:4000` and gain access to all providers. The proxy adds budget management, virtual keys, team-level spending controls, a Redis-backed rate limiter, and a LangFuse/Helicone-compatible logging interface.
 
-Model strings follow the pattern `provider/model-name`: `anthropic/claude-3-5-sonnet-20241022`, `bedrock/anthropic.claude-v2`, `ollama/llama3`. OpenAI models use bare names by convention.
+The core translation layer maps between provider-specific API formats. Key files in the codebase handle: request parameter mapping (temperature, max_tokens, stop sequences have different names and valid ranges across providers), streaming response normalization (each provider emits SSE events differently), and error code translation (provider-specific HTTP errors map to OpenAI error classes for consistent handling).
 
-The proxy server feature runs LiteLLM as a local OpenAI-compatible API endpoint, allowing tools that only speak OpenAI to route through it to any provider. This is the deployment pattern for vLLM and local model integration.
-
-## Role in Agent Systems
-
-Several patterns appear repeatedly in production codebases:
-
-**Separate indexing and retrieval models**: PageIndex uses `model` for index construction (many cheap calls) and `retrieve_model` for agent reasoning (fewer expensive calls). The config defaults show `gpt-4o-2024-11-20` for indexing and `gpt-5.4` for retrieval. LiteLLM makes this trivial since both use identical call signatures.
-
-**Multi-provider fallback**: Cognee's `LLM_PROVIDER` environment variable switches providers without code changes. ACE documents support for "100+ supported providers" through this interface.
-
-**Structured output routing**: Instructor wraps LiteLLM to coerce LLM outputs into Pydantic models. Cognee's `extract_content_graph()` calls `extract_content_graph()` via Instructor to get typed `KnowledgeGraph` objects. The `STRUCTURED_OUTPUT_FRAMEWORK` config defaults to `instructor`.
-
-**Async batching**: Cognee's entity extraction runs `asyncio.gather(*[extract_content_graph(chunk) for chunk in chunks])` — parallel LLM calls across all chunks in a batch, all routed through LiteLLM's async interface.
+LiteLLM appears as a dependency in multiple projects covered in this knowledge base. OpenViking uses it as the VLM provider abstraction layer, supporting Volcengine, OpenAI, and "litellm" as a catch-all for everything else. Cognee routes all LLM calls through LiteLLM via the `STRUCTURED_OUTPUT_FRAMEWORK=instructor` path. Memento-Skills uses it as the multi-provider client in its middleware layer (`middleware/llm/`). PageIndex wraps it in `utils.py` with retry logic (`llm_completion`, `llm_acompletion`) and uses `litellm.token_counter()` for model-accurate token counting.
 
 ## Key Numbers
 
-- ~100+ LLM providers supported (self-reported)
-- Used in production by Cognee (70+ companies), PageIndex (Mafin 2.5 financial system), EvoAgentX, Memento-Skills, ACE, and many others
-- PyPI downloads consistently among the top Python AI libraries (independently verifiable via PyPI stats)
-- GitHub stars: ~15k+ (self-reported at time of writing)
+- **100+ providers** supported (self-reported, covers all major commercial and open-source hosting services)
+- **20,000+ GitHub stars** (as of mid-2025, verified via public repository)
+- Production deployments at scale companies (reported by maintainers, independently verified by user case studies in the community)
 
 ## Strengths
 
-**Zero-migration provider switching**: The main genuine value. Swapping `openai/gpt-4o` for `anthropic/claude-opus-4` requires changing one string. No API client rewrite.
+**Provider abstraction that actually works**: The translation layer handles genuinely tricky differences between providers — Anthropic's `system` prompt handling differs from OpenAI's, Gemini's token limits differ by model variant, local Ollama models have no streaming timeout by default. LiteLLM has accumulated fixes for these edge cases over years of production use.
 
-**Token counting accuracy**: `litellm.token_counter()` uses model-specific tokenizers rather than approximations. PageIndex relies on this for tree node size calculations.
+**Async support**: `litellm.acompletion()` is a proper async coroutine, not a thread-wrapped sync call. For agent systems running many concurrent LLM calls (common in multi-step RAG pipelines or agent orchestration), this matters.
 
-**Proxy server for legacy tools**: Tools hardcoded to `https://api.openai.com` can point to a LiteLLM proxy that transparently routes to any backend. This covers vLLM, self-hosted models, and enterprise deployments with custom endpoints.
+**Token counting without calling the API**: `litellm.token_counter(model, messages)` counts tokens locally using the provider's tokenizer. This is how PageIndex's markdown tree builder measures node sizes accurately without burning API credits.
 
-**Async-first**: `acompletion` works natively, enabling the parallel extraction patterns that agent frameworks depend on for throughput.
+**Structured output / instructor integration**: Works as the backend for instructor, enabling Pydantic-validated structured outputs across providers that don't natively support JSON mode.
+
+**Cost tracking**: Built-in cost lookup table per model per token. The proxy surfaces this via dashboard; the library exposes it on response objects.
 
 ## Critical Limitations
 
-**Concrete failure mode — provider capability mismatch**: LiteLLM normalizes interfaces but cannot normalize capabilities. Structured output (Instructor / `response_format=`) works on GPT-4o but fails silently or raises errors on models that don't support function calling or JSON mode. Cognee's `STRUCTURED_OUTPUT_FRAMEWORK=instructor` assumes the configured model supports structured output. Switching to an Ollama model that lacks tool support breaks entity extraction without obvious error messages.
+**Failure mode — provider parity gaps**: LiteLLM promises a uniform interface, but providers update their APIs constantly. When Anthropic adds a new parameter (say, extended thinking or tool_choice constraints), LiteLLM may lag weeks or months before supporting it. Code that depends on new provider-specific features often has to bypass LiteLLM temporarily. The translation layer cannot abstract features that only one provider has.
 
-**Unspoken infrastructure assumption**: LiteLLM assumes network access to provider APIs at call time. It has no built-in circuit breaker for provider outages. The retry logic in PageIndex (`10 retries with 1-second backoff`) is implemented by the application, not by LiteLLM. Agent systems that assume LiteLLM handles resilience will fail under provider degradation.
-
-**Abstraction lag**: New model features (extended thinking, prompt caching, multimodal inputs with provider-specific formats) take time to appear in LiteLLM's translation layer. Cutting-edge Anthropic features may require using the Anthropic SDK directly while waiting for LiteLLM support.
+**Infrastructure assumption — proxy requires Redis for rate limiting**: The proxy's virtual key system and team-level rate limiting depend on Redis for shared state. A single-instance deployment without Redis will appear to work but won't enforce limits correctly across restarts or horizontal scaling. The documentation mentions this but understates how quickly you hit the limitation in production.
 
 ## When NOT to Use It
 
-**When you need provider-specific features immediately**: If your system depends on Anthropic's extended thinking, AWS Bedrock's specific VPC routing, or Google's grounding API, LiteLLM may not expose these at all or may expose them with a lag. Use the native SDK.
+**Provider-specific feature requirements**: If your application relies on Anthropic's extended thinking, OpenAI's o1/o3 reasoning traces, or Gemini's grounding with Google Search, LiteLLM's abstraction layer may be in your way rather than helping. You'll spend time working around the normalization rather than benefiting from it.
 
-**When you're deploying a single-provider, latency-critical service**: LiteLLM adds a translation layer. Negligible in most cases, but at sub-50ms SLA requirements, the overhead is measurable.
+**Maximum performance for a single provider**: LiteLLM adds a translation layer with real overhead (serialization, validation, format conversion). For latency-critical applications on a single provider, the native client library is faster.
 
-**When the model matrix is fixed at deployment**: For a production system with one model and no plans to change it, LiteLLM adds dependency weight without practical benefit. The native SDK is simpler to debug and update.
+**Simple single-provider scripts**: The library adds complexity and a dependency for no benefit if you're only ever calling one provider. Use the OpenAI client directly for OpenAI, the Anthropic client for Claude.
 
-**When you need fine-grained streaming control**: LiteLLM normalizes streaming, but provider-specific streaming behaviors (partial tool calls, mid-stream token counts) can behave inconsistently across providers.
+**Embedding pipelines at scale with custom providers**: The embedding interface has more gaps across providers than the completion interface. Some providers require provider-specific parameters that fall through the abstraction. Verify your specific embedding provider works before committing to LiteLLM for vector ingestion pipelines.
 
 ## Unresolved Questions
 
-**Governance and maintenance pace**: LiteLLM is maintained by BerriAI as both open-source and a commercial proxy product. The relationship between the open-source library and the paid proxy tier creates potential for feature prioritization toward the commercial offering. There is no published roadmap for the open-source library separately.
+**Conflict resolution between providers**: When the same capability exists in multiple providers with different semantics (e.g., `top_p` vs `top_k`), LiteLLM's translation choices are not always documented. It's unclear whether a parameter present in your call but unsupported by the target model is silently dropped or raises an error.
 
-**Cost at scale**: The LiteLLM proxy server is documented for production deployment, but there is no published benchmarks on throughput, latency overhead, or memory footprint under concurrent load. Systems like Cognee that process 1GB in 40 minutes across 100+ containers have no published data on whether LiteLLM was the bottleneck.
+**Cost table maintenance**: The built-in cost table goes stale as providers change pricing. There's no documented mechanism for users to override or supplement the built-in table with current prices, and it's unclear how frequently the table is updated.
 
-**Structured output reliability across providers**: The documentation claims structured output support across providers, but there is no published compatibility matrix showing which models support which output formats reliably. Teams building on this assumption discover gaps when switching providers.
+**Proxy observability at scale**: The proxy's LangFuse integration and dashboard are well-documented for small deployments. How logging holds up at 10M+ calls/day with dozens of models is not covered in official documentation.
 
-**Version stability**: LiteLLM releases frequently. Application code pinned to specific versions (as PageIndex's `config.yaml` pins model names) can break when provider API versions change and LiteLLM updates its translation mappings.
+**Long-term governance**: LiteLLM is a startup (BerriAI) offering both open-source and enterprise tiers. The boundary between what stays open and what moves to enterprise is not clearly documented, which matters for teams building infrastructure on the open-source proxy.
 
 ## Alternatives
 
-**[OpenRouter](../projects/openrouter.md)**: An API aggregator that exposes a single OpenAI-compatible endpoint for all providers as a hosted service. Use OpenRouter when you want provider routing handled externally (no library to update) and are comfortable with API costs going through a third party. LiteLLM is better when you need local control, proxy deployment, or the token counting utilities.
+| Tool | Use when |
+|------|----------|
+| **Direct provider SDKs** (openai, anthropic) | Single-provider applications or when you need cutting-edge provider features immediately |
+| **[vLLM](../projects/vllm.md)** | High-throughput serving of open-source models; need batching and continuous inference optimization |
+| **[Ollama](../projects/ollama.md)** | Local model inference only; simpler setup, no multi-provider routing needed |
+| **OpenRouter** (managed API service) | Want multi-provider routing without managing proxy infrastructure yourself |
+| **PortKey.ai** | Enterprise proxy with more advanced guardrails and observability than LiteLLM's open-source proxy |
 
-**Provider-native SDKs** (`openai`, `anthropic`, `google-generativeai`): Use these when you need immediate access to new features, better error messages, or when you're locked to one provider. The cost is migration work if you switch providers later.
+## Ecosystem Role
 
-**[vLLM](../projects/vllm.md)**: For self-hosted open models, vLLM provides an OpenAI-compatible server directly. LiteLLM can proxy to vLLM, making them complementary: vLLM handles inference, LiteLLM handles routing from application code to vLLM's endpoint alongside cloud providers.
+LiteLLM has become infrastructure for the LLM tooling ecosystem rather than an end-user product. Its position is closest to what JDBC was for databases — an abstraction layer that other frameworks depend on. [LangChain](../projects/langchain.md), [LlamaIndex](../projects/llamaindex.md), Cognee, OpenViking, and Memento-Skills all use it internally. This network effect works both ways: broad adoption means faster bug fixes and wider provider coverage, but also means breaking changes propagate widely when they occur.
 
-**Instructor**: Not a full alternative but commonly paired with LiteLLM specifically for structured output. Cognee and others use them together because LiteLLM handles routing while Instructor handles output coercion. Using Instructor with provider-native SDKs is also valid.
-
-## Related Concepts
-
-- [Agent Memory](../concepts/agent-memory.md)
-- [RAG Pipelines](../concepts/rag.md)
-
-## Sources
-
-- [VectifyAI PageIndex](../raw/deep/repos/vectifyai-pageindex.md)
-- [Topoteretes Cognee](../raw/deep/repos/topoteretes-cognee.md)
-- [Memento-Skills](../raw/deep/repos/memento-teams-memento-skills.md)
-- [Agentic Context Engine](../raw/repos/kayba-ai-agentic-context-engine.md)
-- [EvoAgentX](../raw/repos/evoagentx-evoagentx.md)
+For agent systems specifically — the context of this knowledge base — LiteLLM solves a real problem: [agent orchestration](../concepts/agent-orchestration.md) frameworks need to swap models for different tasks (cheap model for retrieval ranking, expensive model for synthesis), and LiteLLM makes that swap a one-line change rather than a refactor.

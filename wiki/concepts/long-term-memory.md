@@ -2,129 +2,141 @@
 entity_id: long-term-memory
 type: concept
 bucket: agent-memory
+abstract: >-
+  Long-term memory in AI agents: persisting and retrieving information across
+  sessions via external stores, enabling agents to accumulate knowledge,
+  preferences, and history beyond what fits in a context window.
 sources:
   - repos/osu-nlp-group-hipporag.md
-  - repos/mem0ai-mem0.md
-  - repos/infiniflow-ragflow.md
-  - papers/mei-a-survey-of-context-engineering-for-large-language.md
-  - deep/repos/letta-ai-letta.md
-  - deep/repos/mem0ai-mem0.md
-  - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
+  - repos/caviraoss-openmemory.md
+  - articles/lil-log-llm-powered-autonomous-agents.md
+  - >-
+    articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md
 related: []
-last_compiled: '2026-04-05T05:41:25.891Z'
+last_compiled: '2026-04-05T23:09:10.968Z'
 ---
-# Long-Term Memory in AI Agent Systems
+# Long-Term Memory for AI Agents
 
 ## What It Is
 
-Long-term memory in AI agents refers to information that persists beyond a single context window, surviving across sessions, agent restarts, and model swaps. This separates it from working memory (the active context window) and short-term session state. Without it, every conversation starts from zero: the agent cannot recall that a user prefers dark mode, that a customer filed the same complaint last month, or that a multi-step reasoning chain reached a particular conclusion three days ago.
+LLMs are stateless by default. Every conversation starts fresh, with no knowledge of previous sessions unless you explicitly provide it. Long-term memory solves this by maintaining persistent stores outside the model, then selectively injecting relevant history into new conversations at runtime.
 
-The concept draws from cognitive science. Human long-term memory divides into episodic (specific past events), semantic (general facts and knowledge), and procedural (how to do things). AI agent systems map onto these categories imperfectly but usefully:
+The concept maps loosely onto human cognitive psychology. Lilian Weng's foundational 2023 overview of LLM agents classifies memory into sensory (raw input embeddings), short-term (the context window), and long-term (external retrieval stores). Long-term memory in AI agents corresponds to the external vector store that the agent queries at call time, providing what Weng describes as "the capability to retain and recall (infinite) information over extended periods." [Source](../raw/articles/lil-log-llm-powered-autonomous-agents.md)
 
-- **Episodic**: Past conversations, interaction logs, specific events tied to time and user
-- **Semantic**: Extracted facts, preferences, entity relationships, structured knowledge
-- **Procedural**: Learned workflows, tool-use patterns, heuristics derived from past runs
-
-Most production systems collapse these distinctions. A memory entry like "User prefers concise answers" is simultaneously episodic (extracted from a past exchange) and semantic (a standing fact about the user). The taxonomy matters more for system design than for labeling.
+In practice, long-term memory means one or more of:
+- **Episodic memory**: records of what happened in past sessions with a specific user or context
+- **Semantic memory**: generalized facts and knowledge independent of any single interaction
+- **Procedural memory**: encoded patterns about how the agent should behave, embedded in prompts or code rather than retrieval
 
 ## Why It Matters
 
-Context windows have grown substantially — 128K, 1M tokens — but naive full-context approaches fail at scale for two reasons. First, cost: passing entire conversation histories into every inference call is expensive. Second, quality: longer contexts do not reliably improve performance and can hurt it, as models attend unevenly across long inputs.
+Without long-term memory, agents repeat themselves, lose user context between sessions, and cannot accumulate domain knowledge over time. A customer support agent that forgets every previous ticket, or a coding assistant that cannot recall a developer's preferences, fails at the basic premise of an intelligent assistant.
 
-The [Mem0 research paper](https://arxiv.org/abs/2504.19413) reports a 26% accuracy improvement over OpenAI's native memory on the LOCOMO benchmark, 91% faster responses than full-context, and 90% fewer tokens — all from selective memory retrieval versus stuffing full history. These numbers are self-reported by the Mem0 team, not independently replicated, but the directional claim (selective retrieval beats full context) is consistent with broader RAG research.
+The problem is structural. Transformers process a fixed context window. Extending that window helps but doesn't eliminate the issue — a 128K token window cannot hold years of interaction history, and dumping all of it in would poison attention with irrelevant content. Long-term memory solves this through selectivity: retrieve only what matters for the current query, inject it as context, and discard the rest.
 
-The implication: memory architecture is not a convenience feature. It is a core determinant of agent quality and cost.
+This selectivity is what distinguishes good implementations from naive ones. Simply appending every past message to a growing buffer and sending it with each request hits three failure modes fast: the context window fills, irrelevant history pollutes model attention, and token costs compound.
 
 ## How It Works
 
-Long-term memory systems decompose into three operations: **writing** (deciding what to store), **indexing** (organizing storage for retrieval), and **reading** (deciding what to surface at query time).
+### The Core Mechanism: External Retrieval
 
-### Writing
+The standard architecture stores past content as vector embeddings in an external database. At query time, the agent embeds the current query, runs approximate nearest neighbor (ANN) search against stored embeddings, and retrieves the top-k most similar memories. These get injected into the system prompt or conversation context before the model generates a response.
 
-Naive systems store everything. Better systems extract. Mem0's pipeline runs LLM calls to extract discrete, atomic facts from conversation turns before storage. The `memory.add()` call in Mem0 does not just append messages — it runs extraction, deduplication, and conflict resolution, deciding whether a new fact updates or contradicts an existing one. This keeps the memory store clean rather than accumulating redundant or contradictory entries over time.
+ANN algorithms commonly used include:
+- **HNSW** (Hierarchical Navigable Small World): builds layered graphs where upper layers provide shortcuts and lower layers contain actual data points. Fast and widely used in Pinecone, Weaviate, Chroma.
+- **FAISS**: Facebook's library, assumes Gaussian distribution in high-dimensional space, applies vector quantization to speed search.
+- **LSH** (Locality-Sensitive Hashing): hashing-based approach, maps similar vectors to the same buckets.
+- **ScaNN**: Google's approach using anisotropic vector quantization to preserve inner product accuracy.
 
-The write-time extraction is the most expensive step and the one most likely to introduce errors. An LLM deciding "what is worth remembering" will make different judgment calls than a user would.
+The tradeoff across all of these is accuracy vs. speed — approximate search trades a small recall loss for substantial latency reduction. [Source](../raw/articles/lil-log-llm-powered-autonomous-agents.md)
 
-### Indexing
+### Memory Taxonomy in Practice
 
-Two dominant approaches:
+The Elasticsearch Labs implementation (drawing on the Cognitive Architectures for Language Agents framework) breaks this into three operationally distinct categories:
 
-**Vector stores**: Memory entries are embedded and stored as dense vectors. Retrieval uses approximate nearest-neighbor search. Fast and flexible, but retrieval is purely semantic similarity — the system cannot traverse relationships. Mem0 uses this as its primary index.
+**Episodic memory** captures specific events tied to an entity and time. "User mentioned their birthday is next Thursday." Stored as documents with metadata (user ID, timestamp, context). Retrieved with tight filters — by user, by time window, by role. Prone to context pollution if not isolated correctly.
 
-**Knowledge graphs**: Entities and relationships are extracted and stored as graph nodes and edges. HippoRAG uses this approach, adding Personalized PageRank on top to enable multi-hop traversal. A query about "Erik Hort's home county" can hop: Hort → birthplace Montebello → Montebello is in Rockland County. Vector search alone cannot reliably make this connection. The tradeoff is higher offline indexing cost and complexity.
+**Semantic memory** encodes general world knowledge — company handbooks, factual databases, domain documentation. Retrieved with broader semantic search because precision matters less than recall. Multiple users share the same semantic store.
 
-HippoRAG's methodology (`hipporag.index()`) extracts entities and relations using an LLM during indexing, builds a graph, then at query time runs embedding-based node selection followed by Personalized PageRank to propagate relevance through the graph. This is more expensive upfront but enables retrieval that flat vector search cannot match on multi-hop questions.
+**Procedural memory** lives in application code and prompts. It governs when and how the other memory types are used. The agent queries memory because procedural rules say to, not because the LLM decides spontaneously. [Source](../raw/articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md)
 
-### Reading
+### Beyond Simple Vector Search: Knowledge Graphs
 
-Memory retrieval is a reranking problem. Given a query, the system must return the most relevant memories — not the most similar ones by embedding distance. These often differ. A user asking "what did we decide about the API format?" wants the decision, not the most lexically similar memory entry.
+HippoRAG 2 (NeurIPS '24, ICML '25) takes a different approach inspired by the hippocampus's role in human memory consolidation. Rather than pure vector similarity, it builds a knowledge graph over ingested documents, then uses **Personalized PageRank** to traverse that graph from query nodes. This enables multi-hop associativity — connecting "Erik Hort" to "Rockland County" through the intermediate fact that his birthplace, Montebello, is in that county, even though no single document states the answer directly.
 
-Mem0's `memory.search()` runs vector similarity search with configurable limits, relying on the extraction quality at write time to have stored clean, retrievable facts. HippoRAG's `hipporag.retrieve()` runs graph traversal, surfacing documents connected through multi-hop paths.
+The key architectural distinction: vector similarity retrieves documents that *look like* the query. Graph traversal retrieves documents that are *logically connected* to the query, even through chains of intermediate facts. This matters for knowledge-intensive tasks (HotpotQA, MuSiQue) where the answer requires synthesizing multiple sources. HippoRAG reports improvements on multi-hop retrieval benchmarks, though these are self-reported from the research team. [Source](../raw/repos/osu-nlp-group-hipporag.md)
 
-The [Context Engineering survey](../../raw/papers/mei-a-survey-of-context-engineering-for-large-language.md) frames memory retrieval as a subproblem within context management: retrieved memories must be incorporated into the prompt without overwhelming the working context or introducing irrelevant noise. This integration step — deciding how to present retrieved memories to the LLM — is under-studied relative to the retrieval mechanism itself.
+### Memory Management: Decay, Consolidation, Reinforcement
 
-## Memory Scoping
+Naive memory systems treat all stored content as equally retrievable forever. Better systems apply:
 
-Production systems need to scope memory to the right entity. Mem0 distinguishes three levels:
+- **Decay**: older memories lose salience unless reinforced. OpenMemory implements adaptive forgetting rates per memory sector rather than hard TTLs. [Source](../raw/repos/caviraoss-openmemory.md)
+- **Consolidation**: raw episodic memories compress into higher-level semantic representations over time. Park et al.'s Generative Agents (2023) implements a reflection mechanism where the agent periodically prompts itself to generate high-level summaries from the 100 most recent observations.
+- **Reinforcement**: accessing a memory increases its salience score, similar to how human memory strengthens through recall.
 
-- **User-level**: Preferences, history, facts about a specific person across all sessions
-- **Session-level**: State within a single conversation, discarded or promoted afterward
-- **Agent-level**: Agent-specific knowledge — learned tool preferences, task-specific heuristics
+OpenMemory's composite scoring combines salience + recency + coactivation, replacing pure cosine distance ranking. [Source](../raw/repos/caviraoss-openmemory.md)
 
-Most use cases care about user-level memory. Agent-level memory becomes relevant when agents develop persistent "skill" representations across many task runs, though this remains largely experimental.
+### Temporal Reasoning
 
-## Memory Types in Practice
+A dimension most implementations ignore: information changes over time. A CEO who left in 2023 should not appear as current. OpenMemory's temporal knowledge graph tracks `valid_from` / `valid_to` windows on stored facts. When a new fact about the same entity arrives, the system closes the prior fact's validity window automatically. Point-in-time queries become possible: "What did we know about X in March 2024?" [Source](../raw/repos/caviraoss-openmemory.md)
 
-**Episodic memory** in current systems is usually implemented as summarized or extracted conversation logs. Raw transcripts are rarely stored directly — they are too expensive to retrieve against and too noisy. Summarization introduces loss.
+### Memory Isolation
 
-**Semantic memory** is the most tractable: discrete facts, preferences, and entity relationships that an LLM can extract cleanly and a vector store or graph can index efficiently. Most production agent memory is effectively semantic.
+Multi-user or multi-context deployments must prevent memory bleed between users. The Elasticsearch implementation achieves this through document-level security — each user credential automatically filters to their memory partition, so the application never needs to enforce this logic explicitly. An agent using Peter's credentials cannot retrieve Janice's memories, regardless of what the LLM decides to query. [Source](../raw/articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md)
 
-**Procedural memory** is the hardest. Teaching an agent to remember *how* to do something — a sequence of tool calls that worked for a class of problem — requires either fine-tuning or a structured retrieval mechanism for action sequences. Current agent frameworks mostly do not implement this well. They store what happened, not what worked and why.
+## Generative Agents: A Reference Implementation
+
+Park et al. (2023) built 25 LLM-powered characters in a sandbox environment with a complete long-term memory system. Their retrieval model scores each candidate memory on three axes: **recency** (exponential decay from last access), **importance** (ask the LLM to rate the memory's significance on 1-10), and **relevance** (semantic similarity to current query). Final score is a weighted sum. This three-factor scoring is now a standard reference design. [Source](../raw/articles/lil-log-llm-powered-autonomous-agents.md)
 
 ## Failure Modes
 
-**Staleness**: A stored fact can become wrong. A user's preferred timezone, job title, or preference may change. Systems that write once and never update accumulate incorrect beliefs. Conflict resolution at write time (detecting when new information contradicts stored information) is a partial mitigation, but requires the new information to explicitly contradict the old one.
+**Context pollution**: injecting too many memories degrades model performance. The context window fills with marginally relevant history, and the model's attention spreads thin. Selective retrieval with tight metadata filters is the mitigation, not retrieval of everything and hoping the model discards what's irrelevant.
 
-**Retrieval mismatch**: The query the system uses to search memory is often not the query the user asked. An agent fielding "what's on my calendar?" needs to know the retrieval query should be about calendar preferences or past scheduling discussions, not about calendars generically. This query formulation step is typically implicit and brittle.
+**Retrieval-reality mismatch**: semantic similarity doesn't equal logical relevance. A memory about "Alice's cat" might score high similarity against "Alice's dog" queries without being useful. HippoRAG's graph approach addresses this by requiring explicit relational connections, but adds indexing complexity.
 
-**Write-time extraction errors**: If the LLM extracts "user dislikes Python" from a message that said "I don't like Python for scripting but use it for everything else," that error persists indefinitely. Bad writes compound.
+**Stale facts**: vector stores have no concept of temporal validity by default. Outdated information retrieved with high confidence is often worse than no information. Temporal knowledge graphs solve this at the cost of more complex ingestion pipelines.
 
-**Graph brittleness**: Knowledge graph approaches depend on consistent entity extraction. If "Erik Hort" is stored as "E. Hort" in one document and "Erik Hort" in another, the graph does not connect them. Entity resolution across documents requires additional deduplication logic.
+**Hallucinated memories**: LLMs prompted to summarize or consolidate memories can fabricate details. Reflexion-style systems flag hallucinations through heuristics — detecting when consecutive identical actions produce identical observations — but this detection is imperfect. [Source](../raw/articles/lil-log-llm-powered-autonomous-agents.md)
+
+**Memory injection surface**: long-term memory creates a new attack vector. Malicious content stored in memory can influence future agent behavior across sessions, persisting beyond the original conversation.
 
 ## Infrastructure Assumptions
 
-Long-term memory systems assume persistent, queryable storage outside the LLM. This means:
+Every long-term memory implementation assumes a persistent, queryable store external to the model. This is not free. You need:
+- An embedding model (OpenAI, local via Ollama, or similar) called at both write and read time
+- A vector database or hybrid store (Postgres with pgvector, Elasticsearch, Pinecone, Chroma, SQLite with extension)
+- A retrieval latency budget — memory lookup adds a round-trip before the LLM call
 
-- A vector database (Pinecone, Weaviate, Chroma, pgvector) or graph database (Neo4j) that stays available across agent sessions
-- A stable user identity scheme — if user IDs change, memory becomes unreachable
-- Write latency tolerance — memory extraction adds LLM calls at the end of conversations, which may not fit synchronous response flows
+For local-first deployments, SQLite with vector extensions runs acceptably at small scale. For multi-user production systems, the operational burden of managing a vector database emerges quickly. OpenMemory's server mode handles this with Postgres, but introduces service dependencies. [Source](../raw/repos/caviraoss-openmemory.md)
 
-Systems like Mem0 offer a managed hosted option to hide this infrastructure, but self-hosted deployments require operating these databases reliably. Memory is now a stateful dependency in an otherwise stateless inference pipeline.
+## When Not to Use It
 
-## When Not to Use Persistent Memory
+**Single-session tools**: command-line utilities, one-shot document processors, batch jobs. Adding memory infrastructure to stateless tools introduces complexity with no benefit.
 
-Short-lived or task-specific agents do not benefit from cross-session memory. A code interpreter running a one-off analysis, a batch pipeline with no user identity, or a single-turn Q&A system adds complexity without return.
+**Strictly regulated environments**: persisting user conversation data across sessions may conflict with data retention policies or privacy regulations. Check before building.
 
-Regulated environments (healthcare, legal, finance) face data retention constraints. Storing extracted facts about users may conflict with GDPR deletion requirements or HIPAA handling rules. The memory layer becomes a compliance surface.
+**Low-latency requirements**: memory retrieval adds 50-300ms depending on store, embedding model, and network. Real-time voice interfaces may not tolerate this.
 
-High-accuracy domains where stale or incorrect memories cause real harm (clinical decision support, financial advice) should treat retrieved memories as suggestions requiring verification, not ground truth.
+**Small context workloads**: if your entire relevant history fits in a single context window, in-context loading is simpler and more reliable than retrieval.
 
-## Open Questions
+## What the Documentation Doesn't Explain
 
-Several problems lack clean answers in current literature or tooling:
+**Conflict resolution**: when two stored memories contradict each other, current systems have no principled way to resolve the conflict. Most implementations retrieve both and leave it to the LLM, which may hallucinate a synthesis.
 
-- **Forgetting**: Human memory degrades strategically. No agent memory system has a principled mechanism for deprecating old, low-confidence, or stale memories versus retaining high-value ones.
-- **Memory conflict resolution**: When two stored facts contradict each other and neither is obviously newer, which wins? Mem0 runs LLM-based conflict resolution, but the policy is opaque.
-- **Cost at scale**: Extraction LLM calls at write time multiply with user base size. The cost profile of memory maintenance at millions of users is not publicly documented.
-- **Cross-agent memory sharing**: When multiple agents serve the same user, who owns the memory? Write conflicts between agents on the same user's memory store are unaddressed in most frameworks.
+**Memory governance at scale**: who can delete memories? Who audits what an agent knows about a user? Production systems need explicit policies here, and most frameworks treat this as out of scope.
 
-## Implementations
+**Embedding model drift**: if you swap embedding models, existing stored vectors become incompatible with new query vectors. Migrating a large memory store to a new embedding model requires re-embedding everything, which is expensive and not well-documented in any of the frameworks.
 
-| System | Approach | Strength |
-|--------|----------|----------|
-| [Mem0](https://github.com/mem0ai/mem0) | Vector store + LLM extraction | Production-ready, multi-level scoping, managed option |
-| [HippoRAG](https://github.com/OSU-NLP-Group/HippoRAG) | Knowledge graph + Personalized PageRank | Multi-hop retrieval, associativity across documents |
-| Raw RAG | Chunk-and-retrieve over stored conversations | Simple, but retrieves text not facts |
-| Full context | Pass all history each call | Zero infrastructure, prohibitive cost at scale |
+**Evaluation**: there is no standard benchmark for long-term memory quality in production agents. HippoRAG uses MuSiQue, 2WikiMultiHopQA, and HotpotQA for multi-hop retrieval, and NaturalQuestions/PopQA for factual recall — but these test retrieval, not the full memory system's impact on agent behavior over extended sessions.
 
-Use Mem0 when you need a managed, production memory layer with user/session/agent scoping and do not want to build extraction and deduplication yourself. Use HippoRAG when your use case requires reasoning across connected facts in a large document corpus. Use neither when your agent is stateless by design or operates in a regulated environment where persistent user data storage is constrained.
+## Implementation Landscape
+
+| Approach | Best For | Key Tradeoff |
+|---|---|---|
+| Vector store + ANN | General-purpose, high-volume | Simple retrieval, no relational reasoning |
+| Knowledge graph (HippoRAG) | Multi-hop reasoning, document corpora | Higher indexing cost, better associativity |
+| Hybrid search (Elasticsearch) | Multi-user, enterprise, security isolation | Infrastructure complexity, operational overhead |
+| Local SQLite (OpenMemory) | Single-user, privacy-sensitive, offline | Scale ceiling, no built-in multi-user isolation |
+| In-context loading | Small history, simple use cases | Context window limits, no compression |
+
+Use graph-based approaches when queries require connecting multiple facts. Use vector stores when retrieval speed and simplicity matter more than multi-hop accuracy. Use hybrid search when you need metadata filtering alongside semantic similarity. Use local-first SQLite when data sovereignty or offline operation is non-negotiable.

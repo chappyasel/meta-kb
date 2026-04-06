@@ -1,31 +1,25 @@
-# Taxonomy — 5 Buckets
+# Taxonomy
 
-## knowledge-bases
-The Karpathy pattern (raw sources → LLM-compiled .md wiki), Obsidian workflows,
-markdown wikis, compiled vs curated approaches, NotebookLM, personal second brains,
-RAG alternatives. The "how do you store and organize knowledge for agents" question.
+Taxonomy buckets are defined in [`config/domain.ts`](../config/domain.ts) — the single source of truth for all domain-specific configuration. Both the script pipeline and agent skill graph read from this file.
 
-## agent-memory
-Persistent memory for LLM agents. Mem0, Letta, A-MEM, Zep/Graphiti, LangMem, Cognee.
-Episodic vs semantic vs working memory architectures. Cross-session knowledge retention.
-The "how do agents remember" question.
+Each bucket has:
+- **id** — URL-safe slug used as filenames and tags
+- **name** — Display name
+- **title** — Synthesis article title
+- **color** — Graph cluster color
+- **description** — Short description for ROOT.md and indexes
+- **examples** — Longer examples used in LLM prompts for taxonomy tagging and scoring
 
-## context-engineering
-Context window management as a discipline. CLAUDE.md/AGENTS.md/SKILL.md standards.
-Prompt engineering for knowledge. Context graphs. Token optimization (LLMLingua).
-Progressive disclosure. The "how do you give agents the right context" question.
+## Current buckets
 
-## agent-systems
-Skills, harnesses, and orchestration. gstack, everything-claude-code, Anthropic Skills.
-Modular agent capabilities. Skill composition patterns. How agents discover and chain
-tools. The "how do you build and compose agent capabilities" question.
+The current meta-kb instance defines 5 buckets:
 
-## self-improving
-Autonomous observe/correct/improve loops. AutoResearch (Karpathy's pattern). Reflexion.
-Darwin-Godel Machine. Self-healing knowledge bases. Health checks, gap detection, linting.
-The "how do systems get better without human intervention" question.
+1. **knowledge-bases** — Karpathy pattern, markdown wikis, compiled vs curated, RAG alternatives
+2. **agent-memory** — Mem0, Letta, Graphiti, episodic/semantic/working memory
+3. **context-engineering** — CLAUDE.md standards, context graphs, compression
+4. **agent-systems** — Skill composition, registries, modular capabilities
+5. **self-improving** — Autoresearch, observe/correct/improve loops, health checks
 
 ## Neutrality rule
 
-All projects receive equal depth AND equal criticism, including CAIK-adjacent ones
-(gstack, CAIK, Autoresearch). The wiki is a community resource, not a product showcase.
+All projects receive equal depth AND equal criticism, including the author's own projects. The wiki is a community resource, not a product showcase.

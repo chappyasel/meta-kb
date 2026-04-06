@@ -2,90 +2,126 @@
 entity_id: postgresql
 type: project
 bucket: knowledge-bases
+abstract: >-
+  PostgreSQL is an open-source relational database that serves as the dominant
+  backend for agent memory systems, providing structured storage, full-text
+  search, and vector similarity via pgvector — often replacing dedicated vector
+  databases in production stacks.
 sources:
   - repos/natebjones-projects-ob1.md
-  - repos/supermemoryai-supermemory.md
   - repos/caviraoss-openmemory.md
   - repos/nemori-ai-nemori.md
-  - repos/affaan-m-everything-claude-code.md
   - deep/repos/memodb-io-acontext.md
-  - deep/repos/memorilabs-memori.md
-  - deep/repos/caviraoss-openmemory.md
-  - deep/repos/letta-ai-letta.md
   - deep/repos/topoteretes-cognee.md
   - deep/repos/mem0ai-mem0.md
-related: []
-last_compiled: '2026-04-05T05:25:04.081Z'
+  - deep/repos/infiniflow-ragflow.md
+related:
+  - OpenAI
+  - Qdrant
+  - Episodic Memory
+last_compiled: '2026-04-05T23:05:54.037Z'
 ---
 # PostgreSQL
 
-## What It Is
+## What It Does
 
-PostgreSQL is an open-source relational database with 35+ years of active development. In the AI/knowledge-base context, it functions as a persistent state store for conversations, documents, agent memory, and structured metadata. The extension ecosystem, particularly `pgvector`, made it a common substrate for systems that need both relational queries and semantic search without running a separate vector database.
+PostgreSQL is a relational database system that stores structured data with ACID guarantees, full-text search, and — via the pgvector extension — approximate nearest-neighbor vector search. In AI agent and knowledge base systems, it typically handles three distinct jobs: relational metadata (users, documents, sessions, permissions), vector embeddings for semantic retrieval, and structured memory storage for long-term agent memory.
 
-Projects like [Nemori](../../raw/repos/nemori-ai-nemori.md) use PostgreSQL for metadata, text search via `tsvector`/GIN indexes, and message buffering alongside Qdrant for vectors. [Open Brain (OB1)](../../raw/repos/natebjones-projects-ob1.md) uses Supabase (PostgreSQL-hosted) as its sole storage layer for thoughts, with pgvector handling embeddings. [Supermemory](../../raw/repos/supermemoryai-supermemory.md) lists `postgres` as a dependency alongside Cloudflare Workers, suggesting a PostgreSQL-backed persistence tier.
+It is not a dedicated vector database or graph store, but its flexibility means it displaces both in many production stacks. Across the source material, PostgreSQL appears as a dependency in nearly every system reviewed: Acontext, Nemori, Cognee, and RAGFlow all list it as a production-required component.
 
-## Architecture: What Makes It Unusual for This Use Case
+## Core Mechanism
 
-PostgreSQL's relevance to LLM systems comes from three mechanisms working together:
+PostgreSQL stores rows in heap files on disk, indexed via B-tree (default), GIN, GiST, BRIN, and hash structures. Queries plan through a cost-based optimizer (`pg_plan_hints`, statistics via `ANALYZE`), execute via a process-per-connection model, and write through a WAL (write-ahead log) for crash recovery.
 
-**`pgvector` extension**: Adds vector column types (`vector(1536)` for OpenAI embeddings) and operators for cosine similarity (`<=>`) and L2 distance (`<->`). Supports IVFFlat and HNSW indexing. HNSW (Hierarchical Navigable Small World) gives approximate nearest-neighbor search at query time, trading index build cost for faster retrieval. The index lives inside PostgreSQL's buffer pool, so it competes for memory with regular table data.
+The pgvector extension (`CREATE EXTENSION vector`) adds a `vector(n)` column type and two index types:
 
-**Full-text search**: Native `tsvector` columns with GIN indexes support keyword search without Elasticsearch. Nemori's `docker/init-extensions.sql` sets up these indexes explicitly. For hybrid retrieval (BM25 + vector), you can combine a `ts_rank` score with a cosine similarity score in a single SQL query, returning ranked results across both signals in one round trip.
+- **IVFFlat** — Inverted file index with flat quantization. Partitions vector space into `lists` cells, searches `probes` cells at query time. Fast to build, approximate. Set `ivfflat.probes` higher for better recall at latency cost.
+- **HNSW** — Hierarchical Navigable Small World graph. Builds a multi-layer graph during insert, traverses it at query time. Better recall than IVFFlat for most workloads, slower to build, higher memory usage.
 
-**ACID transactions across memory types**: Agent state updates, conversation writes, and index updates happen atomically. This matters when you need "store this message AND update the user's memory summary" as a single operation that either fully commits or rolls back.
+Distance operators: `<->` (L2), `<#>` (negative inner product), `<=>` (cosine). Queries like `ORDER BY embedding <=> query_vec LIMIT 10` combine with standard `WHERE` clauses for filtered vector search.
 
-**Row Level Security (RLS)**: PostgreSQL's RLS policies attach access control to the data itself rather than the application layer. OB1's primitives documentation calls this out as a prerequisite for multi-user memory isolation (Extensions 4, 5, 6). A policy like `USING (user_id = auth.uid())` enforces per-user data boundaries at the database level, regardless of which application code runs queries.
+Full-text search runs through `tsvector` (preprocessed token vectors) and `tsquery` (query expressions), indexed with GIN. Combined with pgvector, this enables hybrid search — keyword match plus semantic similarity — in a single query, without a separate search backend.
+
+## How It Appears in Agent Memory Systems
+
+### Acontext
+[Acontext](../projects/acontext.md) uses PostgreSQL as shared storage between its Go API layer (GORM ORM) and Python AI core (SQLAlchemy). The two ORMs must stay in sync — a documented operational risk. PostgreSQL holds session metadata, organization/project records, and artifact references, while pgvector stores the embeddings used by the Skill Learner Agent when searching existing skills.
+
+### Nemori
+[Nemori](../projects/nemori.md) uses PostgreSQL 16 with GIN-indexed `tsvector` columns for text search and message buffering, paired with Qdrant for vector storage. The `docker/init-extensions.sql` file initializes the extensions. Nemori's choice to keep vectors in Qdrant rather than pgvector reflects a common pattern: PostgreSQL handles structured metadata and full-text, a dedicated vector store handles embedding search, each doing what it does best.
+
+### Cognee
+[Cognee](../projects/cognee.md) defaults to SQLite in development but recommends PostgreSQL for production via `DB_PROVIDER=postgres`. It also supports pgvector as a vector backend (`VECTOR_DB_PROVIDER=pgvector`), making PostgreSQL capable of replacing both the relational and vector tiers. SQLAlchemy + Alembic migrations manage the schema. The three-store architecture (relational + vector + graph) can collapse to two stores — or even one — when pgvector handles embedding search.
+
+### RAGFlow
+[RAGFlow](../projects/ragflow.md) lists PostgreSQL as an alternative to MySQL for its relational tier, handling document metadata, task state, and user/tenant management. The primary search backend remains Elasticsearch for its distributed capabilities, but PostgreSQL absorbs the structured side of the stack.
+
+### Mem0
+[Mem0](../projects/mem0.md) supports pgvector as one of 23 vector store backends via `VectorStoreFactory`. Configuration: `vector_store=VectorStoreConfig(provider="pgvector", config={...})`. For teams already running PostgreSQL, this eliminates a separate vector database deployment.
 
 ## Key Numbers
 
-- **Active since**: 1996 (Berkeley POSTGRES lineage dates to 1986)
-- **pgvector max dimensions**: 16,000 (practical limit for HNSW indexing is lower; 2,000 is the HNSW ceiling per the pgvector docs)
-- **Supabase free tier**: 500MB database, 50MB vector storage — relevant since OB1 and other projects default to Supabase as the PostgreSQL host
-- **IVFFlat vs HNSW**: IVFFlat requires a training pass over existing data (doesn't index new vectors until rebuild); HNSW indexes incrementally but uses more memory
+PostgreSQL is mature software with well-characterized performance:
 
-These numbers come from upstream PostgreSQL and pgvector documentation, not self-reported benchmarks.
+- **pgvector HNSW** benchmarks (pgvector GitHub, 2024): 98%+ recall at ~1ms query latency for 1M 1536-dimensional vectors on modern hardware with appropriate `ef_search` settings. IVFFlat achieves similar recall at lower memory cost but requires a build phase after initial data load.
+- **Concurrent connections**: Process-per-connection model means connection pooling (PgBouncer, pgpool-II) is required above ~100 concurrent clients. Without pooling, connection overhead dominates at scale.
+- **Star count**: 17k+ on GitHub for pgvector extension (independently measured). PostgreSQL core repository is a mirror with no meaningful star count.
+
+Self-reported benchmarks from pgvector's own README show favorable comparisons to Qdrant and Pinecone on accuracy/latency tradeoffs — treat as directional rather than definitive. Independent ANN Benchmarks (ann-benchmarks.com) include pgvector and show it competitive but not leading on pure throughput.
 
 ## Strengths
 
-**Single-system simplicity**: For projects at moderate scale (under ~1M vectors, under ~10k queries per day), PostgreSQL with pgvector eliminates the operational complexity of running a separate vector database. OB1's Kubernetes integration recipe even replaces Supabase with self-hosted PostgreSQL + pgvector directly, keeping the entire stack in one system.
+**Transactional correctness.** ACID guarantees mean agent memory writes either succeed or fail atomically. No partial updates, no inconsistent reads. For systems tracking user permissions alongside memory data (Cognee's ACL model, Acontext's organization structure), this matters — a failed permission check shouldn't leave half-written state.
 
-**SQL composability**: You can filter semantically similar memories by metadata (`WHERE user_id = $1 AND created_at > $2`) before or after the vector comparison. Dedicated vector databases handle this poorly or require proprietary filter syntax.
+**Single-system simplification.** pgvector eliminates the operational burden of running a separate vector database for many production workloads. One connection string, one backup target, one monitoring system. The mem0, Cognee, and Acontext stacks all allow this collapse.
 
-**Ecosystem maturity**: `asyncpg` (used by Nemori), `drizzle-orm` (used by Supermemory), Supabase client libraries — mature async drivers exist for every language. Migration tooling, backup infrastructure, monitoring, and hosting options are solved problems.
+**Hybrid search in one query.** Combining `tsvector` full-text with `vector` similarity in a single SQL query avoids the retrieval fusion complexity that systems using separate backends must manage. Nemori uses exactly this pattern.
 
-**RLS for multi-tenant memory**: Attaching access policies to tables means application bugs that skip authorization checks don't automatically leak cross-user memory. This is harder to implement correctly in application code.
+**Ecosystem maturity.** Every major ORM (SQLAlchemy, GORM, Prisma, Django ORM) supports PostgreSQL. Connection poolers, backup tools, monitoring integrations, managed cloud offerings (AWS RDS, Supabase, Neon, Google Cloud SQL) are all production-proven.
 
 ## Critical Limitations
 
-**Concrete failure mode — HNSW memory pressure at scale**: HNSW indexes load into shared memory buffers. A 1M-vector index at 1536 dimensions (float32) occupies roughly 6GB before PostgreSQL overhead. On a shared Supabase instance or a small self-hosted machine, this competes directly with the working set for relational queries. The result: vector searches stay fast while everything else slows down as PostgreSQL thrashes the buffer pool. Teams hit this at surprisingly low vector counts because they don't provision for index memory separately from table memory.
+**Concrete failure mode — write amplification under concurrent embedding inserts.** HNSW index maintenance during INSERT operations is expensive. Each new vector modifies the graph structure, acquiring write locks. Under concurrent ingestion (multiple agent sessions writing memories simultaneously), this creates lock contention that degrades throughput significantly. The Acontext architecture uses Redis-based distributed locks to serialize Skill Learner Agent runs per learning space — a workaround for exactly this problem. Systems that allow parallel embedding inserts without coordination will see this in production.
 
-**Unspoken infrastructure assumption**: Every project using PostgreSQL as a memory store assumes synchronous write durability is acceptable at ingestion time. `asyncpg` and similar drivers await each write; there's no built-in write buffering or async ingestion queue unless you add one. When agents generate high-frequency memory writes (every turn in a conversation), PostgreSQL becomes a synchronous bottleneck in the agent loop unless you explicitly batch writes or use a queue.
+**Unspoken infrastructure assumption — connection pooling is mandatory.** PostgreSQL's process-per-connection model breaks down above ~100 concurrent connections. Every source system reviewed assumes a pooler (PgBouncer is standard) is in place for production deployments, but none explicitly document this requirement. A system that works in development with 5 connections will fail unexpectedly under production load without pooling.
 
-## When NOT to Use PostgreSQL
+## When NOT to Use It
 
-**Multi-billion-vector workloads**: At that scale, purpose-built vector databases (Qdrant, Weaviate, Pinecone) offer better ANN performance, quantization, and sharding. PostgreSQL's pgvector does not shard automatically.
+**High-throughput vector-only workloads.** When the primary access pattern is ANN search over hundreds of millions of vectors with strict latency SLAs, purpose-built systems (Qdrant, Weaviate, Milvus) outperform pgvector. These systems implement HNSW in optimized C++ with SIMD acceleration and memory-mapped index files; pgvector runs inside PostgreSQL's general execution model. The gap matters at scale — Qdrant's filtered vector search at 10M+ vectors runs measurably faster than pgvector's equivalent.
 
-**Write-heavy streaming memory**: If your agent writes memory on every token or every turn without batching, the synchronous commit overhead accumulates. Nemori explicitly buffers messages before flushing to PostgreSQL; systems that skip this pattern hit latency problems.
+**Graph-heavy workloads.** PostgreSQL with pgvector handles relational + vector storage well. It does not handle graph traversal. Systems needing multi-hop entity relationships — Cognee's knowledge graph, RAGFlow's GraphRAG — route those queries to Neo4j, Kuzu, or Memgraph. Using PostgreSQL as a graph store via recursive CTEs is possible but painful.
 
-**Teams without PostgreSQL operational knowledge**: PostgreSQL requires tuning (`shared_buffers`, `work_mem`, `effective_cache_size`, `maintenance_work_mem` for HNSW builds). The defaults are conservative and will underperform on memory-intensive workloads. Supabase abstracts some of this, but not for workloads that exceed the managed tier.
+**Serverless / ephemeral environments.** PostgreSQL requires persistent connections and stateful process management. Cold-start latency in AWS Lambda or Cloudflare Workers makes it a poor fit for truly serverless deployments. Serverless-native alternatives (Neon for PostgreSQL-compatible serverless, DynamoDB with pgvector-equivalent libraries) fit these environments better.
+
+**Team unfamiliar with SQL.** The LLM memory space has developed document-store and key-value APIs that abstract away SQL entirely. Mem0's API (`memory.add()`, `memory.search()`) works identically against pgvector or Qdrant backends. If the team finds SQL mental overhead burdensome, a pure vector database with a higher-level SDK may deliver faster iteration.
 
 ## Unresolved Questions
 
-**Cost at scale on managed tiers**: Supabase pricing scales with compute and storage, but the pgvector memory requirements mean teams often need compute tiers higher than their row count suggests. The documentation for these projects doesn't model cost as vector counts grow.
+**Cost at scale with pgvector.** The pgvector documentation does not address HNSW index memory usage at scale clearly. A 1536-dimensional float32 vector uses 6KB of storage; 10M vectors require ~60GB for storage alone before HNSW graph overhead. Production cost modeling requires empirical testing, not documentation review.
 
-**Index rebuild governance**: IVFFlat requires `VACUUM` and index rebuilds when data distribution changes significantly. For continuously updated memory systems, no project in this corpus documents when or how to trigger rebuilds. HNSW avoids this but shifts cost to insert time.
+**Conflict resolution in multi-ORM stacks.** Acontext uses both GORM (Go) and SQLAlchemy (Python) against the same PostgreSQL instance, with the explicit note that "ORMs must be kept in sync." The documentation does not explain what happens when they diverge — which migrations take precedence, how schema conflicts are detected, or what the recovery path is.
 
-**Conflict resolution for multi-agent writes**: When multiple agents write to the same user's memory simultaneously (a real scenario in multi-agent systems), PostgreSQL serialization prevents corruption but doesn't resolve semantic conflicts. Which fact wins if two agents write contradictory beliefs about a user? The database enforces transactional integrity but the application must handle the semantic merge problem.
+**Managed vs. self-hosted tradeoffs for pgvector.** Neon, Supabase, and AWS RDS all offer pgvector support, but with different version lag and configuration limits. Which managed offerings support current pgvector features (HNSW was added in 0.5.0) is not consistently documented. Teams adopting pgvector in managed environments should verify extension version before committing.
 
 ## Alternatives
 
-**Qdrant**: Purpose-built vector search with gRPC API, payload filtering, and quantization. Nemori uses Qdrant for vectors and PostgreSQL for metadata. Use Qdrant when vector search latency is the primary constraint and you're willing to run two systems.
+**[Qdrant](../projects/qdrant.md)** — Purpose-built vector database with filtered search, payload indexing, and snapshot-based backups. Use when vector search is the primary workload and you want best-in-class ANN performance without PostgreSQL overhead. Nemori uses Qdrant alongside PostgreSQL for exactly this split.
 
-**SQLite + sqlite-vss**: For single-user, local deployments. Lighter operational overhead than PostgreSQL, but no RLS, no concurrent writes, and limited to local access. OB1's self-hosted Kubernetes path suggests PostgreSQL is the floor for multi-user deployments.
+**SQLite + sqlite-vec** — Zero-dependency local-first alternative for development and single-user deployments. Cognee defaults to SQLite. No networking, no connection management, no Docker required. Unsuitable for concurrent multi-user production workloads.
 
-**Weaviate / Pinecone**: Managed vector databases with built-in chunking and hybrid search APIs. Use these when you want to outsource the embedding pipeline and don't need full SQL over the stored data.
+**Neo4j / Kuzu** — Graph databases for entity relationship storage. Use when the access pattern requires multi-hop traversal (GraphRAG, knowledge graph queries) rather than relational or vector lookup. Cognee supports both as optional graph store backends alongside PostgreSQL for relational storage.
 
-**DuckDB**: For analytical queries over stored memories (batch evaluation, benchmark runs). Not appropriate for transactional agent state.
+**Elasticsearch / OpenSearch** — Distributed search engines with vector capabilities. RAGFlow defaults to Elasticsearch for its ability to handle large-scale distributed deployments and its mature BM25 implementation. Use when the primary requirement is full-text search at scale across millions of documents rather than transactional storage.
 
-For most agent memory systems at startup scale: PostgreSQL with pgvector is the right default. The operational complexity is manageable, the SQL interface handles both structured metadata and vector similarity, and mature hosting options (Supabase, Neon, self-hosted) cover most deployment patterns. Switch to a dedicated vector database when you've measured that pgvector is the bottleneck, not before.
+**Pinecone / Weaviate** — Fully managed vector databases. Use when operational simplicity outweighs cost, or when the team lacks PostgreSQL expertise. No infrastructure to manage, but vendor lock-in and egress costs apply.
+
+---
+
+*Related: [Episodic Memory](../concepts/episodic-memory.md) | [Cognee](../projects/cognee.md) | [Mem0](../projects/mem0.md)*
+
+
+## Related
+
+- [OpenAI](../projects/openai.md) — part_of (0.3)
+- [Qdrant](../projects/qdrant.md) — alternative_to (0.5)
+- [Episodic Memory](../concepts/episodic-memory.md) — part_of (0.4)

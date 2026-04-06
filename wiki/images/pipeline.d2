@@ -1,0 +1,273 @@
+grid-rows: 3
+
+# ─── Row 1: Ingestion ─────────────────────────────────────────
+
+ingestion: Ingestion {
+  style.fill: "#eff6ff"
+  style.stroke: "#93c5fd"
+  style.border-radius: 12
+  style.font-size: 56
+  style.bold: true
+
+  direction: right
+
+  urls: URLs {
+    shape: queue
+    style.fill: "#bfdbfe"
+    style.stroke: "#3b82f6"
+    style.font-size: 24
+  }
+
+  detect: Platform Detect {
+    shape: diamond
+    style.fill: "#bfdbfe"
+    style.stroke: "#3b82f6"
+    style.font-size: 22
+  }
+
+  urls -> detect
+
+  twitter: Twitter (Apify) {
+    shape: hexagon
+    style.fill: "#dbeafe"
+    style.stroke: "#2563eb"
+    style.font-size: 22
+  }
+  github: GitHub (API) {
+    shape: hexagon
+    style.fill: "#dbeafe"
+    style.stroke: "#2563eb"
+    style.font-size: 22
+  }
+  arxiv: arXiv (Atom) {
+    shape: hexagon
+    style.fill: "#dbeafe"
+    style.stroke: "#2563eb"
+    style.font-size: 22
+  }
+  article: Article (Defuddle) {
+    shape: hexagon
+    style.fill: "#dbeafe"
+    style.stroke: "#2563eb"
+    style.font-size: 22
+  }
+
+  detect -> twitter
+  detect -> github
+  detect -> arxiv
+  detect -> article
+
+  twitter -> github: GH URLs {
+    style.stroke-dash: 3
+    style.stroke: "#64748b"
+    style.font-size: 18
+  }
+  article -> github: GH URLs {
+    style.stroke-dash: 3
+    style.stroke: "#64748b"
+    style.font-size: 18
+  }
+
+  score: LLM Score (Haiku + Sonnet) {
+    style.fill: "#fed7aa"
+    style.stroke: "#ea580c"
+    style.font-size: 22
+    style.border-radius: 6
+  }
+
+  twitter -> score
+  github -> score
+  arxiv -> score
+  article -> score
+
+  raw: "raw/" {
+    shape: page
+    style.fill: "#fef3c7"
+    style.stroke: "#d97706"
+    style.font-size: 24
+    style.bold: true
+  }
+
+  score -> raw
+}
+
+# ─── Row 2: Extract & Build ───────────────────────────────────
+
+extract: "Compile: Extract & Build" {
+  style.fill: "#f0fdf4"
+  style.stroke: "#86efac"
+  style.border-radius: 12
+  style.font-size: 56
+  style.bold: true
+  direction: right
+
+  p0: "0  Load & Index" {
+    style.fill: "#bbf7d0"
+    style.stroke: "#16a34a"
+    style.font-size: 24
+    style.border-radius: 6
+  }
+
+  p1a: "1a  Entity Extraction\nHaiku x170  parallel" {
+    style.fill: "#dbeafe"
+    style.stroke: "#2563eb"
+    style.font-size: 24
+    style.border-radius: 6
+  }
+
+  p1b: "1b  Entity Resolution\nSonnet x1" {
+    style.fill: "#fed7aa"
+    style.stroke: "#ea580c"
+    style.font-size: 24
+    style.border-radius: 6
+  }
+
+  p2: "2  Graph Construction\nSonnet x1" {
+    style.fill: "#fed7aa"
+    style.stroke: "#ea580c"
+    style.font-size: 24
+    style.border-radius: 6
+  }
+
+  ent: entities.json {
+    shape: cylinder
+    style.fill: "#e2e8f0"
+    style.stroke: "#475569"
+    style.font-size: 19
+  }
+  gr: graph.json {
+    shape: cylinder
+    style.fill: "#e2e8f0"
+    style.stroke: "#475569"
+    style.font-size: 19
+  }
+
+  p0 -> p1a -> p1b -> p2
+  p1b -> ent
+  p2 -> gr
+}
+
+# ─── Row 3: Synthesize & Publish ──────────────────────────────
+
+publish: "Compile: Synthesize & Publish" {
+  style.fill: "#faf5ff"
+  style.stroke: "#c4b5fd"
+  style.border-radius: 12
+  style.font-size: 56
+  style.bold: true
+  direction: right
+
+  p3a: "3a  Synthesis Articles\nSonnet x5  sequential" {
+    style.fill: "#fed7aa"
+    style.stroke: "#ea580c"
+    style.font-size: 24
+    style.border-radius: 6
+  }
+
+  p3b: "3b  Reference Cards\nSonnet x67  parallel" {
+    style.fill: "#fed7aa"
+    style.stroke: "#ea580c"
+    style.font-size: 24
+    style.border-radius: 6
+  }
+
+  syn: "{bucket}.md" {
+    shape: page
+    style.fill: "#d9f99d"
+    style.stroke: "#65a30d"
+    style.font-size: 19
+  }
+  cards: "projects/ concepts/" {
+    shape: page
+    style.fill: "#d9f99d"
+    style.stroke: "#65a30d"
+    style.font-size: 19
+  }
+
+  p3a -> syn
+  p3b -> cards
+
+  p3c: "3c  Claims\nSonnet x5" {
+    style.fill: "#fed7aa"
+    style.stroke: "#ea580c"
+    style.font-size: 24
+    style.border-radius: 6
+  }
+  cl: claims.json {
+    shape: cylinder
+    style.fill: "#e2e8f0"
+    style.stroke: "#475569"
+    style.font-size: 19
+  }
+  syn -> p3c -> cl
+
+  p4: "4  Field Map\n+ Indexes" {
+    style.fill: "#fed7aa"
+    style.stroke: "#ea580c"
+    style.font-size: 24
+    style.border-radius: 6
+  }
+  p5: "5  Diagrams\n+ Backlinks" {
+    style.fill: "#bbf7d0"
+    style.stroke: "#16a34a"
+    style.font-size: 24
+    style.border-radius: 6
+  }
+  p6: "6  Changelog" {
+    style.fill: "#bbf7d0"
+    style.stroke: "#16a34a"
+    style.font-size: 24
+    style.border-radius: 6
+  }
+
+  syn -> p4 -> p5 -> p6
+
+  p7: "7  Self-Eval\nHaiku x30  parallel" {
+    style.fill: "#dbeafe"
+    style.stroke: "#2563eb"
+    style.font-size: 24
+    style.border-radius: 6
+  }
+  ev: eval-report.json {
+    shape: cylinder
+    style.fill: "#e2e8f0"
+    style.stroke: "#475569"
+    style.font-size: 19
+  }
+  cl -> p7 -> ev
+
+  wiki: "wiki/" {
+    shape: page
+    style.fill: "#d9f99d"
+    style.stroke: "#65a30d"
+    style.font-size: 24
+    style.bold: true
+  }
+  p5 -> wiki
+  p6 -> wiki
+}
+
+# Cross-row data flow
+ingestion.raw -> extract.p0 {
+  style.stroke: "#94a3b8"
+  style.stroke-dash: 3
+  style.opacity: 0.5
+}
+extract.gr -> publish.p3a {
+  style.stroke: "#94a3b8"
+  style.stroke-dash: 3
+  style.opacity: 0.5
+}
+extract.ent -> publish.p3b {
+  style.stroke: "#94a3b8"
+  style.stroke-dash: 3
+  style.opacity: 0.5
+}
+
+# Feedback loop
+publish.ev -> ingestion.urls: "next cycle" {
+  style.stroke-dash: 5
+  style.stroke: "#7c3aed"
+  style.font-size: 19
+  style.opacity: 0.4
+}

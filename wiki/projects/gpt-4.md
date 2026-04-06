@@ -3,147 +3,141 @@ entity_id: gpt-4
 type: project
 bucket: agent-systems
 abstract: >-
-  GPT-4 is OpenAI's flagship multimodal LLM family (GPT-4o, GPT-4o-mini) that
-  serves as the de facto backbone model for agent systems, RAG pipelines, and
-  optimization loops, differentiated by broad ecosystem integration and strong
-  function-calling reliability.
+  GPT-4 is OpenAI's frontier LLM family (GPT-4, GPT-4o, GPT-4o-mini, GPT-5) used
+  as the reasoning backbone in most production agent and memory systems; its key
+  differentiator is combining long-context reasoning with tool/function calling
+  at commercial API scale.
 sources:
-  - repos/orchestra-research-ai-research-skills.md
-  - repos/letta-ai-letta-code.md
+  - tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md
+  - tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md
   - repos/kayba-ai-agentic-context-engine.md
   - repos/maximerobeyns-self-improving-coding-agent.md
   - repos/agent-on-the-fly-memento.md
+  - repos/infiniflow-ragflow.md
   - repos/laurian-context-compression-experiments-2508.md
   - papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
   - papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md
   - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
-  - deep/repos/gepa-ai-gepa.md
   - deep/repos/microsoft-llmlingua.md
+  - deep/repos/vectifyai-pageindex.md
   - deep/repos/zorazrw-agent-workflow-memory.md
-  - deep/repos/karpathy-autoresearch.md
   - deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md
-  - deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
   - deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md
+  - deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
 related:
-  - Claude Code
-  - Claude
   - Retrieval-Augmented Generation
   - Model Context Protocol
-  - Google Gemini
   - ReAct
-  - Agent Skills
   - Reflexion
-  - GRPO
-last_compiled: '2026-04-05T20:26:32.476Z'
+  - DeepSeek
+  - Agent Skills
+  - Claude
+last_compiled: '2026-04-05T23:04:36.118Z'
 ---
 # GPT-4
 
 ## What It Is
 
-GPT-4 is OpenAI's flagship large language model family, released in March 2023 with subsequent variants including GPT-4 Turbo, GPT-4o ("omni"), GPT-4o-mini, and GPT-4.1/4.1 Mini. The family spans a capability-cost spectrum: GPT-4o-mini handles high-volume, cost-sensitive tasks; GPT-4o targets balanced capability and speed; GPT-4.1 and GPT-4 Turbo target complex reasoning workloads.
+GPT-4 refers to OpenAI's series of large language models released starting in March 2023, including GPT-4 (original), GPT-4 Turbo (128K context), GPT-4o (omni, multimodal), GPT-4o-mini (small/cheap variant), and GPT-5 (released 2025). Across the agent and memory systems literature, GPT-4 functions as the de facto reasoning backbone — the model that decides, plans, and generates code or text that other system components execute.
 
-Within agent and knowledge-base systems, GPT-4 models function primarily as the reasoning backbone. They appear across the source material in distinct roles: as the reflection LLM in GEPA's optimization loop ([GEPA](../raw/deep/repos/gepa-ai-gepa.md)), as the task executor in AWM's web navigation agents ([AWM](../raw/deep/repos/zorazrw-agent-workflow-memory.md)), as the teacher model generating compression labels for LLMLingua-2 ([LLMLingua](../raw/deep/repos/microsoft-llmlingua.md)), and as the backbone for autoresearch self-improvement loops ([autoresearch](../raw/deep/repos/karpathy-autoresearch.md)).
+The family is closed-source. Architecture details are not published. OpenAI has confirmed it is a transformer-based model; the mixture-of-experts rumors remain unconfirmed by OpenAI directly. All access is through the OpenAI API (or Azure OpenAI Service).
 
-## Architecture (Public Knowledge)
+## Core Capabilities Relevant to Agent Systems
 
-OpenAI has not published GPT-4's architecture. From public disclosures and third-party analysis:
+**Instruction following and JSON generation.** GPT-4 reliably follows complex structured prompts and emits valid JSON. This is load-bearing in virtually every system in this knowledge base: [LLMLingua](../projects/llmlingua.md) uses GPT-4o to generate token compression labels, [PageIndex](../projects/pageindex.md) uses `gpt-4o-2024-11-20` for TOC extraction and section verification, [A-MEM](../projects/a-mem.md) uses it for note construction and link generation, [Voyager](../projects/voyager.md) uses it for code generation and self-verification.
 
-- Transformer-based with multi-head attention
-- Context window: 128K tokens (GPT-4o, GPT-4o-mini, GPT-4.1)
-- Multimodal: accepts text, images, and (in GPT-4o) audio
-- Training: pretraining + RLHF + additional safety fine-tuning
-- Inference: served exclusively via OpenAI API; no open weights
+**Code generation.** Voyager's ablation data provides one of the cleaner independent measurements of GPT-4 vs. GPT-3.5 for code generation in agent contexts: GPT-4 produces 5.7x more unique items discovered in Minecraft when used for skill code generation versus GPT-3.5. This is not self-reported by OpenAI — it comes from third-party research [Source](../raw/deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md).
 
-The GPT-4o architecture uses a single unified model for all modalities rather than separate encoders stitched together, which reduces latency on audio and vision tasks. GPT-4.1 Mini introduces notable improvements in instruction following and function-calling reliability compared to GPT-4o-mini at similar cost points.
+**Multi-step reasoning.** PageIndex's 98.7% on FinanceBench (vs. ~31% for GPT-4o vanilla RAG) demonstrates that GPT-4o doing structured tree-traversal reasoning outperforms GPT-4o doing unstructured retrieval. The model's reasoning capability is the mechanism, not just the retrieval method [Source](../raw/deep/repos/vectifyai-pageindex.md).
 
-Parameter counts remain unconfirmed. Leaked documents suggested GPT-4 uses a mixture-of-experts architecture with ~1.8T total parameters across 16 experts, but OpenAI has not verified this.
+**Workflow abstraction.** AWM uses GPT-4o at temperature 0.0 to induce abstract workflows from concrete agent trajectories. The LLM-based induction produces 2.8 points better results than rule-based methods — the model extracts transferable patterns that deterministic code cannot [Source](../raw/deep/repos/zorazrw-agent-workflow-memory.md).
 
-## Role in Agent Systems
+## Model Variants and Selection Guidance
 
-The source material reveals several concrete GPT-4 usage patterns:
+| Variant | Context Window | Primary Use Case | Cost Tier |
+|---|---|---|---|
+| GPT-4o | 128K | Complex reasoning, code gen, multi-modal | High |
+| GPT-4o-mini | 128K | High-volume classification, filtering | Low |
+| GPT-4 Turbo | 128K | Earlier systems, still widely used | High |
+| GPT-5 | TBD | Frontier tasks (released 2025) | Highest |
 
-**As reflection LLM in optimization loops.** GEPA uses GPT-5 or GPT-4.1 as the reflection model that reads execution traces and diagnoses why candidates fail. GPT-4.1 Mini serves as the cheaper task executor. This separation — expensive model for reflection, cheap model for execution — is the canonical GEPA deployment pattern. GEPA results on AIME 2025: GPT-4.1 Mini improved from 46.67% to 60.00% after prompt optimization, a 13.3 percentage point gain.
+PageIndex explicitly separates indexing model from retrieval model: cheaper GPT-4o for the many LLM calls during document indexing, a more capable model for the fewer but more critical reasoning calls during retrieval [Source](../raw/deep/repos/vectifyai-pageindex.md). This two-tier pattern applies broadly.
 
-**As web navigation backbone.** AWM's experiments use GPT-4 as the agent backbone on WebArena (35.5% success rate, up from 23.5% without workflow memory) and Mind2Web (50.6% element accuracy). The workflow memory system injects procedural knowledge into the GPT-4 context, compensating for the model's lack of persistent cross-session memory.
+LLMLingua-2 trains a RoBERTa classification model on labels generated by GPT-4, treating GPT-4 as a teacher in a knowledge distillation setup [Source](../raw/deep/repos/microsoft-llmlingua.md). This is a common production pattern: use GPT-4 to generate training data, deploy a smaller model for inference.
 
-**As teacher model for compression training.** LLMLingua-2 trains its token classification model on labels generated by GPT-4, treating the larger model as a compression oracle. The student model (RoBERTa-scale) then runs 3-6x faster while maintaining fidelity to the GPT-4 compression decisions.
+## Role in Agent Architectures
 
-**As autoresearch backbone.** The original Karpathy autoresearch system implicitly assumed a capable LLM running the improvement loop. The Claude Autoresearch generalization targets Claude Code, but GPT-4-class models are the primary comparison point for capability.
+**[ReAct](../concepts/react.md) and [Reflexion](../concepts/reflexion.md).** GPT-4 provides the reasoning-action loop that these frameworks formalize. Reflexion's self-evaluation loop requires a model capable of accurately assessing its own outputs — GPT-3.5 class models do this poorly.
+
+**[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md).** GPT-4 is both the generator and, increasingly, the retriever (in systems like PageIndex where retrieval is reasoning-based rather than similarity-based).
+
+**[Model Context Protocol](../concepts/model-context-protocol.md).** MCP defines the interface through which GPT-4 (and other models) call tools. PageIndex provides an MCP server explicitly so that Claude, Cursor, and other clients can expose document tree structures to any MCP-compatible model.
+
+**[Agent Skills](../concepts/agent-skills.md).** Voyager's skill library pattern — GPT-4 generates executable code, GPT-4 verifies it, verified code is stored and retrieved — is the architectural basis for skill accumulation systems.
 
 ## Key Numbers
 
-Published benchmarks (OpenAI self-reported unless noted):
+All figures below are from third-party research papers, not OpenAI marketing:
 
-| Benchmark | GPT-4o | GPT-4o-mini | Notes |
-|---|---|---|---|
-| MMLU | 88.7% | 82.0% | Self-reported |
-| HumanEval | 90.2% | 87.2% | Self-reported |
-| MATH | 76.6% | 70.2% | Self-reported |
-| AIME 2025 (with GEPA optimization) | — | 60.0% (from 46.67%) | GEPA paper, validated |
-| WebArena (with AWM) | 35.5% | — | AWM paper, independently run |
-| MeetingBank QA (LLMLingua-2) | Serves as teacher | — | Used to generate training labels |
+- **5.7x** more unique items in Minecraft: GPT-4 vs. GPT-3.5 for skill code generation (Voyager, self-reported by paper authors but independently replicated in the research community) [Source](../raw/deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md)
+- **98.7%** on FinanceBench: PageIndex using GPT-4o for tree-reasoning retrieval vs. ~31% vanilla GPT-4o RAG [Source](../raw/deep/repos/vectifyai-pageindex.md)
+- **45.85 F1** on LoCoMo multi-hop QA: A-MEM using GPT-4o-mini vs. 18.41 baseline (148% improvement) [Source](../raw/deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md)
+- **35.5%** WebArena success rate: AWM with GPT-4, vs. 23.5% BrowserGym baseline [Source](../raw/deep/repos/zorazrw-agent-workflow-memory.md)
 
-Numbers from OpenAI's own model cards are self-reported and should be treated accordingly. AWM's 35.5% WebArena result and GEPA's 60.0% AIME result come from published research papers and represent independently run experiments on GPT-4-class models, making them more credible than capability benchmarks on OpenAI's own test sets.
+These numbers reflect GPT-4 in combination with specific architectures, not GPT-4 alone. Attributing performance entirely to the model is misleading.
 
 ## Strengths
 
-**Function calling and structured output reliability.** GPT-4o and GPT-4.1 produce well-formed JSON reliably under tool use, which is why they dominate agent scaffolding. Competing models catch up, but GPT-4 set the baseline others are measured against.
+**Reliable structured output.** GPT-4 can follow multi-constraint prompts (generate JSON matching a schema, verify a condition, extract a specific field) with high reliability. Systems like PageIndex make dozens of structured LLM calls per document and depend on this reliability — a single malformed response breaks the indexing pipeline.
 
-**Long context coherence.** At 128K tokens, GPT-4o handles full codebases, long documents, and extended conversation histories. Coherence across the full window is stronger than earlier models, though it degrades at the extremes.
+**Compositional reasoning.** The 334% multi-hop improvement with GPT-4o vs. 149% with GPT-4o-mini on the same A-MEM system shows the larger model extracts relationships between memories that the smaller model cannot [Source](../raw/deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md).
 
-**Instruction following at scale.** In GEPA's reflection role, the model must read multi-page execution traces and generate targeted diagnostic summaries. GPT-4-class models handle this reliably; smaller models hallucinate diagnoses. The LLMLingua teacher labeling similarly relies on GPT-4's ability to follow detailed compression instructions across hundreds of examples.
+**Self-verification.** Voyager's self-verification critic — a separate GPT-4 call that assesses whether a skill was completed correctly — accounts for 73% of the system's performance. The model accurately judges its own outputs well enough to serve as a quality gate [Source](../raw/deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md).
 
-**API ecosystem maturity.** Batching, streaming, fine-tuning, embeddings, and vision are all production-ready and extensively documented. The ecosystem lock-in is real: most agent frameworks default to GPT-4 endpoints, and switching requires testing for behavioral regressions.
-
-**Cross-model skill transfer recipient.** GEPA's gskill results show skills evolved with GPT-4.1 Mini (cheap backbone) transfer to Claude Haiku 4.5 and other production models. GPT-4-class models also receive transferred skills effectively — the skills encode procedural knowledge, not model-specific quirks.
+**Schema-free abstraction.** AWM uses GPT-4o to induce workflows without any predefined schema. The model discovers what patterns are worth extracting [Source](../raw/deep/repos/zorazrw-agent-workflow-memory.md).
 
 ## Critical Limitations
 
-**No persistent memory.** Every GPT-4 call is stateless. Agent systems built on GPT-4 must externalize all memory — this is why AWM, A-MEM, and similar systems exist. A web agent built directly on GPT-4 without a memory layer forgets everything between sessions. This is the unspoken assumption baked into the entire agent-memory research space: the backbone model provides no help with memory, so the scaffolding must solve it entirely.
+**Hallucination in domain knowledge.** Voyager documents GPT-4 proposing non-existent Minecraft items ("copper sword") and invalid recipes. The self-verification critic shares the same training data and can miss these errors. In production agents, GPT-4's confidently wrong domain knowledge is harder to catch than syntax errors. [Source](../raw/deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md)
 
-**Pricing at scale erases cost advantages.** GPT-4o costs $2.50/1M input tokens and $10/1M output tokens (as of mid-2025). For a RAG pipeline processing thousands of queries per day with 10K-token contexts, costs reach $25/day per 10K queries on input alone. LLMLingua's compression work exists largely because GPT-4 costs make long contexts expensive. Databricks reported 90x cost reduction by replacing Claude Opus 4.1 with open-source models plus GEPA — the economic pressure to move off frontier API models is real.
+**Adversarial degradation.** A-MEM shows a 28% performance regression on adversarial tasks when using GPT-4o-mini with enriched memory context. Richer semantic context amplifies susceptibility to leading questions. The memory system made the model more vulnerable, not less. [Source](../raw/deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md)
 
-**Black-box behavior.** OpenAI can and does update model behavior between API versions with limited notice. An agent system tuned against `gpt-4o-2024-08-06` may behave differently with `gpt-4o-2024-11-20`. This creates maintenance overhead for production deployments. Fine-tuned variants provide more stability but at additional cost.
+**Unspoken infrastructure assumption.** Every system in this knowledge base that uses GPT-4 assumes stable, low-latency API access. PageIndex's indexing pipeline makes 50-100 API calls per document with retry logic (10 retries, 1-second backoff). A network partition or rate limit mid-pipeline produces partial indexes with no clean recovery path. None of the papers address this failure mode.
 
-**Concrete failure mode: adversarial prompt injection.** LLMLingua's SecurityLingua extension exists because GPT-4-based RAG pipelines are vulnerable to adversarial content in retrieved passages. When a user-retrieved document contains an injected instruction, GPT-4 may follow it. The richer the context (more documents, longer passages), the more attack surface exists. A-MEM's adversarial task regression (-28% F1) suggests that enriched memory representations make models more susceptible, not less, to leading questions.
+## When NOT to Use It
 
-## When NOT to Use GPT-4
+**High-volume, low-complexity classification tasks.** LLMLingua-2 specifically replaces GPT-4-based perplexity scoring with a trained RoBERTa classifier because GPT-4 is 3-6x too slow for token-level classification at scale [Source](../raw/deep/repos/microsoft-llmlingua.md). If the task is binary labeling of tokens or sentences, a fine-tuned small model will beat GPT-4 on cost and latency.
 
-**High-volume, low-complexity classification or extraction.** If the task is extracting named entities from short texts or classifying sentiment, GPT-4o-mini or open-source models (Qwen 2.5, Llama 3.2) at 1/10th the cost will match quality. Using GPT-4o for commodity NLP tasks is unnecessary expense.
+**Offline/air-gapped deployments.** GPT-4 is API-only. Systems requiring data sovereignty, compliance constraints, or offline operation need a different backbone. [DeepSeek](../projects/deepseek.md) or local Llama variants are the relevant alternatives.
 
-**Air-gapped or data-sovereignty environments.** GPT-4 is API-only. Organizations with requirements against sending data to external APIs cannot use it. All fine-tuning data passes through OpenAI infrastructure.
+**Temporal reasoning tasks.** A-MEM with GPT-4o-mini shows only +1% F1 improvement on temporal QA tasks despite 149% improvement on multi-hop [Source](../raw/deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md). When the task requires tracking what changed between specific time points, GPT-4 needs explicit temporal indexing support from the memory layer — the model alone does not solve this.
 
-**Tasks requiring deterministic, auditable behavior.** GPT-4's behavior can change between model versions. For regulated industries requiring reproducible outputs (clinical documentation, legal analysis, financial modeling), the lack of frozen model versions is a disqualifying constraint. Open-source alternatives deployed on-premises provide this control.
-
-**When the reasoning bottleneck is context organization, not reasoning quality.** A-MEM's results with Qwen2.5-3b show 787% multi-hop improvement with structured memory. If your agent underperforms due to poor memory organization, investing in better memory architecture will outperform upgrading to a more expensive backbone. The constraint is architectural, not model capability.
-
-**Agent loops requiring thousands of evaluations.** GEPA's 35x speedup over GRPO is partly an argument against using GPT-4 as the primary model for optimization loops. Running 5,000-25,000 LLM calls through GPT-4o becomes prohibitively expensive. GEPA achieves comparable or better results in 100-500 calls, but even that budget at GPT-4o pricing requires careful cost management.
+**Tasks where performance plateaus after ~40 examples.** AWM finds that ~40 queries yield significant performance gains, after which the success rate stabilizes [Source](../raw/deep/repos/zorazrw-agent-workflow-memory.md). Continuing to spend GPT-4 API budget on workflow induction beyond this point has diminishing returns.
 
 ## Unresolved Questions
 
-**Behavioral drift between versions.** OpenAI does not commit to behavioral stability across minor model version updates. For agent systems that depend on consistent reasoning patterns (e.g., GEPA's reflection LLM, AWM's workflow induction), it is unclear how often teams need to re-validate their systems after model updates.
+**Context window vs. reasoning quality tradeoff.** PageIndex routes around the 128K context window by using tree reasoning to fetch only relevant pages. This implies that dumping 128K tokens of context degrades GPT-4's reasoning quality. OpenAI does not publish how reasoning quality varies with context length, and independent studies show degradation in the middle of long contexts ("lost in the middle"). The operational threshold is unclear.
 
-**Fine-tuning quality at task-specific domains.** GPT-4 fine-tuning is available but expensive and opaque. The performance ceiling for fine-tuned GPT-4o-mini versus a well-prompted base model is not well-characterized across the agent system tasks in this space. Teams report mixed results.
+**Cost at scale.** PageIndex estimates $0.10-0.30 per document for indexing at `gpt-4o-2024-11-20` pricing, but does not report the retrieval cost per query or the total cost of a production deployment. AWM does not report API costs for 160+ prompting iterations. A-MEM does not report ingestion-time cost, only retrieval-time token savings. None of these papers address what GPT-4 costs at 100,000 documents or 1 million agent interactions.
 
-**True context utilization at 128K.** Whether GPT-4o reliably attends to information in the middle of a 128K-token context (the "lost in the middle" problem documented in the literature) affects whether long-context agent systems can trust that injected workflows, memories, or retrieved passages are actually used. OpenAI's documentation does not characterize degradation curves across the full window.
+**Model version pinning.** PageIndex's config defaults to `gpt-4o-2024-11-20`. OpenAI deprecates model versions on 6-12 month cycles. Systems built on pinned versions need migration paths when models are deprecated. None of the papers address model version governance.
 
-**Cost trajectory.** API pricing has dropped significantly since GPT-4's initial release, but the gap between GPT-4-class frontier models and open-source alternatives continues to close. The economics of whether to use GPT-4 versus a self-hosted model shift with each open-source release cycle. Teams building on GPT-4 APIs should maintain model-agnostic scaffolding.
+**Prompt injection resilience.** No paper in this knowledge base tests GPT-4's resistance to adversarial inputs injected through retrieved content. PageIndex fetches arbitrary page content from PDFs and injects it into the reasoning context. A malicious document could contain instructions that redirect the agent's behavior.
 
 ## Alternatives
 
-**Claude (Anthropic).** Comparable capability, stronger safety guardrails, 200K context window. GEPA transfers skills between GPT-4 and Claude models. Use Claude when long-context coherence or safety properties are the primary concern. [Related](../projects/claude.md)
+**[Claude](../projects/claude.md) (Anthropic)** — Comparable reasoning capability with different safety tradeoffs. Supports MCP natively. Use when data privacy constraints favor Anthropic's terms over OpenAI's, or when Constitutional AI alignment is a requirement.
 
-**Google Gemini.** Strong on multimodal tasks and long-context (1M tokens in Gemini 1.5 Pro). Native Google ecosystem integration. Use when the task involves very long documents or Google Workspace integration. [Related](../projects/google-gemini.md)
+**[DeepSeek](../projects/deepseek.md)** — Open weights, significantly cheaper at scale, strong coding performance. Use when self-hosting is required or when GPT-4 API costs are prohibitive for the task volume. Reasoning quality on complex multi-step tasks trails GPT-4o, especially in non-English languages.
 
-**Open-source models (Qwen 2.5, Llama 3.x).** Self-hosted, no data-sovereignty concerns, dramatically lower cost at scale. A-MEM's results show 787% multi-hop improvement with Qwen2.5-3b using structured memory — strong evidence that model capability gaps can be partially bridged by architectural investment. Use when data cannot leave your infrastructure or when volume makes API costs prohibitive.
+**GPT-4o-mini** — Same API, same interface, 15x cheaper. Use for high-volume classification, filtering, or any task where the ablation data shows small models perform adequately. A-MEM results show smaller models benefit disproportionately from good memory architecture — invest in the memory system, then test whether GPT-4o-mini suffices.
 
-**GPT-4o-mini / GPT-4.1 Mini.** Within the GPT-4 family, these are the correct choice for the executor/task-agent role in tiered architectures (expensive model for reflection, cheap model for execution). The 10x cost reduction versus GPT-4o justifies using them as the default for high-volume inference with a capable reflection model handling failure diagnosis.
+**Fine-tuned small models** — LLMLingua-2's RoBERTa-based token classifier, trained on GPT-4-generated labels, achieves 3-6x faster compression with better fidelity than the GPT-4-based approach [Source](../raw/deep/repos/microsoft-llmlingua.md). The pattern: use GPT-4 to generate training data, deploy a small model for inference. Use when latency or cost requires it and the task is well-defined enough to collect training data.
 
 ## Related Concepts
 
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
-- [ReAct](../concepts/react.md)
-- [Reflexion](../concepts/reflexion.md)
-- [GRPO](../concepts/grpo.md)
-- [Model Context Protocol](../concepts/model-context-protocol.md)
-- [Agent Skills](../concepts/agent-skills.md)
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — GPT-4 as generator in RAG pipelines
+- [ReAct](../concepts/react.md) — GPT-4 as the reasoning-action backbone
+- [Reflexion](../concepts/reflexion.md) — GPT-4 as self-evaluator
+- [Model Context Protocol](../concepts/model-context-protocol.md) — Standard interface for GPT-4 tool calling
+- [Agent Skills](../concepts/agent-skills.md) — GPT-4 as skill generator and verifier

@@ -3,136 +3,117 @@ entity_id: prompt-engineering
 type: approach
 bucket: context-engineering
 abstract: >-
-  Prompt engineering is the craft of writing LLM instructions to control model
-  behavior; it evolved from one-shot text tasks toward agent orchestration,
-  where context curation across multi-turn loops now matters more than any
-  single prompt's wording.
+  Prompt engineering is the practice of designing natural language instructions
+  and examples to elicit desired LLM behaviors; it evolved into the broader
+  discipline of context engineering as multi-turn agents became the dominant
+  deployment pattern.
 sources:
   - tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md
-  - repos/evoagentx-evoagentx.md
   - repos/laurian-context-compression-experiments-2508.md
   - articles/effective-context-engineering-for-ai-agents.md
   - >-
     articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md
   - articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md
 related:
-  - Claude Code
-  - Andrej Karpathy
-  - AutoResearch
-  - Context Engineering
-  - DSPy
-last_compiled: '2026-04-05T20:27:29.065Z'
+  - andrej-karpathy
+  - autoresearch
+  - claude-code
+last_compiled: '2026-04-06T02:05:28.169Z'
 ---
 # Prompt Engineering
 
 ## What It Is
 
-Prompt engineering is the practice of crafting natural language instructions to steer LLM behavior toward a desired output. At its narrowest, it means choosing words carefully in a single system prompt. At its broadest, it includes structuring few-shot examples, formatting XML or Markdown sections, calibrating instruction specificity, and deciding what information to include or exclude from the context window.
+Prompt engineering is the practice of designing, structuring, and iterating on the natural language inputs given to a large language model to reliably produce desired outputs. At its narrowest, it means writing a good system prompt. At its broadest, it encompasses few-shot example selection, output format specification, chain-of-thought elicitation, and the structural layout of instructions.
 
-The practice emerged from early NLP research showing that model outputs are sensitive to phrasing. Before fine-tuning and RLHF became standard, prompting was the primary lever practitioners had over model behavior. It remains central today, but the scope has shifted. Most non-trivial LLM applications now involve multiple inference turns, tool calls, retrieved documents, and accumulated state — conditions where a single well-crafted prompt is necessary but not sufficient.
+[Andrej Karpathy](../concepts/andrej-karpathy.md) described it, along with [context engineering](../concepts/context-engineering.md), as "the art and science" of curating what enters an LLM's context window. The field emerged from applied NLP research in 2020–2021 and became mainstream practice by 2022, as practitioners discovered that the same model could behave radically differently depending on how instructions were phrased.
 
-[Context Engineering](../concepts/context-engineering.md) is the term that has emerged to describe this expanded problem space: curating the entire token budget at each inference step, not just writing the initial instruction.
+Prompt engineering is a precursor to and component of [context engineering](../concepts/context-engineering.md). Where prompt engineering focuses on *what to write*, context engineering focuses on *what to include* across the entire token budget of a multi-turn agent interaction.
 
-## Why It Still Matters
+## Core Techniques
 
-Despite the expansion toward context engineering, prompt quality remains the foundation. A poorly written system prompt degrades agent behavior regardless of how well the surrounding context is managed. A well-written prompt reduces the surface area for failure modes elsewhere.
+### Zero-Shot Prompting
 
-The [Anthropic Applied AI team](../articles/effective-context-engineering-for-ai-agents.md) describes the "right altitude" problem: prompts that hardcode brittle if-else logic fail when conditions deviate; prompts that are vague fail because they assume shared context the model doesn't have. Effective prompts land between these — specific enough to guide behavior, flexible enough to handle variation.
+The model receives only instructions, no examples. Works well when the task is unambiguous and the model has sufficient prior exposure during training. Fails on narrow domain tasks where the output format or terminology diverges from training distribution.
 
-Concrete structural recommendations from production experience include:
+### Few-Shot Prompting
 
-- Organize into distinct sections (`<background_information>`, `<instructions>`, `## Tool guidance`, `## Output description`)
-- Use XML tags or Markdown headers as delimiters
-- Start minimal — test the leanest prompt that could work on the best available model, then add only what failure modes demand
-- Examples ("few-shot prompting") carry more weight than lengthy rule lists; a canonical set of 3–5 diverse examples often outperforms 20 edge-case rules
+Including examples of input-output pairs inside the prompt. Anthropic's guidance recommends against stuffing every edge case into a prompt; instead, curate a diverse set of canonical examples that illustrate expected behavior. For an LLM, examples function as compressed demonstrations that generalize better than exhaustive rule lists.
 
-## How It Works: Core Techniques
+### [Chain-of-Thought](../concepts/chain-of-thought.md) Prompting
 
-**Zero-shot prompting** gives the model a task with no examples, relying on instruction clarity and the model's pretraining. Works for well-defined tasks where the model's training distribution already covers the target behavior.
+Adding "think step by step" or embedding reasoning traces in few-shot examples causes many models to produce intermediate reasoning before the final answer. This improves performance on multi-step arithmetic, logical deduction, and planning tasks. The technique was documented empirically in Wei et al. (2022) and has since been integrated into model training itself, making explicit elicitation less necessary on capable models.
 
-**Few-shot prompting** includes input-output pairs before the actual request. Effective because examples implicitly communicate format, tone, length, and edge-case handling that prose instructions often miss.
+### Instruction Formatting
 
-**Chain-of-thought prompting** instructs the model to reason step-by-step before producing a final answer. Improves performance on multi-step reasoning tasks. Can be elicited with "Let's think step by step" or by including reasoning traces in few-shot examples.
+Structure matters. XML tags (`<instructions>`, `<examples>`, `<context>`) and Markdown headers help models parse long system prompts by creating explicit delimiters. Anthropic's applied team recommends organized sections like `<background_information>`, `<instructions>`, and `## Tool guidance`. The relative importance of formatting has decreased as models grow more capable, but it remains useful for prompts exceeding a few hundred tokens.
 
-**Role prompting** frames the model as a persona ("You are a senior software engineer") to activate relevant behavior patterns from training. Efficacy varies by task; works best when the role maps to a clear behavioral cluster in the training data.
+### Role and Persona Assignment
 
-**Instruction formatting** — XML tags, Markdown headers, numbered lists — helps models parse complex system prompts. The importance of exact formatting is declining as models improve, but structured prompts still reduce ambiguity in complex multi-section instructions.
+Prefixing with "You are a senior software engineer" or "You are a precise medical coder" shifts the model's prior over what kinds of responses are appropriate. This technique is partially superseded by instruction-tuned models that have internalized professional personas, but it remains a low-cost signal for domain-specific tasks.
 
-## Prompt Optimization: From Manual to Automated
+## How It Connects to System Prompts and [claude.md](../concepts/claude-md.md)
 
-Manual prompt iteration is slow. The typical cycle — write, test, observe failure, revise — becomes a bottleneck when prompts need to generalize across hundreds of input variations.
+For persistent agents, the system prompt is the primary vehicle for prompt engineering. Files like [claude.md](../concepts/claude-md.md) and [skill.md](../concepts/skill-md.md) in projects like [Claude Code](../projects/claude-code.md) represent prompt engineering artifacts stored on disk and injected into context at runtime. This makes them versionable, auditable, and — crucially — automatable.
 
-Two automated approaches have emerged:
+The [AutoResearch](../projects/autoresearch.md) project operationalizes this: the human iterates on a `.md` prompt file while an AI agent iterates on the code it governs. Each run is a complete experiment; better prompts accumulate via git commits. [Source](../raw/tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md)
 
-**Gradient-based optimization with TextGrad** treats the prompt as a differentiable parameter and applies text-based "gradients" — natural language feedback from an LLM judge — to iteratively revise the prompt toward higher scores. In a documented production experiment with context compression for RAG, TextGrad starting from a hand-written prompt and optimizing against 296 failure cases improved `gpt-4o-mini` extraction success from 0% to 79% over 8 iterations. [Source](../repos/laurian-context-compression-experiments-2508.md)
+## The Altitude Problem
 
-**Genetic algorithms with DSPy GEPA** runs a population of prompt variants across generations, using Pareto-front selection to balance multiple objectives. The same context compression experiment ran GEPA for 75 iterations (~1 hour) and reached 44.7% validation accuracy, translating to 62% test success on the full 296-document set. Starting from the GEPA-optimized prompt, running TextGrad as a second pass pushed success to 100% — though "100%" here means the prompt always extracts *something*, not that it always extracts the right content. [Source](../repos/laurian-context-compression-experiments-2508.md)
+Effective system prompts occupy a "right altitude" — specific enough to guide behavior, general enough to handle variation without becoming brittle. Two failure modes dominate in practice:
 
-The numbers above are self-reported from a private production dataset with redacted domain details. Independent replication would require the same document-query pairs, which are not public.
+**Over-specification:** Hardcoded if-else logic written in natural language. "If the user asks about shipping, always respond with exactly three sentences starting with 'Thank you for your question.'" This creates fragility; the model either follows the rule mechanically in situations where it breaks down, or ignores it entirely.
 
-**The Karpathy Loop** generalizes this pattern beyond ML. [Andrej Karpathy](../people/andrej-karpathy.md)'s [autoresearch](../projects/autoresearch.md) project structures the loop as: read current file, change one thing, test against a fixed scoring rubric, keep if score improves, repeat. Applied to prompt files (`.md`) with an agent iterating the code (`.py`), the human's job reduces to defining what "better" means. The repo hit 42,000 GitHub stars in its first week. [Source](../tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md)
+**Under-specification:** Vague guidance that assumes shared context. "Be helpful and professional." The model fills gaps with its own priors, which may not match product requirements.
 
-The critical prerequisite for any automated loop: a deterministic, numeric score. Binary assertions — yes/no checks on output properties — work better than LLM-scored rubrics because they're stable across runs and directly comparable between prompt versions. A 30-50 cycle overnight run can typically move a prompt from 40–50% pass rate to 75–85% on a representative test set, at a cost of $1.50–$4.50 in API calls. [Source](../articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md) (self-reported, not independently validated.)
+[Anthropic's applied team](../raw/articles/effective-context-engineering-for-ai-agents.md) recommends starting with the minimal prompt that works on the best available model, then adding specific instructions and examples targeting observed failure modes — not preemptively.
+
+## Automated Prompt Optimization
+
+Prompt engineering has increasingly moved from manual craft to automated optimization. Three approaches dominate:
+
+**Genetic / evolutionary methods ([GEPA](../concepts/gepa.md)):** [DSPy's](../projects/dspy.md) GEPA optimizer treats prompts as candidates in a population, mutating and selecting based on a scoring function. In a documented production case, optimizing a context compression prompt for `gpt-4o-mini` (which had 0% success on difficult cases) using GEPA over 75 iterations raised success to 62% on those cases. [Source](../raw/repos/laurian-context-compression-experiments-2508.md)
+
+**Gradient-based text optimization (TextGrad):** TextGrad applies gradient-style feedback in natural language: the optimizer reads model outputs, generates textual "gradients" describing what changed, and proposes updated prompts. Applied to the same context compression task, TextGrad produced 79% success — outperforming GEPA alone. A hybrid GEPA+TextGrad pipeline reached 100% on the test set. [Source](../raw/repos/laurian-context-compression-experiments-2508.md) (Self-reported; the test set is 296 documents, which is a narrow domain sample.)
+
+**Binary eval assertion loops:** Define 3–6 yes/no checks on output properties ("Does the response include a concrete next step?"), run an agent in a loop to generate variants, measure pass rate, keep improvements. At ~18,000 tokens per cycle, a 30-cycle overnight run costs roughly $1.50–$4.50. Documented pass rate improvements from 40–50% baseline to 75–85% range over one overnight run. [Source](../raw/articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md) (Self-reported; no independent benchmark.)
+
+All three approaches share the same structural requirement: you must define what "better" means numerically before the loop starts. If you cannot write a deterministic scoring function, none of these methods work.
 
 ## Relationship to Context Engineering
 
-Prompt engineering treats the system prompt as the primary artifact. Context engineering treats the system prompt as one component in a broader token budget that also includes tools, retrieved documents, conversation history, and agent state.
+[Context engineering](../concepts/context-engineering.md) subsumes prompt engineering. A system prompt is one component of context; others include tool definitions, retrieved documents, message history, and agent-generated notes. As Anthropic frames it: "prompt engineering refers to methods for writing and organizing LLM instructions, while context engineering refers to strategies for curating and maintaining the optimal set of tokens during LLM inference." [Source](../raw/articles/effective-context-engineering-for-ai-agents.md)
 
-From the Anthropic framing: "Prompt engineering refers to methods for writing and organizing LLM instructions for optimal outcomes... Context engineering refers to the set of strategies for curating and maintaining the optimal set of tokens during LLM inference, including all the other information that may land there outside of the prompts." [Source](../articles/effective-context-engineering-for-ai-agents.md)
+The distinction matters most for agents. A chatbot's context is mostly its system prompt plus the conversation. An agent running over hours accumulates tool outputs, intermediate notes, and compacted summaries. Prompt engineering produces the static instructions; context engineering manages the dynamic state. [Progressive Disclosure](../concepts/progressive-disclosure.md), compaction, and structured note-taking are context engineering techniques that sit above prompt engineering.
 
-In practice, the two are intertwined. The system prompt must work alongside dynamically injected context, not in isolation. Prompts that work well in single-turn settings can fail in multi-turn agent loops where accumulated tool outputs, prior reasoning traces, and injected documents consume the attention budget.
+## Practical Failure Modes
 
-## Failure Modes
+**Prompt brittleness:** A prompt optimized for a narrow test distribution fails on production inputs that differ slightly. The fix is test diversity before optimization, not prompt complexity.
 
-**Over-specification**: Hardcoding logic in prompts that should live in code. "If the user mentions a refund, say X; if they mention shipping, say Y" creates brittle conditional structures that break on any input outside the enumerated cases.
+**Eval-prompt overfitting:** Binary assertion loops can produce prompts that pass the eval script by gaming it — triggering the "empathy phrase" check by inserting a rote phrase regardless of context. Assertions must test outputs that actually correspond to quality, not surface proxies.
 
-**Under-specification**: Vague prompts that assume the model shares context it doesn't have. "Be helpful and professional" gives no actionable signal.
+**Prompt injection:** Adversarial users can override instructions by embedding conflicting directives in their input. Long system prompts with many rules are more vulnerable because models struggle to maintain all constraints simultaneously under adversarial pressure.
 
-**Test set homogeneity**: Optimizing prompts against a narrow test set produces pass rates that don't generalize. A prompt reaching 85% on 20 near-identical inputs may fail on the 21st input from a different sub-category. Diversity of test cases matters more than quantity.
+**Context rot interaction:** Adding more prompt content has diminishing returns and eventually hurts performance. Models lose attention to early instructions as total context length grows. Every instruction added to a system prompt competes with tool outputs and retrieved content for the model's attention budget.
 
-**Changing multiple things per iteration**: When manual or automated iteration modifies several prompt elements simultaneously, pass rate changes become unattributable. Isolating one change per cycle is the only way to understand causality.
+## When Not to Use Prompt Engineering Alone
 
-**Context rot**: As agent loops accumulate tokens, model recall degrades on earlier context. A perfectly crafted system prompt at position 0 becomes harder to follow as the context window fills. This is an architectural constraint of transformers — n² attention relationships get stretched thin — not a prompt quality issue, but it means prompt engineering for agents must account for eventual degradation.
+Prompt engineering is the wrong primary tool when:
 
-## When Prompt Engineering Is Insufficient
+- The task requires consistent structured output at high volume. Fine-tuning or constrained decoding (e.g., grammar-constrained generation) is more reliable than prompt-based formatting instructions.
+- The domain has specialized terminology the base model hasn't encountered. Few-shot examples help, but may not be sufficient; [RAG](../concepts/rag.md) or fine-tuning on domain data addresses the root cause.
+- Behavior must be verifiably consistent across thousands of edge cases. Manual prompt iteration cannot explore the space adequately; automated optimization ([DSPy](../projects/dspy.md), [GEPA](../concepts/gepa.md)) becomes necessary.
+- The agent operates over many turns. Static system prompt optimization doesn't address context accumulation, compaction, or tool design — the full scope of [context engineering](../concepts/context-engineering.md) applies.
 
-Prompt engineering alone is insufficient when:
+## Key Relationships
 
-- The task requires consistent behavior across thousands of diverse inputs with no tolerance for variance (fine-tuning or structured outputs are more reliable)
-- The required behavior is genuinely novel — outside the model's training distribution — such that no combination of instructions and examples produces it
-- The application runs in multi-turn agent loops where context management, compaction, and tool design dominate overall quality
-- Reproducibility requirements demand output determinism (prompts shift behavior probabilistically, not deterministically)
-
-## Implementations and Extensions
-
-**[DSPy](../projects/dspy.md)** formalizes prompt optimization as a compilation problem. Rather than hand-writing prompts, developers write programs using LLM-backed modules, and DSPy's optimizers (including GEPA) automatically generate and refine prompts and few-shot examples against a metric.
-
-**[Claude Code](../projects/claude-code.md)** uses prompt engineering at the meta level: the CLAUDE.md file and `AGENT_INSTRUCTIONS.md` patterns give the agent behavioral directives, while the agent itself applies prompt engineering to sub-tasks.
-
-**[AutoResearch](../projects/autoresearch.md)** frames the agent's operating instructions (the `.md` prompt file) as the primary optimization target, with the agent autonomously running experiments to improve it.
-
-## Unresolved Questions
-
-**Stability over model versions**: Prompts optimized for one model version often degrade after updates. There is no standard practice for version-pinning prompts or detecting regression after model updates.
-
-**Optimal test set construction**: How many test cases are needed, and how should they be sampled, to produce pass rates that generalize? The "30-50 cycle overnight run" advice is practitioner rule-of-thumb, not empirically validated across task types.
-
-**Attribution across context**: When an agent fails, attributing the failure to prompt quality versus context management versus tool design versus model capability is unsolved. Most organizations lack instrumentation to distinguish these.
-
-**Long-term prompt decay**: Prompts optimized for today's distribution of inputs may degrade as user behavior or data distributions shift. Continuous re-evaluation pipelines are rarely built despite being straightforward to construct.
-
-## Alternatives and Selection Guidance
-
-- Use **fine-tuning** when you need consistent behavior across thousands of examples and have sufficient labeled data. Prompt engineering is faster to iterate but less reliable at scale.
-- Use **DSPy** when you want to formalize prompt optimization as a programmatic pipeline with reproducible metrics rather than ad-hoc iteration.
-- Use **structured outputs / constrained decoding** when you need format guarantees that prompts can only approximate probabilistically.
-- Use **[context engineering](../concepts/context-engineering.md) techniques** (compaction, note-taking, sub-agent architectures) when the bottleneck is multi-turn coherence rather than single-turn output quality.
-
-
-## Related
-
-- [Claude Code](../projects/claude-code.md) — implements (0.4)
-- [Andrej Karpathy](../concepts/andrej-karpathy.md) — implements (0.5)
-- [AutoResearch](../projects/autoresearch.md) — implements (0.5)
-- [Context Engineering](../concepts/context-engineering.md) — supersedes (0.7)
-- [DSPy](../projects/dspy.md) — extends (0.8)
+- [Context Engineering](../concepts/context-engineering.md) — the broader discipline that contains prompt engineering
+- [Chain-of-Thought](../concepts/chain-of-thought.md) — a specific prompting technique for eliciting reasoning traces
+- [DSPy](../projects/dspy.md) — a framework for automated prompt optimization
+- [GEPA](../concepts/gepa.md) — genetic algorithm approach to prompt search
+- [AutoResearch](../projects/autoresearch.md) — Karpathy's project demonstrating automated prompt iteration loops
+- [Claude Code](../projects/claude-code.md) — implements prompt engineering via `CLAUDE.md` and skill files at runtime
+- [claude.md](../concepts/claude-md.md) — the persistent prompt artifact pattern used by Claude Code
+- [skill.md](../concepts/skill-md.md) — modular prompt files for agent capabilities
+- [Karpathy Loop](../concepts/karpathy-loop.md) — the iterative human-on-prompt, agent-on-code research pattern
+- [Progressive Disclosure](../concepts/progressive-disclosure.md) — context engineering technique for just-in-time information retrieval

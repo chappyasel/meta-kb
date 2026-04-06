@@ -30,39 +30,39 @@
 | [SEAgent](../projects/seagent.md) | self-improving | 3 |
 | [Google Gemini](../projects/gemini.md) | agent-systems | 16 |
 | [DeepSeek](../projects/deepseek.md) | agent-systems | 3 |
-| [Letta Code](../projects/letta-code.md) | agent-systems | 4 |
+| Letta Code | agent-systems | 4 |
 | [Qdrant](../projects/qdrant.md) | knowledge-bases | 4 |
 | [HippoRAG](../projects/hipporag.md) | knowledge-bases | 3 |
 | [RAPTOR](../projects/raptor.md) | knowledge-bases | 3 |
 | [LightRAG](../projects/lightrag.md) | knowledge-bases | 2 |
 | [A-MEM](../projects/a-mem.md) | agent-memory | 10 |
 | [AppWorld](../projects/appworld.md) | agent-systems | 4 |
-| [OpenRouter](../projects/openrouter.md) | agent-systems | 4 |
+| OpenRouter | agent-systems | 4 |
 | [vLLM](../projects/vllm.md) | agent-systems | 6 |
 | [Ollama](../projects/ollama.md) | agent-systems | 5 |
 | [LangChain](../projects/langchain.md) | agent-systems | 11 |
 | [LlamaIndex](../projects/llamaindex.md) | knowledge-bases | 4 |
-| [LLMLingua](../projects/llmlingua.md) | context-engineering | 2 |
-| [SkillWeaver](../projects/skillweaver.md) | self-improving | 2 |
+| LLMLingua | context-engineering | 2 |
+| SkillWeaver | self-improving | 2 |
 | [MemEvolve](../projects/memevolve.md) | agent-memory | 3 |
-| [Mobile-Agent-E](../projects/mobile-agent-e.md) | agent-systems | 1 |
+| Mobile-Agent-E | agent-systems | 1 |
 | [DSPy](../projects/dspy.md) | context-engineering | 4 |
 | [HotpotQA](../projects/hotpotqa.md) | knowledge-bases | 5 |
 | [ChromaDB](../projects/chromadb.md) | knowledge-bases | 4 |
 | [Pinecone](../projects/pinecone.md) | knowledge-bases | 2 |
-| [FAISS](../projects/faiss.md) | knowledge-bases | 2 |
-| [LanceDB](../projects/lancedb.md) | knowledge-bases | 2 |
-| [HumanEval](../projects/humaneval.md) | agent-systems | 3 |
+| FAISS | knowledge-bases | 2 |
+| LanceDB | knowledge-bases | 2 |
+| HumanEval | agent-systems | 3 |
 | [Agent Workflow Memory](../projects/agent-workflow-memory.md) | agent-memory | 2 |
 | [EvoAgentX](../projects/evoagentx.md) | self-improving | 4 |
-| [WebArena](../projects/webarena.md) | agent-systems | 2 |
+| WebArena | agent-systems | 2 |
 | [GitHub Copilot](../projects/github-copilot.md) | agent-systems | 4 |
 | [Voyager](../projects/voyager.md) | self-improving | 3 |
 | [Aider](../projects/aider.md) | agent-systems | 2 |
 | [ADAS](../projects/adas.md) | self-improving | 2 |
-| [AutoGPT](../projects/autogpt.md) | agent-systems | 2 |
-| [AutoGen](../projects/autogen.md) | agent-systems | 2 |
-| [pgvector](../projects/pgvector.md) | knowledge-bases | 3 |
+| AutoGPT | agent-systems | 2 |
+| AutoGen | agent-systems | 2 |
+| pgvector | knowledge-bases | 3 |
 | [Weaviate](../projects/weaviate.md) | knowledge-bases | 2 |
 | [Milvus](../projects/milvus.md) | knowledge-bases | 2 |
 | [RAGFlow](../projects/ragflow.md) | knowledge-bases | 2 |

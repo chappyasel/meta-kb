@@ -1,33 +1,29 @@
 ---
 name: compile-field-map
 description: >
-  Writes field-map.md, the flagship overview article for meta-kb that connects
-  all five taxonomy areas into one system. A 3000-5000 word systems map showing
-  integration points, paradigm routing logic, and a concrete practitioner flow.
-  Use when writing the meta-kb field map or systems overview.
+  Writes field-map.md, the flagship overview article that connects all taxonomy
+  areas into one system. A 3000-5000 word systems map showing integration points,
+  paradigm routing logic, and a concrete practitioner flow. Use when writing the
+  field map or systems overview.
 ---
 
 # Compile Field Map
 
-Write `wiki/field-map.md`, a systems map that treats the 5 taxonomy buckets as
-layers of one stack, not a taxonomy. Start with `# The Landscape of LLM Knowledge Systems`.
+Read `config/domain.ts` for bucket definitions, the `fieldMapTitle`, stack order, and `crossCuttingThemes`.
+
+Write `wiki/field-map.md`, a systems map that treats the taxonomy buckets as
+layers of one stack, not a taxonomy. Use the `fieldMapTitle` from `config/domain.ts` as the H1.
 
 ## Prerequisites
 
-Read all 5 synthesis articles before writing:
-- `wiki/knowledge-bases.md`
-- `wiki/agent-memory.md`
-- `wiki/context-engineering.md`
-- `wiki/agent-systems.md`
-- `wiki/self-improving.md`
+Read the synthesis article for each bucket defined in `config/domain.ts` (one file per bucket at `wiki/{bucket-id}.md`).
 
 ## Structure
 
-### 1. Five Layers (one paragraph per bucket)
+### 1. Layers (one paragraph per bucket)
 
 Name the central engineering problem each bucket solves. Link to the synthesis
-article. Frame them as layers of a single stack, bottom to top:
-knowledge-bases -> agent-memory -> context-engineering -> agent-systems -> self-improving.
+article. Frame them as layers of a single stack in the order defined in `config/domain.ts` (first bucket is bottom, last is top).
 
 ### 2. Integration Points
 
@@ -59,15 +55,7 @@ realistic workflow that touches all 5 layers.
 
 ### 7. Cross-Cutting Themes
 
-4-6 patterns that span multiple layers:
-- Markdown as universal interchange format
-- Git as infrastructure (versioning, diff, collaboration)
-- Finite attention budget (context window as scarce resource)
-- Agent as author (LLMs writing for LLMs)
-- Emergence of forgetting (decay, pruning, garbage collection)
-- Binary evaluation (pass/fail over Likert scales)
-
-One paragraph per theme. Cite specific examples.
+Use the `crossCuttingThemes` from `config/domain.ts`. One paragraph per theme. Cite specific examples.
 
 ### 8. Reading Guide
 
@@ -84,7 +72,7 @@ nodes max).
 
 ```yaml
 ---
-title: "The Landscape of LLM Knowledge Systems"
+title: "<fieldMapTitle from config/domain.ts>"
 type: field-map
 last_compiled: "YYYY-MM-DD"
 ---

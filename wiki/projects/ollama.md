@@ -3,9 +3,9 @@ entity_id: ollama
 type: project
 bucket: agent-systems
 abstract: >-
-  Ollama runs large language models locally via a Docker-like CLI, providing
-  OpenAI-compatible API endpoints so agent frameworks can use local models
-  without cloud dependencies.
+  Ollama: local LLM inference runtime with Docker-style CLI and
+  OpenAI-compatible REST API, enabling consumer hardware to run models like
+  Llama, Mistral, and DeepSeek without cloud dependencies.
 sources:
   - repos/greyhaven-ai-autocontext.md
   - repos/caviraoss-openmemory.md
@@ -13,103 +13,94 @@ sources:
   - deep/repos/tirth8205-code-review-graph.md
   - deep/repos/mem0ai-mem0.md
 related:
-  - Anthropic
-  - OpenAI
-  - Model Context Protocol
-  - vLLM
-  - vLLM
-last_compiled: '2026-04-05T20:31:54.232Z'
+  - openai
+  - anthropic
+  - mcp
+  - vllm
+  - claude-code
+last_compiled: '2026-04-06T02:06:28.469Z'
 ---
 # Ollama
 
 ## What It Does
 
-Ollama lets you download and run large language models on your own hardware. The workflow mirrors Docker: `ollama pull llama3.2` downloads a model, `ollama run llama3.2` opens an interactive prompt, and a local REST API accepts the same JSON your code already sends to OpenAI. No cloud account, no per-token billing, no data leaving your machine.
+Ollama runs open-source large language models on local hardware. It wraps model weights, inference configuration, and a REST server into a single process — similar to how Docker packages application runtimes, but for LLMs. A user runs `ollama run llama3.2` and gets an interactive chat prompt within seconds; applications call `http://localhost:11434/api/generate` or the OpenAI-compatible `/v1/chat/completions` endpoint.
 
-In the agent and knowledge base space, Ollama shows up as the local LLM backend for tools like [Mem0](../projects/mem0.md), [Autocontext](../projects/autocontext.md), and [OpenMemory](../projects/openmemory.md). Each of those systems lists Ollama as a supported provider alongside Anthropic and OpenAI, meaning you can swap in a local model by changing one config line.
+The key differentiator: Ollama treats models as first-class artifacts. It manages model downloads, versioning, and storage through a `Modelfile` system (analogous to Dockerfiles) that encodes quantization format, system prompts, and parameter settings. This makes model configuration reproducible and shareable.
 
-## Architecture
+## Core Mechanism
 
-Ollama runs as a local server (default port 11434) that manages model storage, loading, and inference. The server exposes two API surfaces:
+Ollama is written in Go, with inference delegated to [llama.cpp](https://github.com/ggerganov/llama.cpp) under the hood. The Go layer handles:
 
-- **Native REST API** at `/api/generate` and `/api/chat` — Ollama's own JSON format with streaming via newline-delimited JSON
-- **OpenAI-compatible endpoints** at `/v1/chat/completions` — drop-in replacement for the OpenAI SDK
+- **REST API server** — OpenAI-compatible `/v1/` routes plus Ollama-native `/api/` routes. The `/v1/chat/completions` compatibility layer means any OpenAI SDK can point at `http://localhost:11434` with no code changes.
+- **Model registry** — Models are pulled from `ollama.com/library` or custom registries. Weights are stored as GGUF files (llama.cpp's quantized format) in `~/.ollama/models/`.
+- **Modelfile system** — A `Modelfile` specifies the base model, system prompt, parameter overrides (temperature, context length, stop tokens), and adapter layers. `ollama create my-model -f Modelfile` bakes these into a named local model.
+- **Hardware abstraction** — Ollama auto-detects CUDA (NVIDIA), Metal (Apple Silicon), ROCm (AMD), and Vulkan (cross-platform GPU). CPU fallback via AVX2/AVX512 SIMD. The Go layer routes inference to the appropriate llama.cpp backend.
+- **Concurrent request handling** — The server queues requests and manages GPU memory allocation. Multiple models can be loaded simultaneously up to VRAM limits; LRU eviction handles overflow.
 
-Models are stored as GGUF files (or pulled from the Ollama model library) and run via [llama.cpp](https://github.com/ggerganov/llama.cpp) under the hood. Ollama handles GPU detection automatically — it will use CUDA on NVIDIA, Metal on Apple Silicon, or CPU if neither is available.
-
-The `Modelfile` format (analogous to Dockerfile) lets you customize a model's system prompt, temperature, and other parameters, then save it as a named model: `ollama create my-assistant -f ./Modelfile`.
-
-## Integration Points
-
-The most common integration pattern in agent systems: set the provider to `ollama` and point it at `http://localhost:11434`. From the [Autocontext](../projects/autocontext.md) source, Ollama appears in `providers/` as one of several LLM backends, alongside Anthropic and OpenAI-compatible APIs. The [Autocontext](../projects/autocontext.md) system also uses Ollama for frontier-to-local distillation — after a scenario runs on a frontier model, Autocontext can route future runs through a fine-tuned local model served by Ollama.
-
-[Mem0](../projects/mem0.md) lists Ollama as one of 16 supported LLM providers and one of 11 embedding providers. Since Mem0's core mechanism is two LLM calls per memory addition (fact extraction + reconciliation), running Ollama locally eliminates API costs for high-volume memory operations.
-
-[OpenMemory](../projects/openmemory.md) lists Ollama in its embedding engine options alongside OpenAI and Gemini.
-
-[Code-review-graph](../projects/code-review-graph.md) uses Ollama optionally for wiki generation — LLM-powered community summaries via `wiki.py`.
-
-Ollama also implements the [Model Context Protocol](../concepts/model-context-protocol.md), meaning MCP-compatible clients can use it as a local model backend.
+The `Modelfile` system deserves attention as an architectural choice. Rather than storing raw weights and handling configuration at runtime, Ollama embeds system prompts and defaults into the model artifact. This means `ollama run codellama` always starts with code-optimized defaults — the configuration travels with the model.
 
 ## Key Numbers
 
-Ollama's GitHub repository has over 100,000 stars (as of early 2025), making it one of the most starred developer tools in the local LLM space. These figures are self-reported via GitHub's public star count — independently observable, though star counts measure interest rather than production usage.
-
-Performance numbers depend entirely on hardware and model size. On Apple M-series chips, a 7B parameter model (e.g., Llama 3.2 7B) typically generates 30–60 tokens per second. A 70B model on the same hardware runs at 5–10 tokens per second. These figures come from community benchmarks and vary significantly by quantization level (Q4 vs Q8) and specific hardware.
+- **GitHub stars**: ~120,000 (as of mid-2025) — one of the most-starred LLM tooling repositories. Independently verifiable on GitHub.
+- **Models supported**: 100+ models in the official library including Llama 3.x, Mistral, Gemma, Phi, DeepSeek, Qwen, and others. Community-contributed models extend this further.
+- **API compatibility**: Full OpenAI `/v1/chat/completions` and `/v1/embeddings` compatibility, enabling drop-in replacement in most OpenAI SDK integrations.
+- **Hardware floor**: 8GB RAM for 7B models; 16GB for 13B; 64GB+ for 70B+. Apple M-series chips handle 7B models well on 8GB unified memory. Performance benchmarks are hardware-dependent and self-reported by community members — treat token/second claims with caution unless your hardware matches.
 
 ## Strengths
 
-**Zero marginal cost per token.** For development, testing, and high-volume agent tasks that don't require frontier-model quality, Ollama eliminates per-request costs entirely. This matters for systems like Mem0 that make multiple LLM calls per user interaction.
+**Zero-infrastructure local inference.** No cloud accounts, no API keys, no rate limits, no data leaving the machine. For privacy-sensitive applications (legal, medical, personal knowledge bases), this matters.
 
-**Privacy by default.** Data never leaves your machine. For enterprise applications handling sensitive user data, or for development with real customer data, this removes a compliance concern rather than adding a mitigation.
+**OpenAI API drop-in.** The `/v1/` compatibility layer means LangChain, LiteLLM, and most agent frameworks switch to local inference by changing one URL. [LiteLLM](../projects/litellm.md) and [LangChain](../projects/langchain.md) both list Ollama as a supported provider.
 
-**OpenAI API compatibility.** Most agent frameworks already support OpenAI's chat completions format. Switching to Ollama requires changing a base URL and model name, not rewriting integration code.
+**[Model Context Protocol](../concepts/mcp.md) integration.** Ollama implements MCP, enabling it to serve as the inference backend for MCP-compatible agents and tools.
 
-**Embedding models.** Ollama serves embedding models (nomic-embed-text, mxbai-embed-large, etc.) using the same API, so you can run your entire RAG pipeline locally — not just the generation step.
+**Developer experience.** The CLI handles the painful parts of local LLM setup — quantization selection, VRAM management, model downloading — with single commands. `ollama pull mistral` downloads and caches; `ollama serve` starts the server.
 
-## Limitations
+**Scripting and automation.** The REST API is stateless and simple enough to curl directly. The Go binary has no Python dependency, making it embeddable in CI pipelines and scripts that prefer avoiding Python environments.
 
-**Hardware ceiling.** Model quality scales with parameter count, and parameter count scales with VRAM or unified memory. A developer laptop with 16GB RAM can run competitive 7B–13B models but will struggle with 70B models. Teams expecting GPT-4-class reasoning from local models will be disappointed.
+## Critical Limitations
 
-**Concrete failure mode — context window exhaustion on consumer hardware.** Ollama loads the full model and KV cache into memory. A 13B model at Q4 quantization requires roughly 8GB. Run a long conversation with a large context window and you'll hit OOM errors or forced quantization downgrades mid-session. The server doesn't warn you before this happens — it fails the request.
+**Concrete failure mode — context length vs. VRAM:** Ollama defaults to a 2048-token context window for many models to stay within consumer VRAM. Increasing context length (via `OLLAMA_NUM_CTX`) multiplies KV-cache memory consumption quadratically. A 7B model that runs at 4096 context on 8GB VRAM will OOM at 8192. The error messages are opaque — the server returns a generic error or hangs rather than clearly reporting the resource constraint. Users building [RAG](../concepts/rag.md) pipelines with large retrieved chunks hit this silently.
 
-**Unspoken infrastructure assumption — always-on local server.** Ollama assumes the server is running when your application calls it. In a development environment, this works fine. In a CI pipeline, a Docker container, or a serverless function, you need to explicitly start and manage the Ollama server process. Applications built on Ollama are not stateless by default.
+**Unspoken infrastructure assumption:** Ollama assumes persistent local storage with fast read access to multi-gigabyte model files. In containerized environments (Docker, Kubernetes), this means either volume mounting the model cache or re-downloading multi-GB weights on each container start. Production deployments require explicit volume management that the documentation does not address clearly. If you are running Ollama as part of a CI pipeline or ephemeral container, cold start time dominates.
 
-**Model quality gap.** Current open-weight models at practical sizes (7B–13B) are measurably behind GPT-4o or Claude Sonnet on complex reasoning, coding, and instruction following. For agent tasks that require reliable JSON output, multi-step reasoning, or nuanced instruction following, local models increase error rates.
+## When NOT to Use It
 
-**No fine-tuning in Ollama itself.** Ollama serves models; it doesn't train them. Workflows that need fine-tuned local models (like Autocontext's distillation pipeline) require separate tools (MLX, Unsloth, etc.) to produce the model file, which Ollama then serves.
+**High-concurrency production APIs.** Ollama is single-node by default. It handles concurrent requests via queuing, not parallel GPU workers. For serving 50+ concurrent requests, [vLLM](../projects/vllm.md) with PagedAttention and continuous batching is a substantially better choice — vLLM was designed for throughput maximization, Ollama for developer convenience.
 
-## When NOT to Use Ollama
+**Frontier model tasks.** If the task requires GPT-4-class reasoning, Ollama's locally-runnable models (typically 7B–70B parameter range) will underperform. The hardware constraints that make Ollama practical on consumer machines are the same constraints that limit model size. For agentic tasks requiring strong reasoning ([ReAct](../concepts/react.md), complex [task decomposition](../concepts/task-decomposition.md)), a hosted frontier model will outperform local 7B-13B models significantly.
 
-**When task quality is the primary constraint.** If your agent needs to reliably generate valid code, follow complex multi-step instructions, or reason across long contexts, current local models will fail more often than frontier models. The cost savings don't help if you spend them debugging model failures.
+**Teams requiring SLAs.** Ollama has no built-in load balancing, failover, or health monitoring beyond basic server liveness. Production reliability requires wrapping it in additional infrastructure that you build yourself.
 
-**When you need horizontal scaling.** Ollama runs on a single machine. If your application needs to serve many concurrent users, you need either multiple machines each running Ollama (complex to orchestrate) or a serving system designed for scale like [vLLM](../projects/vllm.md). vLLM supports continuous batching and can serve multiple requests per GPU simultaneously; Ollama does not.
-
-**When the team isn't managing local infrastructure.** Ollama requires someone to keep the server running, monitor for OOM conditions, update models, and manage disk space (models are large — a 70B model is 40+ GB). For teams without infrastructure ownership, a managed API is operationally simpler.
-
-**In serverless or ephemeral environments.** Lambda functions, GitHub Actions runners, and similar environments don't support persistent local servers. Ollama's architecture assumes a long-running process.
-
-## Alternatives
-
-**[vLLM](../projects/vllm.md)**: Use when you need production-scale serving — continuous batching, tensor parallelism across multiple GPUs, PagedAttention for efficient memory use. vLLM is harder to set up than Ollama but handles concurrent load that would overwhelm Ollama's single-request model.
-
-**Anthropic / OpenAI APIs**: Use when task quality matters more than cost or privacy. Frontier models are still measurably better at complex agent tasks. Both providers offer usage-based pricing that scales to zero.
-
-**LM Studio**: Use when you want a GUI for model management and don't need an always-on server. LM Studio is Ollama's closest desktop alternative, with a friendlier interface but less CLI composability.
-
-**llama.cpp directly**: Use when you need maximum control over inference parameters, want to avoid the Ollama daemon, or are embedding inference into a compiled application. Ollama wraps llama.cpp; using it directly removes the abstraction layer.
+**Multi-modal workloads at scale.** Vision model support exists (LLaVA, etc.) but is less optimized than the text-only path. For production multi-modal inference, dedicated solutions are more appropriate.
 
 ## Unresolved Questions
 
-**Governance and model licensing.** Ollama's model library hosts models with varying licenses (Meta's Llama license, Apache 2.0, MIT, and others). Ollama doesn't enforce license compliance — you can `ollama pull` a model and use it commercially without Ollama blocking you, even if the model license prohibits commercial use. The burden of license verification falls entirely on the user.
+**Governance and roadmap transparency.** Ollama is developed by a small company (acquired by Nvidia in 2024 per public reporting). Long-term product direction, open-source commitment, and how commercial interests affect the library's priorities are not publicly documented.
 
-**Multi-GPU coordination.** Ollama uses multiple GPUs when available, but the behavior for models that exceed a single GPU's VRAM is not fully documented. Whether it does tensor parallelism or falls back to CPU offloading depends on the specific setup, and the behavior has changed across versions.
+**Cost at scale for the registry.** Model weights are hosted on `ollama.com`. Bandwidth costs for pulling 70B+ models (40GB+ downloads) at scale are absorbed by Ollama's infrastructure. The sustainability model for this hosting is not publicly explained — there is no pricing tier for high-volume pulls.
 
-**Long-term model availability.** Ollama's model library (ollama.com/library) hosts model files. If Ollama discontinues hosting or changes the library, applications pulling models by name break. There's no SLA or archival commitment for model availability.
+**Conflict resolution for Modelfile inheritance.** When a custom Modelfile extends a base model that later updates (breaking changes to system prompt format, tokenizer changes), there is no documented migration path. The behavior of existing Modelfile derivatives after a base model update is not specified.
 
-## Related
+**Multi-GPU scheduling.** Ollama can use multiple GPUs but the scheduling strategy (how it splits layers across devices) is not publicly documented. For users with heterogeneous GPU setups, predicting performance requires empirical testing.
 
-- [Model Context Protocol](../concepts/model-context-protocol.md) — Ollama implements MCP for local model access
-- [vLLM](../projects/vllm.md) — Production-scale alternative for concurrent serving
-- [Mem0](../projects/mem0.md) — Uses Ollama as one of 16 LLM provider options
-- [Autocontext](../projects/autocontext.md) — Uses Ollama for local model routing and distillation targets
+## Alternatives and Selection Guidance
+
+**Use [vLLM](../projects/vllm.md)** when you need production-grade throughput, multi-GPU scaling, or are deploying to a GPU cluster. vLLM's PagedAttention handles concurrent requests efficiently; Ollama does not.
+
+**Use LM Studio** when you want a GUI for model management and testing. LM Studio provides a graphical interface on top of similar llama.cpp-based inference — better for non-developers exploring models.
+
+**Use [LiteLLM](../projects/litellm.md)** when you need a unified API gateway across multiple local and cloud providers simultaneously. LiteLLM can route to Ollama as one backend among many, adding load balancing and fallback logic that Ollama lacks natively.
+
+**Use [OpenAI](../projects/openai.md) or [Anthropic](../projects/anthropic.md) APIs** when task quality matters more than data privacy or cost. For complex reasoning, instruction following, or agentic tasks where model capability is the bottleneck, hosted frontier models outperform locally-runnable open models on most benchmarks.
+
+**Use Ollama** when: you need air-gapped operation, privacy requirements prohibit cloud APIs, you are prototyping locally before deploying with a heavier stack, or you are building developer tooling that should work without external dependencies.
+
+## Relationship to Broader Agent Ecosystem
+
+Ollama serves as an inference backend for several agent memory and knowledge systems. The [Mem0](../projects/mem0.md) source material lists Ollama as one of 16 supported LLM providers. The autocontext system lists Ollama in its `providers/` abstraction layer alongside Anthropic and OpenAI-compatible backends. The OpenMemory project lists Ollama as a supported embedding provider.
+
+For [RAG](../concepts/rag.md) pipelines, Ollama handles both the generative and embedding components — `ollama pull nomic-embed-text` provides embeddings; `ollama pull llama3.2` handles generation. This self-contained stack lets developers build complete retrieval pipelines without any external API dependencies, which matters for organizations with strict data governance requirements.
+
+The [Model Context Protocol](../concepts/mcp.md) implementation means Ollama can serve as the backing LLM for MCP-compatible agent frameworks, though the protocol's tool-use capabilities depend on the underlying model's ability to follow tool-call formats, which varies significantly across open-source models.

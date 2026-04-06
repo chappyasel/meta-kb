@@ -3,245 +3,268 @@ entity_id: rag
 type: concept
 bucket: knowledge-bases
 abstract: >-
-  RAG augments LLM generation by retrieving relevant documents from an external
-  store at inference time, grounding responses in specific knowledge without
-  retraining the model.
+  RAG retrieves relevant documents from an external store and includes them in
+  the LLM's context window, grounding responses in specific content without
+  retraining the model. The key differentiator is decoupling knowledge from
+  model weights.
 sources:
   - tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md
   - tweets/omarsar0-universal-claude-md-claims-to-cut-claude-output-t.md
+  - repos/getzep-graphiti.md
   - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
   - tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md
-  - repos/getzep-graphiti.md
+  - repos/zhongwanjun-memorybank-siliconfriend.md
   - repos/aiming-lab-simplemem.md
-  - repos/orchestra-research-ai-research-skills.md
+  - repos/microsoft-llmlingua.md
   - repos/supermemoryai-supermemory.md
   - repos/osu-nlp-group-hipporag.md
-  - repos/microsoft-llmlingua.md
+  - repos/orchestra-research-ai-research-skills.md
+  - repos/memorilabs-memori.md
+  - repos/mirix-ai-mirix.md
   - repos/kevin-hs-sohn-hipocampus.md
   - repos/thedotmack-claude-mem.md
   - repos/wangyu-ustc-mem-alpha.md
   - repos/caviraoss-openmemory.md
-  - repos/volcengine-openviking.md
-  - repos/topoteretes-cognee.md
-  - repos/evoagentx-evoagentx.md
-  - repos/mem0ai-mem0.md
-  - repos/kepano-obsidian-skills.md
   - repos/infiniflow-ragflow.md
+  - repos/yusufkaraaslan-skill-seekers.md
+  - repos/kepano-obsidian-skills.md
   - repos/agent-on-the-fly-memento.md
   - repos/michaelliv-napkin.md
+  - repos/mem0ai-mem0.md
   - papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md
+  - papers/mei-a-survey-of-context-engineering-for-large-language.md
   - papers/zhang-agentic-context-engineering-evolving-contexts-for.md
-  - repos/laurian-context-compression-experiments-2508.md
   - papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md
   - papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
   - papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
-  - papers/mei-a-survey-of-context-engineering-for-large-language.md
   - articles/fabricio-q-memory-in-agents-episodic-vs-semantic-and-the-h.md
   - articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md
   - >-
     articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md
   - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
-  - deep/repos/volcengine-openviking.md
+  - deep/repos/gepa-ai-gepa.md
   - deep/repos/caviraoss-openmemory.md
   - deep/repos/letta-ai-letta.md
   - deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md
   - deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
 related:
-  - Claude Code
-  - Claude
-  - Andrej Karpathy
-  - GraphRAG
-  - Knowledge Graph
-  - Vector Database
-  - Agent Memory
-  - Model Context Protocol
-  - Context Management
-  - Context Engineering
-  - Hybrid Retrieval
-  - Episodic Memory
-  - Semantic Memory
-  - Context Compression
-  - LongMemEval
-  - A-MEM
-  - Graphiti
-  - LoCoMo
-  - Letta
-  - CrewAI
-  - LangChain
-  - ReAct
-  - GPT-4
-  - OpenAI
-  - Obsidian
-  - OpenClaw
-  - Mem0
-  - LangGraph
-  - Cursor
-  - OpenAI Codex
-  - LlamaIndex
-  - BM25
-  - LightRAG
-  - A-MEM
-  - Cognee
-  - RAGFlow
-last_compiled: '2026-04-05T20:21:47.962Z'
+  - mcp
+  - episodic-memory
+  - context-engineering
+  - graphrag
+  - obsidian
+  - mem0
+  - openai
+  - semantic-memory
+  - claude-code
+  - agent-memory
+  - knowledge-graph
+  - letta
+  - continual-learning
+  - hybrid-retrieval
+  - longmemeval
+  - andrej-karpathy
+  - claude
+  - cursor
+  - openclaw
+  - react
+  - langchain
+  - gemini
+  - bm25
+  - graphiti
+  - zep
+  - langgraph
+  - procedural-memory
+  - agentic-rag
+  - crewai
+  - vector-database
+  - core-memory
+  - supermemory
+  - grpo
+  - openai-codex
+  - windsurf
+  - progressive-disclosure
+  - vllm
+  - claude-md
+  - locomo
+  - chromadb
+  - ace
+last_compiled: '2026-04-06T01:57:21.537Z'
 ---
 # Retrieval-Augmented Generation (RAG)
 
 ## What It Is
 
-Retrieval-Augmented Generation couples a retrieval system with an LLM at inference time. When a query arrives, the system searches an external knowledge store, pulls relevant passages, and injects them into the LLM's context window alongside the original query. The LLM then generates a response grounded in the retrieved material rather than relying solely on knowledge baked into its weights during training.
+RAG connects LLMs to external knowledge at inference time. Rather than expecting a model to memorize everything in its weights during training, RAG retrieves relevant passages from a separate store and injects them into the prompt. The model then generates a response conditioned on both the query and the retrieved content.
 
-The core intuition: LLMs have fixed training cutoffs and forget specific facts under pressure from the statistical patterns of broad pretraining. RAG offloads precise factual recall to a retrieval index that can be updated, audited, and controlled without touching the model.
+The technique originated from a 2020 Facebook AI paper by Lewis et al. that combined a dense retrieval model (DPR) with a sequence-to-sequence generator (BART), but the label now covers a much broader class of systems: any architecture where retrieval augments generation.
 
-Introduced formally in the 2020 paper "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks" (Lewis et al., Facebook AI Research), RAG has since become the foundational approach for grounding LLMs in specific corpora, organizational knowledge, and private data.
+## Why It Matters
+
+LLMs have three fundamental limitations that RAG directly addresses:
+
+1. **Knowledge cutoffs**: Model weights encode training data up to a fixed date. RAG systems can retrieve from continuously updated stores.
+2. **Hallucination**: Models generate plausible-sounding but fabricated facts when they lack information. Grounding responses in retrieved passages reduces this, though does not eliminate it.
+3. **Context constraints**: Models cannot practically memorize entire document corpora. RAG selectively surfaces the relevant subset at query time.
+
+For production knowledge base systems, RAG is typically the starting point before more complex architectures like [GraphRAG](../projects/graphrag.md) or [Agentic RAG](../concepts/agentic-rag.md).
 
 ## How It Works
 
-A standard RAG pipeline has three components:
+A RAG pipeline has two phases: **indexing** (done offline) and **retrieval + generation** (done at query time).
 
-**Indexing** (offline): Documents are split into chunks (typically 256–2400 tokens), embedded into dense vectors using a model like `text-embedding-ada-002`, and stored in a vector database (Pinecone, pgvector, Weaviate, Chroma, etc.). Some pipelines also build sparse BM25 indexes over the same chunks for keyword search.
+### Indexing
 
-**Retrieval** (online): The user's query is embedded and compared against stored chunk vectors via approximate nearest neighbor search. Top-k chunks (typically 5–20) are selected by cosine similarity or a hybrid scoring function combining dense and sparse signals.
+1. **Chunking**: Documents split into fixed-size passages, typically 256-1024 tokens. Smaller chunks (256-512 tokens) yield more precise retrieval; larger chunks provide more context per retrieved passage. The chunk size decision propagates through everything downstream.
 
-**Generation** (online): Retrieved chunks are formatted into a prompt alongside the original query and passed to the LLM. The model generates a response that can cite or summarize the retrieved content.
+2. **Embedding**: Each chunk is encoded by a dense retrieval model (e.g., `text-embedding-ada-002`, E5, BGE) into a vector representation. The vector captures semantic meaning rather than keyword presence.
 
-The simplest possible pipeline in pseudocode:
+3. **Storage**: Vectors stored in a [vector database](../concepts/vector-database.md) ([ChromaDB](../projects/chromadb.md), [Pinecone](../projects/pinecone.md), Qdrant, pgvector). The original text is stored alongside the vector for retrieval.
 
-```python
-chunks = embed_and_index(documents)
-relevant = vector_search(embed(query), chunks, top_k=10)
-response = llm(system_prompt + format(relevant) + query)
+### Retrieval
+
+At query time, the user's query is embedded with the same model used during indexing. The vector database performs approximate nearest-neighbor (ANN) search to find the k most similar chunk vectors (typically k=5-20). These chunks are the retrieved passages.
+
+**[BM25](../concepts/bm25.md)** (a sparse, keyword-based algorithm) often complements dense retrieval. Sparse retrieval excels at exact matches — proper nouns, codes, technical terms — while dense retrieval handles semantic paraphrase. Combining both is [Hybrid Retrieval](../concepts/hybrid-retrieval.md), which consistently outperforms either alone.
+
+### Generation
+
+Retrieved chunks are assembled into a prompt with the original query:
+
+```
+Context:
+[chunk 1]
+[chunk 2]
+...
+
+Question: [user query]
+
+Answer:
 ```
 
-This basic pattern covers the majority of production RAG deployments.
+The LLM generates a response conditioned on this assembled prompt. Systems like [LangChain](../projects/langchain.md), [LangGraph](../projects/langgraph.md), and [LlamaIndex](../projects/llamaindex.md) provide framework abstractions for this pipeline. Production LLMs including [Claude](../projects/claude.md), [Gemini](../projects/gemini.md), and [OpenAI](../projects/openai.md) models all implement RAG patterns in their products.
 
-### Retrieval Variants
+## Variants and Extensions
 
-**Dense retrieval** uses learned semantic embeddings. Strong at paraphrase matching and cross-lingual queries. Weaker at exact term lookup and rare named entities.
+### GraphRAG
 
-**Sparse retrieval** (BM25) uses term frequency statistics. Strong at exact keyword matching, technical identifiers, and proper nouns. Weaker at semantic similarity.
+[GraphRAG](../projects/graphrag.md) replaces the flat vector index with a knowledge graph + hierarchical community summaries. The Microsoft paper on GraphRAG found it wins on multi-hop reasoning (+1 F1) and temporal queries (+23.3 F1 points) versus standard RAG, while RAG wins on single-hop factual queries (+1.77 F1). The key finding for practitioners: concatenating both retrieval approaches yields +6.4% on multi-hop tasks — the approaches are complementary, not competitive. The RAG vs GraphRAG systematic evaluation also found that graph construction misses roughly 34% of answer-relevant entities, creating a hard ceiling for pure graph approaches.
 
-**Hybrid retrieval** runs both, then merges ranked lists via reciprocal rank fusion or learned re-ranking. The [BM25](../projects/bm25.md) signal is an inexpensive complement to dense retrieval — relevant for any corpus with domain jargon, code, or proper names where semantic similarity fails.
+### Agentic RAG
 
-**Hierarchical / structured retrieval**: Systems like [OpenViking](../projects/openclaw-openviking.md) organize chunks in a filesystem-like tree and retrieve at the directory level before drilling into individual files. This preserves structural context that flat vector search discards and claims 43% retrieval accuracy improvement over flat vector search on the LoCoMo benchmark (self-reported by ByteDance's Volcengine team).
+[Agentic RAG](../concepts/agentic-rag.md) gives agents retrieval as a tool call rather than running retrieval before every generation. The agent decides when to retrieve, what to query, and can issue multiple retrieval calls across a reasoning chain. This pairs naturally with [ReAct](../concepts/react.md) — the agent interleaves retrieval tool calls with reasoning steps. Coding assistants like [Claude Code](../projects/claude-code.md), [Cursor](../projects/cursor.md), and [Windsurf](../projects/windsurf.md) use this pattern to pull relevant code context on demand.
 
-### Chunking Strategy
+### Hybrid Retrieval
 
-Chunk size is a first-order decision. From the GraphRAG paper: 600-token chunks extract approximately 2x more entity references than 2400-token chunks, but require 4x more LLM calls during indexing. Smaller chunks improve retrieval precision but hurt coherence — a retrieved 200-token chunk may lack the surrounding context needed to answer the question fully. Overlapping chunks (each chunk shares 20–50 tokens with its neighbors) partially address boundary effects.
+[Hybrid Retrieval](../concepts/hybrid-retrieval.md) combines dense (embedding-based) and sparse (BM25-based) retrieval, fusing scores via reciprocal rank fusion or weighted combination. Near-universally better than either alone. The main cost is running two retrieval systems.
 
-### Reranking
+### HippoRAG and RAPTOR
 
-After first-stage vector retrieval, a cross-encoder reranker scores each (query, chunk) pair jointly, typically improving precision at a latency cost of one additional model forward pass per candidate. Cross-encoders cannot run at index time (they require the query), so they only make sense as a second-stage filter over a small candidate pool.
+[HippoRAG](../projects/hipporag.md) takes inspiration from the hippocampal-cortical memory model, building associative memory structures that support multi-hop retrieval better than flat vector search. [RAPTOR](../projects/raptor.md) recursively clusters chunks and generates summaries at each level, enabling retrieval at multiple granularities — useful when queries require both high-level context and specific details.
 
-## Why RAG vs. Fine-Tuning vs. Full Context
+## Relationship to Other Memory Approaches
 
-Three approaches exist for incorporating specific knowledge into an LLM:
+RAG is one answer to the question: how does an agent access knowledge beyond its context window? The alternatives each make different tradeoffs:
 
-| Approach | Updates | Latency | Cost | Auditability |
-|---|---|---|---|---|
-| Fine-tuning | Model weights | Offline | High (training run) | None — baked in |
-| Long context | None | Per-inference | High (token cost) | Prompt is inspectable |
-| RAG | Index only | Per-inference | Low-moderate | Retrieval is inspectable |
+| Approach | Mechanism | Tradeoff |
+|---|---|---|
+| RAG | Retrieve and inject at query time | Fresh, scalable; no persistence between calls |
+| [Core Memory](../concepts/core-memory.md) / Letta blocks | Editable text in the system prompt | Agent-controlled; bounded by character limits |
+| [Semantic Memory](../concepts/semantic-memory.md) + [Episodic Memory](../concepts/episodic-memory.md) | Structured memory tiers with decay | Cognitively grounded; complex to tune |
+| [Knowledge Graph](../concepts/knowledge-graph.md) | Graph traversal over entities | Relational queries; expensive to build |
+| [Continual Learning](../concepts/continual-learning.md) | Update model weights | True internalization; catastrophic forgetting risk |
+| [Model Context Protocol](../concepts/mcp.md) | Standardized tool calls to data sources | Flexible; adds latency per call |
 
-RAG wins when knowledge changes frequently (daily/weekly), when you need to cite sources, when you have multiple knowledge domains with different update schedules, or when you cannot fine-tune the model (API-only access). Fine-tuning wins when the task requires style or format adaptation rather than factual grounding, and when the training set is large enough to teach generalizable patterns. Long context wins when the knowledge base is small enough to fit and the query always requires reading most of it.
+[Letta](../projects/letta.md)'s documentation draws the distinction explicitly: "retrieval (or RAG) is a tool for agent memory, it is not 'memory' in of itself." RAG surfaces information on demand; it does not enable learning or adaptation. Agents using Letta's `core_memory_replace` tool actually modify their own context window based on past interactions — RAG does not do this.
 
-Andrej Karpathy has argued that as context windows grow and per-token cost falls, RAG's value decreases — at sufficiently large and cheap context windows, you can put the entire knowledge base in every prompt. This argument has merit for small corpora but breaks down for enterprise knowledge bases with millions of documents.
-
-## RAG vs. GraphRAG
-
-The paper "From Local to Global: A GraphRAG Approach to Query-Focused Summarization" (Edge et al., Microsoft) and the systematic evaluation "RAG vs. GraphRAG" (Han et al.) establish a clear empirical pattern [Source](../raw/deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md) [Source](../raw/deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md):
-
-- RAG wins on single-hop factual queries (64.78 vs. 63.01 F1 on NQ)
-- [GraphRAG](../projects/graphrag.md) wins on multi-hop reasoning (64.60 vs. 63.88 F1 on HotPotQA) and temporal queries (49.06 vs. 25.73 F1) — a 23-point gap
-- Combining both (concatenating retrieval results) yields +6.4% improvement on multi-hop tasks over RAG alone
-
-The temporal reasoning gap is the clearest signal: graph structure captures time-ordered entity relationships that flat chunk retrieval systematically misses. For corpora where queries frequently ask "what changed" or "what came before," GraphRAG's advantage is substantial. For simple factual lookup, the overhead of graph construction (multiple LLM calls per chunk for entity extraction, Leiden community detection, community summarization) is not worth the modest quality improvement.
-
-[GraphRAG](../projects/graphrag.md) carries its own ceiling: ~34% of answer-relevant entities are missing from the constructed knowledge graph due to imperfect LLM extraction. This hard ceiling means KG-only approaches fail on roughly a third of queries requiring specific entities.
-
-## RAG vs. Learned Memory Systems
-
-Systems like [Letta](../projects/letta.md), [Mem0](../projects/mem0.md), and [OpenMemory](../projects/openmemory.md) layer memory management on top of RAG primitives and frame themselves as alternatives to "just RAG." The distinction is meaningful:
-
-RAG is stateless — it retrieves from a static index and generates. It does not learn from the conversation or update its store based on what the user said.
-
-Memory systems add write operations: they extract facts from interaction history, update stored representations, and manage which information persists across sessions. Letta's core_memory_replace and archival_memory_insert give agents explicit tools to modify their own retrieval index mid-conversation [Source](../raw/deep/repos/letta-ai-letta.md). OpenMemory's HSG applies sector-specific decay rates so episodic memories fade faster than semantic facts [Source](../raw/deep/repos/caviraoss-openmemory.md).
-
-For a single-session Q&A system over a fixed document corpus, RAG is sufficient and simpler. For a long-running agent that should remember user preferences, learn from past errors, or accumulate domain expertise over many sessions, memory systems address what RAG cannot.
-
-[Agent Memory](../concepts/agent-memory.md) is the broader concept of which RAG-based retrieval is one sub-component alongside [Episodic Memory](../concepts/episodic-memory.md) and [Semantic Memory](../concepts/semantic-memory.md).
+[Agent Memory](../concepts/agent-memory.md) architectures often layer RAG as one tier (archival or long-term retrieval) on top of faster-access in-context memory. Letta calls this archival memory and exposes it via an `archival_memory_search` tool. [Zep](../projects/zep.md) and [Graphiti](../projects/graphiti.md) add temporal reasoning on top of graph-structured memory.
 
 ## Strengths
 
-**Updatable knowledge**: Swap the index without retraining. This is the primary reason RAG dominates production deployments over fine-tuning.
+**Domain specificity without retraining**: Point a RAG system at a proprietary document corpus and the LLM immediately has access to that knowledge. No fine-tuning, no extended pre-training.
 
-**Auditable grounding**: Retrieved chunks are inspectable. You can log exactly what the model saw, enabling debugging and compliance workflows that are impossible with fine-tuned weights.
+**Citable outputs**: Retrieved passages provide source attribution. The model can quote or reference specific documents, which matters for enterprise trust.
 
-**Hallucination reduction on factual queries**: Grounding in retrieved text reduces (though does not eliminate) confabulation. Performance degrades gracefully — a retrieval failure means the model lacks context, not that it invents plausible-sounding falsehoods.
+**Knowledge updatability**: Update the index when documents change. No model retraining cycle.
 
-**Multi-tenant knowledge isolation**: Different users or teams can share an LLM while retrieving from separate indexes. Access control on the retrieval layer provides data separation without separate model deployments.
+**Cost-effectiveness at scale**: One LLM serves many knowledge bases via different indices. Fine-tuning a separate model per domain is impractical.
 
-**Scales to large corpora**: Vector indexes scale to hundreds of millions of documents. The LLM only sees the top-k retrieved chunks regardless of corpus size.
+**Works with any LLM**: RAG is model-agnostic. [vLLM](../projects/vllm.md), [LangChain](../projects/langchain.md), [CrewAI](../projects/crewai.md), and [ACE Framework](../concepts/ace.md) all implement it against different underlying models.
 
 ## Limitations
 
-### Concrete Failure Mode: Multi-Hop Retrieval Degradation
+### The Retrieval Quality Ceiling
 
-RAG retrieves based on query-to-chunk similarity at a single step. For a question like "Which projects did Alice lead after she joined the team that worked on the product Bob's company acquired in 2022?", the answer requires traversing a chain of entities. A single vector lookup returns chunks similar to the query surface string, not chunks along the reasoning chain. Each hop reduces retrieval accuracy multiplicatively. Hybrid approaches (pre-filtering by entity, iterative retrieval, or switching to GraphRAG) are needed. Most RAG deployments simply fail silently on these queries — the model produces a confident answer assembled from the wrong chunks.
+Everything downstream depends on whether the right chunks were retrieved. If the answer-relevant passage is not in the top-k results, no amount of generation quality fixes it. The systematic RAG vs GraphRAG evaluation found that graph extraction pipelines miss ~34% of answer-relevant entities — and flat vector retrieval has analogous failure modes on queries requiring cross-passage reasoning. A single retrieved chunk rarely contains enough context for multi-hop questions.
 
-### Infrastructure Assumption
+**Concrete failure mode**: A user asks "How did the policy change between the 2021 and 2023 versions affect the approval threshold?" Two relevant chunks exist — one from each document version — but the query embeds closest to the 2023 version only. The retrieved context is incomplete. The model either hallucinates a comparison or admits it cannot answer. Hybrid retrieval and multi-query expansion partially mitigate this but do not solve it.
 
-RAG assumes the corpus fits in a form that an embedding model can represent and an ANN index can search at inference latency. For code repositories with AST structure, legal documents with cross-reference networks, or temporal datasets where recency matters more than semantic similarity, vanilla embedding-based retrieval is a poor fit. OpenViking addresses code repositories via AST-based L1 overviews rather than raw text embedding; [LightRAG](../projects/lightrag.md) and [GraphRAG](../projects/graphrag.md) address relational structure. Selecting an embedding model and chunking strategy as if all text is equivalent is the most common RAG deployment error.
+### Unspoken Infrastructure Assumption
 
-## When NOT to Use RAG
+RAG assumes your documents are chunkable into semantically coherent, fixed-size passages. This works for text. It breaks for tabular data (row-level chunking loses column context), code (function boundaries do not align with token budgets), PDFs with complex layouts (charts, multi-column text, footnotes), and highly interdependent documents where meaning requires reading across sections.
 
-**When the query distribution is primarily multi-hop or temporal reasoning**: GraphRAG's +23-point advantage on temporal queries is too large to ignore. If your users regularly ask about relationships between entities, event sequences, or comparative analyses across the corpus, invest in [GraphRAG](../projects/graphrag.md) or [Hybrid Retrieval](../concepts/hybrid-retrieval.md).
+### No Persistent Learning
 
-**When the knowledge base is small and stable**: If the entire knowledge base fits in a context window (under ~100K tokens for modern models) and rarely changes, just put it all in the prompt. The retrieval pipeline adds latency, complexity, and failure modes for no benefit.
+RAG does not update based on user feedback. Every session starts fresh from the same index. Contrast with [Continual Learning](../concepts/continual-learning.md) or agent memory systems that adapt over time. For use cases requiring personalization — remembering this specific user's preferences, past decisions, or accumulated context — RAG alone is insufficient.
 
-**When the task is style or format adaptation**: RAG cannot teach a model to write in a specific voice, follow domain-specific formatting conventions, or apply judgment about which parts of retrieved content matter. Fine-tuning addresses these; RAG does not.
+### Chunk Size is a Load-Bearing Decision
 
-**When you need cross-session learning**: A RAG system over a static index does not learn from user feedback, correct its retrieval behavior, or accumulate knowledge from prior conversations. For agents that should improve with use, [Letta](../projects/letta.md), [Mem0](../projects/mem0.md), or [A-MEM](../projects/a-mem.md) address what RAG cannot.
+Smaller chunks improve retrieval precision but reduce per-chunk context. Larger chunks provide more context but reduce retrieval specificity. This parameter interacts with the embedding model, the re-ranking strategy, the LLM's context window, and the query distribution. Teams routinely underestimate how much this single decision affects end-to-end system quality.
 
-**When retrieval latency is a hard constraint**: Two model inference calls (embedding + generation) plus an ANN search add 100–500ms over a bare LLM call. For real-time voice applications or sub-200ms response requirements, RAG's overhead may be prohibitive.
+## When Not to Use RAG
+
+**When your queries require synthesizing an entire corpus.** Asking "What are the dominant themes across all our customer support tickets?" requires reading everything. RAG retrieves fragments; it cannot summarize a corpus. GraphRAG's community-based approach, or simple map-reduce over source text, handles this better.
+
+**When knowledge must be updated in real time.** Indexing pipelines have latency. If a document changes and the answer must reflect that change within seconds, RAG's offline indexing model is wrong for the problem.
+
+**When relational queries dominate.** "Who reported to Alice, and which of those people were involved in Project X?" requires graph traversal, not nearest-neighbor search. [Graphiti](../projects/graphiti.md) or [Knowledge Graph](../concepts/knowledge-graph.md) approaches handle this better.
+
+**When the latency budget is very tight.** Retrieval adds at minimum one embedding call plus a vector search. For sub-100ms inference requirements, pre-loading relevant context or caching is preferable.
+
+**When the corpus fits in the context window.** For small document sets that fit within modern 128K-200K token context windows, just include everything. Retrieval adds complexity and failure modes that are unnecessary when you can provide full context.
+
+## Benchmarks and Evaluation
+
+**HotPotQA**: Standard multi-hop QA benchmark requiring reasoning across multiple documents. RAG scores ~60-64 F1 (Llama 70B) on HotPotQA; GraphRAG (local search) scores ~64-65 F1. These numbers are from the Han et al. systematic evaluation — independently validated head-to-head comparison rather than self-reported.
+
+**NQ (Natural Questions)**: Single-hop factual retrieval. RAG scores 64.78-68.18 F1 (Llama 8B/70B); GraphRAG (local) scores 63.01-65.44 F1. RAG wins on single-hop. These numbers are also from the Han et al. evaluation.
+
+**[LongMemEval](../projects/longmemeval.md)**: Benchmark specifically for long-term memory in conversational agents, testing whether systems can accurately recall and reason over information from many prior sessions.
+
+Note on self-reported vs. verified: most RAG system benchmarks are self-reported by the systems' authors against their chosen datasets. The Han et al. RAG vs GraphRAG comparison is one of the more rigorous independent evaluations because it uses a unified evaluation protocol controlling for chunking, embedding models, and generation settings.
+
+## Implementation Landscape
+
+**Framework abstractions**: [LangChain](../projects/langchain.md) and [LlamaIndex](../projects/llamaindex.md) provide end-to-end RAG pipeline abstractions. [LangGraph](../projects/langgraph.md) enables RAG within stateful agent workflows.
+
+**Vector stores**: [ChromaDB](../projects/chromadb.md) (local, easy setup), [Pinecone](../projects/pinecone.md) (managed, production-scale), [Qdrant](../projects/qdrant.md) (open-source, production), pgvector (PostgreSQL extension, good for teams already on Postgres).
+
+**Optimization**: [DSPy](../projects/dspy.md) provides prompt optimization for RAG pipelines. GEPA (Genetic-Pareto optimizer, ICLR 2026 Oral) can optimize RAG pipeline parameters via execution trace analysis, achieving meaningful accuracy improvements through targeted reflection on failure cases.
+
+**Selection guidance**:
+- Use RAG when you need domain-specific knowledge, citability, and can live with retrieval as a single-pass operation
+- Use [GraphRAG](../projects/graphrag.md) when queries span entities across documents, require temporal reasoning, or need corpus-wide synthesis
+- Use [Hybrid Retrieval](../concepts/hybrid-retrieval.md) (RAG + BM25) when your corpus contains technical terms, codes, or names
+- Use [Agentic RAG](../concepts/agentic-rag.md) when the number of relevant documents per query varies widely or when multi-hop retrieval is needed
+- Use [Letta](../projects/letta.md) when memory must persist and evolve across sessions rather than being retrieved fresh each time
 
 ## Unresolved Questions
 
-**Optimal chunk size and strategy**: No consensus exists. The GraphRAG paper shows 600-token chunks extract 2x more entities than 2400-token ones. OpenViking uses AST-based extraction for code rather than fixed-size splitting. LlamaIndex and LangChain provide a menu of strategies without clear guidance on selection criteria. Most teams set chunk size once and never revisit it.
+**Chunk overlap and contamination**: Most implementations use overlapping chunks to avoid splitting information at boundaries. How much overlap is optimal, and how does it interact with deduplication during retrieval? Little rigorous work exists on this.
 
-**Embedding model selection**: Different embedding models have wildly different performance profiles across domains, languages, and query types. The field lacks standard evaluation harnesses that practitioners can run on their own data before committing to a model. Benchmark results on MTEB are useful baselines but do not substitute for domain-specific evaluation.
+**Embedding model drift**: When the embedding model is updated or replaced, all existing vectors become incompatible with new vectors. Re-indexing large corpora is expensive. Production RAG systems need a migration strategy for embedding model updates — documentation almost never addresses this.
 
-**Staleness at scale**: How stale can an index become before retrieval quality degrades meaningfully? For a knowledge base receiving hundreds of document updates per day, how do you balance re-indexing cost against retrieval quality? Incremental indexing strategies exist but their quality tradeoffs are not well-characterized.
+**Evaluation validity**: The Han et al. paper found LLM-as-judge evaluations exhibit significant position bias (reversing the order of RAG vs GraphRAG outputs can completely invert preference judgments). Most published RAG evaluations use LLM-as-judge. This calls into question any evaluation that does not control for presentation order and use multiple metrics.
 
-**Evaluation methodology**: The Han et al. paper found that LLM-as-judge evaluations exhibit significant position bias — reversing which system's answer appears first can completely invert the preference judgment. Practitioners evaluating their own RAG pipelines using GPT-4 as a judge may be measuring evaluation artifact rather than retrieval quality.
+**Cost at scale**: Indexing pipelines make assumptions about document update frequency. For corpora updated continuously (news feeds, live product catalogs), the cost and latency of maintaining a fresh index is rarely addressed in documentation or benchmarks.
 
-**Cost at scale**: Indexing large corpora with smaller chunks and gleanings (per GraphRAG) requires many LLM calls. For a 10M-token corpus at 600-token chunks, that is ~16,000 chunks times multiple extraction calls. At current API pricing, this can exceed the cost of training a small fine-tuned model. Published benchmarks rarely report indexing cost alongside retrieval quality.
+## Related Concepts
 
-## Related Concepts and Systems
-
-- [Hybrid Retrieval](../concepts/hybrid-retrieval.md): Combining dense and sparse signals for first-stage candidate selection
-- [Context Management](../concepts/context-management.md): How retrieved content competes with other context window contents
-- [Context Engineering](../concepts/context-engineering.md): Designing what goes into the context beyond naive chunk injection
-- [Context Compression](../concepts/context-compression.md): Reducing retrieved content to fit token budgets
-- [GraphRAG](../projects/graphrag.md): Graph-based extension for multi-hop and sensemaking queries
-- [LightRAG](../projects/lightrag.md): Lighter-weight graph RAG alternative
-- [LlamaIndex](../projects/llamaindex.md): Orchestration framework with extensive RAG primitives
-- [LangChain](../projects/langchain.md): Pipeline framework commonly used to assemble RAG systems
-- [Agent Memory](../concepts/agent-memory.md): Broader concept of which retrieval-based recall is one component
-- [LongMemEval](../projects/longmemeval.md): Benchmark for evaluating long-term memory including RAG-based approaches
-- [Graphiti](../projects/graphiti.md): Temporally-aware knowledge graph that extends RAG with explicit time reasoning
-- [Cognee](../projects/cognee.md): Graph-augmented RAG with entity extraction
-- [RAGFlow](../projects/ragflow.md): End-to-end RAG pipeline with document parsing focus
-
-## Alternatives
-
-**Use GraphRAG** when queries require multi-hop reasoning, comparison across entities, or temporal ordering. The +23-point gap on temporal queries and systematic advantage on multi-hop tasks justify the indexing cost for corpora queried repeatedly.
-
-**Use fine-tuning** when the task requires style adaptation, format consistency, or learning generalizable patterns from examples rather than retrieving specific facts.
-
-**Use long context** when the knowledge base is small (under ~100K tokens), stable, and the query always requires reading most of it. Context costs are falling; for small corpora this is often the simplest correct answer.
-
-**Use Letta or Mem0** when the system needs to learn from conversations, update beliefs based on new information, or accumulate expertise across sessions. These add a write layer that RAG lacks.
-
-**Use a hybrid (RAG + GraphRAG)** when you cannot predict query types in advance. Concatenating both retrieval results adds +6.4% on multi-hop tasks with predictable 2x retrieval cost — a straightforward tradeoff when query distribution is mixed.
+- [Hybrid Retrieval](../concepts/hybrid-retrieval.md): Combining dense and sparse retrieval
+- [Semantic Memory](../concepts/semantic-memory.md): RAG as one implementation of semantic memory in agents
+- [Agent Memory](../concepts/agent-memory.md): Broader taxonomy of memory types in AI systems
+- [Context Engineering](../concepts/context-engineering.md): The discipline of constructing what goes into the LLM's context window
+- [Agentic RAG](../concepts/agentic-rag.md): RAG as an agent tool call rather than a pipeline step
+- [Vector Database](../concepts/vector-database.md): The storage layer enabling approximate nearest-neighbor search
+- [BM25](../concepts/bm25.md): Sparse retrieval algorithm that complements dense embeddings
