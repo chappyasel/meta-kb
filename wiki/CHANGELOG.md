@@ -10,3 +10,4 @@ Compilation history for the meta-kb wiki.
 - **Claims:** 239 atomic claims extracted from synthesis articles
 - **Full eval:** 216 verifiable claims tested, 138 passed (63.9% accuracy)
 - **Auto-fix:** 4 source attribution errors corrected autonomously (Pass 8)
+- **Auto-fix:** 33/78 failures fixed, 45 flagged for human review.

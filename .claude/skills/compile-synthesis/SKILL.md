@@ -59,10 +59,12 @@ Every article starts with `<abstract></abstract>` tags before any headings. 1-2 
 ## Citation Rules
 
 - Cite actual source paths: `[Source](../raw/type/file.md)` or `[Source](../raw/deep/type/file.md)`
-- Every project links to its reference card: `[Mem0](projects/mem0.md)`
+- **Prefer deep/ sources for implementation claims.** If you cite an architectural detail, algorithm, or benchmark number, check whether `raw/deep/repos/` or `raw/deep/papers/` has a deeper analysis for that project. Cite the deep source, not the shallow README.
+- Every project links to its reference card using the **entity ID slug**: `[Mem0](projects/mem0.md)`. Do NOT use the display name as the filename (e.g., `retrieval-augmented-generation.md` is wrong, `rag.md` is right). Check that the linked file exists before writing.
 - Star counts on first mention only
 - Assess benchmark credibility: self-reported, peer-reviewed, or verified in code
 - When sources disagree, flag explicitly: "**Source conflict:** [Source A] claims X, while [Source B] claims Y."
+- If `build/lessons.md` exists, read it for known source attribution patterns from previous compilations.
 
 ## Frontmatter
 

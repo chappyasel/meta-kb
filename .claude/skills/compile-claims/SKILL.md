@@ -54,6 +54,14 @@ attribute to source B.
 Leave `source_refs` empty rather than guessing. Wrong attribution is worse
 than missing attribution.
 
+**Prefer deep/ sources for implementation claims.** If a claim describes
+architecture, algorithms, data structures, or specific benchmark methodology,
+the evidence is almost certainly in `raw/deep/repos/` or `raw/deep/papers/`,
+not the shallow README. Check both — cite the one that contains the detail.
+
+If `build/lessons.md` exists, read it for known attribution patterns from
+previous compilations.
+
 ### Temporal Scope
 
 For time-sensitive data (star counts, benchmark results, adoption numbers),

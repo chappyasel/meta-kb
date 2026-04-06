@@ -30,6 +30,10 @@ Agent-optimized topic index. MUST be under 2K tokens. Format:
   description + path
 - **Top Projects** section: 10-12 highest-relevance projects with
   `[bucket, stars, refs]: description -> path`
+  **Star count accuracy:** Only read star counts from `raw/repos/` source
+  files (the project's own repo metadata). Do NOT use star counts from
+  papers, tweets, or articles that mention the project — those often
+  contain another project's star count and cause data corruption.
 - **Key Concepts** section: 8-10 highest-relevance concepts with
   `[bucket]: description -> path`
 - **Meta** footer: compilation date, source/entity/edge counts, links to

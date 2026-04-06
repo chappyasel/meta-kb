@@ -82,7 +82,7 @@ Failure mode: memory poisoning. If a hallucinated "fact" gets stored as a user p
 
 [Voyager](projects/voyager.md) pioneered this with Minecraft: an agent proposes its own tasks, builds executable JavaScript skills, and expands its library over time without human direction. The skill library is the memory — each skill is verified code, not fuzzy text.
 
-[Acontext](projects/acontext.md) (3,264 stars) brings this to production agent tooling. When a task completes or fails, a distillation pass extracts what worked into a `SKILL.md` file. The Skill Agent decides whether to create a new skill or update an existing one. Crucially, skills are human-readable Markdown, not opaque vector embeddings. Retrieval is through `get_skill` tool calls — progressive disclosure rather than semantic top-k. [Source](../raw/repos/memodb-io-acontext.md)
+[Acontext](projects/acontext.md) (3,264 stars) brings this to production agent tooling. When a task completes or fails, a distillation pass extracts what worked into a `SKILL.md` file. The Skill Agent decides whether to create a new skill or update an existing one. Crucially, skills are human-readable Markdown, not opaque vector embeddings. Retrieval is through `get_skill` tool calls — progressive disclosure rather than semantic top-k. [Source](../raw/deep/repos/memodb-io-acontext.md)
 
 The tradeoff: skill files are debuggable and portable across LLMs. But they require an agent capable of writing correct, generalizable skill descriptions. Small models fail here; the skill description becomes too specific to the task that generated it.
 

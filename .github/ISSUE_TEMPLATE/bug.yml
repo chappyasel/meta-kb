@@ -1,0 +1,22 @@
+name: Bug Report
+description: Report a broken link, factual error, or compilation issue
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Factual error in wiki
+        - Broken link
+        - Compilation/script error
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What's wrong?
+      description: Include the file path and what you expected vs. what you found
+    validations:
+      required: true

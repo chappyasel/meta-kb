@@ -12,37 +12,23 @@ The [Knowledge Bases](knowledge-bases.md) synthesis covers the central question:
 ---
 
 
-## Knowledge Graph
-
 ```mermaid
 graph LR
-  subgraph knowledge-bases["LLM Knowledge Bases"]
-    obsidian["Obsidian"]
-    neo4j["Neo4j"]
-    cognee["Cognee"]
-  end
-  subgraph agent-memory["Agent Memory"]
-    locomo["LoCoMo"]
-    mem0["Mem0"]
-    graphiti["Graphiti"]
-  end
-  subgraph context-engineering["Context Engineering"]
-    llmlingua["LLMLingua"]
-    dspy["DSPy"]
-  end
-  subgraph agent-systems["Agent Systems"]
-    openai["OpenAI"]
-    langgraph["LangGraph"]
-    crewai["CrewAI"]
-  end
-  subgraph self-improving["Self-Improving Systems"]
-    seagent["SEAgent"]
-    skillweaver["SkillWeaver"]
-    evoagentx["EvoAgentX"]
-  end
-  langgraph -.-|implements| mem0
-```
+    KB["<b>Knowledge Bases</b><br/>Retrieve facts as they change"]
+    AM["<b>Agent Memory</b><br/>Persist across sessions"]
+    CE["<b>Context Engineering</b><br/>Fill the 128K token window"]
+    AS["<b>Agent Systems</b><br/>Acquire skills, coordinate"]
+    SI["<b>Self-Improving</b><br/>Turn failures into gains"]
 
+    KB -->|"extract"| AM -->|"route"| CE -->|"load"| AS -->|"eval"| SI
+    SI -.->|"update"| KB
+
+    style KB fill:#e74c3c,color:#fff
+    style AM fill:#3498db,color:#fff
+    style CE fill:#2ecc71,color:#fff
+    style AS fill:#f39c12,color:#fff
+    style SI fill:#9b59b6,color:#fff
+```
 
 ## The Unifying Architectural Idea
 

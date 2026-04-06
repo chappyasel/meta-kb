@@ -69,6 +69,34 @@ const SONNET_CONCURRENCY = 5;
 const FULL_ARTICLE_THRESHOLD_REFS = 3;        // raised: need 3+ source refs for full article (was 2)
 const FULL_ARTICLE_THRESHOLD_RELEVANCE = 7.0; // raised: need 7.0+ relevance for full article (was 6.0)
 
+// ─── Terminal UI ────────────────────────────────────────────────────────
+
+const cl = {
+  green: (s: string) => `\x1b[32m${s}\x1b[0m`,
+  red: (s: string) => `\x1b[31m${s}\x1b[0m`,
+  yellow: (s: string) => `\x1b[33m${s}\x1b[0m`,
+  cyan: (s: string) => `\x1b[36m${s}\x1b[0m`,
+  magenta: (s: string) => `\x1b[35m${s}\x1b[0m`,
+  bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
+  dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
+};
+
+function progressBar(current: number, total: number, width = 30): string {
+  const pct = total > 0 ? current / total : 0;
+  const filled = Math.round(pct * width);
+  return `${"█".repeat(filled)}${"░".repeat(width - filled)} ${current}/${total}`;
+}
+
+function passHeader(pass: string, title: string, detail?: string): void {
+  const detailStr = detail ? cl.dim(` (${detail})`) : "";
+  console.log(`\n${cl.cyan("═══")} ${cl.bold(`Pass ${pass}`)}${cl.cyan(":")} ${title}${detailStr} ${cl.cyan("═══")}`);
+}
+
+function elapsed(startMs: number): string {
+  const secs = ((Date.now() - startMs) / 1000).toFixed(1);
+  return cl.dim(`${secs}s`);
+}
+
 // ─── Provider ───────────────────────────────────────────────────────────
 
 let provider: ReturnType<typeof createAnthropic> | null = null;
@@ -128,7 +156,7 @@ interface RawEntity {
 // ─── Pass 0: Load & Index ───────────────────────────────────────────────
 
 async function loadSources(): Promise<SourceIndex> {
-  console.log("\n═══ Pass 0: Load & Index ═══");
+  passHeader("0", "Load & Index");
   const sources: ParsedSource[] = [];
 
   for (const type of ["tweets", "repos", "papers", "articles"]) {
@@ -250,11 +278,12 @@ const rawEntitySchema = z.object({
 });
 
 async function extractEntitiesPerSource(index: SourceIndex): Promise<RawEntity[]> {
-  console.log("\n═══ Pass 1a: Entity Extraction (per-source, Haiku) ═══");
+  passHeader("1a", "Entity Extraction", `Haiku × ${index.sources.length}, parallel`);
   const limit = pLimit(HAIKU_CONCURRENCY);
   const allRaw: RawEntity[] = [];
   let processed = 0;
   const total = index.sources.length;
+  const passStart = Date.now();
 
   // Detect curation sources (awesome-lists, skill catalogs) by link density
   // These produce entity spam — hundreds of name-drops with no analysis
@@ -270,7 +299,6 @@ async function extractEntitiesPerSource(index: SourceIndex): Promise<RawEntity[]
       try {
         // Skip curation sources (awesome-lists, skill catalogs) — they spam entity extraction
         if (isCurationSource(src)) {
-          console.log(`  ⏭ Skipping curation source: ${src.path} (${(src.body.match(/\[[^\]]*\]\(http[^)]*\)/g) || []).length} links)`);
           return;
         }
 
@@ -288,17 +316,16 @@ async function extractEntitiesPerSource(index: SourceIndex): Promise<RawEntity[]
           allRaw.push({ ...e, source_ref: src.path });
         }
       } catch (err) {
-        console.warn(`  ⚠ Failed to extract from ${src.path}: ${err}`);
+        console.warn(`  ${cl.yellow("⚠")} Failed to extract from ${src.path}: ${err}`);
       }
       processed++;
-      if (processed % 10 === 0) {
-        console.log(`  Pass 1a: ${processed}/${total} sources processed`);
-      }
+      process.stdout.write(`\r  ${progressBar(processed, total)} ${elapsed(passStart)}`);
     }),
   );
 
   await Promise.all(tasks);
-  console.log(`  Extracted ${allRaw.length} raw entity mentions from ${total} sources`);
+  process.stdout.write("\n");
+  console.log(`  ${cl.green("✓")} Extracted ${cl.bold(String(allRaw.length))} entity mentions from ${total} sources ${elapsed(passStart)}`);
 
   await writeFile(join(BUILD_DIR, "raw-entities.json"), JSON.stringify(allRaw, null, 2));
   return allRaw;
@@ -326,7 +353,7 @@ async function resolveEntities(
   rawEntities: RawEntity[],
   index: SourceIndex,
 ): Promise<Entity[]> {
-  console.log("\n═══ Pass 1b: Entity Resolution (Sonnet) ═══");
+  passHeader("1b", "Entity Resolution", "Sonnet × 1");
 
   // Build a summary of all raw mentions grouped by approximate name
   const mentionsByName = new Map<string, { count: number; sources: string[]; types: string[] }>();
@@ -431,7 +458,7 @@ const edgeClassificationSchema = z.object({
 });
 
 async function buildGraph(entities: Entity[], index: SourceIndex): Promise<KnowledgeGraph> {
-  console.log("\n═══ Pass 2: Graph Construction (Sonnet) ═══");
+  passHeader("2", "Graph Construction", "Sonnet × 1");
 
   // Find co-occurring entity pairs
   // Use 1+ shared sources (lowered from 2) to catch deep-source relationships,
@@ -610,7 +637,7 @@ async function generateSynthesisArticles(
   graph: KnowledgeGraph,
   index: SourceIndex,
 ): Promise<void> {
-  console.log("\n═══ Pass 3a: Synthesis Articles (Sonnet, sequential) ═══");
+  passHeader("3a", "Synthesis Articles", "Sonnet × " + Object.keys(BUCKET_TITLES).length + ", sequential");
   await mkdir(WIKI_DIR, { recursive: true });
 
   // Build entity link reference for LLM prompts — maps names to correct file paths
@@ -707,7 +734,7 @@ ${sourceContent}`,
 
       const output = matter.stringify(body, frontmatter);
       await writeFile(join(WIKI_DIR, `${bucket}.md`), output);
-      console.log(`  ✓ ${title} (${body.split("\n").length} lines)`);
+      console.log(`  ${cl.green("✓")} ${title} (${body.split("\n").length} lines)`);
     } catch (err) {
       console.error(`  ✗ Failed to generate ${title}: ${err}`);
     }
@@ -748,10 +775,9 @@ async function generateReferenceCards(
   graph: KnowledgeGraph,
   index: SourceIndex,
 ): Promise<void> {
-  console.log("\n═══ Pass 3b: Reference Cards (Sonnet, parallel) ═══");
-
   const fullEntities = entities.filter((e) => e.article_level === "full");
-  console.log(`  Generating cards for ${fullEntities.length} entities`);
+  passHeader("3b", "Reference Cards", `Sonnet × ${fullEntities.length}, parallel`);
+  const passStart = Date.now();
 
   // Build entity link reference for LLM prompts
   const entityLinkRef = fullEntities
@@ -844,18 +870,17 @@ ${sourceContent || "No direct sources — write from general knowledge, mark cla
         const output = matter.stringify(body, frontmatter);
         await writeFile(join(WIKI_DIR, dir, `${entity.id}.md`), output);
       } catch (err) {
-        console.warn(`  ⚠ Failed to generate card for ${entity.name}: ${err}`);
+        console.warn(`  ${cl.yellow("⚠")} Failed to generate card for ${entity.name}: ${err}`);
       }
 
       completed++;
-      if (completed % 10 === 0) {
-        console.log(`  Pass 3b: ${completed}/${fullEntities.length} cards generated`);
-      }
+      process.stdout.write(`\r  ${progressBar(completed, fullEntities.length)} ${elapsed(passStart)}`);
     }),
   );
 
   await Promise.all(tasks);
-  console.log(`  ✓ Generated ${completed} reference cards`);
+  process.stdout.write("\n");
+  console.log(`  ${cl.green("✓")} Generated ${cl.bold(String(completed))} reference cards ${elapsed(passStart)}`);
 }
 
 // ─── Pass 3c: Claim Extraction ─────────────────────────────────────────
@@ -898,7 +923,7 @@ Rules:
 10. Extract 25-40 claims per article. Aim for a mix: ~40% empirical, ~30% architectural, ~15% directional, ~15% comparative.`;
 
 async function extractClaims(index: SourceIndex): Promise<Claim[]> {
-  console.log("\n═══ Pass 3c: Claim Extraction (Sonnet, sequential) ═══");
+  passHeader("3c", "Claim Extraction", "Sonnet × " + Object.keys(BUCKET_TITLES).length + ", sequential");
 
   const allClaims: Claim[] = [];
   let claimCounter = 0;
@@ -906,7 +931,7 @@ async function extractClaims(index: SourceIndex): Promise<Claim[]> {
   for (const bucket of Object.keys(BUCKET_TITLES)) {
     const articlePath = join(WIKI_DIR, `${bucket}.md`);
     if (!existsSync(articlePath)) {
-      console.warn(`  ⚠ Synthesis article not found: ${bucket}.md`);
+      console.warn(`  ${cl.yellow("⚠")} Synthesis article not found: ${bucket}.md`);
       continue;
     }
 
@@ -934,9 +959,9 @@ async function extractClaims(index: SourceIndex): Promise<Claim[]> {
           temporal_scope: claim.temporal_scope,
         });
       }
-      console.log(`  ✓ ${bucket}: ${object.claims.length} claims extracted`);
+      console.log(`  ${cl.green("✓")} ${bucket}: ${object.claims.length} claims extracted`);
     } catch (err) {
-      console.warn(`  ⚠ Failed to extract claims from ${bucket}: ${err}`);
+      console.warn(`  ${cl.yellow("⚠")} Failed to extract claims from ${bucket}: ${err}`);
     }
   }
 
@@ -959,7 +984,7 @@ async function generateFieldMapAndIndexes(
   graph: KnowledgeGraph,
   index: SourceIndex,
 ): Promise<void> {
-  console.log("\n═══ Pass 4: Field Map + Indexes ═══");
+  passHeader("4", "Field Map + Indexes");
 
   // Read the 5 synthesis articles we just generated
   const syntheses: string[] = [];
@@ -1025,7 +1050,7 @@ ${Object.entries(graph.clusters).map(([k, v]) => `- ${v.label}: ${v.node_count} 
       last_compiled: new Date().toISOString(),
     };
     await writeFile(join(WIKI_DIR, "field-map.md"), matter.stringify(text, frontmatter));
-    console.log(`  ✓ field-map.md (${text.split("\n").length} lines)`);
+    console.log(`  ${cl.green("✓")} field-map.md (${text.split("\n").length} lines)`);
   } catch (err) {
     console.error(`  ✗ Failed to generate field-map: ${err}`);
   }
@@ -1100,7 +1125,7 @@ Last compiled: ${new Date().toISOString().split("T")[0]} | Sources: ${index.sour
     };
 
     await writeFile(join(WIKI_DIR, "ROOT.md"), matter.stringify(rootBody, rootFrontmatter));
-    console.log(`  ✓ ROOT.md (~${Math.ceil(wordCount * 1.3)} tokens, ${topProjects.length} projects, ${topConcepts.length} concepts)`);
+    console.log(`  ${cl.green("✓")} ROOT.md (~${Math.ceil(wordCount * 1.3)} tokens, ${topProjects.length} projects, ${topConcepts.length} concepts)`);
   }
 
   // Generate deterministic indexes
@@ -1131,10 +1156,10 @@ Last compiled: ${new Date().toISOString().split("T")[0]} | Sources: ${index.sour
   }).join("\n")}`;
   await writeFile(join(WIKI_DIR, "comparisons", "landscape.md"), landscapeTable);
 
-  console.log(`  ✓ indexes/projects.md (${projects.length} projects)`);
-  console.log(`  ✓ indexes/topics.md (${concepts.length} topics)`);
-  console.log(`  ✓ indexes/missing.md (${stubs.length} stubs)`);
-  console.log(`  ✓ comparisons/landscape.md (${projects.length} rows)`);
+  console.log(`  ${cl.green("✓")} indexes/projects.md (${projects.length} projects)`);
+  console.log(`  ${cl.green("✓")} indexes/topics.md (${concepts.length} topics)`);
+  console.log(`  ${cl.green("✓")} indexes/missing.md (${stubs.length} stubs)`);
+  console.log(`  ${cl.green("✓")} comparisons/landscape.md (${projects.length} rows)`);
 
   // Generate README.md
   const synthesisTable = domain.buckets
@@ -1171,7 +1196,7 @@ ${synthesisTable}
 - **${graph.edges.length}** relationships mapped across ${domain.buckets.length} topic areas
 `;
   await writeFile(join(WIKI_DIR, "README.md"), readmeMd);
-  console.log(`  ✓ README.md`);
+  console.log(`  ${cl.green("✓")} README.md`);
 }
 
 // ─── Pass 5: Mermaid + Backlinks ────────────────────────────────────────
@@ -1180,7 +1205,7 @@ async function addMermaidAndBacklinks(
   entities: Entity[],
   graph: KnowledgeGraph,
 ): Promise<void> {
-  console.log("\n═══ Pass 5: Mermaid + Backlinks ═══");
+  passHeader("5", "Diagrams + Backlinks");
 
   // HIGH-LEVEL MERMAID: top 3 per bucket, cross-bucket edges weight > 0.5
   const topPerBucket = new Map<string, Entity[]>();
@@ -1227,7 +1252,7 @@ async function addMermaidAndBacklinks(
       content += "\n\n## Knowledge Graph\n\n" + mermaid;
     }
     await writeFile(fieldMapPath, content);
-    console.log(`  ✓ Mermaid graph injected into field-map.md (${topIds.size} nodes, ${topEdges.length} edges)`);
+    console.log(`  ${cl.green("✓")} Mermaid graph injected into field-map.md (${topIds.size} nodes, ${topEdges.length} edges)`);
   }
 
   // BACKLINKS: Add Related section to each wiki article
@@ -1257,13 +1282,13 @@ async function addMermaidAndBacklinks(
       }
     }
   }
-  console.log(`  ✓ Backlinks added to ${backlinksAdded} articles`);
+  console.log(`  ${cl.green("✓")} Backlinks added to ${backlinksAdded} articles`);
 }
 
 // ─── Pass 6: Changelog ─────────────────────────────────────────────────
 
 async function generateChangelog(entities: Entity[], graph: KnowledgeGraph): Promise<void> {
-  console.log("\n═══ Pass 6: Changelog ═══");
+  passHeader("6", "Changelog");
 
   const now = new Date().toISOString().split("T")[0];
   const full = entities.filter((e) => e.article_level === "full").length;
@@ -1306,7 +1331,7 @@ Rules:
 - Reasonable paraphrasing is a PASS. Semantic equivalence counts. Only FAIL when the evidence is genuinely missing or contradicted.`;
 
 async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalReport> {
-  console.log("\n═══ Pass 7: Self-Eval (Sonnet, parallel) ═══");
+  passHeader("7", "Self-Eval", "Sonnet × " + EVAL_SAMPLE_SIZE + ", parallel");
 
   // Filter to claims with at least one source_ref
   const verifiable = claims.filter((c) => c.source_refs.length > 0);
@@ -1340,6 +1365,7 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
   const limit = pLimit(SONNET_CONCURRENCY);
   const results: EvalResult[] = [];
   let completed = 0;
+  const passStart = Date.now();
 
   const verifyTasks = sampled.map((claim) =>
     limit(async () => {
@@ -1369,18 +1395,17 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
           reason: object.reason,
         });
       } catch (err) {
-        console.warn(`  ⚠ Failed to verify ${claim.id}: ${err}`);
+        console.warn(`  ${cl.yellow("⚠")} Failed to verify ${claim.id}: ${err}`);
         // Skip on error, don't count as FAIL
       }
 
       completed++;
-      if (completed % 10 === 0) {
-        console.log(`  Pass 7: ${completed}/${sampled.length} verified`);
-      }
+      process.stdout.write(`\r  ${progressBar(completed, sampled.length)} ${elapsed(passStart)}`);
     }),
   );
 
   await Promise.all(verifyTasks);
+  process.stdout.write("\n");
 
   // Aggregate results
   const passed = results.filter((r) => r.verdict === "PASS").length;
@@ -1451,11 +1476,15 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
     await writeFile(changelogPath, existing.trimEnd() + "\n" + evalLine + "\n");
   }
 
-  console.log(`  ✓ Self-eval: ${passed}/${results.length} passed (${(accuracy * 100).toFixed(1)}% accuracy)`);
+  const accColor = accuracy >= 0.8 ? cl.green : accuracy >= 0.6 ? cl.yellow : cl.red;
+  console.log(`  ${cl.green("✓")} Self-eval: ${cl.bold(`${passed}/${results.length}`)} passed ${accColor(`(${(accuracy * 100).toFixed(1)}%)`)} ${elapsed(passStart)}`);
   if (failures.length > 0) {
-    console.log(`  ✗ Failures:`);
-    for (const f of failures) {
-      console.log(`    ${f.claim_id} (${f.article_ref}): ${f.reason}`);
+    console.log(`  ${cl.red("✗")} ${failures.length} failures:`);
+    for (const f of failures.slice(0, 5)) {
+      console.log(`    ${cl.dim(f.claim_id)} ${cl.dim("(" + f.article_ref + ")")}: ${f.reason.slice(0, 120)}`);
+    }
+    if (failures.length > 5) {
+      console.log(cl.dim(`    ... and ${failures.length - 5} more (see build/eval-report.json)`));
     }
   }
 
@@ -1480,7 +1509,7 @@ async function verifyClaim(claim: Claim, source: ParsedSource): Promise<boolean>
 }
 
 async function autoFixClaims(claims: Claim[], index: SourceIndex): Promise<void> {
-  console.log("\n═══ Pass 8: Auto-Fix (Sonnet) ═══");
+  passHeader("8", "Auto-Fix", "Sonnet, sequential");
 
   let evalReport: EvalReport;
   try {
@@ -1503,7 +1532,7 @@ async function autoFixClaims(claims: Claim[], index: SourceIndex): Promise<void>
     const claim = claims.find((c) => c.id === failure.claim_id);
     if (!claim || claim.source_refs.length === 0) {
       unfixable++;
-      console.log(`  ✗ ${failure.claim_id}: no source refs to fix`);
+      console.log(`  ${cl.red("✗")} ${failure.claim_id}: no source refs to fix`);
       continue;
     }
 
@@ -1560,10 +1589,10 @@ async function autoFixClaims(claims: Claim[], index: SourceIndex): Promise<void>
       // Update the claim's source_refs
       claim.source_refs = claim.source_refs.map((r) => (r === originalRef ? newRef! : r));
       fixed++;
-      console.log(`  ✓ ${failure.claim_id}: ${originalRef} → ${newRef}`);
+      console.log(`  ${cl.green("✓")} ${failure.claim_id}: ${originalRef} → ${newRef}`);
     } else {
       unfixable++;
-      console.log(`  ✗ ${failure.claim_id}: no better source found`);
+      console.log(`  ${cl.red("✗")} ${failure.claim_id}: no better source found`);
     }
   }
 
@@ -1586,6 +1615,49 @@ async function autoFixClaims(claims: Claim[], index: SourceIndex): Promise<void>
         `\n- **Auto-fix:** ${fixed}/${evalReport.failures.length} failures fixed, ${unfixable} flagged for human review.\n`,
     );
   }
+
+  // Generate lessons.md for future compilations
+  const fixedRefs = evalReport.failures
+    .filter((f) => {
+      const claim = claims.find((c) => c.id === f.claim_id);
+      return claim && claim.source_refs.some((r) => r !== f.source_ref);
+    })
+    .map((f) => `- ${f.claim_id}: ${f.source_ref} → fixed`);
+
+  const unfixableReasons = evalReport.failures
+    .filter((f) => {
+      const claim = claims.find((c) => c.id === f.claim_id);
+      return !claim || !claim.source_refs.some((r) => r !== f.source_ref);
+    })
+    .map((f) => `- ${f.claim_id} (${f.article_ref}): ${f.reason.slice(0, 150)}`);
+
+  const lessons = `# Lessons from Previous Compilation
+
+Generated automatically by Pass 8 (auto-fix). Read by compile-wiki skill at next compilation.
+
+## Source Attribution
+
+Claims about implementation details (architecture, algorithms, data structures, specific benchmarks) are almost always in deep/ sources. When citing a specific number or mechanism, prefer \`raw/deep/repos/\` or \`raw/deep/papers/\` over the shallow source.
+
+${fixedRefs.length > 0 ? `### Fixed this run\n${fixedRefs.join("\n")}` : ""}
+
+${unfixableReasons.length > 0 ? `### Unfixable (flag for human review)\n${unfixableReasons.join("\n")}` : ""}
+
+## Entity Links
+
+Use entity ID slugs for link paths, not display names. Example: \`concepts/rag.md\` not \`concepts/retrieval-augmented-generation.md\`. Check that the target file exists before writing a link.
+
+## Star Counts
+
+Only read GitHub star counts from \`raw/repos/\` source files (the project's own repo metadata). Papers, tweets, and articles may reference other projects' star counts — using those causes data corruption across entities.
+
+## Diagrams
+
+The field-map.md diagram should show the 5-layer architectural stack with central problems and integration points. Do NOT generate a random project-node graph.
+`;
+
+  await writeFile(join(BUILD_DIR, "lessons.md"), lessons);
+  console.log(`  ${cl.green("✓")} build/lessons.md updated (${fixedRefs.length} fixes, ${unfixableReasons.length} unfixable patterns)`);
 
   console.log(`\n  Auto-fix complete: ${fixed} fixed, ${unfixable} unfixable`);
 }
@@ -1683,13 +1755,14 @@ async function patchReadmeStats(
 // ─── Main ───────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log("╔══════════════════════════════════════════════╗");
-  console.log(`║        ${domain.name} compiler v0.2.0               ║`);
-  console.log("╚══════════════════════════════════════════════╝");
-  if (DRY_RUN) console.log("  [DRY RUN — no files will be written]");
-  if (FROM_PASS) console.log(`  [Resuming from pass ${FROM_PASS}]`);
-  if (TO_PASS) console.log(`  [Stopping after pass ${TO_PASS}]`);
+  console.log(cl.cyan("╔══════════════════════════════════════════════╗"));
+  console.log(cl.cyan(`║  `) + cl.bold(`${domain.name} compiler`) + cl.dim(` v0.2.0`) + cl.cyan(`               ║`));
+  console.log(cl.cyan("╚══════════════════════════════════════════════╝"));
+  if (DRY_RUN) console.log(cl.yellow("  [DRY RUN — no files will be written]"));
+  if (FROM_PASS) console.log(cl.dim(`  [Resuming from pass ${FROM_PASS}]`));
+  if (TO_PASS) console.log(cl.dim(`  [Stopping after pass ${TO_PASS}]`));
 
+  const compileStart = Date.now();
   let index: SourceIndex;
   let rawEntities: RawEntity[];
   let entities: Entity[];
@@ -1743,9 +1816,14 @@ async function main() {
   if (shouldRunPass("3c")) {
     claims = await extractClaims(index);
   } else {
-    const claimsFile = await loadBuildArtifact<ClaimsFile>("claims.json");
-    claims = claimsFile.claims;
-    console.log(`\n  [Skipped Pass 3c — loaded ${claims.length} claims from disk]`);
+    try {
+      const claimsFile = await loadBuildArtifact<ClaimsFile>("claims.json");
+      claims = claimsFile.claims;
+      console.log(`\n  [Skipped Pass 3c — loaded ${claims.length} claims from disk]`);
+    } catch {
+      claims = [];
+      console.log(`\n  [Skipped Pass 3c — no claims.json found, using empty set]`);
+    }
   }
 
   // Pass 4
@@ -1778,13 +1856,38 @@ async function main() {
 
   const full = entities.filter((e) => e.article_level === "full").length;
   const stub = entities.filter((e) => e.article_level === "stub").length;
-  console.log("\n════════════════════════════════════");
-  console.log("  Compilation complete.");
-  console.log(`  Sources: ${index.sources.length}`);
-  console.log(`  Entities: ${entities.length} (${full} full, ${stub} stub)`);
-  console.log(`  Graph: ${graph.nodes.length} nodes, ${graph.edges.length} edges`);
-  console.log(`  Claims: ${claims.length}`);
-  console.log("════════════════════════════════════\n");
+  const totalSecs = Math.round((Date.now() - compileStart) / 1000);
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
+  const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+
+  // Build dashboard lines — only show what's relevant
+  const lines: string[] = [];
+  lines.push(`Sources   ${cl.bold(String(index.sources.length))} raw sources`);
+  if (shouldRunPass("1b")) {
+    lines.push(`Entities  ${cl.bold(String(entities.length))} total (${full} full, ${stub} stubs)`);
+  }
+  if (shouldRunPass("2")) {
+    lines.push(`Graph     ${cl.bold(String(graph.nodes.length))} nodes, ${graph.edges.length} edges`);
+  }
+  if (shouldRunPass("3c") && claims.length > 0) {
+    lines.push(`Claims    ${cl.bold(String(claims.length))} extracted`);
+  }
+  lines.push(`Time      ${cl.bold(timeStr)}`);
+
+  const W = 48;
+  console.log("");
+  console.log(cl.cyan("╔" + "═".repeat(W) + "╗"));
+  console.log(cl.cyan("║") + cl.bold("  Compilation Complete") + " ".repeat(W - 22) + cl.cyan("║"));
+  console.log(cl.cyan("╠" + "═".repeat(W) + "╣"));
+  for (const line of lines) {
+    // Strip ANSI codes to calculate visible length for padding
+    const visible = line.replace(/\x1b\[[0-9;]*m/g, "");
+    const pad = Math.max(0, W - 2 - visible.length);
+    console.log(cl.cyan("║") + "  " + line + " ".repeat(pad) + cl.cyan("║"));
+  }
+  console.log(cl.cyan("╚" + "═".repeat(W) + "╝"));
+  console.log("");
 }
 
 main().catch((err) => {

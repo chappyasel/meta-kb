@@ -1,0 +1,30 @@
+name: Source Suggestion
+description: Suggest a source (repo, paper, tweet, or article) to add to the knowledge base
+labels: ["source"]
+body:
+  - type: input
+    id: url
+    attributes:
+      label: URL
+      placeholder: https://github.com/...
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Source type
+      options:
+        - repo
+        - paper
+        - article
+        - tweet
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is this relevant?
+      description: What does this source contribute that existing sources don't cover?
+      placeholder: "This repo implements a novel approach to..."
+    validations:
+      required: true

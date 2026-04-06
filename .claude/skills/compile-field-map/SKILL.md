@@ -64,9 +64,9 @@ a recommended path through the wiki articles.
 
 ## Mermaid Diagram
 
-Include a Mermaid `graph LR` diagram showing the top 3 projects per bucket
-with cross-bucket edges where projects bridge layers. Keep it readable (15-20
-nodes max).
+Include a Mermaid `graph LR` diagram showing the **5-layer stack**, not individual projects. Each node is a bucket labeled with its central engineering problem. Edges show integration points between adjacent layers. Include a dotted feedback loop from the top layer back to the bottom.
+
+Do NOT generate a project-level graph (random projects with sparse edges are meaningless). The diagram represents the article's thesis: these areas form one stack.
 
 ## Frontmatter
 

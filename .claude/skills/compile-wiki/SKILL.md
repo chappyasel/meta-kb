@@ -97,6 +97,20 @@ Launch **1 subagent**:
 > in wiki/ (one per bucket from config/domain.ts) and run self-eval against
 > raw sources. Write build/claims.json and build/eval-report.json."
 
+## Lessons from Previous Compilations
+
+If `build/lessons.md` exists, read it at the start of Phase 1. It contains
+specific failure patterns from previous eval runs (e.g., "cite deep/ sources
+for architectural claims," "use entity ID slugs for links"). Pass relevant
+lessons to each subagent in its task description.
+
+## Regression Prevention
+
+Before Phase 4, scan the existing `wiki/projects/` and `wiki/concepts/`
+directories. Any entity that has a full article in the current wiki should
+keep its article in the new compilation. If an entity would be demoted to
+stub, warn and preserve the existing article rather than deleting it.
+
 ## Quality Rules
 
 See [references/quality.md](references/quality.md) for citation rules,
