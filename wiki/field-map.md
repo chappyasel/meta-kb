@@ -14,39 +14,21 @@ This knowledge base covers five areas. [Knowledge Bases](knowledge-bases.md) add
 ---
 
 
-## Knowledge Graph
+## The Stack
 
 ```mermaid
-graph LR
-  subgraph knowledge-bases["LLM Knowledge Bases"]
-    obsidian["Obsidian"]
-    graphiti["Graphiti"]
-    neo4j["Neo4j"]
-  end
-  subgraph agent-memory["Agent Memory"]
-    mem0["Mem0"]
-    locomo["LoCoMo"]
-    letta["Letta"]
-  end
-  subgraph context-engineering["Context Engineering"]
-    dspy["DSPy"]
-  end
-  subgraph agent-systems["Agent Systems"]
-    claude["Claude"]
-    swe-bench["SWE-bench"]
-    tau-bench["TAU-bench"]
-  end
-  subgraph self-improving["Self-Improving Systems"]
-    autoresearch["AutoResearch"]
-    darwin-godel-machine["Darwin Gödel Machine"]
-    seagent["SEAgent"]
-  end
-  claude -.-|part_of| autoresearch
-  letta -.-|part_of| graphiti
-  claude -.-|part_of| swe-bench
-  mem0 -.-|part_of| graphiti
+graph TB
+  knowledge-bases["<b>Knowledge Bases</b><br/>compiled wikis, RAG, graph retrieval"]
+  agent-memory["<b>Agent Memory</b><br/>persistent memory, temporal KGs"]
+  context-engineering["<b>Context Engineering</b><br/>progressive disclosure, compression"]
+  agent-systems["<b>Agent Systems</b><br/>skill registries, multi-agent orchestration"]
+  self-improving["<b>Self-Improving</b><br/>autoresearch, Karpathy loop, reflexion"]
+  knowledge-bases --> agent-memory
+  agent-memory --> context-engineering
+  context-engineering --> agent-systems
+  agent-systems --> self-improving
+  self-improving -.->|feedback| knowledge-bases
 ```
-
 
 ## The Unifying Insight
 

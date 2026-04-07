@@ -1345,52 +1345,62 @@ async function addMermaidAndBacklinks(
 ): Promise<void> {
   passHeader("5", "Diagrams + Backlinks");
 
-  // HIGH-LEVEL MERMAID: top 3 per bucket, cross-bucket edges weight > 0.5
-  const topPerBucket = new Map<string, Entity[]>();
-  for (const bucket of Object.keys(BUCKET_TITLES)) {
-    const bucketEntities = entities
-      .filter((e) => e.bucket === bucket && e.type === "project")
-      .sort((a, b) => (b.relevance_composite ?? 0) - (a.relevance_composite ?? 0))
-      .slice(0, 3);
-    topPerBucket.set(bucket, bucketEntities);
+  // HIGH-LEVEL MERMAID: 5-layer stack showing how buckets connect as one system.
+  // Per compile-field-map/SKILL.md: "Do NOT generate a project-level graph
+  // (random projects with sparse edges are meaningless)."
+  const bucketDescriptions: Record<string, string> = {};
+  for (const b of domain.buckets) {
+    bucketDescriptions[b.id] = b.description.split(",")[0].trim(); // short label
   }
 
-  const topIds = new Set([...topPerBucket.values()].flat().map((e) => e.id));
-  const topEdges = graph.edges.filter(
-    (e) => topIds.has(e.source) && topIds.has(e.target) && e.weight > 0.4,
-  );
+  // Count cross-bucket edges to find the strongest integration points
+  const crossBucketEdges = new Map<string, number>();
+  for (const edge of graph.edges) {
+    const srcEntity = entities.find((e) => e.id === edge.source);
+    const tgtEntity = entities.find((e) => e.id === edge.target);
+    if (!srcEntity || !tgtEntity || srcEntity.bucket === tgtEntity.bucket) continue;
+    const key = [srcEntity.bucket, tgtEntity.bucket].sort().join("|");
+    crossBucketEdges.set(key, (crossBucketEdges.get(key) ?? 0) + 1);
+  }
 
-  let mermaid = "```mermaid\ngraph LR\n";
-  for (const [bucket, ents] of topPerBucket) {
-    const label = BUCKET_TITLES[bucket].replace("The State of ", "");
-    mermaid += `  subgraph ${bucket}["${label}"]\n`;
-    for (const e of ents) {
-      mermaid += `    ${e.id}["${e.name}"]\n`;
-    }
-    mermaid += "  end\n";
+  const bucketIds = domain.buckets.map((b) => b.id);
+  let mermaid = "```mermaid\ngraph TB\n";
+  // Nodes: each bucket as a stack layer
+  for (const b of domain.buckets) {
+    mermaid += `  ${b.id}["<b>${b.name}</b><br/>${bucketDescriptions[b.id]}"]\n`;
   }
-  for (const edge of topEdges) {
-    mermaid += `  ${edge.source} -.-|${edge.type}| ${edge.target}\n`;
+  // Edges: adjacent layers (stack order from domain.ts)
+  for (let i = 0; i < bucketIds.length - 1; i++) {
+    const key = [bucketIds[i], bucketIds[i + 1]].sort().join("|");
+    const weight = crossBucketEdges.get(key) ?? 0;
+    mermaid += `  ${bucketIds[i]} --> ${bucketIds[i + 1]}\n`;
   }
+  // Feedback loop: top layer back to bottom
+  mermaid += `  ${bucketIds[bucketIds.length - 1]} -.->|feedback| ${bucketIds[0]}\n`;
   mermaid += "```\n";
 
-  // Inject into field-map.md after the first heading
+  // Inject into field-map.md — replace existing Knowledge Graph section or insert before first ##
   const fieldMapPath = join(WIKI_DIR, "field-map.md");
   if (existsSync(fieldMapPath)) {
     let content = await readFile(fieldMapPath, "utf-8");
-    const firstHeading = content.indexOf("\n## ");
-    if (firstHeading > 0) {
-      content =
-        content.slice(0, firstHeading) +
-        "\n\n## Knowledge Graph\n\n" +
-        mermaid +
-        "\n" +
-        content.slice(firstHeading);
+    const kgStart = content.indexOf("\n## Knowledge Graph");
+    if (kgStart >= 0) {
+      // Replace existing section (find start of next ## heading after it)
+      const afterKg = content.indexOf("\n## ", kgStart + 20);
+      content = afterKg >= 0
+        ? content.slice(0, kgStart) + "\n\n## Knowledge Graph\n\n" + mermaid + content.slice(afterKg)
+        : content.slice(0, kgStart) + "\n\n## Knowledge Graph\n\n" + mermaid;
     } else {
-      content += "\n\n## Knowledge Graph\n\n" + mermaid;
+      // Insert before first ## heading
+      const firstHeading = content.indexOf("\n## ");
+      if (firstHeading > 0) {
+        content = content.slice(0, firstHeading) + "\n\n## Knowledge Graph\n\n" + mermaid + "\n" + content.slice(firstHeading);
+      } else {
+        content += "\n\n## Knowledge Graph\n\n" + mermaid;
+      }
     }
     await writeFile(fieldMapPath, content);
-    console.log(`  ${cl.green("✓")} Mermaid graph injected into field-map.md (${topIds.size} nodes, ${topEdges.length} edges)`);
+    console.log(`  ${cl.green("✓")} Mermaid stack diagram injected into field-map.md (${bucketIds.length} layers)`);
   }
 
   // BACKLINKS: Add Related section to each wiki article
