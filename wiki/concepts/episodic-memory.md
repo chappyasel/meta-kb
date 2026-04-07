@@ -3,193 +3,188 @@ entity_id: episodic-memory
 type: concept
 bucket: agent-memory
 abstract: >-
-  Episodic memory in AI agents stores specific past events and interactions with
-  temporal context, enabling multi-session recall and learning from prior
-  experiences rather than treating each conversation as isolated.
+  Episodic memory stores specific past experiences so agents can recall prior
+  events rather than treating every interaction as stateless. Distinguished from
+  semantic memory by its event-bound, temporally-anchored structure.
 sources:
-  - repos/getzep-graphiti.md
-  - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
-  - repos/mirix-ai-mirix.md
   - repos/wangyu-ustc-mem-alpha.md
-  - repos/uditgoenka-autoresearch.md
+  - repos/gustycube-membrane.md
+  - repos/mirix-ai-mirix.md
   - repos/caviraoss-openmemory.md
+  - repos/uditgoenka-autoresearch.md
   - repos/nemori-ai-nemori.md
-  - repos/mem0ai-mem0.md
   - repos/letta-ai-lettabot.md
   - papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
   - articles/fabricio-q-memory-in-agents-episodic-vs-semantic-and-the-h.md
-  - articles/turing-post-9-open-agents-that-improve-themselves.md
   - >-
     articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md
+  - articles/turing-post-9-open-agents-that-improve-themselves.md
   - deep/repos/getzep-graphiti.md
+  - deep/repos/kevin-hs-sohn-hipocampus.md
   - deep/repos/wangyu-ustc-mem-alpha.md
   - deep/repos/caviraoss-openmemory.md
-  - deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
   - deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
 related:
   - semantic-memory
   - rag
-  - agent-memory
+  - vector-database
+  - procedural-memory
+  - bm25
   - mem0
   - letta
-  - procedural-memory
-  - hybrid-retrieval
-  - openai
-  - reflexion
-  - bm25
-  - graphiti
-  - zep
   - langgraph
+  - agent-memory
   - core-memory
-last_compiled: '2026-04-06T01:58:30.718Z'
+  - claude-code
+  - openclaw
+  - openai
+  - mcp
+  - langchain
+  - reflexion
+  - postgresql
+  - gpt-4
+  - hotpotqa
+  - claude-md
+  - hybrid-search
+  - context-window
+  - embedding-model
+  - gemini
+  - catastrophic-forgetting
+  - memory-evolution
+  - noahs-shinn
+  - emotional-memory
+last_compiled: '2026-04-07T11:37:10.368Z'
 ---
 # Episodic Memory
 
 ## What It Is
 
-Episodic memory is the agent memory type that records specific events, interactions, and experiences as discrete, time-stamped entries. The term comes from cognitive psychology, where episodic memory refers to the autobiographical record of particular experiences ("what happened, when, where") in contrast to semantic memory ("what things are") or procedural memory ("how to do things").
+Episodic memory stores specific past experiences as discrete, timestamped events. An agent with episodic memory can recall "last Tuesday the user told me their API key expired" rather than only knowing "the user has an API key." The term comes from Endel Tulving's 1972 distinction between memory for facts (semantic) and memory for experiences (episodic): knowing *that* Paris is the capital of France versus remembering *when* you first learned that.
 
-In AI systems, episodic memory gives an agent access to its own history: what a user said in a previous session, what a task produced two weeks ago, why a prior approach failed. Without it, every conversation starts from scratch.
+In AI systems, episodic memory typically stores conversation turns, task attempts, tool call sequences, or any bounded interaction unit that benefits from later recall. The defining characteristics:
 
-[Agent Memory](../concepts/agent-memory.md) systems typically implement episodic storage as one tier within a broader hierarchy alongside [Semantic Memory](../concepts/semantic-memory.md), [Procedural Memory](../concepts/procedural-memory.md), and [Core Memory](../concepts/core-memory.md). Each tier has different update frequency, decay characteristics, and retrieval cost.
+- **Event-bound:** Each entry corresponds to a specific occurrence, not a generalized rule
+- **Temporally anchored:** Entries carry timestamps or sequence positions
+- **Retrievable:** Stored in a form the agent can query during later tasks
+
+This distinguishes episodic from [Semantic Memory](../concepts/semantic-memory.md) (general facts about the world), [Procedural Memory](../concepts/procedural-memory.md) (how to perform tasks), and [Core Memory](../concepts/core-memory.md) (always-in-context identity/persona information). These four types together constitute an [Agent Memory](../concepts/agent-memory.md) architecture.
 
 ## Why It Matters
 
-Most production LLM applications expose a stateless API. Each request gets the model's general knowledge, nothing from prior interactions. Episodic memory breaks that constraint. It lets agents:
+Without episodic memory, agents face two structural problems. First, every new conversation starts from zero: users must re-explain their preferences, past decisions, and project context. Second, agents cannot learn from their own failures across sessions. [Reflexion](../concepts/reflexion.md) demonstrated the second problem directly: agents that could only retry on failure without recalling *why* they failed showed zero improvement across trials, while agents with episodic self-reflection summaries achieved 75% accuracy on HotPotQA versus 63% with plain retry. The 12-percentage-point gap between episodic memory and self-reflection confirms that recall quality matters more than retention alone. ([Source](../raw/deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md))
 
-- Maintain continuity across sessions ("Last month you said you preferred metric units")
-- Learn from prior failures ("I tried that API endpoint before and got a 403")
-- Track how facts have changed over time ("She worked at Acme through 2023, now at Veritas")
-- Build context about a specific user or project without human re-explanation
-
-The alternative, stuffing full conversation history into context, has hard limits. At 100K+ tokens, it becomes expensive, slow, and often less accurate than targeted retrieval. The Zep paper (arXiv:2501.13956) shows that retrieval-based episodic memory reduces context from 115K to ~1.6K tokens while improving accuracy by 15-18% and cutting latency by ~90% on complex temporal reasoning tasks.
+For multi-session agents, episodic memory is the primary mechanism preventing [Catastrophic Forgetting](../concepts/catastrophic-forgetting.md): the tendency of neural networks and stateless agents to overwrite prior context with new information. Unlike fine-tuning approaches, episodic memory stores experiences externally and retrieves them on demand, leaving model weights unchanged.
 
 ## How It Works
 
-### Storage: What Gets Recorded
+### Storage
 
-Every incoming message, task result, or interaction gets stored as an **episode**: a raw, timestamped record of what happened. The episode is the ground truth. Everything derived from it (extracted entities, summaries, embeddings) traces back to these source records.
+Episodes are written to persistent storage as they occur. Common storage backends:
 
-[Graphiti](../projects/graphiti.md) formalizes this as `EpisodeNode` objects, each carrying:
-- `name`: identifier for the episode
-- `content`: the raw text (message, JSON, document)
-- `created_at`: when the episode entered the system
-- `valid_at`: when the represented event actually occurred (which may differ from ingestion time)
-- `source`: type classification (message, json, text)
-- `group_id`: namespace for multi-tenant isolation
+- **[Vector Database](../concepts/vector-database.md):** Each episode is embedded and stored with its timestamp and metadata. Retrieval is by semantic similarity. Tools: [ChromaDB](../projects/chromadb.md), [Qdrant](../projects/qdrant.md), [FAISS](../projects/faiss.md), [Pinecone](../projects/pinecone.md).
+- **[PostgreSQL](../projects/postgresql.md) / [SQLite](../projects/sqlite.md):** Relational tables storing episode text, timestamps, and foreign keys linking episodes to entities. Enables structured queries alongside semantic search.
+- **Knowledge Graphs:** Episodes stored as nodes with temporal edges. [Graphiti](../projects/graphiti.md) models episodes as `EpisodicNode` objects in a three-tier graph (episode subgraph → semantic entity subgraph → community subgraph), with every extracted fact traceable back to its source episode for provenance. ([Source](../raw/deep/repos/getzep-graphiti.md))
+- **Flat files:** [Letta](../projects/letta.md)'s MemGPT architecture and file-based systems like Hipocampus use markdown files as episodic logs, with compaction into hierarchical summaries. ([Source](../raw/deep/repos/kevin-hs-sohn-hipocampus.md))
 
-The `valid_at` / `created_at` distinction is the first clue that serious episodic memory is a bi-temporal problem. Storing a historical document today doesn't mean the events it describes happened today.
+### What Gets Stored
 
-### Extraction: From Events to Knowledge
+Systems differ significantly in episodic granularity:
 
-Raw episodes are rarely retrieved directly. The useful content gets extracted into entities, facts, and summaries that can be searched more efficiently. This extraction is where most systems diverge.
+- **Raw messages:** Full conversation turns verbatim. Maximum fidelity, high storage cost, no compression.
+- **Extracted facts:** [Mem0](../projects/mem0.md) passes conversations through an LLM extraction prompt, producing short declarative statements ("User prefers Python over JavaScript"). Lower storage cost, lossy.
+- **Structured triples:** Graphiti extracts entity-relationship-entity triples with temporal validity windows (`valid_at`, `invalid_at`). Each triple carries source episode provenance.
+- **Compressed summaries:** Hipocampus's compaction tree collapses raw daily logs through daily → weekly → monthly → root levels, compressing months of episodes into a ~3K-token index. ([Source](../raw/deep/repos/kevin-hs-sohn-hipocampus.md))
+- **RL-constructed memories:** [Mem-alpha](../raw/deep/repos/wangyu-ustc-mem-alpha.md) trains a 4B model with GRPO to decide autonomously what to write into episodic memory, treating memory construction as a learnable skill rather than a fixed heuristic.
 
-**LLM-based extraction** (Graphiti, [Mem0](../projects/mem0.md)): An LLM reads the episode and produces structured output, entity names, relationship triples, or fact strings. Graphiti's `add_episode()` in `graphiti_core/graphiti.py` runs a multi-stage pipeline: extract entities, deduplicate against existing graph nodes, extract fact triples with temporal bounds, resolve contradictions against existing edges, then update entity summaries. This costs 4-5 LLM calls per episode.
+### Retrieval
 
-**RL-trained extraction** (Mem-alpha, arXiv:2509.25911): A 4B-parameter model trained via GRPO decides what to store and where, processing text chunks sequentially. The model learns which information belongs in episodic vs. semantic vs. core memory through reward signals from downstream QA accuracy. This generalizes from 30K-token training contexts to 400K+ token inference contexts, a 13x extrapolation.
+Episode retrieval is where implementations diverge most sharply. The retrieval problem for episodic memory has two components: knowing *what to search for* (the query), and knowing *whether retrieved episodes are relevant* (ranking).
 
-**Heuristic extraction** ([OpenMemory](../projects/supermemory.md)'s HSG approach): Regex pattern matching routes content to cognitive sectors. Episodic content is detected by temporal markers ("yesterday," "remember when," "went," "saw") and stored with a decay lambda of 0.015, faster than semantic (0.005) but slower than emotional (0.02). No LLM required for classification, but the patterns are English-centric and easily fooled.
+**Query strategies:**
 
-### Retrieval: Finding Relevant Episodes
+- Semantic similarity via [Embedding Model](../concepts/embedding-model.md) against stored episode vectors
+- Lexical matching via [BM25](../concepts/bm25.md) on episode text
+- [Hybrid Search](../concepts/hybrid-search.md) combining both, fused with [Reciprocal Rank Fusion](../concepts/reciprocal-rank-fusion.md)
+- Graph traversal from known entities (breadth-first search across episode links)
+- Structured queries against temporal fields (retrieve all episodes within a date range)
 
-Retrieval methods range from simple similarity search to graph traversal:
+Graphiti runs all three search modes in parallel and supports five reranking strategies, including cross-encoder neural reranking for highest precision. ([Source](../raw/deep/repos/getzep-graphiti.md))
 
-**Vector search**: Episodes or extracted facts are embedded; queries retrieve by cosine similarity. This is the baseline approach, implemented by virtually every system. It misses exact keyword matches and temporal constraints.
+**The implicit recall problem:** Standard search assumes the agent knows what to look for. Hipocampus's MemAware benchmark revealed that vector search alone solves only 3.4% of implicit recall tasks (where the agent should surface relevant past context without a direct query). Hipocampus's compaction tree scored 17.3% with vector search enabled, and 21% with a larger token budget — a 6x improvement over search alone. The always-loaded ROOT.md index enables the agent to recognize relevant connections without needing a query. ([Source](../raw/deep/repos/kevin-hs-sohn-hipocampus.md))
 
-**[Hybrid Retrieval](../concepts/hybrid-retrieval.md)**: Combines vector similarity with [BM25](../concepts/bm25.md) full-text search. Graphiti's search layer runs cosine similarity, BM25, and breadth-first graph traversal in parallel, then reranks with RRF or cross-encoder models. The BFS component traverses the knowledge graph from recently mentioned entities, capturing contextual relevance that pure similarity search misses.
+### Integration with [Context Window](../concepts/context-window.md)
 
-**Temporal filtering**: Episodic memory often needs time-aware retrieval. "What was her address last year?" requires filtering on `valid_at` ranges, not just semantic similarity. Graphiti's bi-temporal model supports this; most simpler systems do not.
+Retrieved episodes must enter the agent's context window to be useful. Three patterns:
 
-**[RAG](../concepts/rag.md) vs. episodic memory**: These solve adjacent problems. RAG retrieves from a static document corpus. Episodic memory retrieves from a dynamic, evolving record of agent-specific experiences. The two can coexist, with RAG handling domain knowledge and episodic memory handling interaction history.
+1. **Direct injection:** Top-k retrieved episodes are appended to the system prompt or user message. Simple but consumes tokens proportional to episode count.
+2. **Summarized injection:** Episodes are compressed before injection. Graphiti reduces 115K-token conversation contexts to ~1.6K tokens (under 2% of original), achieving 91% latency reduction with higher accuracy on LongMemEval. ([Source](../raw/deep/repos/getzep-graphiti.md))
+3. **Tool-mediated access:** The agent calls a `search_memory()` tool when it decides retrieval is needed, rather than having episodes pushed into context automatically. [LangGraph](../projects/langgraph.md) and [Letta](../projects/letta.md) support this pattern. [CLAUDE.md](../concepts/claude-md.md) files use a variant where Claude Code reads from memory files on demand.
 
-### Temporal Dynamics: Decay and Invalidation
+## Temporal Structure
 
-Episodic memories don't stay equally relevant forever. Two mechanisms manage this:
+Episodic memory's defining property is temporal grounding. Implementations handle this in three ways of increasing sophistication:
 
-**Decay**: Older, less-accessed memories receive lower retrieval scores. OpenMemory implements a dual-phase exponential decay: a fast component (lambda=0.015) models initial forgetting, a slow consolidated component (0.4 × e^(-0.002t)) models long-term retention. Cold memories also get their embeddings compressed from 1536 to as few as 64 dimensions via mean pooling, saving storage while degrading retrieval precision.
+**Timestamp-only:** Each episode carries a creation timestamp. Retrieval can sort or filter by time. This enables "what happened recently" but not "what was believed to be true in January."
 
-**Invalidation**: When new facts contradict old ones, the old facts should become unretrievable for current-state queries but remain accessible for historical queries. Graphiti's bi-temporal model handles this by setting `expired_at` on contradicted `EntityEdge` records rather than deleting them. This preserves history at the cost of monotonically growing storage. Systems without invalidation either delete old facts (losing history) or return stale facts alongside current ones (confusing the agent).
+**Recency decay:** More recent episodes score higher in retrieval ranking. OpenMemory implements biologically-inspired dual-phase exponential decay with sector-specific rates: episodic memories decay at lambda=0.015 per day while semantic memories decay at lambda=0.005. ([Source](../raw/deep/repos/caviraoss-openmemory.md))
 
-### Consolidation: Episodic to Semantic
+**Bi-temporal validity windows:** Each episode or extracted fact carries both *when it was stored* (transaction time) and *when it was true* (event time). Graphiti's `EntityEdge` carries four temporal fields: `expired_at` (when invalidated in the system), `valid_at` (when the fact became true in reality), `invalid_at` (when it stopped being true), and `reference_time`. This enables time-travel queries: "what did the agent believe about the user's employer as of March 2024?" Graphiti's bi-temporal model produced a 38.4% improvement on temporal-reasoning questions in LongMemEval. ([Source](../raw/deep/repos/getzep-graphiti.md))
 
-A key function of episodic memory is feeding into semantic memory through consolidation. [Memory Consolidation](../concepts/memory-consolidation.md) is the process by which specific event memories get abstracted into general knowledge.
+## Relationship to Other Memory Types
 
-In Graphiti, community detection via label propagation groups related entities, then LLM-generated summaries describe the community. These summaries live in the semantic/community tier, derived from episodic content but no longer tied to specific events.
+Episodic and semantic memory form a gradient rather than a sharp boundary. An agent repeatedly observing "the user prefers brevity in responses" across 50 sessions may promote that episodic pattern into a semantic fact (or into core memory). [Mem0](../projects/mem0.md) performs this promotion automatically. Graphiti's community detection clusters related episodes into higher-level semantic summaries via label propagation.
 
-OpenMemory's reflection system clusters similar memories by Jaccard similarity (threshold 0.8), generates extractive pattern summaries, and stores them as "reflective" memories with the slowest decay rate (lambda=0.001). These persist longest because they represent distilled knowledge rather than raw events.
+[Procedural Memory](../concepts/procedural-memory.md) captures *how to do tasks* — workflow patterns the agent has learned. Some systems derive procedural memories from episodic sequences (e.g., "every time I try X before Y it fails; try Y first"). [Reflexion](../concepts/reflexion.md) generates exactly this type of derived procedure through self-reflection stored in episodic memory.
 
-[Reflexion](../concepts/reflexion.md) demonstrates the value of quality over quantity in consolidation: on HotPotQA reasoning tasks, simple episodic memory (remembering past attempts) improved accuracy 2 points. Adding self-reflection summaries (analyzing why past attempts failed) improved accuracy 14 points total. The analysis of failure matters more than the record of failure.
+[Core Memory](../concepts/core-memory.md) in Letta/MemGPT is always-loaded persona and relationship information — the most frequently-accessed episodic summaries promoted to guaranteed context inclusion.
 
-## Who Implements It
+## Implementations
 
-**[Graphiti](../projects/graphiti.md)**: Most architecturally complete. Episodes as first-class nodes, bi-temporal edge model, hybrid retrieval, LLM-based extraction pipeline. Requires Neo4j or equivalent graph database. 4-5 LLM calls per episode ingestion.
+**[Reflexion](../concepts/reflexion.md):** Episodes stored as verbal self-reflection summaries from failed task attempts. A bounded buffer (1–3 entries) of analyzed failures enables agents to improve across trials. Noah Shinn et al. (2023) showed 91% pass@1 on HumanEval versus GPT-4's 80%. ([Source](../raw/deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md))
 
-**[Zep](../projects/zep.md)**: Commercial product built on Graphiti. Same three-tier architecture (episodes, entities, communities). Adds managed infrastructure, multi-tenant support, and enterprise features. The arXiv paper (2501.13956) provides the most rigorous benchmarking of any memory system.
+**[Graphiti](../projects/graphiti.md) / [Zep](../projects/zep.md):** Episodes stored as `EpisodicNode` objects with full provenance chains to extracted semantic entities. Bi-temporal model tracks when facts were true versus when the system learned them. LongMemEval benchmarks show +15–18% accuracy over full-context baselines with 89–91% latency reduction. ([Source](../raw/deep/repos/getzep-graphiti.md))
 
-**[Mem0](../projects/mem0.md)**: Simpler flat-memory approach. Extracts facts from conversations into a vector store, with optional graph layer. Lower infrastructure requirements than Graphiti; less temporal sophistication.
+**[Mem0](../projects/mem0.md):** LLM-extraction pipeline converts episodes into short declarative facts, stored in a vector database with optional knowledge graph layer. Episodes are the raw material; extracted facts are the primary retrieval unit.
 
-**[Letta](../projects/letta.md)**: Implements MemGPT-style memory with explicit `archival_storage` (episodic) and `recall_storage`. Agents write to memory through explicit function calls rather than automatic extraction. More controllable, less automatic.
+**[Letta](../projects/letta.md):** MemGPT architecture where the agent manages its own episodic memory through explicit `archival_memory_insert()` and `archival_memory_search()` function calls, maintaining a strict main context / archival memory distinction.
 
-**[Reflexion](../concepts/reflexion.md)**: Stores self-reflection summaries in an episodic memory buffer (typically 1-3 entries). Focused on single-task retry loops rather than cross-session continuity. The bounded buffer is a deliberate design choice constrained by context window limits.
+**[LangGraph](../projects/langgraph.md) / [LangChain](../projects/langchain.md):** Episodic memory as a tool in the agent's action space, retrieved via [RAG](../concepts/rag.md) pipelines. LangGraph's `MemorySaver` checkpointer preserves conversation state as a form of episodic memory.
 
-**[OpenAI](../projects/openai.md)**: Memory features in ChatGPT store user preferences and prior context across sessions. Implementation details are not public, but the user-facing behavior is episodic: the model recalls specific past interactions.
+**[Claude Code](../projects/claude-code.md) / [CLAUDE.md](../concepts/claude-md.md):** Project-level episodic memory stored in markdown files. The agent reads these files at session start, gaining access to prior decisions, context, and preferences accumulated across sessions.
 
-**[LangGraph](../projects/langgraph.md)**: Provides persistence infrastructure through its `Store` abstraction. Episodic content stored in threads; semantic content stored in a cross-thread namespace. Applications define what counts as episodic.
+**[OpenClaw](../projects/openclaw.md):** Hipocampus plugin system providing hierarchical episodic memory with 5-level compaction tree and always-loaded topic index.
 
-## Practical Failure Modes
+**[Mem-alpha](../raw/deep/repos/wangyu-ustc-mem-alpha.md):** RL-trained 4B model (Qwen3-4B with GRPO) that learns autonomous episodic memory construction, trained on 30K-token contexts but generalizing to 400K+ tokens. Treats episode classification as a learnable skill.
 
-**Episode extraction quality**: LLM-based extraction misses things. Graphiti's extraction prompt is explicit about what not to extract (abstract nouns, pronouns, bare kinship terms), which reduces noise but also misses relevant content in specialized domains like medical notes or legal text. The quality depends heavily on the base model; switching to cheaper models degrades extraction substantially.
+**[Voyager](../projects/voyager.md):** Minecraft agent storing episodes as skill attempts with success/failure annotations, building procedural memory from episodic experience.
 
-**Assistant-side content gap**: Zep's LongMemEval results show a -17.7% accuracy drop on tasks where the agent needs to recall what it itself said (recommendations, calculations, creative outputs) versus what the user said. The extraction pipeline is biased toward user-stated facts. This matters for agentic use cases where the agent's prior outputs are important context.
+## Critical Limitations
 
-**Invalidation without temporal modeling**: Most simple memory systems delete or overwrite facts when contradictions arise. If a user's address changes, the old address is gone. This prevents time-travel queries ("what address did we have on file last January?") and loses audit trail. Systems that lack bi-temporal modeling make this tradeoff silently.
+**Retrieval without awareness of unknown unknowns.** Standard episodic retrieval assumes the agent can formulate a useful query. For implicit context — where relevant past episodes exist but the agent does not know to look for them — retrieval-only architectures fail systematically. The MemAware benchmark shows vector search alone achieves 3.4% on hard implicit recall tasks. Always-loaded indexes (Hipocampus's ROOT.md, core memory in Letta) partially address this but at fixed token cost.
 
-**Unbounded storage growth**: Bi-temporal systems that expire rather than delete contradicted facts grow monotonically. There is no garbage collection for old invalidated edges in Graphiti. At sufficient scale, this becomes a storage and query-performance problem.
+**Contradiction accumulation.** Systems that append episodes without contradiction detection accumulate conflicting beliefs. If a user changes their preference or an API changes its interface, old episodic memories remain unless actively invalidated. Graphiti's edge invalidation pipeline is the most sophisticated response to this problem; most other systems leave stale episodes in place indefinitely.
 
-**Decay parameter sensitivity**: Systems like OpenMemory with hand-tuned decay parameters (lambda rates, salience thresholds, consolidation coefficients) have no empirical basis for their specific values. The parameters reference cognitive science concepts but are educated guesses for LLM memory use cases. Changing them materially alters retrieval behavior in ways that are hard to predict.
+**Compression is lossy by design.** Any system that summarizes episodes (Reflexion's self-reflections, Hipocampus's compaction, Mem0's extraction) loses information present in the original. Graphiti's architecture preserves raw episodes permanently and derives semantic entities from them, enabling both compressed retrieval and full-fidelity recall — but at higher storage cost.
 
-**Regex-based sector classification**: Routing memories to episodic vs. semantic sectors via pattern matching is fast and cheap, but easily wrong. "How to manage stress from yesterday's meeting" could match episodic (temporal marker), semantic (general knowledge), procedural (how-to), and emotional (affect) patterns simultaneously. Misclassification changes decay rate and retrieval weight.
+**Unresolved infrastructure question:** None of the major frameworks have published cost-at-scale figures for real production episodic memory stores. A personal assistant agent operating daily for a year could accumulate tens of thousands of episodes. The retrieval, embedding, and LLM-extraction costs at that scale remain empirically uncharacterized in public literature.
 
-## When Not to Use It
+## When NOT to Use Episodic Memory
 
-Skip dedicated episodic memory when:
+Episodic memory adds latency and operational complexity. Skip it when:
 
-- **Sessions are short and independent**: A customer service bot handling discrete, unrelated queries gains nothing from remembering session 247 when answering session 248. The overhead of extraction and storage outweighs any benefit.
-
-- **Context windows are sufficient**: For single-session tasks under ~30K tokens with a capable model, stuffing the conversation into context is simpler and often more accurate than retrieval-based approaches. Episodic memory adds value when context windows are genuinely insufficient.
-
-- **Retrieval latency is unacceptable**: Graphiti's `add_episode` runs 4-5 LLM calls synchronously. The paper recommends running ingestion as a background task (FastAPI background tasks, Celery). If your architecture cannot tolerate background processing, simpler approaches are more practical.
-
-- **Your data doesn't evolve**: If you're building over a static document corpus with no evolving user-specific context, [RAG](../concepts/rag.md) is the right tool. Episodic memory adds complexity that static retrieval doesn't need.
-
-## Unresolved Questions
-
-**Cost at scale**: None of the major systems publish per-episode ingestion costs at production volume. At 1M episodes/day with 4-5 LLM calls each, the extraction cost could exceed the value. Graphiti's `add_episode_bulk` skips edge invalidation for speed but sacrifices temporal consistency.
-
-**Consolidation triggers**: When should episodic memories get consolidated into semantic memory? OpenMemory consolidates after 20+ memories accumulate on a 10-minute interval. Graphiti does community detection optionally. Neither provides guidance on optimal consolidation frequency or how to detect when consolidation has diverged from the true memory state.
-
-**Cross-encoder cost vs. quality tradeoff**: Graphiti supports neural reranking with cross-encoder models as the highest-quality retrieval option. No published data shows at what query volume the quality gain justifies the added latency and API cost versus simpler RRF reranking.
-
-**Multi-agent episodic memory**: When multiple agents share a memory store (team of agents working on a project), who resolves conflicting episodes? Graphiti's `group_id` provides namespace isolation but not conflict resolution across namespaces. No system has a clear answer for collaborative episodic memory.
-
-## Alternatives and Selection Guidance
-
-| Scenario | Use |
-|---|---|
-| Static document corpus, no evolving context | [RAG](../concepts/rag.md) |
-| Single-session tasks under 30K tokens | Full context in prompt |
-| Simple user preference tracking across sessions | [Mem0](../projects/mem0.md) (lower infra cost) |
-| Complex temporal reasoning, evolving facts | [Graphiti](../projects/graphiti.md) / [Zep](../projects/zep.md) |
-| Agent self-improvement from prior task failures | [Reflexion](../concepts/reflexion.md) pattern |
-| Privacy-sensitive, fully local deployment | OpenMemory with Ollama embeddings |
-| RL-learned memory management | Mem-alpha (research, not production-ready) |
+- **The task is fully self-contained.** Single-turn question answering, code completion for small functions, or any task where prior context genuinely does not affect the correct output.
+- **The [Context Window](../concepts/context-window.md) already holds all needed history.** For short-session agents where the full conversation fits in context, episodic retrieval adds a retrieval step without providing information the agent does not already have.
+- **Retrieval quality is unverifiable.** If you cannot evaluate whether retrieved episodes are accurate and relevant (no evals, no ground truth), episodic memory may silently inject stale or irrelevant context that degrades rather than improves performance. Start with [Retrieval-Augmented Generation](../concepts/rag.md) evals before adding episodic complexity.
+- **The task requires exploration over refinement.** [Reflexion](../concepts/reflexion.md)'s failure on WebShop demonstrates that episodic self-reflection does not help when the failure mode is creative exploration rather than error correction.
 
 ## Related Concepts
 
-- [Agent Memory](../concepts/agent-memory.md): The broader memory taxonomy
-- [Semantic Memory](../concepts/semantic-memory.md): General knowledge vs. specific events
-- [Core Memory](../concepts/core-memory.md): Always-in-context high-priority facts
-- [Memory Consolidation](../concepts/memory-consolidation.md): How episodic becomes semantic
-- [Hybrid Retrieval](../concepts/hybrid-retrieval.md): Combined search methods for retrieval
-- [Reflexion](../concepts/reflexion.md): Self-reflection as episodic memory for improvement
-- [Retrieval-Augmented Generation](../concepts/rag.md): Adjacent approach for static corpora
+- [Agent Memory](../concepts/agent-memory.md) — the broader framework within which episodic memory sits
+- [Semantic Memory](../concepts/semantic-memory.md) — general facts derived from accumulated episodes
+- [Core Memory](../concepts/core-memory.md) — always-in-context identity information, often promoted from episodic
+- [Procedural Memory](../concepts/procedural-memory.md) — task execution patterns derived from episodic experience
+- [Retrieval-Augmented Generation](../concepts/rag.md) — the retrieval mechanism enabling episodic memory access
+- [Hybrid Search](../concepts/hybrid-search.md) — combining BM25 and semantic retrieval for episode lookup
+- [Reflexion](../concepts/reflexion.md) — verbal self-reflection stored as episodic memory for agent improvement
+- [Memory Evolution](../concepts/memory-evolution.md) — how episodic memories transform into higher-level knowledge over time
+- [Catastrophic Forgetting](../concepts/catastrophic-forgetting.md) — the problem episodic memory primarily addresses

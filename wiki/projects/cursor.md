@@ -3,137 +3,175 @@ entity_id: cursor
 type: project
 bucket: agent-systems
 abstract: >-
-  Cursor is an AI-first code editor (VS Code fork) that embeds LLMs directly
-  into the editing workflow for autocomplete, chat, and autonomous multi-file
-  editing. Differentiator: tighter model integration and agentic editing than VS
-  Code extensions like GitHub Copilot.
+  AI-powered code editor forking VS Code that embeds LLMs directly into the
+  editing loop via Tab completion, inline edits, and an agentic coding mode
+  capable of multi-file changes without leaving the editor.
 sources:
   - tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md
   - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
   - repos/aiming-lab-simplemem.md
   - repos/affaan-m-everything-claude-code.md
+  - repos/memorilabs-memori.md
   - repos/natebjones-projects-ob1.md
   - repos/alirezarezvani-claude-skills.md
-  - repos/garrytan-gstack.md
   - repos/jmilinovich-goal-md.md
-  - repos/caviraoss-openmemory.md
+  - repos/garrytan-gstack.md
   - repos/tirth8205-code-review-graph.md
-  - repos/yusufkaraaslan-skill-seekers.md
   - >-
     articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md
+  - articles/martinfowler-com-context-engineering-for-coding-agents.md
   - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
+  - articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md
+  - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
   - deep/repos/affaan-m-everything-claude-code.md
-  - deep/repos/garrytan-gstack.md
   - deep/repos/jmilinovich-goal-md.md
-  - deep/repos/tirth8205-code-review-graph.md
   - deep/repos/kepano-obsidian-skills.md
+  - deep/repos/tirth8205-code-review-graph.md
 related:
   - claude-code
+  - codex
   - mcp
   - windsurf
-  - openai-codex
-  - gemini
   - andrej-karpathy
-  - claude
+  - gemini
+  - github-copilot
   - anthropic
-  - rag
+  - claude
+  - openclaw
+  - agent-skills
+  - claude-md
+  - antigravity
   - openai
   - autoresearch
-  - langchain
+  - opencode
+  - obsidian
   - knowledge-graph
-  - skill-md
-  - self-improving-agents
-last_compiled: '2026-04-06T01:58:07.025Z'
+  - tree-sitter
+  - mem0
+  - self-improving-agent
+  - karpathy-loop
+  - context-window
+last_compiled: '2026-04-07T11:35:59.634Z'
 ---
 # Cursor
 
-## What It Is
+## What It Does
 
-Cursor is a code editor built as a hard fork of VS Code that ships LLM capabilities as first-class editor features rather than extensions. Founded in 2022 by Anysphere (Michael Terrell, Sualeh Asif, Arvid Lunnemark, Aman Sanger), it reached broad adoption in 2024-2025 as AI coding tools moved from novelty to daily workflow. The editor runs all VS Code extensions natively, so switching from VS Code costs little beyond learning Cursor's AI features.
+Cursor is a VS Code fork that treats LLM integration as a first-class editor concern rather than an extension. Where [GitHub Copilot](../projects/github-copilot.md) bolts AI onto an existing editor via plugin, Cursor rebuilt the VS Code shell so AI assistance touches file reads, terminal commands, codebase search, and multi-file edits through the same interface a developer already uses. The result is an editor where the AI can see your cursor position, selected code, open files, recent diffs, and terminal output without you copying anything into a chat box.
 
-The core proposition: rather than piping code to a chat sidebar as text, Cursor maintains a persistent model of your codebase and integrates generation, editing, and agentic task execution directly into the buffer. The editor knows which file you are in, what symbols are in scope, and what changed recently without you describing any of that.
+The core architectural bet: putting the AI in the editing loop, not beside it.
 
-## Architecture
+## Core Mechanism
 
-Cursor's architecture sits in three layers:
+### Tab Completion
 
-**Editor layer**: The VS Code fork provides the development environment. Cursor patches the extension host and adds proprietary UI surfaces: an inline edit panel (Cmd+K), a chat sidebar, and the Agent panel. The fork diverges minimally from upstream VS Code, allowing VS Code extensions to run unmodified.
+Cursor's "Tab" model is not a stock Copilot-style suggestion engine. It predicts the *next edit*, not the next line. After you apply a change, Tab suggests the subsequent cursor jump and edit, creating a chain of predicted edits across a file. The model was trained to anticipate edit sequences, not just completions from a blank cursor position.
 
-**Context layer**: Cursor maintains a codebase index using [Retrieval-Augmented Generation](../concepts/rag.md) over your local repository. At index time, it chunks source files and builds vector embeddings for semantic search. At query time, it retrieves relevant chunks to populate model context. This index is what enables `@codebase` queries that find relevant code across thousands of files without the user specifying file paths. The indexing runs locally with embeddings sent to Cursor's servers.
+The implementation uses a fast, purpose-trained model distinct from the chat/agent models. Cursor built and trains its own Tab model rather than routing to a general-purpose API, which keeps latency low enough for keystroke-level responsiveness.
 
-**Model layer**: Cursor calls frontier models (Claude 3.5/3.7 Sonnet, GPT-4o, and others) via its own API proxy. Users can also configure Cursor to hit their own API keys or use local models via Ollama. The model choice is configurable per-request. Cursor has published proprietary fine-tuned models (cursor-small, earlier tab completion models) trained on code editing tasks, though frontier models handle most chat and agent work.
+### Chat and Inline Edit (Ctrl+K / Ctrl+L)
 
-**Agent mode** (Cursor's most differentiated feature): The agent can read and write arbitrary files, run shell commands, search the web, and call tools in a loop. It receives a task description and autonomously plans and executes multi-step edits across the codebase. This is closer to what [Claude Code](../projects/claude-code.md) does in a terminal than what a standard Copilot autocomplete does. The agent mode implements a [ReAct](../concepts/react.md)-style loop: reason about the task, select a tool, observe the result, repeat.
+Two interaction surfaces handle natural-language requests:
 
-**MCP support**: Cursor implements [Model Context Protocol](../concepts/mcp.md), allowing external tools (databases, APIs, internal services) to expose capabilities the model can call during agent tasks. This extensibility means teams can wire their own infrastructure into Cursor's agent loop.
+- **Ctrl+K**: Inline edit mode. Select a code block, describe a change, the model rewrites in place. The diff appears inline before you accept.
+- **Ctrl+L**: Chat panel. Maintains conversation context, can reference `@file`, `@symbol`, `@docs`, `@web`, and `@codebase` mentions that inject specific context.
 
-**Rules and skill files**: Cursor supports `.cursor/rules/` directories and SKILL.md files compatible with the emerging [Agent Skills](../concepts/agent-skills.md) standard. Projects like Everything Claude Code include explicit Cursor integration via `.cursor/hooks.json`, 20+ event hooks, and per-language rule files that mirror Claude Code's rule structure. Cursor's rules system is less mature than Claude Code's hook system but covers the common case of injecting persistent instructions into context.
+The `@codebase` mention triggers semantic search over an indexed embedding of the repository. Cursor builds and stores this index locally (or on their servers for larger repos), supporting queries like "where do we handle authentication errors" that require understanding intent rather than matching keywords.
+
+### Agent Mode
+
+Agent mode gives the model a tool loop: it can read files, write files, run terminal commands, search the codebase, and browse the web. The agent runs until it decides the task is complete or blocks on a question. This is closest to [Claude Code](../projects/claude-code.md) in capability surface, but integrated into the editor rather than a terminal.
+
+The agent interprets [CLAUDE.md](../concepts/claude-md.md)-style instruction files. Cursor reads `.cursorrules` (legacy) and now also `.cursor/rules/` directory rules, which mirror the pattern of persistent agent instructions that load automatically per-project. Skills and rules from projects like the Everything Claude Code framework can be adapted for Cursor via `.cursor/rules/` and `.cursor/skills/`.
+
+Cursor implements [Model Context Protocol](../concepts/mcp.md), letting the agent call external tools through the MCP server standard. An agent task that needs to query a database, call an API, or read documentation can do so via MCP without Cursor building native integrations for each tool.
+
+### Codebase Indexing
+
+Cursor maintains a vector index of the codebase for semantic retrieval. The index uses embeddings (vendor undisclosed) stored either locally or in Cursor's cloud. For `@codebase` queries, Cursor retrieves relevant chunks, reranks, and injects into the [context window](../concepts/context-window.md).
+
+For structural queries, Cursor uses [Tree-sitter](../projects/tree-sitter.md) to parse code into AST nodes. This enables symbol-aware navigation: `@symbol:UserService.login` resolves to the exact function definition rather than a keyword match.
+
+### Model Routing
+
+Cursor does not lock to a single model. The settings panel exposes model selection per interaction type: fast models for Tab, capable models for Agent. Supported backends include [Claude](../projects/claude.md) (Anthropic), GPT-4 class models ([OpenAI](../projects/openai.md)), [Gemini](../projects/gemini.md) (Google), and [DeepSeek](../projects/deepseek.md). Cursor also operates its own Tab model and has introduced "Cursor Small" for latency-sensitive completions.
+
+The Business and Enterprise tiers offer "Privacy Mode," routing no code to third-party models. In practice this means Cursor's own models handle requests, with the tradeoff that their hosted models are less capable than frontier models.
 
 ## Key Numbers
 
-- **$20/month** (Pro tier) for 500 fast premium requests per month; additional fast requests available at per-request pricing. Unlimited slow premium requests and cursor-small requests included.
-- **Reported ARR**: ~$100M as of late 2024, ~$200-400M by mid-2025 (multiple press reports). *Self-reported or investor-cited, not independently audited.*
-- **[SWE-Bench](../projects/swe-bench.md) performance**: Cursor's agent mode using Claude 3.7 Sonnet achieves competitive scores on SWE-Bench Verified, though Cursor itself has not published a canonical benchmark number. Third-party evaluations place it in the same tier as Claude Code on standard software engineering tasks. *Independent assessments, methodology varies.*
-- **GitHub stars (Cursor-related tooling)**: Not applicable — Cursor is closed-source. Community ecosystems like Everything Claude Code explicitly add `.cursor/` integration as a supported platform.
+- **~500k monthly active users** as of early 2025 (self-reported; not independently verified)
+- **$2.5B valuation** at Series B funding round (January 2025; Andreessen Horowitz, Thrive Capital)
+- **$20/month** Pro tier; $40/month Business tier; Enterprise pricing custom
+- **SWE-bench scores**: Cursor's agent mode was not formally benchmarked on [SWE-bench](../projects/swe-bench.md) by Cursor; third-party evaluations vary by model selected. Treat competitive claims about SWE-bench performance with skepticism unless the specific model + configuration is named.
+- **Tab acceptance rates**: Cursor claims >30% Tab completion acceptance in internal data; not independently verified.
+
+Revenue trajectory is notable for a code editor: reportedly $100M ARR by end of 2024, making it one of the fastest-growing developer tools on record. These figures are self-reported through press and investor communications.
 
 ## Strengths
 
-**VS Code compatibility**: Every VS Code extension works. Teams already invested in VS Code's ecosystem (language servers, debuggers, test runners, theme libraries) face near-zero migration cost for the editor itself.
+**Tight editing loop integration.** Cursor's strongest differentiator is friction reduction in the edit-verify cycle. You don't context-switch to a terminal or chat window; the AI operates where your hands already are. This matters most for multi-file refactors and debugging sessions where context is spread across files.
 
-**Inline editing with context**: Cmd+K opens an inline prompt that understands the surrounding code without copy-pasting. The model sees the file, the selection, and relevant codebase context automatically. For quick edits this beats switching to a chat window.
+**Codebase-aware retrieval.** The `@codebase` semantic search, combined with Tree-sitter symbol resolution, gives the agent more accurate context than naive file inclusion. An agent tasked with "fix the authentication bug" can retrieve the relevant files without you specifying them.
 
-**Codebase-aware retrieval**: The `@codebase` and `@file` references let the model answer questions about code spread across many files. The retrieval quality is generally good on well-structured codebases; it degrades on very large monorepos or codebases with poor naming conventions.
+**Model agnosticism.** Cursor lets teams pick models per task, which matters as frontier model performance shifts. Teams can run Claude Sonnet for agent tasks and Cursor's fast model for Tab without leaving the editor.
 
-**Agent task execution**: Multi-step tasks (add a feature, refactor a module, fix a failing test) run autonomously with the agent reading files, making edits, running tests, and iterating. This is the feature that separates Cursor from Copilot-style autocomplete tools.
+**VS Code compatibility.** Extensions, keybindings, and settings migrate. Teams switching from VS Code face near-zero tooling adjustment beyond the AI-specific features.
 
-**Model flexibility**: Users can bring their own API keys for Anthropic, OpenAI, or Azure OpenAI. Local models via [Ollama](../projects/ollama.md) are supported for completions. Teams with data residency requirements can route to their own deployments.
+**Rules and skill composability.** Projects like Everything Claude Code provide `.cursor/rules/` and `.cursor/skills/` compatible configurations, enabling teams to adopt curated agent behavior patterns without building from scratch.
 
-## Limitations
+## Critical Limitations
 
-**Concrete failure mode — large monorepos**: Cursor's codebase index uses embedding-based retrieval over chunked files. On large monorepos (50K+ files, multiple languages, complex cross-package dependencies), retrieval precision drops because the vector index cannot capture structural relationships between files. The agent will miss relevant files, especially for tasks that span module boundaries or require understanding the call graph. Tools like code-review-graph (which builds a Tree-sitter AST graph and computes blast radius via BFS) exist specifically to address this gap — Cursor's retrieval does not do structural analysis.
+**Concrete failure mode: agent loop drift on large tasks.** The agent mode runs until completion or explicit block, but for tasks spanning 20+ files or requiring architectural judgment calls, the agent frequently drifts: it makes locally coherent edits that accumulate into a globally incoherent state. A refactor might introduce three different naming conventions across files it touched in sequence, each correct relative to its immediate context. Recovery requires either reverting and breaking the task into smaller units, or a second agent pass to clean up inconsistencies. This is not unique to Cursor — it reflects the underlying model's limitation — but Cursor's tight editing integration can make drift less visible until you've accepted a long chain of edits.
 
-**Unspoken infrastructure assumption**: Cursor indexes your code on its servers (or via its API proxy). The privacy model is that code is not used for training by default and is deleted after a period, but code does leave your machine. Teams in regulated industries (healthcare, finance, government) or with IP-sensitive codebases need to verify this is acceptable or use the Business tier with privacy mode, which has different guarantees. This is rarely surfaced prominently in adoption discussions.
-
-**Context window economics at agent scale**: Agent tasks that touch many files quickly saturate context. Cursor does not expose explicit context window management controls to users. When the agent's working context fills, it truncates or summarizes — and the truncation behavior is not transparent. Users discover this when the agent "forgets" earlier work in a long task.
-
-**Hook system maturity gap**: Cursor's `.cursor/hooks.json` supports 20+ event types, but the hook runtime is less capable than Claude Code's. Hooks that work in Claude Code's PreToolUse/PostToolUse system may need to be downgraded to advisory prose for Cursor. Cross-platform skill collections like Everything Claude Code explicitly note this asymmetry.
+**Unspoken infrastructure assumption: internet connectivity for capable models.** Cursor's Tab model and privacy-mode routing work offline, but the full-capability experience (Claude, GPT-4 class, Gemini) requires continuous internet access. In air-gapped environments, on unreliable connections, or during API outages, the editor degrades to a VS Code fork with a weaker local model. Teams in regulated environments with network restrictions should test Privacy Mode thoroughly before committing.
 
 ## When NOT to Use Cursor
 
-**Terminal-first workflows**: Developers who live in the terminal, use tmux heavily, or prefer Neovim/Emacs will find Cursor's GUI overhead an impediment. [Claude Code](../projects/claude-code.md) runs in the terminal, integrates with existing shell workflows, and supports the same agentic multi-file editing without requiring a GUI editor.
+**Terminal-primary workflows.** If your team lives in the terminal and uses Vim, Emacs, or Neovim, Cursor offers no value. [Claude Code](../projects/claude-code.md), [OpenCode](../projects/opencode.md), or [OpenAI Codex](../projects/codex.md) CLI operate where you already are.
 
-**Air-gapped or strict data-residency environments**: Cursor's inference runs through its servers by default. Even with Business tier privacy mode, the architecture assumes outbound API calls. Fully air-gapped environments need Claude Code with a local model or a self-hosted alternative.
+**Highly constrained network environments.** Air-gapped systems or environments with strict egress controls cannot use frontier models. Cursor's own models fill the gap but represent a capability downgrade.
 
-**Teams needing reproducible, auditable agent workflows**: Cursor's agent operates interactively. For CI/CD integration, scheduled autonomous agents, or workflows requiring full audit logs of every action, a programmatic agent framework ([LangGraph](../projects/langgraph.md), [CrewAI](../projects/crewai.md)) or Claude Code's headless mode is more appropriate.
+**Tasks requiring verifiable agent correctness.** Cursor's agent has no formal verification loop. For changes where correctness must be proven (safety-critical systems, cryptographic code, compliance-gated logic), the accept-or-revert UX encourages eyeballing diffs rather than running systematic validation. Use frameworks with explicit test-driven validation loops instead.
 
-**Projects requiring deep structural code analysis**: If the core need is impact analysis, dependency graph reasoning, or architecture-aware refactoring at scale, Cursor's embedding-based retrieval is insufficient. Pair it with a structural analysis tool or use a system that builds explicit call graphs.
+**Teams needing full audit trails.** Cursor logs agent actions in session history but does not provide enterprise-grade audit logs of what code the model saw, what was sent to which API, or what decisions the agent made at each step. Compliance requirements for code confidentiality or AI usage records are hard to satisfy.
+
+**Monorepos beyond ~100k files.** Cursor's indexing and retrieval degrade in very large monorepos. `@codebase` queries become less precise, and the agent spends more of its context window on irrelevant retrievals. Dedicated codebase analysis tools like code-review-graph (which achieves 8.2x average token reduction via structural blast-radius computation) handle this better.
 
 ## Unresolved Questions
 
-**Pricing at team scale**: The per-seat pricing is clear for individuals, but the cost model for large engineering teams doing heavy agent use (hundreds of API calls per developer per day) is less transparent. Fast request limits and overage pricing can make costs unpredictable.
+**Index data residency.** Cursor's documentation states that code sent to frontier models (Claude, GPT-4) is subject to those providers' data policies. What Cursor itself retains — embedding vectors, query logs, session metadata — is not precisely specified in their privacy documentation. For enterprise customers, what "Privacy Mode" actually prevents from leaving the building is underspecified.
 
-**Index freshness and conflict resolution**: When multiple developers edit the same codebase simultaneously, how does Cursor's index stay current? The documentation does not explain index invalidation strategies or how stale context affects agent behavior.
+**Tab model training data.** Cursor trains its own Tab model. The training data source, licensing, and opt-out mechanism for existing Cursor users whose accepted completions might be used as training signal is not publicly documented.
 
-**Fine-tuned model quality**: Cursor ships cursor-small and has trained other proprietary models, but there is no public evaluation of these models against benchmarks. Users cannot assess whether cursor-small is better or worse than a frontier model for specific task types.
+**Conflict resolution between rules files.** When `.cursor/rules/` contains multiple rule files with contradictory instructions (e.g., "always use tabs" from one rule, "always use spaces" from another), Cursor's resolution behavior is not specified. This becomes a real problem when compositing rules from multiple community sources.
 
-**Data retention under Business tier**: The privacy mode documentation states code is not used for training and is deleted, but retention periods, deletion verification, and subprocessor access are not publicly detailed.
+**Cost at scale for enterprises.** Cursor charges per seat, not per token. For teams where developers use agent mode heavily on large tasks, the actual cost is the sum of seat fees plus the underlying model API costs (if using pay-as-you-go models beyond the monthly included usage). Budgeting for enterprise deployments where individual developers run multi-hour agent sessions daily requires modeling that Cursor's pricing page does not directly support.
 
-## Alternatives and Selection Guidance
+**Long-term VS Code fork maintenance.** VS Code releases updates continuously. Cursor must merge upstream VS Code changes while maintaining their AI integration layer. This creates perpetual maintenance debt. The risk: Cursor falls behind VS Code on non-AI features, or an upstream VS Code change breaks Cursor's AI integration in ways that take days to patch. No public roadmap addresses this structural dependency.
 
-**Use [Claude Code](../projects/claude-code.md) when** you prefer terminal-based workflows, need headless/CI integration, or want tighter control over tool permissions and hook behavior. Claude Code's hook system is more capable; its agent loop is more auditable.
+## Alternatives
 
-**Use [Windsurf](../projects/windsurf.md) when** you want a comparable GUI AI editor with different model defaults or find Cursor's pricing unfavorable. Windsurf and Cursor are functionally similar for most coding tasks.
+| Scenario | Use Instead |
+|---|---|
+| Terminal-first workflow | [Claude Code](../projects/claude-code.md) or [OpenCode](../projects/opencode.md) |
+| Already on VS Code with Copilot and switching cost is high | [GitHub Copilot](../projects/github-copilot.md) (now includes agent features) |
+| JetBrains ecosystem | Windsurf (now owned by OpenAI) or JetBrains AI |
+| Air-gapped or fully local LLM requirement | [Ollama](../projects/ollama.md) + Continue extension in VS Code |
+| Need verifiable agentic correctness on SWE tasks | [Claude Code](../projects/claude-code.md) with a test-driven skill loop |
+| Large monorepo where context retrieval is the bottleneck | Cursor + code-review-graph MCP for structural blast radius context |
 
-**Use GitHub Copilot when** your organization is already standardized on VS Code with Copilot Enterprise and does not need agentic multi-file editing — Copilot is simpler, cheaper, and the Enterprise tier includes IP indemnification that Cursor lacks.
+**Use Cursor when** your team already works in VS Code, context-switching between editor and AI tool is measurable friction, and the tasks are mid-complexity refactors or feature additions where the edit-verify loop matters more than formal verification.
 
-**Use a framework ([LangGraph](../projects/langgraph.md), [CrewAI](../projects/crewai.md)) when** you need to build custom agent workflows rather than use a pre-built coding assistant. These are different tools for different problems.
+**Use [Claude Code](../projects/claude-code.md) when** the task is large-scale autonomous coding (hours, not minutes), you want a richer skill/hook ecosystem for agent behavior control, or you prefer terminal integration over editor integration.
 
-**Use Cursor with structural analysis tooling** (like code-review-graph or similar) when working on large codebases where embedding retrieval alone is insufficient for precise context delivery.
+**Use [Windsurf](../projects/windsurf.md) when** you want a direct Cursor alternative with different model defaults and are evaluating pricing — the feature surfaces are close enough that pricing and specific model quality at the moment of evaluation often determines the choice.
 
 ## Related Concepts
 
-- [Retrieval-Augmented Generation](../concepts/rag.md): Cursor's codebase index is a RAG system over source files
-- [Model Context Protocol](../concepts/mcp.md): Cursor implements MCP for external tool integration
-- [Agent Skills](../concepts/agent-skills.md): `.cursor/rules/` and SKILL.md files extend Cursor's behavior
-- [Context Engineering](../concepts/context-engineering.md): Managing what goes into Cursor's context window is the key operational skill for power users
-- [skill.md](../concepts/skill-md.md): The emerging standard Cursor is converging toward for rule and skill definitions
+- [Context Window](../concepts/context-window.md) — Cursor's agent and chat modes are fundamentally exercises in [context engineering](../concepts/context-engineering.md): what to include, what to retrieve, what to compress
+- [Model Context Protocol](../concepts/mcp.md) — Cursor's tool integration standard for external capabilities
+- [CLAUDE.md](../concepts/claude-md.md) — The pattern for persistent agent instructions; Cursor implements a compatible variant via `.cursor/rules/`
+- [Agent Skills](../concepts/agent-skills.md) — The SKILL.md specification that Cursor supports for composable agent knowledge modules
+- [Tree-sitter](../projects/tree-sitter.md) — AST parser Cursor uses for symbol-aware code navigation
+- [Karpathy Loop](../concepts/karpathy-loop.md) — The measure-act-verify pattern that Cursor's agent mode implements implicitly

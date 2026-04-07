@@ -1,12 +1,15 @@
 node_modules/
-build/
+build/*
+!build/seen-urls.json
+!build/lessons.md
 .env
 dist/
 *.bun-build
 scripts/research/
-build/research/
 wiki-*/
 build-*/
 .superset/
 .tmp/
 og/
+launch/
+.context/

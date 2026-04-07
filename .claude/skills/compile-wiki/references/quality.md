@@ -61,6 +61,13 @@
 - Same depth AND same criticism for every project
 - If a project has serious limitations, say so directly
 
+## Source Fidelity
+
+- NEVER invent component names, directory paths, algorithm names, or mechanism details not explicitly stated in source material. If a source says "the system uses a feedback loop" do NOT embellish it as "the Recursive Reflector feedback loop" unless that exact name appears in the source.
+- NEVER cite specific benchmark numbers (percentages, scores, star counts) unless the EXACT number appears in the provided source text. If you cannot find the number, say "the project reports improved accuracy" instead of inventing a percentage.
+- When a detail feels specific enough to be verifiable (a number, a component name, a file path, a benchmark result), double-check it appears verbatim in the source before writing it. If it doesn't, generalize.
+- Prefer "the project claims X" (reported) over stating X as fact (verified) when evidence is from a README or blog post rather than deep source-code analysis.
+
 ## Tone
 
 - Write for practitioners who build with AI agents daily

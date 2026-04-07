@@ -3,198 +3,169 @@ entity_id: context-engineering
 type: concept
 bucket: context-engineering
 abstract: >-
-  Context engineering is the discipline of deliberately designing what
-  information goes into an LLM's context window, when, and in what form —
-  differentiated from prompt engineering by treating context as a dynamic,
-  multi-component optimization problem rather than a static text artifact.
+  Context engineering is the discipline of systematically designing, retrieving,
+  and managing information in an LLM's context window to maximize task
+  performance; its key differentiator from prompt engineering is treating
+  context as a structured optimization problem across the full inference
+  pipeline.
 sources:
   - repos/memodb-io-acontext.md
-  - repos/orchestra-research-ai-research-skills.md
-  - repos/transformeroptimus-superagi.md
   - repos/agenticnotetaking-arscontexta.md
-  - repos/thedotmack-claude-mem.md
-  - repos/nemori-ai-nemori.md
-  - papers/mei-a-survey-of-context-engineering-for-large-language.md
-  - papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
+  - repos/topoteretes-cognee.md
+  - repos/letta-ai-lettabot.md
   - articles/effective-context-engineering-for-ai-agents.md
-  - articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md
+  - papers/mei-a-survey-of-context-engineering-for-large-language.md
   - articles/martinfowler-com-context-engineering-for-coding-agents.md
-  - deep/repos/othmanadi-planning-with-files.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
 related:
-  - rag
+  - agent-memory
   - claude-code
-  - mcp
+  - openai
   - anthropic
+  - mcp
   - agent-skills
-last_compiled: '2026-04-06T01:59:23.141Z'
+  - graphrag
+  - letta
+  - claude-md
+  - chain-of-thought
+  - task-decomposition
+last_compiled: '2026-04-07T11:39:57.047Z'
 ---
 # Context Engineering
 
 ## What It Is
 
-Context engineering is the practice of controlling what an LLM sees at inference time. The context window is finite — every token spent on one thing is unavailable for another. Context engineering is the set of decisions and mechanisms that govern those tradeoffs.
+Context engineering is the systematic discipline of deciding what information goes into an LLM's context window, how that information is structured and compressed, and how it gets assembled dynamically at inference time. [Andrej Karpathy](../concepts/andrej-karpathy.md) popularized the term as a correction to "prompt engineering," which undersells the scope of the problem. A prompt is a single text string. A context is a structured payload assembled from multiple sources, each competing for a finite token budget.
 
-[Andrej Karpathy popularized the term](../concepts/andrej-karpathy.md) to distinguish the broader discipline from [prompt engineering](../concepts/prompt-engineering.md), which focuses narrowly on instruction phrasing. Context engineering encompasses everything that shapes the model's informational environment: what instructions appear, what external knowledge gets retrieved, what tools are declared, what memory survives across sessions, and how all of it gets compressed to fit.
+The formal definition from a 2025 survey covering 1,400+ papers: **C = A(c_instr, c_know, c_tools, c_mem, c_state, c_query)**, where A is an assembly function operating on six component types, subject to the hard constraint |C| ≤ L_max (the context window limit). Every system prompt, RAG pipeline, and memory layer is making allocation decisions within this constraint, whether or not the builder frames it that way. [Source](../raw/papers/mei-a-survey-of-context-engineering-for-large-language.md)
 
-The formal framing, drawn from a recent survey of 1,400+ papers, is:
+This distinguishes context engineering from [prompt engineering](../concepts/prompt-engineering.md) (which focuses on phrasing individual inputs), from [RAG](../concepts/rag.md) (which is one implementation pattern within context engineering), and from [agent memory](../concepts/agent-memory.md) (which addresses one component — c_mem — of the broader problem).
 
-**C = A(c_instr, c_know, c_tools, c_mem, c_state, c_query)**
+## Why It Matters: The Comprehension-Generation Asymmetry
 
-where the assembly function A optimizes expected task reward subject to |C| ≤ L_max.
+The most actionable finding from the 2025 survey is a structural asymmetry: LLMs are far better at understanding complex contexts than generating equally sophisticated outputs. A model can reason over a 128K-token context containing dozens of documents, but it cannot generate a document of equivalent complexity and coherence.
 
-Six component types fill the window:
-- **c_instr** — system instructions and behavioral rules
-- **c_know** — external knowledge (retrieved documents, graphs, search results)
-- **c_tools** — function signatures and tool definitions
-- **c_mem** — persistent information from prior sessions
-- **c_state** — dynamic state (user context, world state, agent coordination data)
-- **c_query** — the immediate user request
+The implication for builders is direct: investing in richer context assembly yields higher returns than trying to elicit better outputs from sparse context. Put more specifically, if your system gives the model poor inputs and relies on its generation capability to compensate, you are working against the architecture. The leverage is in retrieval quality, context formatting, and compression — not in prompt phrasing.
 
-Every system prompt, RAG pipeline, and memory layer is making allocation decisions across these six components. Context engineering makes those decisions explicit and systematic rather than ad hoc.
+## The Six Context Components
 
-[Source](../raw/papers/mei-a-survey-of-context-engineering-for-large-language.md)
+### c_instr — Instructions
 
----
+System prompts, behavioral rules, output format specifications, persona definitions. The most commonly discussed component and the one most builders over-optimize at the expense of the others. [CLAUDE.md](../concepts/claude-md.md) files in coding agents are a concrete implementation: persistent instruction files that give the model project-specific behavioral context across sessions.
 
-## Why It Matters
+### c_know — External Knowledge
 
-LLMs have a fundamental asymmetry: they understand complex contexts far better than they can generate equally sophisticated long-form outputs. This changes the calculus for system design. Investing in richer, better-structured retrieval and context assembly yields higher returns than trying to elicit better outputs from sparse inputs through clever prompting.
+Retrieved documents, database query results, web search output, knowledge graph traversals. This is the domain of [RAG](../concepts/rag.md) and [GraphRAG](../concepts/graphrag.md). The key question is not just what to retrieve but how much, in what format, and whether the retrieval happens once (static RAG) or iteratively ([agentic RAG](../concepts/agentic-rag.md)).
 
-A second pressure: attention degrades over long sessions. Models trained on typical context lengths begin losing track of goals stated early in the window as more tokens accumulate. This is sometimes called the "lost in the middle" effect. Context engineering addresses this directly rather than hoping the model stays on track.
+### c_tools — Tool Definitions
 
-A third pressure: cost. Anthropic charges roughly 10x more for uncached tokens than cached ones ($3/MTok vs $0.30/MTok for Claude as of mid-2025). Stable prompt prefixes that hit the KV cache are a direct cost reduction. Context engineering that prioritizes cache stability is not just a capability concern — it's an economics concern.
+Function signatures, API schemas, tool descriptions passed to the model for function calling. Token budgets for tool definitions are frequently underestimated. A system with 30 available tools may spend 15-20% of its context budget on tool schemas before any user input appears.
 
----
+### c_mem — Memory
 
-## Core Mechanisms
+Persistent information from prior interactions. This maps onto the memory taxonomy covered separately under [agent memory](../concepts/agent-memory.md): [episodic memory](../concepts/episodic-memory.md) (prior conversations), [semantic memory](../concepts/semantic-memory.md) (facts about the world and user), [procedural memory](../concepts/procedural-memory.md) (how to do things), and [core memory](../concepts/core-memory.md) (always-present biographical context). Projects like [Letta](../projects/letta.md), [Mem0](../projects/mem0.md), and [Zep](../projects/zep.md) implement different strategies for populating c_mem.
 
-### Context Assembly
+### c_state — Dynamic State
 
-At its simplest, context assembly is deciding what to include. In practice, this means:
+Current world state, user session context, multi-agent coordination state, task progress. In coding agents, this includes the current file tree, open files, and recent errors. In multi-agent systems, it includes messages from other agents and shared workspace state. [Model Context Protocol](../concepts/mcp.md) standardizes how state gets exposed to agents across different tool providers.
 
-**Retrieval selection** — choosing which documents, memory fragments, or tool results enter the window. [Retrieval-Augmented Generation](../concepts/rag.md) formalizes this as maximizing mutual information I(Y*; c_know | c_query): the retrieved content should be maximally informative for the specific task, not just topically related.
+### c_query — The Immediate Request
 
-**Format and ordering** — where content appears matters. Models attend more strongly to content near the beginning and end of the context window. Critical instructions placed at the start and end outperform the same instructions buried in the middle.
+The user's current question or instruction. Frequently the smallest component by token count but the one that drives retrieval and assembly of all other components.
 
-**Progressive disclosure** — rather than loading all potentially relevant information upfront, agents can fetch additional context on demand as tasks unfold. [Claude Code](../projects/claude-code.md) implements this through its CLAUDE.md and .claude/commands/ system: stable project context loads automatically while detailed specifications load only when relevant commands execute.
+## How Assembly Works
 
-[Source](../raw/deep/repos/othmanadi-planning-with-files.md)
+Context assembly is not concatenation. The assembly function A must solve several subproblems simultaneously:
 
-### Context Compression
+**Retrieval**: For c_know and c_mem, the system must decide what to retrieve. Dense retrieval (embedding similarity via [vector databases](../concepts/vector-database.md)), sparse retrieval ([BM25](../concepts/bm25.md)), and [hybrid search](../concepts/hybrid-search.md) combining both are the primary mechanisms. The information-theoretic framing: maximize I(Y*; c_know | c_query) — retrieve context that is maximally informative about the correct output, conditioned on the query.
 
-When relevant information exceeds available window space, compression techniques reduce token count while preserving information:
+**Ranking and Filtering**: Retrieved candidates must be ranked by relevance and filtered to fit the budget. [Reciprocal Rank Fusion](../concepts/reciprocal-rank-fusion.md) combines rankings from multiple retrieval methods. Reranking models (cross-encoders) provide more accurate relevance scores than embedding similarity alone at the cost of additional latency.
 
-- **Summarization** — replacing raw conversation history with distilled summaries
-- **Selective truncation** — dropping low-value content while preserving high-value fragments
-- **Structural compression** — converting verbose formats (XML, verbose JSON) to compact representations
+**Compression**: When retrieved content exceeds available budget, it must be compressed. Compression techniques include extractive summarization (selecting key sentences), abstractive summarization (LLM-generated summaries), and structured extraction (pulling out entities and relationships). [Context compression](../concepts/context-compression.md) operates at 4-8x compression ratios with moderate information loss — the cost of compression is never zero. Techniques like StreamingLLM and Infini-attention address compression at the architectural level.
 
-[Prompt Compression](../concepts/prompt-compression.md) is a subfield specifically focused on this problem. A key constraint: compression must be restorable. Keep URLs when dropping web content. Keep file paths when dropping document bodies. The reference to the content matters as much as the content itself.
+**Ordering and Formatting**: Position within context affects model attention. The "lost in the middle" phenomenon — where models attend poorly to information in the middle of long contexts — means critical information should appear near the beginning or end. Structured formats (XML tags, JSON, markdown headers) help models parse context boundaries.
 
-### Persistent External Memory
+**Tiered Memory Management**: Production systems implement hot/warm/cold storage tiers. Hot context (always in window) holds the current task state and core instructions. Warm context (retrieved per session) holds recent history and relevant knowledge. Cold storage (retrieved on demand) holds the full knowledge base and long-term memory. [Letta](../projects/letta.md)'s MemGPT architecture operationalized this tiering with explicit memory management functions the model can call.
 
-The most durable context engineering pattern treats the filesystem (or a database) as an extension of the context window. The context window is RAM — volatile, limited, fast. The filesystem is disk — persistent, unbounded, slower to access.
+## Implementation Patterns
 
-The [planning-with-files](../raw/deep/repos/othmanadi-planning-with-files.md) pattern, popularized by Manus AI, codifies this into three persistent files:
-- `task_plan.md` — phase definitions, progress checkboxes, decision log, error tracking
-- `findings.md` — research results and external content (kept separate from plan to prevent prompt injection amplification)
-- `progress.md` — chronological session log
+### Static RAG
 
-What makes this context engineering rather than just file management is the lifecycle hooks. The PreToolUse hook fires before every tool call and reads the first 30 lines of task_plan.md:
+Retrieve once at query time, append to context, generate. Simple, predictable, fast. Fails on multi-hop questions that require synthesizing across documents because retrieval happens before the model knows what intermediate steps it needs.
 
-```yaml
-PreToolUse:
-  - matcher: "Write|Edit|Bash|Read|Glob|Grep"
-    hooks:
-      - type: command
-        command: "cat task_plan.md 2>/dev/null | head -30 || true"
-```
+### Agentic RAG
 
-This keeps goals in the most recent part of the context window, where attention is highest. The hook converts an inert file into an active attention management mechanism — injecting goals into the agent's working context at exactly the moment it's about to act.
+The model decides when and what to retrieve through tool calls. Self-RAG trains models to generate retrieval tokens mid-generation. CDF-RAG uses confidence scores to trigger retrieval. Higher accuracy on complex tasks, harder to debug, higher latency. [Agentic RAG](../concepts/agentic-rag.md) represents a shift from context-as-input to context-as-working-memory.
 
-Evaluation results for this approach: 96.7% pass rate on 30 assertions (29/30) versus 6.7% (2/30) without the skill. The improvement comes not from adding information, but from enforcing working-memory discipline through process structure. (Self-reported by the skill creator using Anthropic's skill-creator framework.)
+### Graph-Enhanced Retrieval
 
-### Multi-Component Coordination
+[GraphRAG](../concepts/graphrag.md) extracts entities and relationships from documents, builds a knowledge graph, and retrieves graph subgraphs rather than raw document chunks. Consistent 10-20% improvements on multi-hop reasoning benchmarks (self-reported by individual papers, not independently benchmarked as a class). [HippoRAG](../projects/hipporag.md) and [RAPTOR](../projects/raptor.md) implement variants. The tradeoff: graph construction is expensive and graph quality degrades on poorly structured source documents.
 
-In multi-agent systems, context engineering extends to managing what each agent sees and when. Each agent in a pipeline has its own context window. Information that needs to cross agent boundaries must be explicitly serialized and deserialized. [Agent Orchestration](../concepts/agent-orchestration.md) frameworks like [LangGraph](../projects/langgraph.md) and [CrewAI](../projects/crewai.md) provide mechanisms for this, but the allocation decisions remain the system designer's responsibility.
+### Skill-Based Memory
 
-The [Model Context Protocol](../concepts/mcp.md) standardizes how external tools and data sources expose themselves to LLM context — a protocol-level answer to the "how do tools get into c_tools?" question.
+Rather than storing raw conversation history or vector embeddings, systems like [Acontext](../raw/repos/memodb-io-acontext.md) distill agent execution traces into human-readable skill files — markdown documents describing what worked, what failed, and user preferences. These files populate c_mem directly, bypassing embedding search entirely. Retrieval becomes tool-based progressive disclosure rather than semantic search. The advantage: skills are inspectable, editable, and portable. The limitation: distillation quality depends on the LLM doing the distillation.
 
----
+### Knowledge Graph as Memory
 
-## Implementation Approaches
+[Cognee](../raw/repos/topoteretes-cognee.md) and similar systems treat all ingested information as nodes and edges in a graph, enabling both vector similarity search and graph traversal at query time. The graph structure captures relationships that chunk-based RAG misses. The 6-line API (`cognee.add()`, `cognee.cognify()`, `cognee.search()`) abstracts the complexity, but the underlying system requires graph database infrastructure (Neo4j or compatible).
 
-### The Six-Component Audit
+### Personalized Context Architectures
 
-The most practical entry point: audit an existing system against the six components. For each — c_instr, c_know, c_tools, c_mem, c_state, c_query — ask:
-
-1. What information does this component currently provide?
-2. How does it get assembled into the window?
-3. Is it competing for budget with higher-value components?
-4. Could it be compressed, cached, or loaded progressively?
-
-Most systems over-invest in c_instr (long system prompts) and under-invest in c_know quality and c_mem persistence.
-
-### Skill Files as Memory
-
-[Acontext](../raw/repos/memodb-io-acontext.md) (3,264 stars) treats agent memory as structured Markdown skill files rather than opaque vector stores. After each session, a distillation pass extracts what worked and what failed, writing the result to human-readable files following the [Agent Skills](../concepts/agent-skills.md) format. On subsequent sessions, the agent calls `get_skill` and `get_skill_file` tools to load relevant skills on demand — progressive disclosure, not semantic retrieval.
-
-The key property: skill files are human-readable and editable. A system administrator can inspect and correct the agent's accumulated knowledge without database access. This trades retrieval sophistication for transparency and portability.
-
-### Derived Knowledge Systems
-
-Ars Contexta (2,928 stars) takes a different approach: generating personalized knowledge system architectures from conversation about how a user thinks and works, backed by 249 research claims about cognition and knowledge management. The output includes folder structures, processing pipelines, note templates, and automation hooks calibrated to the specific domain. The premise is that generic templates produce generic knowledge systems — context engineering works better when the context structures match the user's actual cognitive patterns.
-
-[Source](../raw/repos/agenticnotetaking-arscontexta.md)
-
----
-
-## Failure Modes
-
-### Goal Drift
-
-Over sessions with many tool calls, agents lose track of their original objectives. The early-context instructions become effectively invisible as the window fills with tool results and intermediate outputs. The planning-with-files pattern addresses this through mechanical re-injection. Systems without this mechanism exhibit increasingly incoherent behavior in long tasks.
-
-### Prompt Injection via Context
-
-External content retrieved into the context window can contain adversarial instructions. This risk compounds when retrieved content sits in components that get auto-injected frequently (like task_plan.md in the PreToolUse hook). Security-conscious context engineering keeps trusted and untrusted content in separate files with different injection policies — never auto-inject external content.
-
-### Context Budget Exhaustion
-
-Pre-loading too much context for anticipated needs consumes budget that actual task content requires. The opposite failure — loading too little — forces retrieval during execution, adding latency. Neither is obviously wrong without measuring actual task distributions. Systems that can't measure where their context budget goes can't optimize it.
-
-### Compression Information Loss
-
-Context compression that discards critical details rather than compressing them produces silently wrong outputs. The model won't report that a key constraint was lost in summarization — it will generate confident output based on incomplete information. Compression strategies need explicit preservation rules for high-value content types (constraints, error messages, exact values).
-
-### Cache Invalidation Overhead
-
-KV-cache benefits depend on prompt prefixes staying stable across requests. Dynamic context assembly that varies early prompt content on every call forfeits caching entirely. Systems should front-load stable content (instructions, tool definitions) and append variable content (retrieved documents, current query) to preserve cache hit rates.
-
----
+Tools like Ars Contexta (a Claude Code plugin) generate domain-specific context architectures through conversation — deriving folder structure, context files, processing pipelines, and navigation maps from how the user describes their work. The insight: a generic CLAUDE.md is less effective than one derived from the specific cognitive patterns of the domain. This operationalizes context engineering at the system-design level rather than the per-query level.
 
 ## Relationship to Adjacent Concepts
 
-[Retrieval-Augmented Generation](../concepts/rag.md) is the c_know component of context engineering — one piece of the full problem. [Agentic RAG](../concepts/agentic-rag.md) extends this to multi-step retrieval where the agent decides what to fetch based on intermediate results.
+[Chain-of-thought](../concepts/chain-of-thought.md) prompting is a context engineering technique for c_instr: explicitly structuring the reasoning scaffold the model should follow. [Task decomposition](../concepts/task-decomposition.md) is a context management technique: breaking tasks so that each sub-task fits within an effective context budget with appropriate information. [Progressive disclosure](../concepts/progressive-disclosure.md) structures how context is revealed to the model across multiple turns rather than all at once.
 
-[Agent Memory](../concepts/agent-memory.md) covers c_mem — how information persists across sessions. The distinction between [Episodic Memory](../concepts/episodic-memory.md), [Semantic Memory](../concepts/semantic-memory.md), and [Procedural Memory](../concepts/procedural-memory.md) maps onto different storage and retrieval strategies for c_mem content.
+[Context management](../concepts/context-management.md) is the narrower subproblem of handling what happens as context fills — truncation strategies, summarization, and deciding what to evict. [Context window](../concepts/context-window.md) defines the hard constraint. [Context compression](../concepts/context-compression.md) addresses the techniques for operating within that constraint.
 
-[Chain-of-Thought](../concepts/chain-of-thought.md) and [ReAct](../concepts/react.md) are context assembly patterns — they specify how reasoning traces and action-observation pairs should be structured within the window.
+## Failure Modes
 
-[Task Decomposition](../concepts/task-decomposition.md) interacts with context engineering through scope management: decomposing tasks into subtasks allows each subtask to work with a focused, relevant context rather than carrying the full complexity of the parent task.
+**Context stuffing**: Adding everything available rather than making selection decisions. More context is not always better — irrelevant content increases noise and can degrade performance. Studies show models perform worse on simple retrieval tasks when irrelevant documents are present alongside relevant ones.
 
-[Progressive Disclosure](../concepts/progressive-disclosure.md) is a specific context management strategy: loading information on demand as it becomes relevant, rather than preloading all potentially useful content.
+**Lost-in-the-middle degradation**: Information placed in the middle of a long context receives less model attention than information at the boundaries. Critical facts buried in the 40th percentile of a 128K context may effectively be invisible to the model. The fix is either reordering or using architectures (Mamba, state-space models) with different attention patterns.
 
----
+**Component budget neglect**: Tool schemas, system instructions, and memory components consume tokens before the user query appears. Systems that don't track total context budget can silently exceed limits, causing truncation of the most recently added (often most relevant) content.
 
-## Open Questions
+**Static assembly for dynamic tasks**: Pre-assembling context at session start works for simple question-answering but fails for multi-step agentic tasks where what matters changes as the task progresses. The required information for step 5 of a task is not known at step 1.
 
-**Optimal compression ratios by content type.** Current compression research shows 4-8x compression with moderate information loss, but "moderate" isn't quantified for specific content types (code, legal text, conversational history). Practitioners have no principled way to set compression thresholds without empirical testing on their specific domain.
+**Memory without synthesis**: Storing raw conversation history as c_mem grows token cost linearly with conversation length. Without periodic summarization or distillation, memory becomes a liability rather than an asset past a few sessions.
 
-**Multi-agent context coordination.** When multiple agents share a task, context about task state needs to propagate across agent boundaries. No settled protocol exists for this. The [Model Context Protocol](../concepts/mcp.md) addresses tool exposure but not inter-agent state sharing.
+**Compression information loss**: Compressing context to fit budgets removes information. The question of which information to remove is hard. Summarization preserves conclusions but discards reasoning chains. Extractive compression preserves exact text but may miss implicit context. No compression technique reliably preserves all information the model would need.
 
-**Memory system immaturity.** The survey identifies rapid evolution in memory architectures with no settled best practice. [Mem0](../projects/mem0.md), [Zep](../projects/zep.md), [Letta](../projects/letta.md), and [Graphiti](../projects/graphiti.md) each take different architectural approaches. Systems built on any one today should expect to swap backends.
+## When Context Engineering Doesn't Solve the Problem
 
-**Benchmark adequacy.** Existing benchmarks test single-session recall and retrieval accuracy. They don't adequately test cross-session synthesis, temporal reasoning over evolving facts, or multi-source conflict resolution — the capabilities that production systems actually require.
+Context engineering addresses the information input to a model. It does not address:
 
-**When to compress vs. offload.** Compression keeps information in-window but degrades fidelity. Offloading to external storage preserves fidelity but requires retrieval latency. The right tradeoff depends on access frequency, information importance, and latency budget — none of which current tooling measures automatically.
+- Model capability limits — if the model cannot perform the underlying reasoning, better context won't fix it
+- Latency constraints — rich context assembly with multiple retrieval steps adds latency; some applications cannot tolerate it
+- Cost constraints — processing large contexts is expensive; systems with tight per-query cost budgets may need model fine-tuning instead
+- Temporal reasoning over long histories — current retrieval techniques perform poorly on questions requiring synthesis across months of interactions (LongMemEval benchmarks show this gap)
+- Multi-agent context coherence — sharing and synchronizing context across multiple agents remains an unsolved coordination problem
+
+When model behavior needs to change permanently (not per-query), fine-tuning or [continual learning](../concepts/continual-learning.md) is the right tool. When the task requires genuinely novel synthesis the model has never seen, context engineering can help but cannot substitute for capability the model lacks.
+
+## Unresolved Questions
+
+**Optimal allocation**: Given a fixed context budget, how should it be divided among c_instr, c_know, c_tools, c_mem, c_state, and c_query? The formal optimization framework is mathematically clean but practically uncomputable — you cannot calculate mutual information quantities at runtime. Empirical budget allocation remains largely ad hoc.
+
+**Evaluation**: Existing benchmarks (GAIA, LongMemEval, SWE-bench) test specific capabilities but do not evaluate context engineering quality directly. There is no standard metric for "how well did this system use its context budget."
+
+**Graph vs. vector tradeoffs**: When does graph-enhanced retrieval justify its construction cost over vector similarity search? The answer likely depends on source document structure and query type, but no systematic study provides selection guidance.
+
+**Cross-session memory quality**: Most memory system evaluations test single-session recall. Whether current memory architectures degrade gracefully over months of use — or silently accumulate noise — remains empirically unclear.
+
+## Related Concepts and Projects
+
+- [Agent Memory](../concepts/agent-memory.md) — the c_mem component in detail
+- [RAG](../concepts/rag.md) — the dominant c_know assembly pattern
+- [GraphRAG](../concepts/graphrag.md) — graph-enhanced c_know retrieval
+- [Model Context Protocol](../concepts/mcp.md) — standardizing how c_state and c_tools are exposed
+- [CLAUDE.md](../concepts/claude-md.md) — persistent c_instr implementation
+- [Context Compression](../concepts/context-compression.md) — managing the L_max constraint
+- [Context Window](../concepts/context-window.md) — the hard constraint context engineering operates within
+- [Chain-of-Thought](../concepts/chain-of-thought.md) — c_instr technique for reasoning scaffolds
+- [Task Decomposition](../concepts/task-decomposition.md) — managing context budget across sub-tasks
+- [Letta](../projects/letta.md) — tiered memory architecture implementing context management
+- [LangChain](../projects/langchain.md) / [LangGraph](../projects/langgraph.md) — orchestration frameworks with context assembly primitives
+- [LongMemEval](../projects/longmemeval.md) — benchmark for long-context memory evaluation

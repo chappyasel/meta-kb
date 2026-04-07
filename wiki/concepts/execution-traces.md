@@ -79,7 +79,7 @@ For context-layer learning, traces feed memory distillation systems. [Acontext](
 
 ### Training Data Generation
 
-At the model layer, traces from successful task completions can be formatted as supervised fine-tuning examples or used to construct preference pairs for RLHF/[GRPO](../concepts/grpo.md) training. [Self-Improving Agents](../concepts/self-improving-agents.md) research (including [Voyager](../projects/voyager.md) and [Darwin Gödel Machine](../projects/darwin-godel-machine.md)) relies on traces to identify which behaviors are worth reinforcing. The quality of the resulting training signal depends entirely on the quality and completeness of trace collection.
+At the model layer, traces from successful task completions can be formatted as supervised fine-tuning examples or used to construct preference pairs for RLHF/[GRPO](../concepts/grpo.md) training. Self-Improving Agents research (including [Voyager](../projects/voyager.md) and [Darwin Gödel Machine](../projects/darwin-godel-machine.md)) relies on traces to identify which behaviors are worth reinforcing. The quality of the resulting training signal depends entirely on the quality and completeness of trace collection.
 
 ### Preference Learning and Workflow Optimization
 
@@ -145,7 +145,7 @@ Collecting traces without using them is a common failure mode — teams instrume
 - [Episodic Memory](../concepts/episodic-memory.md) — episodic memory is often implemented as a compressed or summarized form of execution traces, retaining the what-happened sequence without the raw token-level detail
 - [Memory Consolidation](../concepts/memory-consolidation.md) — the process of distilling traces into durable memory; traces are the input, consolidated memories are the output
 - [Reflexion](../concepts/reflexion.md) — uses the trace as input to a self-critique step; the critique becomes context for the next attempt
-- [Self-Improving Agents](../concepts/self-improving-agents.md) — depend on traces as the primary feedback signal for automated improvement
+- Self-Improving Agents — depend on traces as the primary feedback signal for automated improvement
 - [Context Graphs](../concepts/context-graphs.md) — accumulate decision traces into a queryable organizational memory structure
 - [Agent Memory](../concepts/agent-memory.md) — traces are the raw form from which all persistent agent memory is derived
 - [Chain-of-Thought](../concepts/chain-of-thought.md) — CoT reasoning embedded in LLM outputs is itself a trace of reasoning steps, usable as a lightweight trace even without external instrumentation

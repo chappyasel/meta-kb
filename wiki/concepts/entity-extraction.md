@@ -3,234 +3,143 @@ entity_id: entity-extraction
 type: approach
 bucket: knowledge-bases
 abstract: >-
-  Entity extraction identifies named entities and relationships from text to
-  populate knowledge graphs; key differentiator is the multi-stage LLM pipeline
-  (extract, deduplicate, resolve contradictions) with temporal validation
-  replacing simpler NER approaches.
+  Entity extraction identifies named entities and their relationships from text,
+  converting unstructured language into structured triples and facts that
+  knowledge graphs and memory systems can store, query, and reason over.
 sources:
+  - repos/getzep-graphiti.md
   - repos/supermemoryai-supermemory.md
   - deep/repos/getzep-graphiti.md
-  - deep/repos/mem0ai-mem0.md
   - deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md
-related: []
-last_compiled: '2026-04-05T23:16:37.281Z'
+  - deep/repos/mem0ai-mem0.md
+related:
+  - openai
+  - knowledge-graph
+  - hybrid-search
+  - rag
+  - anthropic
+  - mcp
+  - mem0
+last_compiled: '2026-04-07T11:58:17.436Z'
 ---
 # Entity Extraction
 
 ## What It Is
 
-Entity extraction is the process of automatically identifying meaningful named objects in text (people, organizations, locations, products, concepts) and the relationships between them. In the context of knowledge bases and agent memory, it goes beyond traditional Named Entity Recognition (NER) by extracting structured fact triples: *entity → relationship → entity*.
+Entity extraction is the process of identifying discrete named things (people, organizations, locations, concepts, events) and the relationships between them from unstructured text. The output is structured data: either flat facts ("Alice works at Google") or typed triples (Alice --WORKS_AT--> Google) that downstream systems can store, index, and query.
 
-A plain NER model tags spans of text with categories ("Google" = ORG, "Alice" = PERSON). Entity extraction for knowledge graphs does more: it produces the triple `Alice WORKS_AT Google` along with temporal bounds (`valid_at`, `invalid_at`), confidence scores, and provenance linking back to the source text.
+In the context of [Knowledge Graph](../concepts/knowledge-graph.md) construction and [Agent Memory](../concepts/agent-memory.md), entity extraction is the first transformation step: it converts raw text into the structured representation that makes information retrievable, comparable, and updatable rather than buried in document chunks.
 
-This shift from span tagging to triple extraction is what makes entity extraction the foundation of knowledge graphs rather than just a preprocessing step.
+Two distinct subtasks compose the full process. Named Entity Recognition (NER) identifies spans of text and assigns them types (PERSON, ORG, LOC, DATE). Relation Extraction (RE) identifies the semantic connection between two entities within the same context window. Most modern LLM-based pipelines handle both in a single prompt pass using structured output schemas.
 
-## Why It Matters
+## Why It Matters for Knowledge Bases
 
-Static vector search retrieves document chunks. Entity extraction produces a structured representation of *what is true*, enabling queries no chunk-retrieval system can answer:
+[Retrieval-Augmented Generation](../concepts/rag.md) retrieves document chunks. Entity extraction enables something different: retrieval of facts about specific entities and the traversal of relationships between them. The distinction matters when queries require multi-hop reasoning ("Who manages the team that owns the product Alice uses?") or temporal tracking ("What was Alice's employer before Google?").
 
-- "What entities are connected to Alice through at most 2 hops?"
-- "What changed about Bob's employment status between January and March?"
-- "Which facts contradict each other?"
+Without entity extraction, a memory system can only answer queries when the answer appears verbatim in a stored chunk. With it, the system can answer from any combination of extracted facts, even when no single document contains the full answer.
 
-The [RAG vs GraphRAG benchmark study](../raw/deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md) makes the tradeoff concrete: on temporal reasoning queries, GraphRAG (which depends on entity extraction) outperforms RAG by 23.33 F1 points (49.06 vs 25.73). For multi-hop reasoning queries, GraphRAG gains 1-2 F1 points. For single-hop factual lookups, RAG wins. Entity extraction is the mechanism behind every one of those GraphRAG advantages.
+The [Hybrid Search](../concepts/hybrid-search.md) approaches used in production memory systems combine embedding similarity (semantic search over chunks), BM25 (lexical search), and graph traversal (relationship-based search). The third component requires extracted entities and relationships to exist in the graph before traversal is possible.
 
 ## How It Works
 
-### The Basic Pipeline
+### LLM-Based Extraction Pipelines
 
-Every entity extraction system runs some variant of this sequence:
+The dominant approach in agent memory systems uses LLMs with structured output to extract entities and relationships from text. The core pattern:
 
-1. **Span detection**: Identify candidate entity mentions in text
-2. **Type classification**: Assign categories (Person, Organization, Location, or domain-specific types)
-3. **Normalization**: Resolve surface form variations ("NYC" = "New York City", "Google LLC" = "Google")
-4. **Relationship extraction**: Identify predicates connecting entity pairs
-5. **Deduplication**: Match new entities against existing graph nodes
-6. **Temporal annotation**: Assign validity windows to facts
+1. Feed the text (plus context, if available) to an LLM
+2. Request structured output conforming to a Pydantic schema defining entity types and relationship types
+3. Parse the response into typed objects
+4. Run a deduplication pass to resolve new entities against existing ones
 
-Traditional pipelines ran each stage as a separate model (BiLSTM-CRF for NER, separate RE model for relation extraction). Modern LLM-based systems collapse most of these stages into a single structured-output call, then run deduplication and temporal resolution as separate LLM passes.
+[Graphiti](../projects/graphiti.md) implements this as a multi-stage pipeline inside `graphiti_core/utils/maintenance/`. The `extract_nodes` function sends the current episode plus the previous four messages to the LLM with a prompt that specifies what to extract and, critically, what NOT to extract. The extraction prompt (`prompts/extract_nodes.py`) includes extensive negative examples: no pronouns, no abstract concepts like "team" without qualification, no bare kinship terms like "dad" without context. The entity name must be specific: "Nisha's dad" passes; "dad" does not.
 
-### LLM-Based Extraction: The Multi-Stage Pipeline
+A second function, `extract_edges`, runs separately to extract fact triples. Each triple carries source entity, target entity, relation type in SCREAMING_SNAKE_CASE, a natural language description, and temporal bounds (`valid_at`, `invalid_at`). This temporal annotation is what separates a knowledge graph memory system from a simple lookup table.
 
-[Graphiti](../raw/deep/repos/getzep-graphiti.md) implements the most thorough documented version of this pipeline, using 4-5 sequential LLM calls per episode:
+[Mem0](../projects/mem0.md) uses a simpler two-pass approach in `mem0/memory/main.py`. Pass one extracts atomic facts as strings ("Name is John", "Likes cheese pizza") using `USER_MEMORY_EXTRACTION_PROMPT`. Pass two reconciles these against existing memories using `DEFAULT_UPDATE_MEMORY_PROMPT`, which returns ADD/UPDATE/DELETE/NONE decisions. Mem0 stores flat facts in a vector store rather than typed triples in a graph, which makes the extraction simpler but limits relationship traversal.
 
-**Stage 1 — Entity Extraction** (`extract_nodes` in `graphiti_core/utils/maintenance/node_operations.py`)
+### Deduplication and Entity Resolution
 
-The LLM receives the current text plus the 4 previous messages for context and returns structured `ExtractedEntity` objects via Pydantic. The extraction prompt includes extensive negative examples: do not extract pronouns, abstract concepts, generic nouns, bare kinship terms. Entity names must be specific and qualified ("Nisha's dad" not "dad").
+Extraction quality alone is insufficient. The harder problem is resolving "NYC" and "New York City" to the same node, or distinguishing "Java the language" from "Java the island." This is entity resolution, and it requires a combination of embedding similarity, lexical matching, and LLM judgment.
 
-This specificity is deliberate. Overly broad extraction creates resolution noise; every vague noun becomes a candidate entity that the deduplication stage must sort out. The paper describes a "reflection technique" to minimize hallucinations and extract accurate entity summaries.
+Graphiti's `resolve_extracted_nodes` function handles this with three steps:
+1. Cosine similarity search against existing entity embeddings to find candidates
+2. Full-text search on entity names and summaries for lexical candidates
+3. An LLM cross-encoder call to make the final deduplication decision
 
-**Stage 2 — Node Deduplication** (`resolve_extracted_nodes`)
+Mem0 delegates the same decision to a single LLM prompt, passing existing memories and new facts to the model and asking it to determine which operation applies. The integer ID mapping trick (`temp_uuid_mapping`) prevents UUID hallucination: before sending existing memory IDs to the LLM, mem0 maps them to sequential integers (0, 1, 2, ...) and remaps back after the response.
 
-Each extracted entity gets embedded into a 1024-dimensional vector, then compared against existing graph nodes through hybrid matching:
+### Traditional vs. LLM-Based NER
 
-- Cosine similarity finds semantically similar entities
-- Full-text search on names and summaries provides lexical matching
-- A final LLM cross-encoder call makes the deduplication decision
+Before LLMs, entity extraction used dedicated NER models (SpaCy, BERT-based taggers, Stanford NER) trained on annotated corpora. These are faster and cheaper per document but handle only predefined entity types and struggle with domain-specific terminology.
 
-The LLM handles semantic equivalence ("NYC" = "New York City") and disambiguation ("Java programming language" vs "Java island"). When duplicates are detected, the system generates updated, complete names and summaries incorporating new information.
+LLM-based extraction generalizes across domains without retraining, supports custom entity schemas defined by the developer, and handles ambiguous or context-dependent entities better. The cost is latency and LLM API calls per document.
 
-**Stage 3 — Relationship Extraction** (`extract_edges` in `graphiti_core/utils/maintenance/edge_operations.py`)
+Graphiti supports a hybrid option: GLiNER2, a local NER model that runs without an external LLM API call, available as one of its seven LLM client implementations in `graphiti_core/llm_client/`.
 
-The LLM extracts fact triples as structured `Edge` objects containing:
-- Source and target entity names
-- Relation type in SCREAMING_SNAKE_CASE (e.g., `WORKS_AT`, `LIVES_IN`, `MARRIED_TO`)
-- Natural language description of the relationship
-- `valid_at` and `invalid_at` temporal bounds
+## Entity Types and Ontology
 
-The `reference_time` parameter lets the LLM resolve relative expressions ("last week") into absolute timestamps.
+Production systems support two modes of entity typing:
 
-**Stage 4 — Edge Resolution / Contradiction Detection** (`resolve_extracted_edges`)
+**Prescribed ontology** (developer-defined): The developer defines entity types and their required attributes using Pydantic models before ingestion begins. Graphiti accepts custom entity types as a dict passed to `add_episode()`. Mem0 applies separate extraction prompts for users versus agents. This approach yields cleaner, more consistent structured output but requires upfront schema design.
 
-New edges are compared against existing edges between the same entity pairs. The LLM produces `EdgeDuplicate` objects identifying:
-- `duplicate_facts`: Existing edges representing identical information
-- `contradicted_facts`: Existing edges that the new fact supersedes
+**Learned structure** (emergent): The extractor infers entity types from the data itself. Graphiti defaults to this when no custom types are provided, using a generic entity schema with name, summary, and type fields. The advantage is flexibility; the disadvantage is inconsistency across documents.
 
-Contradicted edges get their `expired_at` set to the current time rather than being deleted. This preserves temporal history: you can query what the system believed at any past point.
+The tension between these modes is unresolved in practice. Prescribed ontology requires you to know your domain's entities before you build the system. Learned structure accumulates noise and inconsistency at scale.
 
-**Stage 5 — Attribute Extraction**
+## Relationship to Knowledge Graphs
 
-Entity nodes receive updated summaries incorporating information from new edges. Only applied to new (non-duplicate) edges to avoid redundant summary updates.
+Entity extraction produces the raw material that [Knowledge Graph](../concepts/knowledge-graph.md) construction pipelines consume. Each extracted triple (subject, predicate, object) becomes an edge in the graph, with subject and object as nodes. The quality ceiling of any knowledge graph is therefore the quality ceiling of its extraction pipeline.
 
-### Simpler Variants
+The RAG vs. GraphRAG comparative analysis (arXiv paper analyzed in source material) identifies the practical consequence: approximately 34% of answer-relevant entities are missed during graph construction on HotPotQA. This 34% miss rate creates a hard retrieval ceiling. Queries requiring an unextracted entity will fail even if the answer exists in the source documents. GraphRAG's multi-hop reasoning advantage over standard RAG (+23 F1 points on temporal queries) only applies to entities that were successfully extracted.
 
-[Mem0](../raw/deep/repos/mem0ai-mem0.md) runs a two-pass variant: first extracting atomic facts from conversation (`{"facts": ["Name is John", "Is a Software Engineer"]}`), then reconciling those facts against existing vector-stored memories to decide ADD/UPDATE/DELETE/NONE operations. It skips typed entity classification and relationship triples entirely, storing facts as flat strings rather than graph edges.
-
-This is faster and simpler, but cannot answer relationship queries or do temporal reasoning. The system handles "what the LLM decides is important" rather than structured entity-relation triples.
-
-[Mem0's optional graph layer](../raw/deep/repos/mem0ai-mem0.md) adds proper entity extraction when Neo4j is configured, running entity extraction plus relation establishment as separate LLM calls with function calling, then a third call for deletion checking. This adds 3+ LLM calls beyond the base pipeline.
-
-### Traditional NER vs. LLM-Based Extraction
-
-Pre-LLM approaches used supervised sequence labeling (BiLSTM-CRF, BERT-based taggers) trained on annotated corpora. [Graphiti's GLiNER2 client](../raw/deep/repos/getzep-graphiti.md) (`graphiti_core/llm_client/`) exposes this as an option: a local NER model instead of an API call, trading flexibility for speed and cost.
-
-The tradeoffs:
-
-| Approach | Speed | Cost | Custom Entity Types | Temporal Reasoning | Accuracy on Domain Text |
-|---|---|---|---|---|---|
-| Rule-based NER | Fast | None | No | No | Low |
-| Supervised NER (BiLSTM, BERT) | Fast | Inference only | Requires retraining | No | High if in-domain |
-| GLiNER2 (local) | Medium | GPU/inference | Yes, zero-shot | No | Good |
-| LLM with structured output | Slow (network) | Per-call | Yes, via prompt | Yes | High, general |
-| Multi-stage LLM pipeline | Slowest | 4-5x per-call cost | Yes, via Pydantic | Yes | Highest |
-
-### The Entity Extraction Ceiling
-
-The [RAG vs GraphRAG paper](../raw/deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md) identifies the most important empirical constraint: only 65.8% of answer-relevant entities exist in constructed knowledge graphs on HotPotQA, and 65.5% on NQ. This ~34% entity miss rate is a hard ceiling for graph-only approaches. If an entity was not extracted during ingestion, graph traversal cannot find it.
-
-The miss rate is not primarily a model quality problem. It reflects structural issues:
-- Entities mentioned implicitly ("the company she founded") without explicit surface forms
-- Coreference chains the extractor fails to resolve
-- Domain-specific terminology requiring specialized extraction
-- Entities that appear only in image captions or tables if processing multimodal content
-
-The `triplets+text` variant (keeping source text linked to extracted triples) partially compensates: retrieval falls back to the source chunk when the graph lookup misses.
-
-## Practical Design Considerations
-
-### Ontology: Prescribed vs. Emergent
-
-Systems support two modes. In prescribed ontology, developers define entity types as Pydantic models upfront:
-
-```python
-class PersonModel(BaseModel):
-    name: str
-    role: str | None = None
-
-class CompanyModel(BaseModel):
-    name: str
-    industry: str | None = None
-```
-
-This enforces schema but requires knowing your domain's entity types in advance.
-
-In emergent ontology, the LLM assigns types based on context without a predefined schema. Types emerge from the data. This handles novel domains but produces inconsistent type names ("software_engineer" vs "SoftwareEngineer" vs "engineer") that complicate downstream queries.
-
-Production systems typically combine both: prescribed types for known high-value entities, emergent classification for everything else.
-
-### Temporal Annotation
-
-Bi-temporal annotation is the distinguishing feature of production-quality entity extraction versus basic NER. [Graphiti's bi-temporal model](../raw/deep/repos/getzep-graphiti.md) tracks four timestamps per edge:
-
-```python
-expired_at: datetime | None   # When this edge record was invalidated (transaction time)
-valid_at: datetime | None     # When the fact became true (event time)  
-invalid_at: datetime | None   # When the fact stopped being true (event time)
-reference_time: datetime | None  # Reference timestamp from source episode
-```
-
-This enables time-travel queries: "what did the system believe about Alice's employer as of January 2023?" The distinction between transaction time (when data entered the system) and event time (when the fact was true in the world) comes from database theory and is standard in financial audit systems.
-
-Without temporal annotation, contradiction resolution degrades to last-write-wins, which produces incorrect answers for questions like "where did Alice work before Google?"
-
-### Deduplication: The Hardest Part
-
-Entity resolution (deciding whether "Apple" in one document refers to the same entity as "Apple Inc." in another) is where most entity extraction pipelines fail. Three strategies exist:
-
-**Embedding similarity alone**: Fast but misses acronym resolution and multi-word aliases. "FBI" and "Federal Bureau of Investigation" may not be close in embedding space.
-
-**String matching**: Catches exact and near-exact matches but misses semantic equivalence entirely.
-
-**LLM cross-encoder**: Most accurate, highest cost. Given two candidate entities, the LLM decides whether they refer to the same thing. This is what [Graphiti uses](../raw/deep/repos/getzep-graphiti.md) after candidate retrieval via embedding + BM25.
-
-The integer ID mapping trick (used by both Graphiti and mem0) addresses UUID hallucination: real UUIDs are mapped to sequential integers (0, 1, 2...) before the LLM sees them, preventing the LLM from inventing plausible-looking UUIDs for entities that don't exist.
-
-### Concurrency and Cost
-
-Multi-stage LLM pipelines are expensive. Graphiti's `add_episode()` makes minimum 4-5 LLM calls; with community updates enabled, the count scales with the number of affected community nodes. The `SEMAPHORE_LIMIT` environment variable (default 10) controls concurrent LLM calls to prevent rate-limit errors.
-
-Cost mitigation strategies:
-- Use a smaller model (`gpt-4.1-nano` vs `gpt-4.1-mini`) for simpler stages like attribute extraction
-- Run bulk ingestion with `add_episode_bulk()` which skips edge invalidation for speed, accepting reduced temporal accuracy
-- Cache entity embeddings across calls
-- Use a local NER model (GLiNER2) for initial candidate detection before the LLM cross-encoder
+For [GraphRAG](../concepts/graphrag.md) specifically, community detection (label propagation or Leiden algorithm) clusters extracted entities into higher-level summaries, which then become independently searchable. The quality of these communities depends on extraction recall: missing entities are also missing from community membership, degrading summary quality.
 
 ## Failure Modes
 
-**Silent data loss from JSON parse failures**: If the LLM returns malformed JSON, both Graphiti and mem0 log the error and continue, producing no memory updates for that episode. No exception is raised to the caller. This requires active monitoring of extraction success rates.
+**Extraction specificity vs. recall tradeoff**: Strict extraction prompts (Graphiti's approach) reduce noise but miss valid entities in domains where abstract concepts carry domain significance. Medical notes, legal documents, and scientific papers often require extracting things that general-purpose prompts exclude.
 
-**Contradiction detection is entirely LLM-dependent**: Whether a new fact contradicts an existing edge is decided by the LLM in `resolve_extracted_edges`. A missed contradiction leaves stale edges marked as valid. There is no deterministic fallback.
+**Silently dropped extractions**: LLM-based extraction can return malformed JSON or hallucinated IDs. Mem0's implementation catches `KeyError` on ID remapping per-memory but only logs errors, not surfacing them to callers. Silent data loss is a consistent failure pattern across LLM extraction pipelines.
 
-**Entity extraction is too strict for some domains**: Graphiti's extraction prompt deliberately excludes abstract concepts and generic nouns. For medical notes, legal text, or scientific literature where abstract concepts carry semantic weight ("hypertension" as an entity linked to "Alice" is meaningful), this strictness reduces recall.
+**Entity drift across sessions**: Without strict deduplication, the same real-world entity accumulates multiple graph nodes over time ("OpenAI", "Open AI", "openai"). Graph queries then miss connections that span node variants. Deduplication LLM calls add latency and cost but are necessary for graph coherence.
 
-**Community detection drift**: [Graphiti's label propagation](../raw/deep/repos/getzep-graphiti.md) produces incrementally updated communities that gradually diverge from what a full recomputation would yield. The paper acknowledges this requires periodic full refreshes but does not specify detection criteria for when drift becomes problematic.
+**Model-dependent quality**: Extraction quality varies significantly across LLM providers. Structured output requirements (Pydantic schema validation) further constrain provider choice. Smaller or cheaper models produce more schema violations and lower-quality entity resolution. Graphiti's documentation warns that using providers without structured output support "may result in incorrect output schemas and ingestion failures."
 
-**~34% entity miss rate is structural**: The RAG vs GraphRAG paper's finding is not fixable through prompt tuning alone. Entities mentioned implicitly, through coreference, or across modalities require architectural changes (coreference resolution, multimodal extraction, multi-pass reading) that add significant complexity and cost.
+**Domain mismatch**: General-purpose extraction prompts perform poorly on specialized corpora. Technical acronyms, proprietary product names, and domain jargon are systematically under-extracted without domain-specific prompt engineering or custom entity type definitions.
 
-**Bulk ingestion breaks temporal consistency**: Graphiti's `add_episode_bulk` explicitly skips edge invalidation. For historical imports, this means temporal ordering of facts is not maintained. Users importing legacy data must use individual `add_episode` calls if temporal accuracy matters.
+## Practical Implications for Builders
 
-## When Not to Use LLM-Based Entity Extraction
+**Match extraction approach to query type**: Flat fact extraction (mem0's approach) suffices for personalization and preference tracking. Triple extraction with relationship types (Graphiti's approach) is required when queries involve relationship traversal, comparison across entities, or temporal reasoning.
 
-**High-volume, low-latency pipelines**: 4-5 LLM calls per document at API rates cannot scale to thousands of documents per minute. Traditional NER (BiLSTM, BERT fine-tuned on domain data) runs at thousands of documents per second on a single GPU.
+**Budget for deduplication cost**: Each extracted entity requires embedding + similarity search + optional LLM resolution. At scale, deduplication becomes the dominant cost. Graphiti uses `SEMAPHORE_LIMIT` (default 10) to rate-limit concurrent LLM calls and prevent 429 errors.
 
-**Well-defined, stable ontologies**: If you know exactly which entity types and relationship types you need and have labeled training data, a fine-tuned NER model outperforms zero-shot LLM extraction on in-domain text. The LLM's general-purpose understanding is a liability when you need narrow precision.
+**Test extraction recall on your domain before committing to a graph architecture**: The 34% entity miss rate from the RAG/GraphRAG comparison paper is for general-domain Wikipedia text. Specialized domains likely have higher miss rates. Run a sample extraction pass and manually audit which entities the pipeline misses before building the downstream retrieval system.
 
-**Simple factual retrieval**: If your queries are single-hop lookups ("what is Alice's email address?"), the 34% entity miss rate plus the multi-stage pipeline cost makes entity extraction the wrong tool. RAG over flat documents wins on these queries per the benchmark evidence.
+**Predefined queries outperform LLM-generated ones**: Graphiti's design explicitly avoids generating Cypher queries with LLMs, instead using predefined query templates. The same principle applies to extraction schemas: LLM-generated schemas are less consistent than developer-defined ones.
 
-**Cost-sensitive applications**: A single `add_episode` call in Graphiti generates more LLM tokens than many complete query-response cycles. For consumer applications where millions of users each send hundreds of messages, the economics do not work.
+**Temporal annotation adds cost but enables temporal queries**: The Zep benchmark shows +38.4% improvement on temporal reasoning tasks from bi-temporal edge annotation. If your use case includes "what changed when" queries, invest in temporal extraction during the ingestion pipeline. If not, flat fact extraction is simpler and cheaper.
 
-## Alternatives and Selection Guidance
+## Implementations
 
-**Use RAG (no entity extraction)** when queries are predominantly single-hop factual lookups, your corpus is static, and you cannot afford the ~34% entity miss rate risk on critical queries.
+- **[Graphiti](../projects/graphiti.md)**: Multi-stage pipeline with typed triples, bi-temporal validity windows, and entity deduplication. `graphiti_core/utils/maintenance/node_operations.py` and `edge_operations.py`. Highest quality, highest cost per document.
+- **[Mem0](../projects/mem0.md)**: Two-pass flat fact extraction. `mem0/memory/main.py`. Simpler schema, lower cost, no relationship typing.
+- **[LangChain](../projects/langchain.md)**: Provides extraction chains and NER tools that wrap both traditional models and LLMs.
+- **[LlamaIndex](../projects/llamaindex.md)**: Knowledge graph index with built-in entity extraction for graph construction.
+- **GLiNER2**: Local NER model supported by Graphiti for extraction without external LLM calls.
+- **SpaCy / Hugging Face NER models**: Traditional pipeline approach, faster and cheaper but limited to predefined types.
 
-**Use supervised NER (spaCy, flair, BERT-NER)** when your domain is well-defined, you have labeled training data, and latency or cost constraints preclude LLM calls per document.
+## Related Concepts
 
-**Use GLiNER2 / local NER** when you need zero-shot custom entity types without API costs and can accept lower accuracy than a fine-tuned model.
-
-**Use LLM multi-stage extraction (Graphiti)** when temporal reasoning, contradiction detection, and relationship queries matter more than ingestion speed or cost, and your query volume is bounded (agent memory, enterprise knowledge management).
-
-**Use simple fact extraction (mem0)** when you want automatic personalization without graph infrastructure, temporal reasoning is not required, and you need drop-in simplicity over maximum accuracy.
-
-**Use hybrid retrieval (RAG + GraphRAG)** when your query distribution is mixed: the [RAG vs GraphRAG paper](../raw/deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md) shows concatenating both retrieval results yields +6.4% on multi-hop tasks over either alone.
+- [Knowledge Graph](../concepts/knowledge-graph.md): The primary downstream consumer of extracted entities and relationships
+- [GraphRAG](../concepts/graphrag.md): Retrieval approach that depends on extraction quality for its graph construction
+- [Hybrid Search](../concepts/hybrid-search.md): Combines extracted graph structure with vector and lexical search
+- [Semantic Memory](../concepts/semantic-memory.md): How extracted facts persist and become queryable over time
+- [Agent Memory](../concepts/agent-memory.md): The broader system context in which extraction pipelines operate
+- [Retrieval-Augmented Generation](../concepts/rag.md): The alternative retrieval approach that operates without entity extraction
 
 ## Unresolved Questions
 
-**Extraction quality measurement in production**: Neither Graphiti nor mem0 ships with built-in extraction quality metrics. How many entities were missed? How many duplicates were incorrectly merged? Without instrumentation, extraction quality degrades silently.
+**Extraction evaluation**: No standard benchmark measures entity extraction recall and precision specifically for agent memory use cases. The 34% entity miss rate comes from QA benchmarks, not extraction-quality benchmarks. Practitioners lack tools to measure extraction quality on their own domains without building custom evaluation pipelines.
 
-**Optimal chunking for extraction**: The RAG vs GraphRAG paper tests 256-token chunks but does not ablate. Graphiti processes episodes whole without chunking very long inputs. The relationship between chunk size, entity miss rate, and extraction cost is not characterized in the literature for LLM-based extraction.
+**Optimal granularity**: No consensus exists on whether to extract fine-grained facts ("Alice's manager is Bob") or coarser entities and let queries reconstruct relationships. Finer granularity improves retrieval precision but multiplies extraction costs and deduplication complexity.
 
-**Cross-language entity resolution**: All documented implementations assume English. Entity resolution across languages ("München" = "Munich") requires multilingual embeddings and adds complexity to the deduplication prompts.
-
-**When to refresh community detection**: Graphiti's label propagation drift problem lacks operational guidance. No production monitoring criteria for detecting when communities have diverged enough to require full recomputation.
-
-**Governance for emergent entity types**: In systems without prescribed ontology, the set of entity types grows unbounded as the LLM invents new type names. No documented approach handles cleanup, merging, or governance of emergent type proliferation at scale.
+**Cross-document resolution at scale**: Single-document entity resolution is reasonably solved. Resolving entities across thousands of documents ingested over months, where the same entity appears with different names, abbreviations, or context, remains an open engineering problem. Graphiti's incremental community update approach acknowledges this limits output quality over time.

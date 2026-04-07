@@ -1,161 +1,162 @@
 ---
 entity_id: agentic-rag
-type: concept
+type: approach
 bucket: knowledge-bases
 abstract: >-
-  Agentic RAG extends standard retrieval-augmented generation by letting an
-  agent iteratively plan, retrieve, evaluate, and re-retrieve across multiple
-  steps — enabling complex multi-hop queries that single-pass RAG cannot handle,
-  at the cost of compounding failure modes that require explicit budgeting and
-  observability to control.
+  Agentic RAG extends standard retrieval-augmented generation by placing an LLM
+  agent in a control loop that plans retrieval strategies, iterates on queries,
+  and synthesizes multi-source evidence — distinguishing it from single-pass RAG
+  by its capacity for multi-hop reasoning at the cost of compounding failure
+  modes.
 sources:
   - repos/volcengine-openviking.md
   - repos/laurian-context-compression-experiments-2508.md
-  - articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md
   - >-
     articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md
+  - articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md
   - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
 related:
-  - rag
-last_compiled: '2026-04-06T02:07:19.817Z'
+  - react
+last_compiled: '2026-04-07T11:45:04.627Z'
 ---
 # Agentic RAG
 
 ## What It Is
 
-[Retrieval-Augmented Generation](../concepts/rag.md) retrieves once, then generates. The model gets whatever came back from the vector store and produces an answer. If retrieval fails, there is no recovery — the model works with bad context and often hallucinates without signaling that anything went wrong.
+[Retrieval-Augmented Generation](../concepts/rag.md) retrieves once and generates once. If the first retrieval misses, the model has no recovery path.
 
-Agentic RAG adds a control loop. Instead of retrieve-once-then-answer, the system runs: parse query → plan retrieval → execute retrieval or tool calls → evaluate evidence → decide whether to stop or loop. That loop is what separates agentic RAG from simple RAG. The agent asks "do I have enough to answer?" after each retrieval pass. If not, it reformulates and tries again.
+Agentic RAG wraps RAG inside a control loop. An LLM agent parses the query, builds a retrieval plan, executes retrieval or tool calls, evaluates the results against the original question, then either answers or loops back for another pass. This is the plan→retrieve→evaluate→decide cycle associated with [ReAct](../concepts/react.md)-style architectures.
 
-This architecture handles queries that require multi-hop reasoning — questions where the answer depends on connecting information scattered across multiple documents, where a follow-up retrieval depends on what the first retrieval found, or where the query itself needs to be decomposed before retrieval can work at all. A query like "what are the tax implications of the restructuring mentioned in last quarter's board minutes?" requires at least two retrieval steps and some reasoning to connect them. Single-pass RAG cannot do this reliably.
+The core capability gain: queries requiring multi-hop reasoning or evidence scattered across sources. A question like "How did the company's hiring strategy change after the 2022 restructuring?" may require pulling from HR policy documents, board meeting summaries, and org charts — sources that a single embedding lookup won't reliably surface together.
 
-## Core Mechanism
+The core cost: the loop introduces compounding failure modes that don't exist in single-pass RAG.
 
-The agent loop follows a [ReAct](../concepts/react.md)-style structure: reason about what is needed, act by calling a retrieval tool or search function, observe the results, reason again.
+## How It Works
 
-**Planning**: The agent decomposes the user query into sub-questions or identifies what information it needs. Some implementations do this explicitly with a planning step that produces a structured retrieval plan. Others do it implicitly through the model's reasoning trace.
+The agent runs an iterative cycle with four main phases:
 
-**Retrieval execution**: The agent calls retrieval tools — vector search, keyword search ([BM25](../concepts/bm25.md)), structured queries, or combinations via [Hybrid Retrieval](../concepts/hybrid-retrieval.md). In more complex systems, it calls external APIs, web search, or specialized tools. The agent controls which tool it calls and with what query.
+**Planning.** The agent decomposes the query into sub-questions or retrieval targets. For a complex question, this might generate three to five distinct lookup strategies rather than a single vector search.
 
-**Evidence evaluation**: After each retrieval pass, the agent assesses whether the returned content actually addresses the query. This is the step that does not exist in standard RAG. The evaluator checks: is this relevant? Is it sufficient? What gaps remain? Weak evaluators — ones that cannot precisely identify what is missing — cause retrieval thrash (see Failure Modes below).
+**Retrieval execution.** Each sub-question triggers one or more retrieval calls. Production implementations typically combine [hybrid search](../concepts/hybrid-search.md) — dense vector retrieval via an [embedding model](../concepts/embedding-model.md) plus sparse [BM25](../concepts/bm25.md) keyword matching, merged with [reciprocal rank fusion](../concepts/reciprocal-rank-fusion.md) — because pure semantic search fails on exact identifiers (contract numbers, employee IDs, named clauses) while pure keyword search misses semantic intent.
 
-**Decision**: The agent either stops and generates a final answer, or reformulates and retrieves again. The reformulation should target a specific identified gap, not just rephrase the original query.
+**Evaluation.** The agent assesses whether the retrieved evidence answers the question. This is the critical decision point: if evidence is sufficient, the agent synthesizes and answers. If not, it identifies the gap and reformulates.
 
-**Context accumulation**: Retrieved content builds up across iterations. The agent's growing context window contains the original query, retrieval results from multiple passes, reasoning traces, and intermediate conclusions. This context is what the final generation step uses.
+**Reformulation.** The agent rewrites its query targeting the specific gap identified in evaluation, then loops. Good implementations constrain this: the reformulation must target a named gap, not just rephrase the original query.
 
-Production implementations typically layer multiple retrieval strategies. Semantic search via embeddings handles vague or conceptual queries. Keyword search handles exact matches — product IDs, specific clause numbers, named entities. A reranker (cross-encoder) re-scores the combined results by evaluating (query, chunk) pairs directly, improving precision without changing the underlying retrieval infrastructure. The agent controls when to invoke each strategy.
+[Task decomposition](../concepts/task-decomposition.md) drives the planning phase. [Context management](../concepts/context-management.md) governs what accumulated evidence enters the generation context. [Context compression](../concepts/context-compression.md) handles the downstream problem of tool outputs bloating the window before synthesis.
 
-OpenViking's filesystem paradigm for agent context management uses an L0/L1/L2 tiered loading scheme — abstract summaries, overviews, and full content — where the agent retrieves at the appropriate granularity rather than always loading full documents. This reduces token consumption in agentic loops where the agent browses many potential sources before committing to deep reads. [Source](../raw/repos/volcengine-openviking.md)
+## Architectural Variants
+
+**Single-agent loop.** One LLM manages planning, retrieval, evaluation, and synthesis. Simple to build, harder to control at scale.
+
+**Multi-agent delegation.** A planner agent breaks queries into sub-tasks and delegates to specialist retrievers. Used when knowledge sources have very different access patterns (e.g., a code index vs. a document store vs. a live API).
+
+**Graph-augmented.** Combines vector retrieval with a [knowledge graph](../concepts/knowledge-graph.md) for multi-hop entity traversal. [GraphRAG](../concepts/graphrag.md) and [HippoRAG](../projects/hipporag.md) implement this pattern; useful when the corpus has dense entity relationships (legal documents, scientific literature, organizational data).
+
+**Hierarchical context loading.** Projects like OpenViking use an L0/L1/L2 tiered structure: L0 is a one-sentence abstract for quick relevance checks, L1 is a structural overview for planning, L2 is the full document loaded on demand. This prevents the agent from pulling full documents for every candidate, which is a common source of context bloat.
 
 ## Key Numbers
 
-The mem-agent paper reports that on the md-memory-bench benchmark, a 4B model trained with GSPO scores 75% overall, outperforming GPT-5 (63%) and Claude Opus 4.1 (55%) on the same scaffold — though this benchmark was hand-crafted by the same team that built the model, so treat it as indicative rather than independent validation. [Source](../raw/articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md)
+**OpenViking benchmark on LoCoMo10 (1,540 long-dialogue cases, self-reported):**
+- OpenClaw baseline (native memory only): 35.65% task completion, 24.6M input tokens
+- OpenClaw + LanceDB: 44.55% task completion, 51.6M input tokens
+- OpenClaw + OpenViking (memory disabled): 52.08% task completion, 4.3M input tokens
+- OpenClaw + OpenViking (memory enabled): 51.23% task completion, 2.1M input tokens
 
-The context compression experiments (self-reported) show that optimizing prompts for a cheaper fallback model via genetic algorithms (DSPy GEPA) brought success rate from 0% to 62% on a held-out set of 296 failed compressions, while TextGrad reached 79%, and a hybrid of both reached 100% on extracting something vs. nothing. Cost at scale was not measured. [Source](../raw/repos/laurian-context-compression-experiments-2508.md)
+These figures are self-reported by the OpenViking team. The 83-96% token reduction claim is striking and should be independently replicated before relying on it for cost planning. The task completion improvement (35% → 52%) is more modest and plausible.
 
-OpenViking's OpenClaw integration benchmarks (self-reported by the OpenViking team against LoCoMo10, 1,540 cases) show 43% improvement in task completion rate over baseline OpenClaw and 91% reduction in input token cost when adding OpenViking as a context layer — plausible directionally, but self-reported against their own dependent project. [Source](../raw/repos/volcengine-openviking.md)
+**mem-agent on md-memory-bench (56 hand-crafted samples, self-reported):**
+- Qwen3-4B base: 39% overall
+- mem-agent (4B, GSPO-trained): 75% overall
+- Qwen3-235B-Thinking: 79% overall
 
-LangGraph's official agentic RAG tutorial contained an infinite retrieval loop that required adding a `rewrite_count` cap to fix. This is independently observable in the repository history. [Source](../raw/articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md)
+The benchmark is small and hand-crafted by the authors. Independent validation hasn't occurred.
+
+**Context compression experiments (production agentic RAG, self-reported):**
+- gpt-4o-mini with original prompt: 0% success rate on hard cases
+- After DSPy GEPA optimization: ~62% success
+- After TextGrad: ~79% success
+- After hybrid GEPA + TextGrad: 100% on the 296-case test set
+
+These are production traces from a single system, not a published benchmark.
 
 ## Strengths
 
-**Multi-hop queries**: Questions that require connecting information across sources, where later retrieval depends on earlier retrieval results, are structurally impossible for single-pass RAG. Agentic RAG handles them by design.
+**Multi-hop queries.** When answering requires chaining facts across multiple documents — "What was the impact of policy X on team Y during period Z?" — iterative retrieval outperforms single-pass reliably.
 
-**Adaptive retrieval strategy**: The agent can switch retrieval tools based on what it finds. A semantic search that returns nothing useful can be followed by keyword search. A retrieval that returns high-level documents can be followed by a drill-down into a specific subsection.
+**Gap-aware evidence gathering.** The agent can identify specifically what it's missing and query for it, rather than hoping the embedding space surfaces the right combination by proximity.
 
-**Evidence gap detection**: When the corpus genuinely does not contain the answer, a well-designed agentic system can detect this and respond with explicit uncertainty rather than hallucinating. Standard RAG typically hallucinates instead.
+**Dynamic knowledge bases.** When the corpus changes frequently, an agent can incorporate retrieval-time context that a parametric model can't. The mem-agent pattern takes this further by training the agent to update its own knowledge store during conversation, moving toward writable memory rather than read-only retrieval.
 
-**Dynamic query refinement**: The agent reformulates queries based on what previous retrievals revealed, targeting specific gaps rather than repeating the same search.
-
-**Composable with other tools**: The retrieval step is just one tool call. The agent can interleave retrieval with web search, API calls, code execution, or database queries — all within the same loop.
+**Graceful handling of schema heterogeneity.** Different knowledge sources (APIs, documents, databases) can be accessed through different tools, with the agent deciding which source fits which sub-question.
 
 ## Critical Limitations
 
-**Compounding failure modes**: The control loop that makes agentic RAG powerful is also what makes it dangerous. Bad decisions accumulate. Each iteration where the agent retrieves without converging burns tokens and compounds any errors in evidence assessment. Standard RAG fails on individual queries. Agentic RAG can fail in cascading ways that are invisible until they appear in cost dashboards.
+**Concrete failure mode — retrieval thrash.** The agent enters a retrieval loop without converging. A user asks about California-specific remote work reimbursement. The agent retrieves the general policy, the verifier flags it incomplete, the agent reformulates and retrieves again, still not confident, reformulates and loops. After six iterations the answer is barely better than after round one, but latency has tripled and cost has multiplied. LangGraph's own agentic RAG reference implementation had this bug — an infinite retrieval loop requiring a `rewrite_count` hard cap to fix. If the reference implementation can loop forever, production systems will.
 
-**The concrete failure mode — retrieval thrash**: An agent asks for California-specific reimbursement policy. The evaluator flags the answer as incomplete. The agent reformulates. Retrieves again. Still not confident. Reformulates again. After six iterations, the answer is barely better than after the first, and the system has burned through its retrieval budget. The root cause is a weak evaluator that rejects without specifying what is missing, combined with a reformulation strategy that rephrases rather than targets gaps. LangGraph's reference implementation had exactly this bug. [Source](../raw/articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md)
+The fix is a hard cap at three retrieval iterations, plus a "new evidence threshold": if the latest retrieval's results share more than ~80% semantic overlap with prior results, stop and answer with explicit uncertainty rather than reformulating again.
 
-**Unspoken infrastructure assumption — observability**: Agentic RAG assumes you can trace what the agent did at each step. Without per-iteration logging of tool calls, retrieval results, evidence assessments, and reformulations, debugging failures is guesswork. Most teams ship without this and discover the problem when costs spike. Startups have documented agents making 200 LLM calls in 10 minutes ($50–$200) before anyone noticed. Retry logic during provider outages has caused 1,700% cost spikes. [Source](../raw/articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md)
+**Unspoken infrastructure assumption.** Agentic RAG assumes the retrieval layer can tolerate repeated, rapid, semantically varied queries within a single user request. Most teams design their vector database and embedding API for average query volume. When the agent fires 8–12 searches per user query instead of 1, throughput contracts — and provider rate limits hit at exactly the moment the agent is mid-loop. The fallback behavior (retry, downgrade to a cheaper model, skip the iteration) needs to be designed upfront, not added after the first production incident.
 
-## When NOT to Use It
+## Failure Mode Taxonomy
 
-**Simple factual queries**: If users ask FAQ-style questions where a single retrieval reliably returns the answer, agentic RAG adds latency, cost, and complexity with no benefit. Single-pass RAG is faster and easier to debug.
+Three failure modes account for most production problems:
 
-**Strict latency requirements**: Each retrieval iteration adds a full LLM call plus retrieval latency. Three iterations triples the minimum response time. If your SLA requires sub-second responses, the agentic loop does not fit.
+**Retrieval thrash.** Repeated reformulation without convergence. Signal: near-duplicate queries in traces, oscillating search terms, flat answer quality across iterations. Mitigation: 3-iteration hard cap, new evidence threshold check, reformulation constrained to named gaps.
 
-**When the corpus does not support multi-hop**: If your knowledge base is a flat set of independent documents with no cross-references or relational structure, the agent cannot usefully chain retrievals. The loop adds overhead without improving answers.
+**Tool storms.** Excessive tool calls cascading — parallel calls returning redundant data, retry logic spiralling during provider outages. One documented case: 200 LLM calls in 10 minutes, $50–200 burned before detection. Signal: tool calls per task spiking at p95, cost-per-task rising faster than query volume. Mitigation: per-tool budgets, deduplication of results across calls, exponential backoff with fallback to cached results.
 
-**When you lack the infrastructure to observe it**: Shipping agentic RAG without per-iteration tracing, cost monitoring, and hard token/call budgets means silent failures will accumulate. The system will appear to work in testing and degrade silently in production.
+**Context bloat.** Tool outputs pasted directly into context until the model's attention disperses. Stanford/Meta's "Lost in the Middle" research found 20+ percentage-point accuracy drops when critical information sits mid-context; in some tests, adding 20 retrieved documents drove accuracy below closed-book performance. Signal: context token growth rate outpacing useful evidence addition, instruction-following degrading. Mitigation: compress tool outputs before injection (Microsoft LLMLingua claims 20× compression with minimal reasoning loss), cap top-k at 5–10 results, deduplicate chunks at 80%+ semantic overlap.
 
-**High-volume, low-complexity workloads**: At scale, the cost multiplier from multiple retrieval passes and LLM calls per query compounds. For workloads where most queries are simple and volume is high, the economics favor single-pass RAG with a targeted agentic fallback for the hard cases only.
+## When Not to Use It
 
-## Failure Modes in Detail
+**Latency-sensitive applications.** Each retrieval iteration adds one full LLM call plus vector search latency. A three-iteration maximum still triples the minimum latency floor compared to single-pass RAG.
 
-**Retrieval thrash**: Agent loops without converging. Signals: near-duplicate queries across iterations, oscillating search terms, answer quality flat across passes. Fix: hard cap at 3 iterations; require reformulation to target a specific identified gap; stop and return best-effort answer with uncertainty marker when budget is hit.
+**Simple document lookup.** FAQ systems, single-document extraction, and factoid queries where the first retrieval pass reliably surfaces the answer don't benefit from the control loop. They just pay its costs.
 
-**Tool storms**: Excessive tool calls cascade. Cascading retries after timeouts, parallel calls returning redundant data, "call everything when uncertain" behavior. Signals: tool calls per task spiking, p95 latency in the tail. Fix: per-tool budgets and rate limits; deduplicate results across calls; fallback to cached results after two timeouts.
+**When the corpus doesn't support the queries.** If the knowledge base genuinely lacks the answer, the agent will thrash trying to find it. Agentic RAG can't manufacture evidence. The agent needs a reliable "not in corpus" detection mechanism — failing that, it loops until a hard cap fires.
 
-**Context bloat**: Tool outputs accumulate in context until the model stops following instructions. The "Lost in the Middle" effect (Stanford/Meta research) shows performance drops of 20+ percentage points when critical information sits mid-context. In one documented test, adding 20 retrieved documents to context produced accuracy below closed-book performance — the retrieval actively hurt. Fix: summarize tool outputs before injecting; cap top-k at 5–10; deduplicate chunks with 80%+ semantic overlap. [Source](../raw/articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md)
-
-**Context drift in multi-turn sessions**: Appending full chat history causes token explosion and reinforces wrong answers. Fix: treat context as a filter, not a log — select only relevant turns, exclude flagged incorrect responses, summarize conversations past 5–7 turns.
-
-## Instrumentation
-
-Track these signals from the first deployment:
-
-- Tool calls per task (average and p95): investigate above 10, hard-kill above 30
-- Retrieval iterations per query: p95 above 6 indicates thrash on hard queries
-- Context length growth rate per iteration: fast growth with flat quality signals bloat
-- p95 latency: tail latency is where agentic failures accumulate
-- Cost per successful task: penalizes wasted attempts, not just average per-run cost
-
-Per-iteration justification logging — what new evidence was gained, why it is insufficient — makes thrash visible. Vague or repetitive justifications confirm the loop is stuck.
+**When you need deterministic behavior.** The agent's planning and reformulation decisions are probabilistic. The same query can follow different retrieval paths across runs. If audit trails or reproducibility are requirements, the non-determinism is a problem single-pass RAG avoids.
 
 ## Unresolved Questions
 
-**Evaluator quality**: The evidence evaluator is the most important component in preventing thrash, and it is also the least specified in most implementations. How do you train or prompt an evaluator that can precisely identify what information is missing rather than just flagging "incomplete"? The answer determines whether the agentic loop converges or thrashes.
+**Optimal stopping criteria.** The "three iterations" rule-of-thumb appears in multiple production guides, but no published benchmark establishes what the right number is for different corpus types or query complexities. The right cap is probably domain-specific.
 
-**Stopping rule design at scale**: Three iterations as a hard cap is a practical default, but the right number depends on query complexity, corpus structure, and acceptable latency. There is no general guidance on how to set this dynamically based on query characteristics.
+**Evaluation at scale.** md-memory-bench has 56 samples. [HotpotQA](../projects/hotpotqa.md) and [GAIA](../projects/gaia.md) test broader reasoning, but none specifically stress-test the failure modes (thrash, storm, bloat) under production load. There's no established benchmark for agentic RAG robustness.
 
-**Cost attribution in multi-agent systems**: When agentic RAG is one component in a larger multi-agent pipeline, cost and failure attribution becomes difficult. Which agent's retrieval loop caused the budget overrun? Current tooling does not handle this well.
+**Cost modeling.** The "intent-based routing" approach — classify query complexity before choosing single-pass vs. agentic — reportedly achieves 40% cost reduction and 35% latency improvement (self-reported, one team). No published study has validated this across query distributions.
 
-**Memory across sessions**: Most implementations treat each session as independent. The mem-agent work (using markdown files and GSPO training) shows one approach to persistent memory that evolves across interactions, but how to reliably merge, update, and retrieve across sessions at production scale remains open. [Source](../raw/articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md)
+**When to compress vs. retrieve fresh.** The tradeoff between compressing accumulated context and discarding it to re-retrieve is not well-studied. Compression loses detail; fresh retrieval adds latency and may surface different chunks.
 
-**Verifiable improvement measurement**: Self-reported benchmarks from teams building both the system and the benchmark (as in the OpenViking and mem-agent cases) make it hard to assess real-world improvement. Independent evaluation of agentic RAG against matched production workloads is sparse.
+## Alternatives
 
-## Alternatives and Selection Guidance
+**Single-pass RAG.** Use when queries are simple, latency matters, or the corpus reliably surfaces the right answer on the first lookup. Much easier to debug.
 
-**[Retrieval-Augmented Generation](../concepts/rag.md) (standard)**: Use when queries are simple, latency matters, and the corpus has low cross-document dependency. Simpler to debug. Failure mode is loud (bad answers) rather than expensive (budget overruns).
+**[GraphRAG](../concepts/graphrag.md).** Use when the corpus has dense entity relationships requiring multi-hop traversal (legal documents, organizational data, scientific literature). Gives structured navigation rather than iterative retrieval.
 
-**[Hybrid Retrieval](../concepts/hybrid-retrieval.md)**: Use when the limitation is retrieval precision, not retrieval depth. Combining semantic and keyword search often resolves the queries that single-pass RAG fails on without adding a control loop.
+**[RAPTOR](../projects/raptor.md).** Use when the corpus has hierarchical structure and queries require reasoning at multiple abstraction levels. Builds a recursive tree of summarized chunks rather than iterating at query time.
 
-**[GraphRAG](../projects/graphrag.md)**: Use when the domain has rich entity relationships and multi-hop reasoning maps cleanly onto graph traversal. Structured domains (legal, biomedical, organizational hierarchies) benefit more than unstructured document collections.
+**[HippoRAG](../projects/hipporag.md).** Use when associative memory across documents matters — linking concepts across sources the way human memory does.
 
-**[RAPTOR](../projects/raptor.md)**: Use when the bottleneck is hierarchical summarization — queries that require understanding document structure at multiple levels of abstraction. Less general than agentic RAG but more predictable.
+**[LangGraph](../projects/langgraph.md) with explicit state machines.** Use when you need agentic RAG but want deterministic control flow. Define the retrieval loop as a graph with explicit nodes and hard transitions rather than leaving loop control to the LLM's judgment.
 
-**[HippoRAG](../projects/hipporag.md)**: Use when the retrieval problem is associative — finding connections across a large document graph that are not obvious from query similarity alone.
-
-**Controlled agentic fallback**: Use single-pass RAG as the default, route only high-complexity queries (detected by query classification) to an agentic path with strict budgets. Production teams using intent-based routing report 40% cost reductions and 35% latency improvements versus full agentic pipelines. [Source](../raw/articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md)
+**[LlamaIndex](../projects/llamaindex.md) agentic pipelines.** Use when you want a framework-supported implementation of agentic RAG with built-in tooling for query planning, retrieval, and synthesis.
 
 ## Related Concepts
 
 - [Retrieval-Augmented Generation](../concepts/rag.md) — the foundation this extends
-- [ReAct](../concepts/react.md) — the reasoning-acting pattern that structures the agent loop
-- [Hybrid Retrieval](../concepts/hybrid-retrieval.md) — the retrieval strategy most production agentic RAG systems use
-- [Task Decomposition](../concepts/task-decomposition.md) — how the agent breaks complex queries into retrieval sub-tasks
-- [Context Engineering](../concepts/context-engineering.md) — managing what goes into the context window across iterations
-- [Agent Memory](../concepts/agent-memory.md) — persistent state across agentic RAG sessions
-- [Iterative Self-Verification](../concepts/iterative-self-verification.md) — the evaluation step that decides whether to loop or stop
-- [Vector Database](../concepts/vector-database.md) — the retrieval backend most implementations use
-- [Knowledge Graph](../concepts/knowledge-graph.md) — alternative retrieval backend for structured domains
-- [Prompt Compression](../concepts/prompt-compression.md) — technique for managing context bloat in long agentic loops
+- [ReAct](../concepts/react.md) — the reasoning-acting loop that most agentic RAG implementations follow
+- [Hybrid Search](../concepts/hybrid-search.md) — typically required for production retrieval quality
+- [Context Compression](../concepts/context-compression.md) — necessary mitigation for context bloat
+- [Context Management](../concepts/context-management.md) — governs what accumulated evidence enters the generation context
+- [Task Decomposition](../concepts/task-decomposition.md) — drives the planning phase
+- [GraphRAG](../concepts/graphrag.md) — graph-augmented variant for entity-dense corpora
+- [Agent Memory](../concepts/agent-memory.md) — how agents persist knowledge across retrieval iterations
 
-## Related Projects
+## Sources
 
-- [LangChain](../projects/langchain.md) — common framework for building agentic RAG pipelines
-- [LangGraph](../projects/langgraph.md) — graph-based agent orchestration; its reference agentic RAG implementation required a retrieval cap to prevent infinite loops
-- [LlamaIndex](../projects/llamaindex.md) — indexing and retrieval infrastructure with agentic query modes
-- [GraphRAG](../projects/graphrag.md) — Microsoft's graph-based retrieval with agentic traversal
-- [DSPy](../projects/dspy.md) — programmatic prompt optimization applicable to retrieval and compression steps
-- [Graphiti](../projects/graphiti.md) — temporal knowledge graph for agent memory across sessions
-- [Mem0](../projects/mem0.md) — memory layer for persisting agent state across agentic RAG sessions
+- [Agentic RAG Failure Modes](../raw/articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md)
+- [Why Most RAG Systems Fail in Production](../raw/articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md)
+- [mem-agent: Equipping LLM Agents with Memory Using RL](../raw/articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md)
+- [OpenViking repository](../raw/repos/volcengine-openviking.md)
+- [Context Compression Experiments](../raw/repos/laurian-context-compression-experiments-2508.md)

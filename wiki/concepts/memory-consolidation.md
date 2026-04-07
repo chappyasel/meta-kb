@@ -24,7 +24,7 @@ Memory consolidation is the process by which an agent's memory system periodical
 
 Without consolidation, agent memory systems face two terminal failure modes. Raw storage fills up, making retrieval noisy as thousands of low-quality memories compete with relevant ones. Or the context window overflows, forcing blunt truncation of older material. Consolidation is the alternative to both: an active pass that decides what to keep, what to compress, and what to synthesize into higher-level representations.
 
-Consolidation is distinct from retrieval compression (like [Prompt Compression](../concepts/prompt-compression.md), which shrinks text at query time) and from simple summarization (which collapses information without reorganizing its structure). A true consolidation pass can create new knowledge nodes that didn't exist in the original memories — extracting patterns, resolving contradictions, or building connections between previously unlinked facts.
+Consolidation is distinct from retrieval compression (like Prompt Compression, which shrinks text at query time) and from simple summarization (which collapses information without reorganizing its structure). A true consolidation pass can create new knowledge nodes that didn't exist in the original memories — extracting patterns, resolving contradictions, or building connections between previously unlinked facts.
 
 ## Why It Matters
 
@@ -128,7 +128,7 @@ Consolidation interacts closely with [Context Engineering](../concepts/context-e
 
 [Progressive Disclosure](../concepts/progressive-disclosure.md) is a retrieval-time complement to consolidation: rather than pre-compressing memories, it fetches them incrementally as needed. The two approaches can combine — consolidated summaries serve as the first layer of progressive disclosure, with raw episodic detail available on demand.
 
-[Self-Improving Agents](../concepts/self-improving-agents.md) depend on consolidation as the mechanism by which experience becomes capability. Without a consolidation pass that extracts durable knowledge from episodic traces, agents can't genuinely improve from experience.
+Self-Improving Agents depend on consolidation as the mechanism by which experience becomes capability. Without a consolidation pass that extracts durable knowledge from episodic traces, agents can't genuinely improve from experience.
 
 ## Open Questions
 

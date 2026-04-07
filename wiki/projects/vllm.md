@@ -3,123 +3,128 @@ entity_id: vllm
 type: project
 bucket: agent-systems
 abstract: >-
-  vLLM is an open-source LLM inference engine whose PagedAttention algorithm
-  manages KV cache memory like an OS paging system, enabling 24x higher
-  throughput than HuggingFace Transformers with near-zero memory waste.
+  vLLM is an open-source LLM inference server using PagedAttention to manage KV
+  cache memory, enabling high-throughput batching with near-zero memory waste
+  compared to static allocation.
 sources:
-  - repos/orchestra-research-ai-research-skills.md
   - repos/bytedtsinghua-sia-memagent.md
+  - repos/orchestra-research-ai-research-skills.md
   - repos/greyhaven-ai-autocontext.md
   - repos/agent-on-the-fly-memento.md
   - deep/repos/greyhaven-ai-autocontext.md
   - deep/repos/mem0ai-mem0.md
 related:
+  - rag
   - openai
   - anthropic
   - ollama
-  - claude-code
-  - rag
-last_compiled: '2026-04-06T02:04:00.860Z'
+  - mcp
+last_compiled: '2026-04-07T11:43:13.633Z'
 ---
 # vLLM
 
 ## What It Does
 
-vLLM serves large language models for inference at high throughput. Its defining contribution is PagedAttention: a KV cache memory manager that borrows virtual memory paging from operating systems to eliminate the fragmentation and over-reservation that makes naive LLM serving inefficient. Beyond that core mechanism, vLLM has grown into a full-featured inference stack with an OpenAI-compatible API server, continuous batching, tensor parallelism across multiple GPUs, and support for most major model architectures.
+vLLM is a high-throughput inference engine for large language models. Its primary job: serve LLM requests faster and with better GPU memory utilization than naive implementations allow.
 
-Teams use vLLM when they need to run models locally or self-hosted in production, either because they cannot use hosted APIs (cost, data privacy, latency) or because they need fine-tuned models that hosted providers do not serve.
+The core problem it solves is KV cache fragmentation. During autoregressive generation, each token in a sequence requires a key-value cache entry. Naive implementations pre-allocate contiguous memory blocks per sequence, wasting 60-80% of GPU memory due to internal and external fragmentation. vLLM's PagedAttention borrows the operating system's virtual memory paging concept and applies it to KV cache management, achieving near-zero waste.
 
-## Core Mechanism: PagedAttention
+This matters for agent systems because agents often run many concurrent requests: parallel tool calls, multi-agent coordination, batch inference for RAG pipelines. Memory efficiency directly translates to how many concurrent requests a single GPU can serve.
 
-Standard LLM inference pre-allocates a contiguous KV cache block for the maximum sequence length of each request. Most tokens in that block go unused — a request generating 200 tokens out of a 2048-token maximum wastes 90% of its allocation. When sequences end at different times, the freed blocks are non-contiguous and cannot be reused without expensive compaction. Memory fragmentation caps batch sizes and reduces GPU utilization.
+## Architectural Mechanism
 
-PagedAttention solves this by splitting the KV cache into fixed-size pages (blocks), similar to how an OS manages virtual memory. Each sequence gets a logical block table mapping its positions to physical blocks. Physical blocks are allocated only when needed and returned to a free pool when the sequence ends. Non-contiguous physical blocks are fine — the block table handles the indirection.
+**PagedAttention** is the central innovation. Rather than allocating a contiguous memory block for each sequence's KV cache, PagedAttention stores KV entries in fixed-size blocks (pages) that need not be contiguous. A block table maps logical KV positions to physical memory locations, similar to a CPU's page table. Physical blocks are only allocated as generation proceeds, not pre-allocated for the maximum sequence length.
 
-The implementation lives in `vllm/attention/backends/` with the block manager in `vllm/core/block_manager.py`. The `BlockSpaceManager` class maintains the free block pool and per-sequence block tables. The attention kernels in `vllm/attention/ops/` are custom CUDA kernels that accept non-contiguous block tables rather than assuming a dense KV cache tensor.
+This enables two specific capabilities that naive serving cannot achieve:
 
-Two direct consequences:
+1. **Copy-on-write sharing**: When serving multiple outputs from the same prompt (beam search, sampling N completions, or prefill-sharing across requests with identical system prompts), physical blocks are shared until a sequence diverges. This reduces memory usage proportional to the shared prefix length.
 
-**Copy-on-write for parallel sampling**: When generating multiple outputs from one prompt (beam search, sampling with `n>1`), all sequences share the prompt's KV cache pages. Pages are only copied when a sequence diverges and tries to write — identical to OS fork semantics. This makes parallel decoding memory-efficient rather than requiring N copies of the prompt KV cache.
+2. **No internal fragmentation**: The last block of a sequence may be partially filled, but only one block's worth of waste exists per sequence rather than the entire pre-allocated reservation.
 
-**Prefix caching**: Requests sharing a common prefix (same system prompt, few-shot examples) can share their KV cache pages across requests, not just within one request. The `PrefixCachingBlockAllocator` hashes block contents and returns existing blocks for matching prefixes. This is especially effective for RAG pipelines where many requests share a large context.
+The implementation spans several subsystems: a block manager in `vllm/core/block_manager.py` handles physical block allocation and the block table; the scheduler in `vllm/core/scheduler.py` decides which sequences to preempt when memory pressure occurs (swapping to CPU or recomputing); the attention kernels in `vllm/attention/` implement the actual paged attention computation, with CUDA kernels for GPU execution.
 
-**Continuous batching** (also called iteration-level scheduling) runs alongside PagedAttention. Rather than waiting for the longest sequence in a batch to finish before starting new requests, vLLM's scheduler operates at each generation step. Completed sequences are immediately replaced by new requests from the queue. The scheduler lives in `vllm/core/scheduler.py`.
+**Continuous batching** (also called iteration-level scheduling) means vLLM does not wait for all requests in a batch to finish before accepting new ones. The scheduler runs per forward pass, inserting new requests as slots open. This keeps GPU utilization high even with variable-length outputs.
 
-## Architecture
+**Tensor parallelism and pipeline parallelism** are supported via distributed execution across multiple GPUs, coordinated through `vllm/distributed/`. For very large models, this is required rather than optional.
 
-The main serving path:
+**Speculative decoding** support allows a small draft model to propose multiple tokens that the larger model verifies in a single forward pass, reducing latency for latency-sensitive workloads at the cost of some complexity.
 
-1. `AsyncLLMEngine` (`vllm/engine/async_llm_engine.py`) receives requests and manages the event loop
-2. `Scheduler` selects which requests to run in the next step, respecting KV cache budget
-3. `Worker` processes run on each GPU (one per tensor-parallel rank); `vllm/worker/worker.py`
-4. Model execution happens inside `ModelRunner` (`vllm/worker/model_runner.py`), which builds the attention metadata from block tables and dispatches CUDA kernels
-5. Sampler (`vllm/model_executor/layers/sampler.py`) applies temperature, top-p, top-k, and returns tokens
+## Integration in the Agent Ecosystem
 
-The OpenAI-compatible API server (`vllm/entrypoints/openai/api_server.py`) wraps `AsyncLLMEngine` with FastAPI routes that match the `/v1/completions` and `/v1/chat/completions` spec.
+Several projects in this space use vLLM as their local inference backend. Mem0 lists vLLM as one of its 16 supported LLM providers via `mem0/llms/`. MemAgent's quickstart documentation shows `vllm serve BytedTsinghua-SIA/RL-MemoryAgent-14B --tensor_parallel_size 2` as the deployment command for running their 14B model locally. Autocontext's provider routing layer (`providers/`) includes vLLM alongside Anthropic, OpenAI-compatible backends, [Ollama](../projects/ollama.md), and MLX runtimes.
 
-Tensor parallelism splits attention heads and MLP columns across GPUs using NCCL all-reduce for synchronization. Pipeline parallelism layers the model across GPUs for very large models that don't fit in a single node's memory.
+vLLM exposes an OpenAI-compatible API, which means any code written against the OpenAI Python SDK can point at a vLLM server with a URL change. This compatibility is the primary reason it appears as a drop-in in so many agent frameworks.
 
 ## Key Numbers
 
-- **GitHub stars**: ~50,000+ (as of early 2026; growth has been steep)
-- **Throughput vs HuggingFace Transformers**: vLLM claims 24x higher throughput in their original paper (Kwon et al., SOSP 2023). This is self-reported from the Berkeley team's benchmarks on specific workloads (Llama models, specific request patterns). Independent reproductions generally confirm large throughput advantages, though the multiplier varies significantly with workload — short sequences with no prefix sharing show smaller gains than long-context, high-concurrency workloads where memory fragmentation hurts competitors more.
-- **TensorRT-LLM comparison**: NVIDIA's TensorRT-LLM reports higher raw throughput on NVIDIA hardware with compiled engines (~30% faster than vLLM on A100 in some benchmarks). This tradeoff is real: TensorRT-LLM is faster but requires model compilation per hardware target and is harder to operate.
-- **Community-verified**: The continuous batching and PagedAttention benefits are well-understood and reproduced across many deployments. The specific 24x number is benchmark-dependent and should not be taken as a universal multiplier.
+- **Throughput**: vLLM's original paper (Kwon et al., 2023) reported 2-4x higher throughput than HuggingFace Transformers and 1.8-3.8x higher than ORCA (an earlier continuous batching system) on LLaMA workloads. These figures are from the vLLM team's own evaluation — self-reported but with methodology published and reproducible.
+- **Memory waste**: The paper reported ~96% average KV cache memory utilization vs. ~20-40% for static allocation baselines.
+- **GitHub stars**: ~50,000+ (as of mid-2025), making it one of the most-starred LLM inference projects.
+- **Supported models**: Hundreds of architectures via HuggingFace integration: LLaMA, Mistral, Gemma, Qwen, DeepSeek, Phi, and more.
+
+The throughput numbers should be read carefully: gains are workload-dependent. High-concurrency, long-output workloads show the largest improvements. Single-request interactive latency is less differentiated from simpler approaches.
 
 ## Strengths
 
-**Broad model support**: Most Hugging Face model architectures work out of the box. Adding a new model requires implementing a vLLM model class in `vllm/model_executor/models/`, but the community has done this for virtually every popular architecture.
+**Throughput at scale**: For workloads with many concurrent requests or long output sequences, PagedAttention's memory efficiency translates directly into batching more requests per GPU, which translates into higher token throughput.
 
-**Drop-in OpenAI API replacement**: The server speaks the OpenAI API protocol. Switching an application from OpenAI to vLLM (for a locally-served model) requires changing the base URL and API key. This matters for teams running fine-tuned models.
+**Ecosystem compatibility**: The OpenAI-compatible REST API means minimal integration work. Frameworks like [LangChain](../projects/langchain.md), [LlamaIndex](../projects/llamaindex.md), and [LiteLLM](../projects/litellm.md) all treat vLLM as a standard backend.
 
-**Speculative decoding**: vLLM supports draft-then-verify speculative decoding, where a small draft model proposes tokens and the large model verifies them in parallel. For short generations, this can reduce latency significantly without changing output distribution.
+**Prefix caching**: vLLM supports KV cache reuse for shared prefixes (same system prompt across requests), a major win for agent applications where hundreds of requests share the same base context. This is sometimes called "automatic prefix caching" or "radix attention" in vLLM's implementation.
 
-**Active development**: Weekly releases, large contributor base, responds quickly to new model architectures (e.g., Deepseek support was added within days of model releases).
-
-**LoRA serving**: Multiple LoRA adapters can be loaded and swapped per-request without reloading the base model, which matters for fine-tuned model serving at scale.
+**Active development**: The project moves fast, with regular additions: multimodal support, LoRA serving, structured output (constrained decoding), and chunked prefill for better latency-throughput tradeoffs.
 
 ## Critical Limitations
 
-**Concrete failure mode — long-context memory exhaustion under variable load**: PagedAttention removes pre-allocation waste but does not eliminate OOM conditions. Under high concurrency with variable sequence lengths, the block pool can exhaust mid-generation. When this happens, vLLM must either abort requests or swap KV cache blocks to CPU memory (slow). The scheduler's `max_num_seqs` and `gpu_memory_utilization` parameters require careful tuning per workload. A production deployment that works at p50 load can OOM at p95 load if these parameters are set without load testing at the high end. The block manager will preempt lower-priority sequences to free memory, but preemption adds latency and the behavior is not always predictable from static configuration.
+**Concrete failure mode — memory pressure under mixed workloads**: When vLLM's scheduler exhausts physical KV cache blocks, it preempts sequences by either swapping their KV cache to CPU memory or recomputing it from scratch. Under sustained high load with long sequences, this preemption can cascade: sequences are swapped, CPU-GPU transfer becomes a bottleneck, and throughput degrades sharply. The scheduler's preemption policy (`vllm/core/scheduler.py`) uses a last-in-first-out eviction order, which may not match actual request priority in production workloads. Operators often discover this failure mode during load tests when they observe sudden throughput cliffs rather than graceful degradation.
 
-**Unspoken infrastructure assumption — CUDA-first**: vLLM is written for NVIDIA GPUs. AMD ROCm support exists but lags — not all kernels have ROCm equivalents, some features are unavailable, and community testing is thinner. Running vLLM on CPU (for testing or small models) works but performance is poor. Teams on AMD hardware or needing CPU-only deployment should treat vLLM as a second-tier option and evaluate alternatives.
+**Unspoken infrastructure assumption — CUDA-first**: vLLM's performance characteristics assume NVIDIA GPUs with CUDA. AMD ROCm support exists but lags behind. CPU-only inference is supported but loses the core throughput advantages entirely. Teams deploying on non-NVIDIA hardware (Google Cloud TPUs, Apple Silicon in production) should test carefully — vLLM's benchmarks are essentially all CUDA numbers.
 
 ## When NOT to Use vLLM
 
-**Small models on a single machine for development**: [Ollama](../projects/ollama.md) is easier to install, has a cleaner CLI, and handles quantized GGUF models natively. vLLM's operational overhead (Python dependencies, GPU driver requirements, API server setup) is not worth it for local development with 7B-13B models.
+**Low-concurrency interactive use**: For a single developer running a local assistant or a small team with infrequent requests, [Ollama](../projects/ollama.md) is simpler to operate and comparable in single-request latency. vLLM's operational complexity (memory tuning, tensor parallelism configuration, CUDA version management) is not justified when you are not batching many concurrent requests.
 
-**Maximum raw throughput on NVIDIA hardware**: TensorRT-LLM compiles model-specific CUDA kernels and outperforms vLLM on throughput-per-GPU for fixed workloads. If you run one model continuously on NVIDIA hardware and can afford the compilation and deployment complexity, TensorRT-LLM is faster.
+**Mac/Apple Silicon development**: vLLM does not support Metal. Autocontext's documentation explicitly routes Apple Silicon to MLX as the local inference backend. Ollama handles this natively.
 
-**Routing across multiple model providers**: [LiteLLM](../projects/litellm.md) provides a unified interface across OpenAI, Anthropic, and locally-served models. vLLM is an inference backend, not a routing layer — combining them is common, but vLLM alone does not solve the multi-provider problem.
+**Latency-critical single-request paths**: Continuous batching helps throughput but can add latency to individual requests if the scheduler holds a request waiting to form a larger batch. For hard latency SLAs on single requests, dedicated per-request serving or speculative decoding tuning is needed.
 
-**Edge or resource-constrained environments**: llama.cpp with GGUF quantization runs on CPU, Apple Silicon, and consumer hardware. vLLM requires CUDA and significant VRAM.
+**Edge/embedded deployment**: vLLM has no path to mobile or microcontroller targets. For constrained hardware, llama.cpp and its wrappers are more appropriate.
 
-**Teams without GPU infrastructure**: The hosted API providers ([OpenAI](../projects/openai.md), [Anthropic](../projects/anthropic.md)) have no operational overhead. Self-hosting vLLM requires GPU instances, monitoring, scaling logic, and model management. This is not free work.
+**Fine-tuning workflows**: vLLM is an inference server, not a training framework. It can serve LoRA adapters but does not handle gradient computation. Use it downstream of your training pipeline, not as part of it.
 
 ## Unresolved Questions
 
-**Cost at scale**: vLLM's documentation does not address cluster economics. Running multi-GPU tensor-parallel deployments at high concurrency involves non-obvious cost tradeoffs (more smaller GPUs vs fewer larger GPUs, reserved vs spot instances, queue depth vs latency SLOs). There is no official guidance on sizing.
+**Cost at scale vs. managed APIs**: For teams already paying for [OpenAI](../projects/openai.md) or [Anthropic](../projects/anthropic.md) API access, the break-even point for running vLLM on owned/rented GPU infrastructure is non-obvious. GPU instance costs, engineering time for operation, and model quality differences all factor in. The vLLM project does not address this tradeoff in its documentation.
 
-**Governance and versioning**: vLLM releases frequently and sometimes introduces breaking changes to configuration parameters, model class APIs, or quantization formats. The project has no stated LTS policy. Production deployments need to pin versions and test upgrades carefully, but the project does not document which interfaces are stable.
+**Governance of the routing layer**: vLLM serves whatever model you load. It has no built-in access controls, rate limiting per user, or audit logging. Production deployments need to add these layers separately (often via [LiteLLM](../projects/litellm.md) as a gateway).
 
-**Conflict resolution between parallel features**: Combining speculative decoding, prefix caching, LoRA serving, and chunked prefill simultaneously creates interactions that are not fully documented. Some combinations are unsupported; others are supported but may have unexpected performance characteristics. The safest approach is to test each feature combination explicitly rather than relying on documentation.
+**Structured output reliability**: Constrained decoding (guided generation via outlines or similar) can conflict with prefix caching and batching optimizations. The interaction between these features is not well-documented, and correctness under all combinations is not verified in the test suite.
 
-**Quantization consistency**: vLLM supports GPTQ, AWQ, FP8, and INT4 quantization, but accuracy degradation varies by method, model, and task. The project does not maintain systematic accuracy benchmarks across quantization methods — users need to evaluate this themselves per model.
+**Model quantization quality tradeoffs**: vLLM supports various quantization schemes (AWQ, GPTQ, fp8). The throughput/quality tradeoffs for each are model-specific and sparsely documented. Teams often discover quality regressions only in production.
 
-## Alternatives and Selection Guidance
+## Alternatives
 
-| Alternative | Use when |
-|---|---|
-| [Ollama](../projects/ollama.md) | Local development, Mac/CPU deployment, or you want a simple CLI |
-| TensorRT-LLM | Maximum throughput on NVIDIA hardware, fixed workload, can afford compilation |
-| SGLang | Multi-step agentic workflows needing structured generation; RadixAttention for tree-structured programs |
-| [LiteLLM](../projects/litellm.md) | You need to route across multiple providers and want vLLM as one backend |
-| llama.cpp | Edge deployment, GGUF quantized models, non-NVIDIA hardware |
+**[Ollama](../projects/ollama.md)**: Use when you want zero-configuration local inference on a single machine, especially on Mac. Handles model downloading, quantization selection, and serving in one command. Lower throughput ceiling than vLLM but far easier to operate.
 
-vLLM is the right choice when you need a production-grade, OpenAI-compatible inference server for Hugging Face models on NVIDIA GPUs, with an active community, broad model support, and acceptable operational complexity.
+**[LiteLLM](../projects/litellm.md)**: Use when you want a unified gateway that routes to multiple backends (OpenAI, Anthropic, vLLM, Ollama, etc.) with consistent logging and rate limiting. LiteLLM proxies to vLLM rather than replacing it.
 
-## Relationships
+**TGI (HuggingFace Text Generation Inference)**: Use when your stack is already HuggingFace-centric and you need production-grade serving with HuggingFace-maintained model support. TGI and vLLM have comparable throughput; the choice often comes down to which team's operational playbook and model support you trust more.
 
-vLLM is listed as a supported LLM provider in [Mem0](../projects/mem0.md) (`mem0/llms/` has a vLLM adapter) and in projects like autocontext (`providers/` supports vLLM alongside Anthropic and Ollama). The AI Research Skills library ([source](../raw/repos/orchestra-research-ai-research-skills.md)) includes a dedicated vLLM skill in its inference-serving category (356 lines, marked production-ready). Memento's agent executor supports vLLM for local LLM deployment (`client/agent_local_server.py`).
+**TensorRT-LLM (NVIDIA)**: Use when you are running on NVIDIA hardware and want maximum raw throughput at the cost of compilation time and operational complexity. TensorRT-LLM compiles models to highly optimized CUDA kernels, often outperforming vLLM by 20-40% on throughput, but requires significant setup per model.
 
-For [Retrieval-Augmented Generation](../concepts/rag.md) deployments, vLLM commonly serves the generation model while a separate vector database handles retrieval. For [agent orchestration](../concepts/agent-orchestration.md) systems, vLLM provides the model backend that frameworks like [LangChain](../projects/langchain.md) or [LangGraph](../projects/langgraph.md) call through the OpenAI-compatible API.
+**llama.cpp + server**: Use for CPU inference, quantized models on consumer hardware, or when binary portability matters. Far lower throughput on GPU than vLLM, but the only viable path for hardware without CUDA support.
+
+## Relationship to Agent Memory Systems
+
+Within [RAG](../concepts/rag.md) and agent memory pipelines, vLLM occupies the inference layer below the memory retrieval logic. A typical stack: [Vector Database](../concepts/vector-database.md) retrieves relevant chunks, [LangChain](../projects/langchain.md) or [LlamaIndex](../projects/llamaindex.md) assembles the prompt, vLLM generates the response. The [Model Context Protocol](../concepts/mcp.md) operates above this layer, defining how tools and context are passed to models regardless of which inference backend serves them.
+
+For agent systems doing [Agentic RAG](../concepts/agentic-rag.md) with many parallel tool calls or multi-agent workflows requiring concurrent LLM inference, vLLM's throughput advantage compounds: more parallel requests fit in memory simultaneously, reducing wall-clock time for the overall agent execution.
+
+
+## Related
+
+- [Retrieval-Augmented Generation](../concepts/rag.md) — part_of (0.3)
+- [OpenAI](../projects/openai.md) — alternative_to (0.5)
+- [Anthropic](../projects/anthropic.md) — part_of (0.3)
+- [Ollama](../projects/ollama.md) — competes_with (0.6)
+- [Model Context Protocol](../concepts/mcp.md) — part_of (0.3)

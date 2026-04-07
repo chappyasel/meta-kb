@@ -3,74 +3,121 @@ entity_id: andrej-karpathy
 type: person
 bucket: agent-systems
 abstract: >-
-  Andrej Karpathy: former OpenAI/Tesla researcher and educator who coined
-  "Software 2.0," created the autoresearch self-improvement loop pattern, and
-  produced influential educational content on LLMs and neural networks.
+  Andrej Karpathy: AI researcher/educator who built nanoGPT and coined the
+  autoresearch loop; bridges foundational ML theory with hands-on implementation
+  in ~800-line readable codebases.
 sources:
+  - tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md
   - tweets/hesamation-bro-created-a-skill-inspired-by-karpathy-s-autores.md
   - tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md
-  - tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md
   - tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md
+  - tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md
   - tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md
-  - tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md
-  - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
+  - tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md
   - tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md
   - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
-  - tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md
+  - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
   - repos/karpathy-autoresearch.md
-  - repos/garrytan-gstack.md
-  - repos/uditgoenka-autoresearch.md
+  - repos/davebcn87-pi-autoresearch.md
   - repos/jmilinovich-goal-md.md
-  - articles/effective-context-engineering-for-ai-agents.md
-  - articles/cameron-westland-autoresearch-is-reward-function-design.md
+  - repos/uditgoenka-autoresearch.md
+  - repos/garrytan-gstack.md
   - >-
     articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md
-  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
+  - articles/cameron-westland-autoresearch-is-reward-function-design.md
   - articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md
+  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
   - deep/repos/karpathy-autoresearch.md
   - deep/repos/davebcn87-pi-autoresearch.md
   - deep/repos/jmilinovich-goal-md.md
   - deep/repos/uditgoenka-autoresearch.md
+  - articles/x-twitter-meta-agent-continual-learning-for-agents.md
 related:
   - autoresearch
   - claude-code
-  - claude
   - cursor
-  - openai-codex
-  - self-improving-agents
-  - prompt-engineering
-  - karpathy-loop
+  - claude
+  - codex
+  - self-improving-agent
   - rag
-  - anthropic
   - windsurf
   - obsidian
-last_compiled: '2026-04-06T01:56:26.725Z'
+  - prompt-engineering
+  - karpathy-loop
+  - claude-md
+  - tobi-lutke
+  - knowledge-base
+  - openclaw
+  - agent-memory
+  - nanogpt
+  - task-decomposition
+  - gemini
+  - synthetic-data-generation
+  - muon-optimizer
+last_compiled: '2026-04-07T11:34:42.203Z'
 ---
 # Andrej Karpathy
 
 ## Who He Is
 
-Andrej Karpathy is a Slovak-Canadian AI researcher and educator. He co-founded [OpenAI](../projects/openai.md) in 2015, served as Director of AI at Tesla from 2017 to 2022 (leading Autopilot), returned to OpenAI, then left in 2024 to pursue independent research and education. His public writing and code reach millions of practitioners who use it as primary learning material.
+Andrej Karpathy is an AI researcher and educator who has spent the past decade making deep learning legible. He completed his PhD at Stanford under Fei-Fei Li, joined OpenAI as a founding member, left to lead Tesla's Autopilot team (2017–2022), returned to OpenAI as a senior researcher, then departed in 2023 to work independently. He now focuses on education, open-source tools, and autonomous agent research.
 
-## Key Contributions to This Space
+His public profile sits at the intersection of two modes: researcher who ships working code and teacher who explains why it works. Both roles feed each other. The lectures become codebases; the codebases become research.
 
-**Software 2.0 thesis (2017)**: Karpathy argued that neural networks are not tools but a new programming paradigm, where developers write training data and loss functions rather than explicit logic. This framing has become foundational vocabulary in the field.
+## Key Contributions to LLM and Agent Systems
 
-**nanoGPT and micrograd**: Minimal, readable implementations of GPT and autograd engines. His "Let's build GPT from scratch" YouTube series functions as a primary reference for researchers and practitioners entering the LLM space. He designs these explicitly so that "both humans and future agents can understand and extend" them, treating code clarity as a design constraint rather than an afterthought.
+**nanoGPT** ([nanoGPT](../projects/nanogpt.md)) — A ~300-line PyTorch reimplementation of GPT-2 that trains real models. The design philosophy prioritizes readability over abstraction: no inheritance hierarchies, no framework dependencies, every line traceable. It became the reference implementation that thousands of practitioners use to understand transformer internals before touching production-scale code.
 
-**The autoresearch pattern**: Karpathy's most direct contribution to agent systems is the autonomous self-improvement loop he published in early 2026. The architecture is a three-file contract: an immutable `prepare.py` locking the evaluation metric (`val_bpb`), a mutable `train.py` the agent edits freely, and a `program.md` that instructs the agent in natural language. The agent commits, trains for five minutes, reads the metric, and either keeps or reverts with `git reset`. Over two days, this produced 700 experiments and an 11% speedup on already-optimized code. Shopify's Tobias Lutke reported 19% gains across 37 overnight experiments using the same pattern. The key constraint is that the agent touches exactly one file, preventing it from gaming the benchmark or getting lost in an expanding action space. [AutoResearch](../projects/autoresearch.md) and the [Karpathy Loop](../concepts/karpathy-loop.md) generalize this to software engineering, security, and subjective domains. See also [Self-Improving Agents](../concepts/self-improving-agents.md).
+**The Karpathy Loop** ([Karpathy Loop](../concepts/karpathy-loop.md)) — Coined from his autoresearch project ([AutoResearch](../projects/autoresearch.md)): an agent runs indefinitely in a modify → verify → keep/revert cycle, using git history as memory and a frozen scalar metric as the sole fitness function. The loop ran 700 experiments over two days, found 20 optimizations, and produced an 11% speedup on already-optimized code. Tobi Lütke ([Tobi Lütke](../concepts/tobi-lutke.md)) applied it to Shopify's Liquid template engine and reported a 19% performance gain across 37 experiments. The pattern has since been generalized by projects like [pi-autoresearch](../projects/autoresearch.md) and [uditgoenka/autoresearch](../projects/autoresearch.md), and spawned a broader ecosystem of autoresearch tools.
 
-**LLM knowledge base methodology**: In a tweet with nearly 10 million views, Karpathy described a workflow for building personal research wikis: ingest raw sources into a `raw/` directory, have an LLM compile a markdown wiki with backlinks and concept articles, query it conversationally, and file query outputs back into the wiki so each exploration improves future ones. He uses [Obsidian](../projects/obsidian.md) as the viewing layer and runs LLM "health checks" to find inconsistencies and suggest new article candidates. He noted that at ~100 articles and ~400K words, sophisticated [RAG](../concepts/rag.md) architecture was unnecessary, since the LLM handled index maintenance well at that scale. He flagged synthetic data generation and fine-tuning as the natural next step to move knowledge from context windows into model weights. [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
+**LLM Knowledge Bases** ([LLM Knowledge Base](../concepts/knowledge-base.md)) — Described in a tweet that reached ~10M views: collect raw documents into a `raw/` directory, have an LLM compile them into a markdown wiki, query the wiki with an LLM agent, and file query outputs back into the wiki. The cycle is self-reinforcing: each query makes the knowledge base denser. He uses [Obsidian](../projects/obsidian.md) as the viewing layer and noted that at ~100 articles and ~400K words, LLM-maintained index files make explicit [RAG](../concepts/rag.md) infrastructure unnecessary at that scale. The endpoint he identified: [synthetic data generation](../concepts/synthetic-data-generation.md) and fine-tuning to move knowledge from context windows into model weights.
 
-**"Loopy era" framing**: Karpathy characterizes the current period in AI development as one where continuous self-improvement loops on code and research become standard at frontier labs. He stated that all LLM frontier labs will adopt autoresearch-style loops and described the end goal as asynchronously collaborative agents running in parallel, closer to a research community than a single PhD student. His framing of the programmer's role as "spinning up AI agents" rather than "typing computer code" has been widely cited in discussions of [Agent Orchestration](../concepts/agent-orchestration.md) and [Prompt Engineering](../concepts/prompt-engineering.md).
+**Pedagogical clarity as a technical output** — His lecture series (CS231n at Stanford, "Zero to Hero" on YouTube) treat clarity as a design constraint, not a tradeoff. The same sensibility shows up in his code: nanoGPT and [MicroGrad](../projects/nanogpt.md) are deliberately small so both humans and future agents can read and extend them.
 
-## Notable Work
+**"Vibe coding" and [prompt engineering](../concepts/prompt-engineering.md)** — He coined "vibe coding" to describe LLM-assisted development where the programmer maintains intent while the model handles syntax. He has written extensively on [prompt engineering](../concepts/prompt-engineering.md) as a discipline, including the observation that the bottleneck in agent systems is increasingly context design rather than model capability.
 
-- **karpathy/autoresearch**: 21,000+ GitHub stars at launch. The 630-line `train.py` at its center is intentionally readable, following his philosophy that comprehensibility enables both human understanding and agent modification. [Source](../raw/deep/repos/karpathy-autoresearch.md)
-- **karpathy/nanoGPT**: Primary educational reference for GPT implementation
-- **CS231n**: Stanford course on convolutional neural networks, widely used as a reference curriculum
-- Tesla Autopilot: Led the vision-only approach that removed radar from the stack
+## Intellectual Positions Relevant to This Space
 
-## Related Concepts
+On [self-improving agents](../concepts/self-improving-agent.md): he frames the current period as a "loopy era" where agents running continuous improvement loops on code and research will become standard at frontier labs. His stated vision for autoresearch is not a single agent improving in sequence but a SETI@home-style parallel system with many agents exploring different branches simultaneously.
 
-[Karpathy Loop](../concepts/karpathy-loop.md) · [Self-Improving Agents](../concepts/self-improving-agents.md) · [AutoResearch](../projects/autoresearch.md) · [Prompt Engineering](../concepts/prompt-engineering.md) · [Agent Memory](../concepts/agent-memory.md) · [Knowledge Base](../concepts/knowledge-base.md) · [Context Engineering](../concepts/context-engineering.md)
+On [agent memory](../concepts/agent-memory.md) and [knowledge bases](../concepts/knowledge-base.md): he prefers file-based, LLM-maintained structures over specialized infrastructure at small-to-medium scale. Git serves as the memory system in his autoresearch work; markdown serves as the knowledge representation in his wiki work.
+
+On [task decomposition](../concepts/task-decomposition.md): the three-file contract in autoresearch (`prepare.py` immutable, `train.py` mutable, `program.md` orchestration) is a concrete operationalization of his view that humans set direction and agents execute — strategy separated from tactics by file permissions.
+
+On [synthetic data generation](../concepts/synthetic-data-generation.md): he identified it as the natural extension of the LLM knowledge base pattern — once a wiki is dense enough, generate fine-tuning data from it to move domain knowledge into weights.
+
+## Notable Positions and Affiliations
+
+- Co-founder, OpenAI (2015)
+- Director of AI, Tesla (2017–2022)
+- Senior Researcher, OpenAI (2023–2024)
+- Independent researcher and educator (2024–present)
+
+## Relevance to Agent Systems
+
+Karpathy's practical influence on the agent systems space is disproportionate to his formal publications in it. The autoresearch loop is now a design pattern with 13+ independent implementations. His LLM knowledge base description seeded a category of tools. His pedagogical work shapes how new practitioners understand the transformer architecture underlying every modern agent. The [Muon optimizer](../concepts/muon-optimizer.md) work and his commentary on [GRPO](../concepts/grpo.md) and [reinforcement learning](../concepts/reinforcement-learning.md) for LLMs connect his historical research to current training practice.
+
+
+## Related
+
+- [AutoResearch](../projects/autoresearch.md) — created_by (0.6)
+- [Claude Code](../projects/claude-code.md) — part_of (0.4)
+- [Cursor](../projects/cursor.md) — part_of (0.4)
+- [Claude](../projects/claude.md) — part_of (0.4)
+- [OpenAI Codex](../projects/codex.md) — part_of (0.4)
+- [Self-Improving Agent](../concepts/self-improving-agent.md) — part_of (0.7)
+- [Retrieval-Augmented Generation](../concepts/rag.md) — alternative_to (0.4)
+- [Windsurf](../projects/windsurf.md) — part_of (0.3)
+- [Obsidian](../projects/obsidian.md) — part_of (0.4)
+- [Prompt Engineering](../concepts/prompt-engineering.md) — part_of (0.5)
+- [Karpathy Loop](../concepts/karpathy-loop.md) — created_by (1.0)
+- [CLAUDE.md](../concepts/claude-md.md) — part_of (0.4)
+- [Tobi Lütke](../concepts/tobi-lutke.md) — part_of (0.4)
+- [LLM Knowledge Base](../concepts/knowledge-base.md) — created_by (0.6)
+- [OpenClaw](../projects/openclaw.md) — part_of (0.3)
+- [Agent Memory](../concepts/agent-memory.md) — part_of (0.5)
+- [nanoGPT](../projects/nanogpt.md) — created_by (0.8)
+- [Task Decomposition](../concepts/task-decomposition.md) — part_of (0.4)
+- [Gemini](../projects/gemini.md) — part_of (0.3)
+- [Synthetic Data Generation](../concepts/synthetic-data-generation.md) — part_of (0.4)
+- [Muon Optimizer](../concepts/muon-optimizer.md) — part_of (0.4)

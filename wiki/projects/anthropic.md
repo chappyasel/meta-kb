@@ -3,145 +3,159 @@ entity_id: anthropic
 type: project
 bucket: agent-systems
 abstract: >-
-  Anthropic builds frontier AI models (Claude) and agent infrastructure (Claude
-  Code, MCP), differentiated by public safety research commitments and the
-  Constitutional AI training method.
+  Anthropic builds and commercializes the Claude model family, differentiating
+  through AI safety research, constitutional AI training methods, and an
+  expanding ecosystem of developer tools including MCP, Claude Code, and Agent
+  Skills.
 sources:
   - repos/helloruru-claude-memory-engine.md
-  - repos/affaan-m-everything-claude-code.md
-  - repos/snarktank-compound-product.md
-  - repos/anthropics-skills.md
   - repos/greyhaven-ai-autocontext.md
-  - repos/thedotmack-claude-mem.md
-  - repos/letta-ai-letta-code.md
   - articles/effective-context-engineering-for-ai-agents.md
   - articles/agent-skills-overview.md
-  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
-  - articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md
   - articles/martinfowler-com-context-engineering-for-coding-agents.md
-  - deep/repos/getzep-graphiti.md
-  - deep/repos/affaan-m-everything-claude-code.md
+  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
+  - articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md
   - deep/repos/memodb-io-acontext.md
+  - deep/repos/getzep-graphiti.md
+  - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
   - deep/repos/memorilabs-memori.md
   - deep/repos/anthropics-skills.md
   - deep/repos/greyhaven-ai-autocontext.md
-  - deep/repos/maximerobeyns-self-improving-coding-agent.md
   - deep/repos/kepano-obsidian-skills.md
+  - deep/repos/maximerobeyns-self-improving-coding-agent.md
+  - deep/repos/memento-teams-memento-skills.md
   - deep/repos/mem0ai-mem0.md
+  - repos/canvas-org-meta-agent.md
 related:
-  - claude-code
   - openai
-  - mcp
-  - claude
-  - agent-skills
-  - gemini
   - cursor
-  - andrej-karpathy
-  - context-engineering
-  - openai-codex
-  - progressive-disclosure
-  - vllm
+  - claude
+  - claude-code
+  - mcp
+  - agent-skills
+  - claude-md
+  - skill-md
+  - openclaw
+  - codex
   - mem0
+  - vllm
   - ollama
-last_compiled: '2026-04-06T01:56:59.746Z'
+  - pydantic
+  - gemini
+  - github-copilot
+  - obsidian
+  - react
+  - context-engineering
+  - bm25
+  - progressive-disclosure
+  - gepa
+  - postgresql
+  - neo4j
+  - redis
+  - entity-extraction
+  - sqlite
+last_compiled: '2026-04-07T11:36:24.232Z'
 ---
 # Anthropic
 
-## What It Is
+## What It Does
 
-Anthropic is an AI safety company founded in 2021 by Dario Amodei, Daniela Amodei, and several former OpenAI researchers. Its core business is building and deploying large language models under the Claude brand, while publishing safety research aimed at making those models more interpretable, reliable, and aligned with human values.
+Anthropic is an AI safety company that trains and deploys the [Claude](../projects/claude.md) family of large language models. Founded in 2021 by Dario Amodei, Daniela Amodei, and colleagues who left OpenAI, the company occupies an unusual position: it treats AI safety as a core research agenda while also building commercially deployed frontier models. This creates a dual mandate that shapes most of its architectural and product decisions.
 
-For the knowledge base and agent intelligence space specifically, Anthropic matters as the creator of three distinct layers of infrastructure: Claude (the underlying model), [Claude Code](../projects/claude-code.md) (an agentic coding assistant), and the [Model Context Protocol](../concepts/mcp.md) (an open standard for tool and context integration). These three things together make Anthropic the most consequential single organization in how LLM-powered agents are built in 2025.
+The company's primary output is Claude, currently deployed as Claude 3.5 Sonnet, Claude 3.5 Haiku, and Claude 3 Opus, with the forthcoming Claude 4 family in development. Beyond the base models, Anthropic has built a growing developer ecosystem: the [Model Context Protocol](../concepts/mcp.md), [Claude Code](../projects/claude-code.md), [Agent Skills](../concepts/agent-skills.md), and the [SKILL.md](../concepts/claude-md.md) and [Skill Files](../concepts/skill-md.md) specification formats.
 
-## Architecturally Unique Aspects
+## Core Technical Differentiators
 
 ### Constitutional AI
 
-Anthropic's primary training differentiator is Constitutional AI (CAI), a method where the model critiques and revises its own outputs against a set of principles rather than relying solely on human feedback for every response. The practical effect: Claude models tend to refuse harmful requests with explanations rather than silent refusal or compliant execution. Whether this represents genuine alignment progress or sophisticated refusal tuning is contested among researchers.
+Anthropic's primary published training innovation is Constitutional AI (CAI), introduced in their 2022 paper. Rather than relying purely on human feedback for RLHF, CAI trains models to critique and revise their own outputs according to a written set of principles (the "constitution"). This introduces a two-phase process: a supervised learning phase where the model generates and self-critiques responses, followed by RLHF against a preference model trained on AI-generated comparisons rather than exclusively human ones.
 
-### Model Context Protocol
+The practical consequence is that Claude models tend to refuse differently than GPT-4 or Gemini: refusals are typically more reasoned, hedged rather than categorical, and more willing to engage with edge cases. Whether this reflects genuine safety advantages or is primarily a UX distinction remains debated externally.
 
-MCP is Anthropic's largest infrastructure bet beyond the model itself. Published as an open protocol in late 2024, MCP standardizes how agents connect to tools, databases, and external services. The spec defines a client-server model where MCP servers expose capabilities (tools, resources, prompts) and MCP clients (Claude Code, Cursor, and others) consume them.
+### Interpretability Research
 
-The protocol's adoption matters: third-party tools like [Graphiti](../projects/graphiti.md) ship MCP servers as first-class integration targets, and agent frameworks like [LangGraph](../projects/langgraph.md) treat MCP compliance as table stakes. Anthropic does not control what gets built as an MCP server, which gives the protocol legitimacy it would lack as a proprietary API.
+Anthropic's Transformer Circuits team has published significant mechanistic interpretability work, including "Toy Models of Superposition" (2022) and "Towards Monosemanticity" (2023). The latter used sparse autoencoders to identify and manipulate individual features in a one-layer transformer. This research has not yet translated into direct product features, but it represents a genuine technical investment in understanding model internals rather than treating them as black boxes.
 
-### claude.md and Skill Architecture
+### Extended Context Handling
 
-Anthropic established [claude.md](../concepts/claude-md.md) as the de facto convention for project-level agent instructions: a markdown file read at session start that configures the agent's behavior, tools, and constraints. Their official skills repository (anthropics/skills) implements a three-tier [progressive disclosure](../concepts/progressive-disclosure.md) architecture where skill metadata stays in context permanently, SKILL.md body loads on trigger, and bundled resources load on demand. This solves a real engineering problem: how to give agents access to deep domain knowledge without consuming the entire context window.
+Claude models have supported 100k+ token context windows since Claude 2 (2023), reaching 200k tokens for Claude 3. The [Context Window](../concepts/context-window.md) size and handling quality matter substantially for the agent-memory use cases this wiki covers. Third-party evaluations have generally found Claude competitive with or superior to GPT-4 on long-context retrieval tasks, though self-reported benchmarks from Anthropic should be read with the standard caveat that internal evals are not independently validated.
 
-The skill-creator meta-skill is the most architecturally interesting piece: it closes a loop most skill systems leave open by implementing eval-driven iteration with LLM-as-judge grading, variance analysis, and description optimization. See the [Agent Skills](../concepts/agent-skills.md) concept page for full implementation detail.
+## The Developer Ecosystem
 
-## Key Products
+Anthropic's most significant 2024-2025 contribution to agent infrastructure is the [Model Context Protocol](../concepts/mcp.md) (MCP), a standardized JSON-RPC protocol for connecting LLMs to external tools and data sources. MCP defines a client-server architecture where MCP servers expose tools, resources, and prompts to MCP clients (models or agents). The protocol achieved significant adoption within six months of release, with [Cursor](../projects/cursor.md), [Windsurf](../projects/windsurf.md), [Obsidian](../projects/obsidian.md), and dozens of other tools implementing MCP servers.
 
-**Claude (API)**: The primary commercial product. Claude 3.5 Sonnet and Claude 3.7 Sonnet are the current frontier models as of mid-2025. Priced per token, with a tiered context window. The API supports structured output, tool use, and vision.
+[Claude Code](../projects/claude-code.md) is Anthropic's agentic coding product, deployed as a CLI tool that runs in terminal environments with access to the filesystem, shell, and web. It scores competitively on [SWE-bench](../projects/swe-bench.md), though whether its published numbers are independently validated varies by benchmark version.
 
-**Claude Code**: A terminal-native agentic coding assistant that operates directly on the filesystem rather than through an IDE plugin. It uses the CLAUDE.md convention for project context, supports subagent delegation, and integrates with MCP servers for extended capabilities. See [Claude Code](../projects/claude-code.md) for full architecture detail.
+The [Agent Skills](../concepts/agent-skills.md) system formalizes how Claude loads domain-specific knowledge. A skill is a folder with a `SKILL.md` file containing YAML frontmatter (`name`, `description`) plus markdown instructions. The description field drives triggering: Claude reads available skill descriptions and decides whether to load a skill's full content. This implements [Progressive Disclosure](../concepts/progressive-disclosure.md) at the agent-context level. Anthropic hosts a marketplace at agentskills.io and ships reference skills in their `anthropics/skills` repository.
 
-**Claude.ai**: Consumer and team product with a chat interface, projects feature (persistent context across conversations), and skill installation for paid tiers.
+The anthropics/skills repo serves three purposes simultaneously: the canonical spec for the Agent Skills standard, a curated marketplace of example skills, and the production source for Claude's document-handling capabilities (docx, xlsx, pptx, pdf). The most architecturally notable skill in that repo is `skill-creator`, a meta-skill that implements an eval-driven development loop for building other skills: interview for intent, write SKILL.md, run with-skill vs. baseline comparisons via LLM-as-judge, optimize the description via 60/40 train/test splits, iterate up to five cycles.
 
 ## Key Numbers
 
-- **Valuation**: $61.5 billion as of early 2025 (Series E, funding from Google, Amazon, Spark Capital). Self-reported.
-- **SWE-Bench Verified**: Claude 3.7 Sonnet scored 70.3% on [SWE-Bench](../projects/swe-bench.md) Verified as of February 2025 (Anthropic-reported, using an agent scaffold).
-- **Context window**: 200K tokens for Claude 3 and 3.5 models.
-- **MCP adoption**: Over 1,000 MCP servers listed in community registries by mid-2025 (community-counted).
-
-The SWE-Bench figure deserves scrutiny. Anthropic runs their own evals on their own models with scaffolding they design. Independent replication with different scaffolding consistently produces lower numbers. The figure is useful for directional comparison to other providers' self-reported numbers, not as an absolute capability measure.
+- **Funding**: $7.3 billion raised as of early 2024, with Amazon as the largest investor ($4 billion committed). Reported valuation ~$18 billion.
+- **API pricing** (as of mid-2025): Claude 3.5 Sonnet at $3/$15 per million input/output tokens; Claude 3.5 Haiku at $0.80/$4. These are self-reported by Anthropic.
+- **Context window**: 200k tokens for Claude 3 family. Self-reported.
+- **SWE-bench**: Claude 3.5 Sonnet reported at 49% on SWE-bench Verified as of late 2024. This specific number has been subject to methodology questions in the community about test set contamination across frontier model evals generally.
+- **MCP adoption**: Over 1,000 community MCP servers within the first few months of release. Community-reported, not independently audited.
 
 ## Strengths
 
-**Instruction following at production scale**: Claude models, particularly 3.5 Sonnet, consistently rank highly on following complex multi-part instructions without dropping constraints. This matters specifically for [agent orchestration](../concepts/agent-orchestration.md) where the model must maintain rules across many tool calls.
+**Long-context coherence**: Claude models consistently perform well on tasks requiring synthesis across large documents. For the retrieval and memory augmentation use cases in this wiki, this matters because a model that cannot reliably attend to injected context at position 80k of a 100k window defeats the purpose of retrieval pipelines.
 
-**Long-context coherence**: At 200K tokens, Claude maintains stronger coherence across the full window than most alternatives. Verified by independent users building [RAG](../concepts/rag.md) systems and [knowledge graph](../concepts/knowledge-graph.md) pipelines where the full context must inform each generation.
+**Instruction following and format adherence**: Claude is widely considered stronger than GPT-4 at following precise output format instructions (structured JSON, specific markdown schemas, constrained response types). This matters for memory systems like [Graphiti](../projects/graphiti.md), [Mem0](../projects/mem0.md), and similar projects that rely on structured LLM output for entity extraction and fact classification.
 
-**Safety research publication**: Anthropic publishes interpretability and alignment research (the Transformer Circuits work, activation patching, superposition research) with enough methodological detail to replicate. This distinguishes them from [OpenAI](../projects/openai.md), which has reduced research publication cadence.
+**Tool use and agentic reliability**: Claude 3.5 Sonnet's agentic performance on multi-step tasks has driven its adoption as the default model in most coding agent products. The anthropics/skills evaluation harness provides some evidence for this, though the internal eval methodology is not externally reproducible.
 
-**Agent infrastructure**: MCP, Claude Code, claude.md, and the skills architecture form a coherent stack for building agents. Projects like the [everything-claude-code](../projects/claude-code.md) harness (156 skills, 38 agents, 20+ hook types) exist because that stack is well-defined enough to build against.
+**Ecosystem coherence**: MCP, Claude Code, Agent Skills, and CLAUDE.md form a coherent stack for agentic workflows. A team building on this stack gets protocol interoperability (MCP), agentic coding (Claude Code), persistent procedural knowledge ([CLAUDE.md](../concepts/claude-md.md)), and domain skill distribution (Agent Skills) from one vendor.
 
 ## Critical Limitations
 
-**Concrete failure mode: refusal brittleness at scale**. Claude's safety training produces refusals in edge cases that other models handle without issue. The problem is not the refusals themselves but their unpredictability. A prompt that works in 99 of 100 runs refuses on the 100th with no change in input. For production agent pipelines making thousands of calls, this unpredictability forces error-handling overhead and retry logic that compounds costs. The refusal behavior is not documented in enough detail to predict or work around systematically.
+**Vendor lock-in through ecosystem depth**: The MCP + Claude Code + Agent Skills stack creates compounding switching costs. MCP is an open protocol, but Claude Code is Anthropic-specific, Agent Skills uses Claude-specific triggering semantics, and CLAUDE.md is a Claude-specific context injection mechanism. Switching models mid-project means rebuilding the agentic layer.
 
-**Unspoken infrastructure assumption: API reliability**. The entire Claude Code and MCP ecosystem assumes continuous, low-latency API access. During degraded service periods (which have occurred during high-demand windows in 2024-2025), agentic workflows that make 50-200 API calls per task fail in ways that are difficult to recover gracefully. There is no official offline mode or local model option for Claude, unlike [Ollama](../projects/ollama.md)-backed setups.
+**Unspoken infrastructure assumption**: The progressive disclosure model for skills assumes the agent can reason well about which skills to load. The skill-creator documentation explicitly acknowledges "undertriggering" as a failure mode. This means the quality of skill-based context engineering degrades proportionally with model reasoning quality on ambiguous queries. A weaker model in the same skill framework will silently fail to load relevant context, with no error signaling.
 
-## When NOT to Use Anthropic
+**No runtime skill learning**: Skills are static files. The Agent Skills system has no mechanism for a skill to update itself based on execution outcomes. The skill-creator's eval loop closes this gap at development time but not at runtime. This contrasts with systems like [Acontext](../projects/anthropic.md) that implement learning pipelines from execution traces.
 
-**High-volume, latency-sensitive inference**: [vLLM](../projects/vllm.md) running open-weight models on your own hardware gives you deterministic latency, no per-token cost at scale, and no dependency on external API availability. If you are running millions of inference calls per day, Anthropic's pricing structure and API rate limits become binding constraints.
+## When NOT to Use Anthropic/Claude
 
-**On-device or air-gapped deployments**: Claude is cloud-only. Applications requiring local execution (healthcare data that cannot leave a network, consumer devices, offline use) cannot use Claude without a connectivity dependency that may be architecturally unacceptable.
+**Budget-constrained, high-volume inference**: At $3-15/million tokens for Claude 3.5 Sonnet, high-frequency agentic workflows (continuous background agents, streaming user interactions at scale) can become expensive. [Ollama](../projects/ollama.md) with locally-hosted models or [vLLM](../projects/vllm.md) for self-hosted serving eliminate per-token costs at the expense of infrastructure overhead and smaller context windows.
 
-**Tasks where refusals are catastrophic**: Security research, red-teaming, content moderation training, and other legitimate uses that involve analyzing harmful content will encounter more friction with Claude than with open-weight alternatives. The Constitutional AI training creates guardrails that are not tunable via system prompt.
+**Fully offline or air-gapped deployments**: Claude is API-only. There is no self-hosted Claude option. If your deployment cannot reach external APIs, Claude is not viable regardless of capability advantages.
 
-**Cost at sustained scale**: [DeepSeek](../projects/deepseek.md) and other open-weight models have narrowed the capability gap enough that for many production tasks, the cost differential is difficult to justify. For a startup burning $50K/month on Claude API calls, the economics of self-hosted open-weight models become compelling.
+**When you need reproducible evals**: Anthropic's internal benchmarks are not reproducible externally. If your selection criteria require independently validated benchmark performance, the published Claude numbers are insufficient evidence on their own.
+
+**Multi-provider arbitrage workflows**: If your architecture routes different task types to different models (cheap small models for extraction, frontier models for synthesis), Anthropic's pricing structure and API design do not offer particular advantages over [OpenAI](../projects/openai.md), [Gemini](../projects/gemini.md), or open-weight alternatives accessed through [OpenRouter](../projects/openrouter.md) or [LiteLLM](../projects/litellm.md).
 
 ## Unresolved Questions
 
-**Governance of MCP**: Anthropic published MCP and controls the spec, but the protocol is open. Who decides when breaking changes land? How are conflicts between major adopters resolved? There is no published governance model. If Anthropic's priorities diverge from the ecosystem's, MCP could fork or fragment.
+**Constitutional AI efficacy at scale**: CAI is published and peer-reviewed, but whether it produces meaningfully safer models at frontier scale relative to standard RLHF has not been independently established. Anthropic's safety claims are plausible but not verified by third parties with access to training processes.
 
-**Cost at scale, unpublished**: Anthropic does not publish volume pricing tiers in enough detail to model costs for large deployments. Negotiated enterprise pricing is opaque. For practitioners building business cases around Claude-based products, the uncertainty in cost at scale is a planning problem.
+**Governance of the Agent Skills marketplace**: The agentskills.io spec and anthropics/skills repo do not document a governance process for marketplace skills. Who reviews skills before they enter the curated marketplace? What criteria govern acceptance? What is the revocation process for a skill with bugs or security issues? These questions are unanswered in published documentation.
 
-**Interpretability research to product pipeline**: Anthropic's mechanistic interpretability research (circuits, features, superposition) is genuinely impressive. How it translates into model reliability improvements in production is not documented. The gap between "we understand how induction heads work" and "our models refuse less unpredictably" is not explained.
+**MCP long-term compatibility**: MCP's specification governance currently sits with Anthropic. The protocol is openly licensed and has attracted wide adoption, but there is no independent standards body. Future breaking changes would be unilaterally controlled by Anthropic.
 
-**Model distillation and fine-tuning**: Anthropic does not offer fine-tuning for Claude models (unlike OpenAI's fine-tuning API). For applications that would benefit from domain adaptation, this forces either prompt engineering workarounds or migration to a model that supports fine-tuning.
+**Cost structure at agent scale**: The skill-creator documentation estimates a full description optimization eval run costs ~$3.85 for 20 queries over 5 iterations. The autocontext integration (a third-party system that uses Claude via Anthropic API) estimates $0.10-0.30 per session learning cycle for 30-55 LLM calls. At production scale with thousands of concurrent agent sessions, these costs compound in ways the current documentation does not address.
 
-## Relationship to Alternatives
+## Competitive Position
 
-**vs. [OpenAI](../projects/openai.md)**: OpenAI has broader tooling (Codex, Assistants API, fine-tuning, image generation), larger market share, and longer enterprise sales history. Claude's instruction following and long-context coherence are widely considered stronger. OpenAI's models are generally faster at standard context lengths.
+Anthropic competes directly with [OpenAI](../projects/openai.md) on frontier model capability and developer tooling, and with [Google Gemini](../projects/gemini.md) on enterprise deployment. For coding-specific applications, it competes with [GitHub Copilot](../projects/github-copilot.md) (for IDE integration) and [OpenAI Codex](../projects/codex.md).
 
-**vs. [Gemini](../projects/gemini.md)**: Google's distribution advantages (integrated into Workspace, native Android access, YouTube data) are structural. Gemini 1.5 Pro matches Claude's 1M context window. For applications requiring multimodal reasoning over very long documents, Gemini's native integration with Google's ecosystem is a genuine differentiator.
+**Use Claude when**: Long-context reasoning, precise instruction following, and agentic multi-step task completion are primary requirements. The MCP + Claude Code stack provides strong coherence for teams building on Anthropic's ecosystem.
 
-**vs. [Cursor](../projects/cursor.md)**: Cursor is a consumer product built on top of Claude and GPT-4. They are not competitors at the model layer; Cursor is an Anthropic customer and distribution partner. For coding assistance, Cursor's IDE integration is tighter than Claude Code's terminal interface.
+**Use OpenAI when**: Maximum third-party tool compatibility (most libraries default to OpenAI), function calling with complex schemas, or lower-cost high-volume inference via GPT-4o-mini are priorities.
 
-**vs. [Ollama](../projects/ollama.md) / open-weight**: The capability gap has narrowed. For [context engineering](../concepts/context-engineering.md) use cases requiring deterministic behavior, local execution, or cost control, open-weight models via Ollama or vLLM are viable alternatives for many tasks that required Claude-class models in 2023.
+**Use Gemini when**: Native multimodal (audio/video) input, Google Cloud integration, or very long context windows (Gemini 1.5 Pro's 1M token context) are required.
 
-**vs. [LangChain](../projects/langchain.md) / [LlamaIndex](../projects/llamaindex.md)**: These are orchestration frameworks, not model providers. They run on top of Claude and are not alternatives. Anthropic's MCP protocol competes indirectly with LangChain's tool abstraction layer by offering a standardized integration point that bypasses framework-level abstractions.
+**Use open-weight models via Ollama or vLLM when**: Air-gapped deployment, cost elimination at scale, or full control over fine-tuning and weight access are requirements.
 
 ## Related Concepts
 
-- [Model Context Protocol](../concepts/mcp.md): The open standard Anthropic created for agent-tool integration
-- [Agent Skills](../concepts/agent-skills.md): The skill architecture Anthropic defined and maintains
-- [claude.md](../concepts/claude-md.md): The project-context convention established by Claude Code
-- [Context Engineering](../concepts/context-engineering.md): The broader practice of managing what goes into agent context windows
-- [Progressive Disclosure](../concepts/progressive-disclosure.md): The three-tier loading pattern used in Anthropic's skill architecture
-- [Claude Code](../projects/claude-code.md): Anthropic's agentic coding assistant
-- [Claude](../projects/claude.md): The underlying model family
+- [Model Context Protocol](../concepts/mcp.md): Anthropic's open protocol for LLM-to-tool communication
+- [Claude Code](../projects/claude-code.md): Anthropic's agentic coding product
+- [Agent Skills](../concepts/agent-skills.md): The SKILL.md-based knowledge distribution system
+- [CLAUDE.md](../concepts/claude-md.md): Project-specific context injection convention
+- [Skill Files](../concepts/skill-md.md): The broader skill file pattern
+- [Context Engineering](../concepts/context-engineering.md): The discipline Claude's tooling operationalizes
+- [Progressive Disclosure](../concepts/progressive-disclosure.md): The architectural pattern Agent Skills implements
+- [ReAct](../concepts/react.md): The reasoning pattern Claude Code uses for agentic loops
+- [Context Window](../concepts/context-window.md): Claude's 200k-token capacity and its implications

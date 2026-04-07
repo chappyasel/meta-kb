@@ -3,14 +3,14 @@ entity_id: obsidian
 type: project
 bucket: knowledge-bases
 abstract: >-
-  Obsidian is a local-first Markdown editor that stores notes as plain files and
-  links them bidirectionally — its key differentiator is zero lock-in: all data
-  stays on disk as `.md`, `.canvas`, and `.base` files that LLM agents can read
-  and write directly without any API.
+  Obsidian is a local-first Markdown note-taking app with bidirectional
+  wikilinks; it differentiates by storing all data as plain files you own, with
+  no proprietary database lock-in.
 sources:
   - tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md
-  - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
   - tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md
+  - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
+  - repos/natebjones-projects-ob1.md
   - repos/kepano-obsidian-skills.md
   - repos/michaelliv-napkin.md
   - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
@@ -18,112 +18,116 @@ sources:
   - deep/repos/michaelliv-napkin.md
 related:
   - rag
-  - andrej-karpathy
-  - progressive-disclosure
-  - knowledge-base
   - claude-code
-last_compiled: '2026-04-06T02:01:14.634Z'
+  - andrej-karpathy
+  - cursor
+  - progressive-disclosure
+  - anthropic
+  - mcp
+  - opencode
+last_compiled: '2026-04-07T11:38:31.619Z'
 ---
 # Obsidian
 
-## What It Does
+## What It Is
 
-Obsidian is a personal knowledge management (PKM) application that stores everything as local Markdown files. You write notes; Obsidian renders them, tracks `[[wikilinks]]` between them, and builds a navigable link graph. No database, no cloud sync requirement, no proprietary format. The application wraps files; the files are the data.
+Obsidian is a personal knowledge management application that operates on a local folder of Markdown files. You open a directory (called a vault) and Obsidian renders the files, resolves `[[wikilinks]]` into clickable connections, and maintains a bidirectional link index so every note knows what links to it. No proprietary database. The files are yours, readable by any text editor.
 
-This architecture has made Obsidian the default "frontend" for LLM-maintained knowledge bases. [Andrej Karpathy](../concepts/andrej-karpathy.md) described his setup publicly: raw source documents land in `raw/`, an LLM compiles them into a `wiki/` directory of `.md` files, and Obsidian serves as the viewer. The LLM writes; the human reads. Obsidian never needs to know an LLM touched the files.
+[Andrej Karpathy](../concepts/andrej-karpathy.md) publicly described using Obsidian as the frontend for LLM-maintained research wikis: raw source documents go into `raw/`, an LLM compiles them into a `wiki/` directory of `.md` files, and Obsidian serves as the IDE for viewing both the source and the compiled output. He uses the [Obsidian Web Clipper](https://obsidian.md/clipper) to convert web articles into local Markdown files for LLM ingestion. [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
 
-The plugin ecosystem extends this into agent territory. The Obsidian Web Clipper extension converts web pages to `.md` files. The CLI plugin exposes a WebSocket interface so agents can issue commands (`read`, `append`, `search`) against a running Obsidian instance. The Bases plugin adds `.base` files that create database-like views over frontmatter properties. The JSON Canvas format (`.canvas`) stores infinite-canvas diagrams as plain JSON.
+The CEO of Obsidian, Steph Ango, released an official [Agent Skills](../concepts/skill-md.md) package (`kepano/obsidian-skills`) that teaches LLM coding agents how to correctly produce `.md`, `.base`, and `.canvas` files. This confirms the project's trajectory: Obsidian is positioning its file formats as an agent-native knowledge layer, not just a human note-taking tool. [Source](../raw/deep/repos/kepano-obsidian-skills.md)
 
-## Core File Formats
+## Architecture
 
-Obsidian's "proprietary" formats are all human-readable text or JSON, which makes them agent-friendly.
+Obsidian runs as an Electron desktop app (with mobile companions). Its key architectural properties:
 
-**Obsidian Flavored Markdown (`.md`)** layers several specifications:
-- CommonMark as the base
-- GitHub Flavored Markdown (tables, task lists, strikethrough)
-- LaTeX via `$...$` and `$$...$$`
-- Obsidian extensions: wikilinks (`[[Note]]`), transclusion (`![[Note]]`), callouts (`> [!type]`), block references (`[[Note#^block-id]]`), YAML frontmatter properties, comments (`%%`), highlights (`==text==`), Mermaid diagrams
+**File-first storage.** Every note is a `.md` file on disk. Vault metadata lives in `.obsidian/` (config, themes, plugin data). The application reads this directory; it writes nothing proprietary. This is the core contract.
 
-Every `[[link]]` creates a bidirectional relationship stored in Obsidian's in-memory index but derivable from the files themselves by scanning for the pattern.
+**Bidirectional link index.** Obsidian resolves `[[Note Name]]` wikilinks to files using shortest-path matching (no extension required). It maintains an in-memory backlink index updated via file watchers. Every note accumulates an incoming-links count that plugins and external tools can query.
 
-**Obsidian Bases (`.base`)** is a YAML file format for database views over notes. Views (table, list, cards) filter and sort files by frontmatter properties. The formula language is substantial: `filter()`, `map()`, `reduce()` on lists; date arithmetic; `hasLink()`, `hasTag()`, `inFolder()` for graph-aware queries. One documented failure point: `Duration` does not support `.round()` directly. `(now() - file.ctime).round(0)` fails silently; `(now() - file.ctime).days.round(0)` works.
+**Three file formats beyond Markdown.** The skills package reveals the full surface area agents interact with:
+- `.md` files use Obsidian Flavored Markdown: standard CommonMark plus wikilinks, embeds (`![[Note]]`), callouts (`> [!type]`), block references (`^blockid`), YAML frontmatter properties, LaTeX, Mermaid, and inline comments (`%% ... %%`).
+- `.base` files are database-like views over YAML frontmatter. They support Table/List/Cards views, filter/sort logic, and a formula language with higher-order list functions (`filter()`, `map()`, `reduce()`), date/duration arithmetic, and 15 built-in summary functions. All data stays in the `.md` source files; `.base` is a query layer.
+- `.canvas` files follow the JSON Canvas Spec 1.0 (jsoncanvas.org, MIT-licensed), an open infinite-canvas format. Nodes can be text, file references, URLs, or groups. Edges connect nodes with optional labels and arrowheads. IDs are 16-character lowercase hex strings.
 
-**JSON Canvas (`.canvas`)** is the JSON Canvas Spec 1.0, open-sourced under MIT at jsoncanvas.org. Nodes are text, file, link, or group types. Edges connect nodes with optional directional arrows and labels. IDs are 16-character lowercase hex strings. Array order determines z-index. The format is designed for interoperability — other canvas applications can implement it without Obsidian involvement.
+**Plugin ecosystem.** A community plugin system extends Obsidian through a JavaScript API (`app.vault`, `app.workspace`, etc.). Plugins run in the Electron context with full Node.js access.
 
-## The Agent Skills Layer
+**File watcher loop.** External tools can write valid `.md`, `.base`, or `.canvas` files to the vault directory, and Obsidian updates the UI in real time without any API calls. This is what makes agent integration via file manipulation reliable, including when Obsidian is not running.
 
-In December 2025, Anthropic published the Agent Skills specification (agentskills.io), a standard for packaging domain knowledge as `SKILL.md` files that coding agents load on demand. Obsidian's CEO Steph Ango published an official `kepano/obsidian-skills` repository implementing this spec for all major Obsidian formats.
+## How It Fits Into Agent Workflows
 
-The repository contains no executable code — five `SKILL.md` files plus reference directories. Each skill teaches an LLM how to produce correct files in a format it may not have seen in training data. The mechanism: YAML frontmatter with a `description` field tells the agent runtime when to activate the skill; the body is structured documentation the agent loads into context; `references/` subdirectories hold detailed API docs loaded only when needed.
+Two patterns appear in the sources:
 
-This implements [Progressive Disclosure](../concepts/progressive-disclosure.md) at three levels:
-1. All skill `description` fields load at startup (~500 tokens total for five skills)
-2. A relevant `SKILL.md` activates when the agent works with that file type (~2-6K tokens)
-3. Reference files in `references/` load on demand for deep detail (~1-3K per file)
+**Karpathy's LLM wiki loop.** Raw source files (articles, papers, repos) go into `raw/`. An LLM incrementally compiles them into a `wiki/` directory, writing article files, backlinks, concept categorizations, and index files. Obsidian renders the wiki. The agent handles all writes; the human reads the output and queries it. At ~100 articles and ~400K words, index-file-based navigation works without embedding-based [RAG](../concepts/rag.md). [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
 
-The skills install with one command across six agent runtimes: Claude Code, Codex CLI, OpenCode, Cursor, Gemini CLI, and GitHub Copilot. This cross-platform adoption signals genuine convergence toward `SKILL.md` as a standard for teaching agents proprietary formats.
+**Agent Skills integration.** The `kepano/obsidian-skills` package installs five skills into the agent's skill directory. The skills use [Progressive Disclosure](../concepts/progressive-disclosure.md): a short description triggers skill loading, the SKILL.md body provides procedural instructions, and `references/` subdirectory files load on demand for deep detail. The obsidian-cli skill bridges documentation to tool execution via WebSocket commands (`obsidian read file="My Note"`, `obsidian eval code="app.vault.getFiles().length"`). Compatible runtimes: [Claude Code](../projects/claude-code.md), [Cursor](../projects/cursor.md), [OpenCode](../projects/opencode.md), GitHub Copilot, Codex CLI, Gemini CLI. [Source](../raw/deep/repos/kepano-obsidian-skills.md)
 
-The five skills cover: Obsidian Flavored Markdown, Obsidian Bases (with full `FUNCTIONS_REFERENCE.md`), JSON Canvas (with complete JSON examples for validation), the Obsidian CLI (including a 4-step plugin development cycle), and Defuddle (a web content extractor for token-efficient web clipping).
+The napkin project uses Obsidian as its vault format. Napkin operates on `.md` files, auto-generates `.obsidian/` config, and maintains full Obsidian compatibility so a human can open the same vault in Obsidian while an agent works with it via CLI. On LongMemEval-S (40 sessions per question), BM25 search over an Obsidian-format vault achieved 91.0% accuracy vs. 86% for the prior best embedding-based system. [Source](../raw/deep/repos/michaelliv-napkin.md)
 
-## Role in LLM Knowledge Bases
+## Key Numbers
 
-The [Karpathy workflow](../concepts/andrej-karpathy.md) made Obsidian the reference implementation for LLM-maintained knowledge bases:
+Obsidian has ~57,000 GitHub stars for the community plugins repository (the core app is closed-source). The Karpathy tweet describing the LLM wiki workflow received ~38,600 likes and ~9.9M views (self-reported engagement, Twitter/X). These numbers reflect community adoption, not performance benchmarks.
 
-1. `raw/` — source documents (articles, papers, repos) converted to `.md` via Web Clipper
-2. `wiki/` — LLM-compiled directory of concept articles with backlinks, summaries, cross-references
-3. Obsidian — viewer for both layers, renders wikilinks, shows the graph, displays Marp slides and matplotlib images
-
-The LLM writes all wiki content. The human rarely edits directly. Queries get "filed back" into the wiki, so every Q&A session enhances future retrieval. An LLM health-check pass finds inconsistencies, imputes missing data via web search, and proposes new article candidates. The knowledge base compounds.
-
-At ~100 articles and ~400K words, Karpathy found LLM-maintained index files and brief summaries sufficient for retrieval without embedding-based [RAG](../concepts/rag.md). The LLM navigates the wiki using its own reasoning against the index, not cosine similarity from a smaller embedding model.
-
-The [napkin](https://github.com/michaelliv/napkin) library (264 stars) formalized this pattern as an SDK. It runs BM25 search on an Obsidian-compatible vault with a backlink-weighted ranking signal, implementing the same progressive disclosure levels Karpathy described informally. On LongMemEval-S (500 questions across ~40 sessions), BM25 on structured Markdown achieved 91% accuracy against 86% for the best prior embedding-based system and 64% for GPT-4o with full context stuffing. These results are self-reported by the napkin project, not independently validated, but the benchmark is a published ICLR 2025 dataset with a defined protocol.
+The napkin benchmark numbers (91% on LongMemEval-S, 83% on LongMemEval-M) are self-reported by the napkin project and have not been independently replicated. The methodology is documented in `bench/README.md`. [Source](../raw/repos/michaelliv-napkin.md)
 
 ## Strengths
 
-**Zero infrastructure.** The vault is a directory. No database to provision, no embedding pipeline to maintain, no vector store to pay for. An agent writes files; Obsidian reads them. File watchers pick up changes in real-time.
+**Zero infrastructure.** No database to deploy, no sync server to maintain, no vendor to pay for storage access. The vault is a directory of text files that works with Git, rsync, or any backup tool.
 
-**Agent-native file formats.** Every Obsidian format is either plain Markdown or JSON. An LLM can produce correct `.md`, `.base`, and `.canvas` files by following the skill documentation, with no API calls and no server running.
+**Agent-native file formats.** The JSON Canvas spec is MIT-licensed and open. The `.base` format is documented in the skills package. Both formats are writable by agents without any SDK, just correct file syntax.
 
-**Interoperability.** Because files are the canonical store, any tool that reads Markdown works alongside Obsidian. Git for version control. BM25 or vector search for retrieval. Pandoc for export. The obsidian-skills repo itself has zero code — only Markdown documentation about file formats, which works because the formats are simple enough to teach in ~20K tokens.
+**Human-readable at every layer.** Unlike systems that store knowledge in vector databases or proprietary formats, Obsidian vaults remain inspectable. A human can read, edit, or grep any file an agent created.
 
-**Plugin extensibility.** The plugin ecosystem is large (community plugins number in the thousands). For agent workflows specifically: the CLI plugin provides WebSocket-based programmatic access; the JSON Canvas MCP server exposes canvas operations to [Model Context Protocol](../concepts/mcp.md) clients; Bases adds database query capability to a file-based system.
+**Obsidian Web Clipper.** Converts web pages to local Markdown for direct LLM ingestion, which is the primary data collection step in the Karpathy wiki loop.
+
+**Skills ecosystem convergence.** The official `kepano/obsidian-skills` package means major AI coding tools can correctly produce Obsidian-format files out of the box. This removes the skill gap that previously caused agents to produce subtly invalid Obsidian syntax.
 
 ## Critical Limitations
 
-**No runtime validation.** When an agent writes a `.canvas` file with duplicate node IDs or a `.base` file with a formula that references a nonexistent property, Obsidian renders nothing (or errors silently). The skill documentation includes an 8-point validation checklist for canvas files, but enforcement is prose-based — the agent must remember to self-check. There is no schema enforcement at write time.
+**No runtime validation for agent output.** The skills are documentation. An agent writing a `.base` file with a broken formula or a `.canvas` file with duplicate node IDs gets no error until Obsidian fails to render the file. The Duration type gotcha in Obsidian Bases (`.round()` only works on numeric fields, not Duration objects directly) is documented three times in the skills package because it is the most common LLM-generated error. There is no schema enforcement at write time.
 
-**Unspoken infrastructure assumption.** Obsidian itself is a desktop application. The file-based approach works without Obsidian running, and agent tools can read/write the vault directory directly. But the CLI plugin (which enables `read`, `append`, and `eval` commands against a live instance) requires a running Obsidian with the plugin installed and a WebSocket port open. Workflows that depend on real-time Obsidian features — plugin development cycles, live rendering verification, task queries via the Bases plugin — assume someone has Obsidian open.
+**BM25 vocabulary mismatch at scale.** When Obsidian vaults grow past ~400K words, the agent's ability to navigate using index files and keyword search depends on consistent terminology. A vault where some notes use "authn/authz" and others use "authentication/authorization" breaks keyword navigation without semantic bridging. Karpathy himself noted the potential need for RAG at larger scales. [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
 
-## When NOT to Use It
+## Infrastructure Assumption
 
-**Multi-user or multi-agent vaults.** Obsidian has no concurrency model. Two agents writing to the same vault simultaneously will produce undefined behavior — last write wins, with no merge or conflict detection. If your architecture involves parallel agents updating a shared knowledge base, you need a system with transactional writes.
+The entire workflow assumes local disk access and a persistent vault directory. Cloud-only agents (sandboxed, no persistent filesystem) cannot participate in the file-watcher loop. The obsidian-cli WebSocket bridge requires a running Obsidian instance on the same machine as the agent. Multi-agent or distributed scenarios where several agents write to the same vault concurrently have no conflict resolution mechanism.
 
-**Retrieval at scale requiring semantic recall.** BM25 on Markdown fails when queries use vocabulary that differs from note content ("authentication" won't match a note that only uses "OAuth"). At small-to-medium scale (~100-500 articles), LLM-maintained index files compensate. At tens of thousands of documents with heterogeneous terminology, you need embedding-based retrieval or a hybrid system like [HippoRAG](../projects/hipporag.md) or [GraphRAG](../projects/graphrag.md).
+## When Not to Use It
 
-**Production multi-tenant deployment.** Obsidian is personal software. There is no API server, no authentication layer, no audit log, no role-based access. Teams with compliance requirements or shared knowledge bases with access controls need a different foundation.
+**Multi-tenant or team knowledge bases.** Obsidian has no access controls, no concurrent edit resolution, and no audit trail beyond what Git provides manually. For team wikis where multiple people or agents write simultaneously, Notion, Confluence, or a database-backed system handles concurrent access correctly.
 
-**Workflows requiring structured query semantics.** The Bases formula language is capable but not SQL. Complex joins across multiple property types, aggregations over large note sets, or queries requiring relational integrity guarantees belong in an actual database.
+**Semantic search requirements at scale.** For vaults above ~500K words with heterogeneous terminology, BM25 navigation degrades. If the primary use case is semantic Q&A over large corpora rather than structured knowledge compilation, a purpose-built [RAG](../concepts/rag.md) pipeline with an [Embedding Model](../concepts/embedding-model.md) and [Vector Database](../concepts/vector-database.md) handles vocabulary mismatch better.
+
+**Structured data extraction pipelines.** Obsidian's `.base` files provide database-like views, but they query YAML frontmatter in `.md` files, not a real database. If you need joins across entities, aggregation beyond the built-in summary functions, or integration with external data sources, PostgreSQL or another [Knowledge Graph](../concepts/knowledge-graph.md) solution is more appropriate.
+
+**Headless server environments.** Obsidian is an Electron desktop app. Running it in CI, Docker, or a server context requires workarounds. The file format works headlessly (napkin does exactly this), but the Obsidian application itself is a desktop GUI requirement.
 
 ## Unresolved Questions
 
-**Skill versioning and drift.** The `kepano/obsidian-skills` repository is at version 1.0.1, manually bumped. Obsidian ships updates frequently. There is no automated mechanism to detect when the Bases formula API changes or a new callout type ships. Skills will drift from reality; the documentation gives no guidance on maintenance cadence.
+**`.base` file format stability.** The Bases feature is a core plugin, but the `.base` YAML schema is not versioned with a public spec the way JSON Canvas is. If the schema changes, agent-generated `.base` files may break silently. The skills package version (1.0.1) must be manually bumped when Obsidian's format evolves.
 
-**Distillation quality in the napkin pattern.** The read/write loop (inject vault context at session start, distill new knowledge at session end) assumes the LLM makes good decisions about what to extract and how to link it. Poor distillation compounds over time — bad connections pollute the backlink signal, orphaned notes get indexed but never surfaced. No quality validation exists for distilled content.
+**Agent skill trigger precision.** The Agent Skills spec matches skills by natural-language description. The obsidian-markdown skill triggers on "working with .md files in Obsidian," but many `.md` files are not Obsidian-flavored. There is no mechanism for precise triggering based on file content or vault detection, so the skill may load when irrelevant, consuming context tokens.
 
-**Cost at scale.** The Karpathy workflow works at "~100 articles and ~400K words." The napkin benchmark uses per-round notes averaging ~2.5K characters. Neither source addresses what happens at 10K articles or sustained daily distillation over years. BM25 index rebuild time grows with vault size; the napkin fingerprint-based cache helps within a session but not across the first search of each new session.
+**Long-term distillation quality.** In the napkin/Karpathy workflow, every query session potentially writes new notes back to the vault. Over hundreds of sessions, vault quality depends entirely on the LLM's ability to identify relevant knowledge, avoid duplication, and maintain consistent terminology. There is no quality gate or human-in-the-loop review step documented in either source.
 
-**Governance of the Agent Skills spec.** The agentskills.io specification is described as an open standard published by Anthropic. Governance structure, versioning policy, and how incompatible changes propagate across the six adopting runtimes are undocumented.
+**Sync and mobile.** Obsidian Sync (paid) or third-party sync (iCloud, Dropbox, Git) is required for multi-device use. The interaction between sync conflicts and agent writes is undocumented. An agent writing files while a mobile sync is in progress could produce duplicate or corrupted notes.
 
 ## Alternatives
 
-- **[LlamaIndex](../projects/llamaindex.md)** — Use when you need embedding-based semantic retrieval, chunking pipelines, or structured RAG with reranking. More infrastructure, better vocabulary-gap handling.
-- **[ChromaDB](../projects/chromadb.md) / [Qdrant](../projects/qdrant.md)** — Use when you need a vector store as primary storage with Markdown as export format, rather than files as primary storage.
-- **[Mem0](../projects/mem0.md) / [Zep](../projects/zep.md)** — Use when you need managed memory for multi-session agents with APIs for read/write rather than direct file access.
-- **[Graphiti](../projects/graphiti.md)** — Use when the knowledge base needs explicit graph semantics, entity extraction, and traversal queries rather than wikilink-based graph navigation.
-- **[Notion](https://notion.so)** — Use when you need multi-user collaboration, commenting, and web-based access at the cost of vendor lock-in and no local files.
-- **Plain Markdown + Git** — Use when you want the same file-first properties without the Obsidian UI dependency. Loses the graph visualization and Bases plugin but gains full portability.
+**[Retrieval-Augmented Generation](../concepts/rag.md) pipelines.** Use when the corpus exceeds ~500K words, requires semantic similarity matching across heterogeneous terminology, or needs sub-second query latency over millions of documents. RAG adds infrastructure complexity but handles vocabulary mismatch that BM25 cannot.
+
+**Napkin.** Use Obsidian-format vaults but with programmatic agent access (TypeScript SDK, BM25 search, progressive disclosure, auto-distillation) rather than the Obsidian GUI. Best when the vault is entirely agent-managed and human viewing is secondary. [Napkin project](../projects/napkin.md) achieved 91% on LongMemEval-S with zero embedding infrastructure.
+
+**Notion or Confluence.** Use for team knowledge bases where concurrent editing, access controls, and audit history matter. Both sacrifice local-first ownership and agent-native file formats for collaboration features.
+
+**[Zettelkasten](../concepts/zettelkasten.md) without tooling.** Plain Markdown files in a directory work for purely agent-managed wikis where the human never opens a GUI. Obsidian adds value primarily for human inspection and navigation of agent output.
+
+**[Model Context Protocol](../concepts/mcp.md) tools.** JSON Canvas has an MCP server for typed programmatic canvas operations. Use the MCP server when canvas correctness must be schema-enforced rather than documentation-guided.
 
 ## Related Concepts
 
-[Knowledge Base](../concepts/knowledge-base.md) · [Progressive Disclosure](../concepts/progressive-disclosure.md) · [Retrieval-Augmented Generation](../concepts/rag.md) · [Agent Skills](../concepts/agent-skills.md) · [skill.md](../concepts/skill-md.md) · [BM25](../concepts/bm25.md) · [Model Context Protocol](../concepts/mcp.md) · [Semantic Memory](../concepts/semantic-memory.md)
+- [Agent Skills](../concepts/agent-skills.md): The SKILL.md specification that makes Obsidian formats portable across agent runtimes
+- [Progressive Disclosure](../concepts/progressive-disclosure.md): The L0-L3 context loading pattern napkin implements over Obsidian vaults
+- [Knowledge Base](../concepts/knowledge-base.md): The broader concept Obsidian vaults instantiate
+- [Zettelkasten](../concepts/zettelkasten.md): The note-linking methodology Obsidian's wikilink system was designed to support
+- [CLAUDE.md](../concepts/claude-md.md): Analogous "always-loaded context" file pattern; NAPKIN.md is the Obsidian vault equivalent

@@ -3,9 +3,10 @@ entity_id: langchain
 type: project
 bucket: agent-systems
 abstract: >-
-  LangChain: Python/JS framework providing modular abstractions (chains, agents,
-  tools, memory, retrievers) for composing LLM applications; differentiated by
-  broad integration coverage across 600+ providers and components.
+  LangChain is a Python/JavaScript framework for building LLM applications via
+  composable abstractions (chains, agents, retrievers, memory); its key
+  differentiator is a massive integration library connecting 100+ LLMs, vector
+  stores, and tools through a unified interface.
 sources:
   - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
   - repos/microsoft-llmlingua.md
@@ -14,104 +15,146 @@ sources:
   - repos/yusufkaraaslan-skill-seekers.md
   - repos/laurian-context-compression-experiments-2508.md
   - articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md
+  - articles/turing-post-9-open-agents-that-improve-themselves.md
   - deep/repos/memorilabs-memori.md
 related:
   - rag
   - openai
-  - cursor
-last_compiled: '2026-04-06T02:01:05.875Z'
+  - langgraph
+  - episodic-memory
+  - mcp
+  - crewai
+  - agent-memory
+  - llamaindex
+  - context-compression
+  - llm-as-judge
+  - pinecone
+  - gemini
+  - github-copilot
+last_compiled: '2026-04-07T11:39:22.388Z'
 ---
 # LangChain
 
 ## What It Does
 
-LangChain is an open-source framework for building LLM-powered applications. It provides composable abstractions over the common building blocks: prompt templates, LLM calls, output parsers, memory systems, document loaders, text splitters, vector store retrievers, and agent tool loops. The core idea is that most LLM applications follow predictable patterns, and pre-built components wired together via a standardized interface reduce boilerplate.
+LangChain gives developers a structured way to build applications on top of LLMs. The core idea: provide standard interfaces for common operations (calling an LLM, retrieving documents, running tools, managing memory) and let developers compose those operations into pipelines called chains or agents.
 
-The project spans two main packages: `langchain-core` (the abstraction layer with base classes and the LangChain Expression Language, or LCEL), and `langchain` (the higher-level chain and agent primitives). Provider integrations live in separate packages (`langchain-openai`, `langchain-anthropic`, `langchain-community`, etc.), which decouples upgrade cycles.
+The framework ships in two primary packages: `langchain-core` defines base abstractions and the [LCEL (LangChain Expression Language)](https://python.langchain.com/docs/concepts/lcel/) pipeline syntax, while `langchain-community` and provider-specific packages (e.g., `langchain-openai`, `langchain-anthropic`) implement the actual integrations. A companion library, [LangGraph](../projects/langgraph.md), handles stateful multi-agent workflows with explicit graph-based control flow.
 
-LangChain's closest neighbors in this space are [LlamaIndex](../projects/llamaindex.md) (heavier focus on data ingestion and retrieval pipelines) and [LangGraph](../projects/langgraph.md) (LangChain's own graph-based agent orchestration layer, now the recommended approach for multi-step agents).
+The differentiator is breadth of integration. LangChain connects to [OpenAI](../projects/openai.md), [Gemini](../projects/gemini.md), [Anthropic](../projects/anthropic.md), [Ollama](../projects/ollama.md), [Pinecone](../projects/pinecone.md), [ChromaDB](../projects/chromadb.md), [Qdrant](../projects/qdrant.md), [FAISS](../projects/faiss.md), [Elasticsearch](../projects/elasticsearch.md), and dozens more through a single API surface. This breadth is both its biggest strength and its biggest liability.
 
-## Core Mechanism
+## Core Architecture
 
-**LCEL (LangChain Expression Language):** The central composition primitive since late 2023. Chains are built by piping components with the `|` operator: `prompt | llm | output_parser`. Each component is a `Runnable` exposing `.invoke()`, `.stream()`, `.batch()`, and async variants. The `Runnable` protocol in `langchain_core/runnables/base.py` defines this interface; custom components implement it by subclassing `Runnable` or using `RunnableLambda`.
+### LCEL and the Runnable Protocol
 
-**Retrieval chain pattern:** The canonical [RAG](../concepts/rag.md) setup wires a retriever, prompt, and LLM: `retrieval_chain = ({"context": retriever, "question": RunnablePassthrough()} | prompt | llm | StrOutputParser())`. The `VectorStoreRetriever` wraps any vector store (Chroma, Pinecone, Qdrant) and exposes the `Runnable` interface, enabling drop-in swapping.
+The fundamental unit is `Runnable`. Every component — LLMs, prompts, retrievers, output parsers — implements `.invoke()`, `.stream()`, and `.batch()`. LCEL composes these via the `|` pipe operator:
 
-**Agent loop:** Modern LangChain agents use `create_tool_calling_agent` paired with `AgentExecutor`. The executor manages the think-act-observe loop: call the LLM, parse tool calls from the response, execute tools, append results to message history, repeat. Tool definitions are `BaseTool` subclasses or functions decorated with `@tool`. The loop runs until the LLM returns a final answer or a max-iterations limit fires.
+```python
+chain = prompt | llm | output_parser
+result = chain.invoke({"question": "..."})
+```
 
-**Memory:** LangChain offers several memory classes (`ConversationBufferMemory`, `ConversationSummaryMemory`, `VectorStoreRetrieverMemory`), though these are increasingly superseded by explicit message history management via `RunnableWithMessageHistory`, which stores history externally (Redis, DynamoDB, in-memory dict) and injects it into each chain invocation.
+Under the hood, `RunnableSequence` handles the pipe operator, threading output from one component to the next. This gives uniform tracing, streaming, and async support across any chain composition.
 
-**Document loaders and text splitters:** `langchain_community/document_loaders/` contains 100+ loaders for PDFs, HTML, Notion, GitHub, YouTube, and more. `RecursiveCharacterTextSplitter` is the default chunking strategy, splitting on a hierarchy of separators (`\n\n`, `\n`, ` `) to preserve semantic boundaries.
+### Retrieval and RAG
 
-**Context compression (relevant to RAG quality):** `LLMChainExtractor` implements contextual compression, extracting only the relevant portion of a retrieved document before passing it to the LLM. Research from production RAG systems ([Source](../raw/repos/laurian-context-compression-experiments-2508.md)) shows this compressor can fail on weaker models like `gpt-4o-mini`, producing `NO_OUTPUT` on queries where `gpt-4o` succeeds. The prompt underlying `LLMChainExtractor` is publicly available in `langchain/retrievers/document_compressors/chain_extract_prompt.py`.
+LangChain's retrieval stack follows a fetch-then-compress pattern relevant to [Retrieval-Augmented Generation](../concepts/rag.md):
+
+1. A `VectorStoreRetriever` queries an embedding index
+2. Optional `ContextualCompressionRetriever` wraps it, applying a `DocumentCompressor`
+3. The `LLMChainExtractor` (the default compressor) sends each retrieved document plus the query to an LLM, keeping only relevant passages
+
+This is the exact prompt pattern referenced in production agentic RAG work — researchers and practitioners who optimize [Context Compression](../concepts/context-compression.md) often start with `LLMChainExtractor`'s prompt as a baseline, then tune it for cheaper models like gpt-4o-mini using [DSPy](../projects/dspy.md) or gradient-based methods. The compressor pattern is defined in `langchain/retrievers/document_compressors/chain_extract.py`, with the prompt in `chain_extract_prompt.py`.
+
+[Hybrid Search](../concepts/hybrid-search.md) combining dense and sparse (BM25) retrieval runs through `EnsembleRetriever`, which merges results using [Reciprocal Rank Fusion](../concepts/reciprocal-rank-fusion.md) by default.
+
+### Agent Memory
+
+LangChain implements several memory types relevant to [Agent Memory](../concepts/agent-memory.md):
+
+- `ConversationBufferMemory`: stores raw message history
+- `ConversationSummaryMemory`: uses an LLM to compress history into a running summary
+- `VectorStoreRetrieverMemory`: retrieves semantically relevant past exchanges
+
+These map roughly to [Episodic Memory](../concepts/episodic-memory.md) patterns. They do not implement [Core Memory](../concepts/core-memory.md) or [Procedural Memory](../concepts/procedural-memory.md) in any rigorous sense. For production memory management across sessions, most teams now reach for dedicated memory layers ([Mem0](../projects/mem0.md), [Letta](../projects/letta.md), [Zep](../projects/zep.md)) and call them from LangChain rather than using built-in memory classes.
+
+### Tool Use and Agents
+
+The `AgentExecutor` implements a [ReAct](../concepts/react.md)-style loop: the LLM outputs a thought and action, LangChain executes the tool, appends the observation to the prompt, and repeats until the LLM emits a final answer. This is the classic Thought/Action/Observation cycle.
+
+For more complex control flow — branching, cycles, human-in-the-loop — [LangGraph](../projects/langgraph.md) is the recommended path. LangGraph was built by the same team specifically because `AgentExecutor`'s linear loop is too rigid for multi-agent systems.
+
+### LLM-as-Judge Integration
+
+LangChain includes evaluation utilities under `langchain.evaluation` that implement [LLM-as-Judge](../concepts/llm-as-judge.md) patterns: `CriteriaEvalChain` and `LabeledCriteriaEvalChain` prompt an LLM to score outputs against criteria. These are self-reported quality metrics without independent validation.
 
 ## Key Numbers
 
-- GitHub stars: ~100k+ (as of mid-2025, self-reported via badge; independently visible on GitHub)
-- PyPI downloads: consistently among the top Python packages by weekly download count
-- Integration coverage: 600+ integrations across LLMs, vector stores, tools, and loaders
-- `langchain-community` alone contains contributions from hundreds of external maintainers
-
-Star count reflects adoption breadth, not quality. The project accumulated stars rapidly in 2023 when LLM tooling was scarce. Many production teams have since moved to `langchain-core` + custom code or migrated agent logic to [LangGraph](../projects/langgraph.md).
+- **GitHub stars**: ~100k (Python), ~13k (JavaScript) — among the most-starred LLM framework repositories; these are self-reported star counts and reflect popularity rather than production adoption or quality
+- **Integrations**: 100+ LLM providers, 50+ vector stores, dozens of document loaders — self-reported; actual tested and maintained integrations are a smaller subset
+- **LLMLingua integration**: Microsoft's LLMLingua prompt compressor (5,985 stars, EMNLP 2023 and ACL 2024) ships as a LangChain retriever, enabling up to 20x prompt compression directly in retrieval pipelines
 
 ## Strengths
 
-**Integration coverage:** No other framework comes close on breadth. If you need to connect to an obscure vector database, load documents from an unusual source, or call a niche LLM provider, there is probably a `langchain-community` integration already. The ecosystem compounds: LLMLingua integrates as a retriever, Skill Seekers exports LangChain `Document` format, and dozens of tools target LangChain as a first-class output format ([Source](../raw/repos/yusufkaraaslan-skill-seekers.md)).
+**Breadth of integration.** If an LLM provider, vector database, or external tool exists, there is almost certainly a LangChain integration. This matters most during prototyping when you want to swap models or stores without rewriting retrieval logic.
 
-**Prototyping speed:** The LCEL pipe syntax and pre-built chains (ConversationalRetrievalChain, RetrievalQA, etc.) let you assemble a working RAG demo in under 50 lines. For teams validating whether an LLM approach will work at all, this is the fastest path.
+**Ecosystem and documentation.** The number of tutorials, cookbook examples, and Stack Overflow answers for LangChain problems far exceeds any alternative. Teams onboarding junior engineers to LLM work benefit from this.
 
-**Documentation and community:** Stack Overflow, Discord, YouTube tutorials, and blog posts exist in abundance. Debugging is easier when others have hit the same problem.
+**Composability for standard patterns.** RAG pipelines with retrieval, compression, and generation; simple ReAct agents; document Q&A — these are well-trodden paths in LangChain with many examples. Building them from scratch takes more time than adopting the framework.
+
+**LangGraph escape hatch.** When `AgentExecutor` proves too rigid, [LangGraph](../projects/langgraph.md) provides proper graph-based state management without abandoning the LangChain ecosystem entirely.
 
 ## Critical Limitations
 
-**Concrete failure mode — abstraction opacity in production:** LangChain's convenience wrappers hide what is actually happening inside the LLM call, making debugging non-obvious. A `ConversationalRetrievalChain` makes at least two LLM calls internally (question condensation + answer generation), but this is not visible from the call site. When latency spikes or costs balloon, tracing the source requires understanding the internal chain structure, which is often non-obvious from the class name. Teams have repeatedly discovered that what they thought was one LLM call was four.
+**Abstraction overhead turns into debugging debt.** The most common failure mode: a developer builds a RAG pipeline, it produces wrong answers, and tracing the problem requires understanding `RunnableSequence` internals, the `ContextualCompressionRetriever` state machine, and how `LLMChainExtractor` reformats documents before sending them to the LLM. The layers that make prototyping fast make debugging slow. Production teams frequently describe hitting a wall where the abstractions obscure what's actually happening in the prompt.
 
-**Unspoken infrastructure assumption:** LangChain assumes you have a durable message store if you want persistent memory across sessions. `RunnableWithMessageHistory` requires passing a session factory backed by real storage. The default in-memory dict disappears on process restart. Teams that skip this and rely on the in-process store then hit the loss of history in serverless or multi-instance deployments. The documentation mentions this, but the quickstart examples use ephemeral memory.
-
-**Callback chain complexity:** The observability system (callbacks, tracers) is woven throughout the execution path. Adding a custom callback can interfere with streaming or change execution behavior in non-obvious ways. The `CallbackManager` and `AsyncCallbackManager` have separate code paths that can diverge.
-
-**Version churn:** The project went through major API reorganizations (pre-LCEL chains to LCEL, `langchain` monorepo to split packages, `AgentExecutor` to LangGraph). Tutorials from 2023 often use deprecated patterns. Migrating a production codebase requires tracking which deprecation cycle you are in.
+**Unspoken infrastructure assumption.** LangChain's integration breadth assumes you have stable, low-latency access to external APIs. In enterprise environments with network policies, private VPCs, or air-gapped deployments, the community integrations often break in non-obvious ways. The framework was designed for cloud-native development; adapting it to constrained network environments requires forking or replacing individual components.
 
 ## When NOT to Use It
 
-**High-volume production inference:** LangChain adds latency through Python-level abstractions, callback dispatch, and repeated serialization/deserialization of message objects. If you are running thousands of requests per second, the overhead compounds. At that scale, call the LLM provider SDK directly.
+**Latency-sensitive production systems.** Each LCEL pipe adds function call overhead. For high-throughput, low-latency inference (e.g., autocomplete, real-time search ranking), the overhead compounds. Direct API calls with purpose-built prompts outperform equivalent LangChain chains.
 
-**Custom agent control flow:** `AgentExecutor` gives you limited control over the loop: you can set max iterations and an early stopping method, but branching, parallel tool calls, or conditional retry logic requires hacking around the executor. LangChain's own team now recommends [LangGraph](../projects/langgraph.md) for any non-trivial agent architecture. Use LangGraph directly rather than fighting `AgentExecutor`.
+**When you need precise context control.** [Context Engineering](../concepts/context-engineering.md) requires knowing exactly what goes into the prompt. LangChain's memory classes and retrieval wrappers insert content with limited transparency. Teams doing careful [Context Management](../concepts/context-management.md) often find they spend more effort fighting LangChain's defaults than building from scratch.
 
-**Teams that need auditability:** If your use case requires logging every token, every tool call, and every intermediate state for compliance, the abstraction layers make full auditability harder. You can instrument with callbacks, but the surface area is large.
+**Complex stateful multi-agent systems.** `AgentExecutor` handles linear ReAct loops. Anything requiring parallel agent execution, conditional branching based on agent output, or shared state across agents needs [LangGraph](../projects/langgraph.md) — at which point you are mostly writing LangGraph code that happens to import LangChain components.
 
-**Simple single-call workflows:** If your application is "format a prompt, call an LLM, parse the output," adding LangChain introduces unnecessary dependencies and complexity. The `langchain-core` `Runnable` protocol is elegant, but you are installing a large package tree for something a 10-line function handles.
+**When your team knows Python well but not LangChain.** The framework has significant surface area. A competent engineer who does not know LangChain can build a functional RAG pipeline with direct API calls and a vector store client in less time than learning LangChain's abstractions produce equivalent behavior.
 
 ## Unresolved Questions
 
-**Governance and contribution quality:** `langchain-community` accepts contributions from external maintainers with varying quality standards. Some integrations are minimally tested, outdated, or abandoned. There is no clear signal in the package itself about which integrations are actively maintained versus community-contributed and potentially stale.
+**Maintenance surface of community integrations.** LangChain's 100+ integrations are maintained by varying combinations of the LangChain team, third-party vendors, and community contributors. There is no public SLA or deprecation policy for specific integrations. It is unclear which integrations are tested on each release.
 
-**Cost at scale of callback overhead:** The callback system dispatches events to all registered handlers on every runnable invocation. With LangSmith tracing enabled in production, the network calls to the tracing endpoint add latency. The cost of this at high request volume is not documented, and the behavior when the tracing endpoint is slow or unavailable is not prominently specified.
+**Cost at scale.** The `ContextualCompressionRetriever` with `LLMChainExtractor` fires one LLM call per retrieved document. For a query retrieving 10 documents, that's 11 LLM calls (10 compression + 1 generation). At production scale with millions of queries per day, this cost is rarely surfaced in documentation. Teams discover it in billing.
 
-**Conflict resolution between LCEL and legacy chains:** Both exist in the codebase simultaneously. Some documentation pages show LCEL; others show `RetrievalQA`. The migration path is documented but the legacy chains are not formally deprecated with clear removal timelines, leaving users uncertain which to build on.
+**Conflict between LCEL and legacy chains.** LangChain contains two overlapping paradigms: pre-LCEL chains (e.g., `RetrievalQA`, `ConversationalRetrievalChain`) and LCEL-based compositions. Documentation recommends LCEL but legacy chains persist. It is not clear when legacy chains will be removed or if they will be maintained indefinitely.
 
-**Memory consolidation strategy at scale:** LangChain's `ConversationSummaryMemory` summarizes conversations to reduce token count, but there is no built-in mechanism for structured [memory consolidation](../concepts/memory-consolidation.md), entity extraction, or the kind of semantic triple storage that systems like Memori implement. For long-running agents with thousands of turns, this becomes a real architectural gap. ([Source](../raw/deep/repos/memorilabs-memori.md))
+**Memory architecture going forward.** The built-in memory classes (`ConversationBufferMemory`, etc.) are deprecated in favor of LangGraph's state management. The transition path for applications using in-memory conversation state is not well-documented.
 
-## Alternatives and Selection Guidance
+## Alternatives
 
-| Condition | Recommendation |
-|---|---|
-| Need multi-step agents with complex branching | [LangGraph](../projects/langgraph.md) (same ecosystem, explicit graph control) |
-| Primary use case is document ingestion and retrieval | [LlamaIndex](../projects/llamaindex.md) (deeper retrieval primitives, better [hybrid retrieval](../concepts/hybrid-retrieval.md) support) |
-| Want optimized prompts via compilation rather than hand-coding | [DSPy](../projects/dspy.md) (programmatic optimization of LLM pipelines) |
-| Need persistent, structured agent memory across sessions | [Letta](../projects/letta.md), [Zep](../projects/zep.md), or [Mem0](../projects/mem0.md) (purpose-built memory layers) |
-| Building multi-agent teams with role-based orchestration | [CrewAI](../projects/crewai.md) (higher-level crew abstraction, less flexible) |
-| Running on-premises with local models | [Ollama](../projects/ollama.md) + direct SDK calls, or LangChain with `langchain-ollama` |
-| Need a unified LLM API across providers without orchestration | [LiteLLM](../projects/litellm.md) |
+- **[LlamaIndex](../projects/llamaindex.md)**: Use when your primary task is document ingestion, indexing, and retrieval over large corpora. LlamaIndex's data connectors and index types (tree index, keyword index, vector index) are more sophisticated than LangChain's document loaders and retrievers. Better default choice for knowledge-base search applications.
 
-LangChain is the right choice when: you need fast prototyping, the integration catalog is the deciding factor, or you are building on top of an existing LangChain codebase. It becomes the wrong choice when you need surgical control over execution, auditability under compliance requirements, or are hitting the limits of `AgentExecutor`'s linear loop model.
+- **[DSPy](../projects/dspy.md)**: Use when you want to optimize prompts programmatically rather than write them by hand. DSPy treats prompt engineering as a compilation problem. Better for teams who want principled optimization rather than manual iteration.
 
-## Related Concepts
+- **[LangGraph](../projects/langgraph.md)**: Use when building multi-agent systems that require explicit state, branching, and cycles. LangGraph is the production-grade replacement for `AgentExecutor`.
 
-- [Retrieval-Augmented Generation](../concepts/rag.md): LangChain's most common use case
-- [Agentic RAG](../concepts/agentic-rag.md): Multi-step retrieval patterns LangGraph handles better
-- [Agent Orchestration](../concepts/agent-orchestration.md): What LangChain provides at a basic level
-- [Prompt Engineering](../concepts/prompt-engineering.md): LCEL chains encode prompt engineering patterns
-- [ReAct](../concepts/react.md): The reasoning pattern underlying most LangChain agents
-- [Task Decomposition](../concepts/task-decomposition.md): How LangChain chains break problems into steps
-- [Vector Database](../concepts/vector-database.md): The storage layer most LangChain RAG pipelines depend on
+- **Direct API calls + thin wrappers**: Use when you know exactly what your pipeline needs and can afford to write it explicitly. [LiteLLM](../projects/litellm.md) provides provider-agnostic LLM calls without the abstraction overhead. Preferable for latency-sensitive or tightly-specified production systems.
+
+- **[CrewAI](../projects/crewai.md)**: Use when building role-based multi-agent workflows with a higher-level abstraction than LangGraph. More opinionated, faster to get running for common patterns like "researcher + writer + reviewer" pipelines.
+
+
+## Related
+
+- [Retrieval-Augmented Generation](../concepts/rag.md) — part_of (0.5)
+- [OpenAI](../projects/openai.md) — part_of (0.5)
+- [LangGraph](../projects/langgraph.md) — created_by (0.8)
+- [Episodic Memory](../concepts/episodic-memory.md) — part_of (0.3)
+- [Model Context Protocol](../concepts/mcp.md) — part_of (0.4)
+- [CrewAI](../projects/crewai.md) — competes_with (0.5)
+- [Agent Memory](../concepts/agent-memory.md) — implements (0.6)
+- [LlamaIndex](../projects/llamaindex.md) — competes_with (0.6)
+- [Context Compression](../concepts/context-compression.md) — implements (0.6)
+- [LLM-as-Judge](../concepts/llm-as-judge.md) — part_of (0.4)
+- [Pinecone](../projects/pinecone.md) — part_of (0.5)
+- [Gemini](../projects/gemini.md) — part_of (0.4)
+- [GitHub Copilot](../projects/github-copilot.md) — part_of (0.3)

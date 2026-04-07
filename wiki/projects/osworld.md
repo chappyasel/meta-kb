@@ -3,87 +3,135 @@ entity_id: osworld
 type: project
 bucket: agent-systems
 abstract: >-
-  OSWorld is a benchmark for evaluating GUI-based computer agents on realistic
-  operating system tasks spanning multiple applications, distinguished by its
-  reproducible environment infrastructure and cross-application task scope.
+  OSWorld benchmarks computer-using agents on real GUI tasks across Linux,
+  macOS, and Windows, providing 369 tasks with live execution environments — the
+  first benchmark requiring agents to operate actual desktop software
+  end-to-end.
 sources:
-  - repos/modelscope-agentevolver.md
   - repos/zorazrw-agent-workflow-memory.md
   - papers/xu-agent-skills-for-large-language-models-architectu.md
-  - papers/zhang-agentic-context-engineering-evolving-contexts-for.md
   - deep/repos/zorazrw-agent-workflow-memory.md
   - deep/papers/xu-agent-skills-for-large-language-models-architectu.md
-  - deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md
-related: []
-last_compiled: '2026-04-05T23:16:44.884Z'
+related:
+  - mcp
+  - skill-md
+last_compiled: '2026-04-07T01:03:39.298Z'
 ---
 # OSWorld
 
-## What It Is
+## What It Does
 
-OSWorld is a research benchmark designed to measure how well computer-use agents handle real tasks inside operating systems. An agent receives a natural language instruction ("schedule a meeting in the calendar app and attach the spreadsheet from Downloads") and must complete it by interacting with a live GUI, the same way a human would: clicking, typing, navigating menus.
+OSWorld is a benchmark for evaluating agents that control computers through GUI interaction. An agent receives a natural language instruction ("find the largest file in my Downloads folder and email it to John") and must accomplish it by observing screenshots and taking actions in a real operating system — clicking, typing, opening applications, navigating file systems.
 
-The benchmark covers tasks that span multiple applications simultaneously, which is the key differentiator from earlier GUI evaluation setups that tested single-application scripted interactions. A task might require switching between a browser, a file manager, and a terminal to complete a coherent goal.
+The distinguishing characteristic is execution environment fidelity. Unlike web-navigation benchmarks (WebArena, Mind2Web) that operate inside a browser, OSWorld tasks span full desktop environments: LibreOffice, VS Code, GIMP, Google Chrome, Firefox, file managers, terminal emulators. Tasks run in virtualized Linux, macOS, and Windows instances. The benchmark provides 369 tasks with deterministic success evaluation scripts that check actual system state after execution, not just action sequence overlap.
 
-## Core Mechanism
+This matters for the [Agent Skills](../concepts/agent-skills.md) research program because computer use is the substrate on which general-purpose agents must eventually operate. Benchmarks like [SWE-Bench](../projects/swe-bench.md) test software engineering specifically; OSWorld tests general computer operation.
 
-OSWorld provides sandboxed virtual machine environments where agents observe screenshots or accessibility trees and produce mouse/keyboard actions. The evaluation infrastructure spins up reproducible OS states so that task completion can be measured against ground-truth outcomes rather than intermediate action sequences. This matters because GUI tasks are long-horizon: a wrong click early can make the final state unmeasurable if evaluated naively.
+## Architecture
 
-Task difficulty comes from several sources: applications have real UI layouts that change with version updates, tasks require transferring information between applications with no shared API, and partial completion produces plausible-looking but incorrect states that are hard to auto-evaluate.
+### Task Structure
 
-The benchmark has been used to validate GUI grounding models and agent skill systems. SEAgent (an autonomous skill discovery system) scored 34.5% on five novel OSWorld environments versus an 11.3% baseline, and CUA-Skill (structured procedural knowledge encoding) reached 57.5% on the related WindowsAgentArena benchmark. On OSWorld itself, CoAct-1 reached 59.9% success rate versus a 72.4% human baseline; a proprietary system on OSWorld-Verified reached 72.6%, effectively matching human performance on that subset. These figures come from the agent skills survey ([Source](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md)) and are self-reported or drawn from leaderboard submissions rather than independently audited reproductions.
+Each task is a JSON record containing: a natural language instruction, the application scope (single-app or multi-app), the required environment snapshot, and a set of evaluation functions. Evaluation functions are Python scripts that inspect post-execution system state — they read files, check application state via accessibility APIs, query databases. This avoids the reliability problems of LLM-as-judge approaches while handling the open-ended nature of GUI tasks.
+
+The 369 tasks cover 9 application domains: web browsing, office productivity (Calc, Impress, Writer), system operations, file management, coding, multimedia, communication, and multi-app workflows. Multi-app tasks require coordinating across two or more applications, which is where most agents fail.
+
+### Environment Infrastructure
+
+OSWorld runs tasks inside virtual machines managed via VMware or VirtualBox. Each task starts from a clean snapshot, executes, and the evaluation script inspects the resulting state. This architecture means:
+
+- Tasks are reproducible (same snapshot, same starting conditions)
+- Evaluation is side-effect-free (snapshot revert between tasks)
+- The agent sees a real desktop, not a DOM abstraction
+
+The execution loop: agent receives screenshot → agent outputs action (click coordinate, keyboard input, scroll) → environment applies action → agent receives next screenshot. Some configurations also provide accessibility tree data alongside screenshots.
+
+### Agent Interface
+
+Agents interact through a Python API defined in `desktop_env/`. The `DesktopEnv` class manages VM lifecycle, screenshot capture, action execution, and evaluation. Action space includes: `click(x, y)`, `type(text)`, `key(keycode)`, `scroll(x, y, direction)`, `drag(x1, y1, x2, y2)`. No structured application API — the agent must operate through the same interface a human uses.
 
 ## Key Numbers
 
-- Human baseline: 72.4% success rate on the standard split
-- Best reported agent (CoAct-1): 59.9% on standard split
-- OSWorld-Verified subset: 72.6% (human-level, one proprietary system)
-- SEAgent improvement over baseline on novel environments: +23.2 percentage points
+**Task count:** 369 tasks across 9 domains (paper-reported)
 
-All benchmark figures above are self-reported or leaderboard-sourced. The OSWorld-Verified result deserves scrutiny: the "Verified" subset is presumably curated for task clarity and evaluator reliability, so the headline "matches human performance" applies to a filtered distribution, not the full task set.
+**Human baseline:** 72.4% success rate (paper-reported, verified by independent execution)
+
+**Best agent performance at publication (2024):** GPT-4V at approximately 12–18% depending on configuration — a large gap from human performance
+
+**More recent results (per the agent skills survey):**
+- CoAct-1: 59.9% on OSWorld (self-reported)
+- Proprietary unnamed system: 72.6% on OSWorld-Verified (self-reported by the survey, not independently reproduced)
+- SEAgent, an autonomous skill discovery system: 34.5% on 5 novel OSWorld environments vs 11.3% baseline (self-reported)
+- Jedi Framework: improved from 5% to 27% through scaled GUI grounding data (self-reported)
+
+The 72.6% figure matching human baseline is notable but treat it with caution — OSWorld-Verified is a curated subset, and the underlying system is unnamed in the survey.
 
 ## Strengths
 
-**Reproducible environment infrastructure.** Sandboxed VM states mean two researchers can run the same agent on the same task and get comparable results. Many earlier GUI benchmarks suffered from environment drift as applications updated.
+**Genuine end-to-end evaluation.** The benchmark forces agents to handle real application state: a spreadsheet formula that does not compute, a file dialog that opens in the wrong directory, an application that crashes. Other benchmarks abstract these away.
 
-**Cross-application tasks.** Tasks that require coordinating two or three applications expose agent brittleness that single-app evaluations miss. An agent that handles browser navigation perfectly may fail when it needs to export a file and then attach it elsewhere.
+**State-based evaluation.** Success is checked by inspecting actual system state, not by comparing action sequences to ground truth. This means agents get credit for reaching the correct outcome through unconventional paths.
 
-**Real UI layouts.** Unlike benchmarks built on mock or simplified interfaces, OSWorld uses actual application GUIs, so results transfer to deployment conditions more directly.
+**Cross-OS coverage.** Tasks run on Linux, macOS, and Windows. Agents trained or prompted for one OS often fail on another because window management, file path conventions, and application behavior differ. This makes OSWorld a stress test for generalization.
 
-**Grounding signal.** The accessibility tree observation mode gives structured element representations, enabling evaluation of both raw vision-based agents and agents that consume structured UI information.
+**Adoption as a reference benchmark.** The agent skills survey documents OSWorld as the primary benchmark for computer-use agents, with multiple research groups reporting results against it. This makes it a credible reference point for comparing systems.
 
-## Critical Limitations
+## Limitations
 
-**Concrete failure mode.** Evaluation correctness depends on detecting final system state. When an agent takes a wrong action mid-task, the evaluation script must correctly identify that the outcome differs from ground truth. For tasks where the final state is visually ambiguous (a document that looks correct but has invisible formatting errors, a calendar event with the wrong timezone), automated evaluation may report false positives. The benchmark cannot exhaustively handle all partial-completion edge cases.
+**Concrete failure mode: coordinate brittleness.** Agents must click pixel coordinates derived from screenshots. Screenshot resolution, VM display scaling, and application window positioning all vary. An agent that learns to click a "Save" button at (450, 320) in one environment fails if the window renders at a different position in another. Models that use accessibility trees alongside screenshots partially mitigate this, but pure vision agents are brittle to any rendering variation.
 
-**Unspoken infrastructure assumption.** Running OSWorld at scale requires spinning up virtual machines per task, per agent run. This is nontrivial compute: researchers with limited cloud budgets will face significant friction reproducing full benchmark runs. The papers that cite OSWorld results rarely report infrastructure costs, so the benchmark is more accessible as a citation target than as an evaluation platform for resource-constrained groups.
+**Unspoken infrastructure assumption: VM management overhead.** Running 369 tasks requires managing ~369 VM snapshots, reverting state between tasks, and capturing screenshots at each step. The infrastructure cost is non-trivial. The benchmark assumes you have access to virtualization hardware (VMware or VirtualBox with sufficient disk and memory) and the ability to orchestrate VM lifecycle at scale. Teams running evaluation on cloud infrastructure hit additional latency from screenshot capture loops. This is not documented as a requirement but is a practical prerequisite.
 
-## When NOT to Use It
+**Task diversity ceiling.** 369 tasks is small relative to the space of computer operations. High-performing agents may exhibit benchmark-specific overfitting, particularly on common applications like Chrome and LibreOffice that appear frequently. The OSWorld-Verified subset mitigates this somewhat by filtering tasks with ambiguous evaluation, but the core pool remains limited.
 
-OSWorld is the wrong choice when you need to evaluate agents on a narrow, well-defined task category (single-application automation, API-based workflows, code generation). The overhead of VM-based evaluation is unjustified for scoped tasks where lighter benchmarks exist. It is also inappropriate when you need statistically robust evaluation across many seeds quickly: the infrastructure cost per task run limits the number of trials most teams can afford, which increases variance in reported results.
+**Multi-app task difficulty spike.** Multi-app tasks require maintaining state across application switches, which no current agent architecture handles well. These tasks disproportionately drive down aggregate scores, making it hard to distinguish agents that are genuinely better at cross-application reasoning from agents that happen to avoid these tasks in their evaluation configuration.
 
-If your agent operates entirely via API or command line with no GUI interaction, OSWorld provides no useful signal.
+## When NOT to Use OSWorld
+
+**You need software engineering evaluation.** OSWorld tests general computer operation. If you want to evaluate code generation, bug fixing, or repository navigation, [SWE-Bench](../projects/swe-bench.md) is the appropriate benchmark — it has larger task counts, established leaderboards, and more granular software-engineering subtasks.
+
+**You need web-only agent evaluation.** For agents that operate exclusively in browsers, WebArena or Mind2Web provide more tasks, more established baselines, and lower infrastructure overhead. OSWorld's value comes from cross-application coverage; if you do not need that, it is more infrastructure than necessary.
+
+**You are resource-constrained.** Running a full OSWorld evaluation requires multiple VMs, significant disk space for snapshots, and considerable wall-clock time for screenshot-loop inference. If you are doing rapid iteration on an agent architecture, a cheaper benchmark (GAIA, or a subset of web navigation tasks) makes more sense for development cycles.
+
+**You need a dynamic web benchmark.** OSWorld tasks run in static VM snapshots. Tasks involving real-time web content (news, stock prices, live search results) are excluded or use cached versions. If your agent needs to operate on live web content, OSWorld's controlled environment is a mismatch.
 
 ## Unresolved Questions
 
-**Evaluator reliability at scale.** Auto-evaluation of GUI task completion is genuinely hard. The benchmark uses a mix of deterministic state checks and, for some tasks, LLM-based judgment. The error rate of the evaluator itself, and how it interacts with different agent strategies, is not well documented in benchmark papers that cite OSWorld results.
+**Evaluation script coverage.** The evaluation scripts check specific system state conditions, but it is unclear whether they cover all valid ways to complete a task. A user might save a document in a different format than the evaluator checks, or accomplish a file management task through a path the script does not inspect. The rate of false negatives (correct completions scored as failures) is not reported.
 
-**Task distribution coverage.** The benchmark includes tasks across several application categories, but the distribution of task types and difficulty levels, and how well that distribution represents real computer use, is not independently validated.
+**Benchmark contamination.** As OSWorld tasks become widely cited, they risk appearing in LLM training data. The original paper does not discuss task refresh strategy or versioning. There is no public commitment to rotating tasks or maintaining a held-out test set separate from the development set researchers use for iteration.
 
-**Version drift.** Application UIs change. A task designed against a specific version of an office suite may become unsolvable or trivially easier after an update. The maintenance burden for keeping tasks current is not publicly described.
+**Accessibility tree vs. screenshot tradeoffs.** Some agents use screenshots only; others combine screenshots with accessibility trees. The benchmark supports both but does not report controlled comparisons showing how much accessibility tree data contributes. This makes it hard to compare agents that use different observation modalities.
 
-**Governance.** Who maintains OSWorld, how new tasks are vetted, and what the process is for handling evaluator bugs or disputed results are unclear from available documentation.
+**Cost at scale.** Running state-of-the-art vision models (GPT-4V, Claude 3, Gemini) on 369 multi-step tasks with screenshots at each step is expensive. The paper does not report API costs for baseline evaluations. For research groups without substantial compute budgets, full benchmark runs may be prohibitive.
+
+## Relationship to Agent Skills and Skill Discovery
+
+OSWorld functions as the primary proving ground for computer-use agent research. SEAgent, documented in the [Agent Skills](../concepts/agent-skills.md) survey, explicitly targets novel OSWorld environments — it discovers skills for unseen applications and achieves 34.5% vs 11.3% for baseline agents on those tasks. CUA-Skill achieves 57.5% on the related WindowsAgentArena benchmark using structured knowledge engineering.
+
+The benchmark's role mirrors [SWE-Bench](../projects/swe-bench.md) in the coding agent ecosystem: it is the reference point that skill acquisition papers must beat, which concentrates research effort and makes progress comparable across groups. The [skill.md](../concepts/skill-md.md) specification — the three-level progressive disclosure architecture for agent skills — was partly motivated by the challenge OSWorld revealed: agents need procedural knowledge about how to operate specific applications, and that knowledge cannot all fit in a context window.
 
 ## Alternatives
 
-**Mind2Web:** Web-only tasks with ground-truth action annotations. Use when you need cross-website generalization evaluation and can tolerate offline (not live-execution) evaluation. The Agent Workflow Memory paper ([Source](../raw/deep/repos/zorazrw-agent-workflow-memory.md)) reports step success rates of 45.1% with AWM on Mind2Web cross-task evaluation, suggesting it discriminates agent quality well for web navigation.
+**[SWE-Bench](../projects/swe-bench.md):** Use when evaluating software engineering agents specifically. Larger task pool, cleaner evaluation, stronger community infrastructure.
 
-**WebArena:** Live web navigation in sandboxed browser environments. Use when your agent focuses on web tasks and you want execution-based (not annotation-based) evaluation with lower infrastructure cost than full OS virtualization.
+**[AppWorld](../projects/appworld.md):** Use when evaluating agents on API-based application interaction rather than GUI operation. Lower infrastructure overhead, complementary coverage.
 
-**WindowsAgentArena:** Windows-specific OS tasks. Use when your deployment target is Windows specifically and you want results that map directly to that environment.
+**[GAIA](../projects/gaia.md):** Use when evaluating general question answering with tool use, rather than sustained GUI control. Simpler to run, broader capability coverage.
 
-**AppWorld:** Multi-app task evaluation with strong auto-evaluation infrastructure. Use when you need fine-grained step-level metrics and labeled supervision for training context adaptation systems.
+**WebArena / Mind2Web:** Use when evaluating browser-only agents. More tasks, more baselines, less VM overhead.
 
-## Related Concepts
+## Sources
 
-OSWorld results appear as primary evidence in work on [agent skill acquisition](../concepts/agent-skills.md), GUI grounding models, and computer-use agent architectures. The SEAgent and CUA-Skill results cited above treat OSWorld performance as the primary validity signal for their respective approaches.
+[Deep: Agent Skills Survey](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md) — covers OSWorld benchmark results and agent performance figures
+
+[Deep: Agent Workflow Memory](../raw/deep/repos/zorazrw-agent-workflow-memory.md) — contextualizes OSWorld within the broader agent evaluation ecosystem
+
+## Related
+
+- [Agent Skills](../concepts/agent-skills.md) — the skill abstraction layer OSWorld is used to evaluate
+- [skill.md](../concepts/skill-md.md) — progressive disclosure specification motivated in part by GUI agent challenges
+- [SWE-Bench](../projects/swe-bench.md) — analogous benchmark for software engineering agents
+- [AppWorld](../projects/appworld.md) — API-based application interaction benchmark
+- [ReAct](../concepts/react.md) — reasoning and acting framework underlying most OSWorld agent implementations
+- [Model Context Protocol](../concepts/mcp.md) — complementary infrastructure for tool connectivity in agent stacks

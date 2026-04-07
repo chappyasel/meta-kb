@@ -3,232 +3,216 @@ entity_id: skill-md
 type: concept
 bucket: agent-memory
 abstract: >-
-  skill.md is a Markdown file convention for storing reusable agent procedures
-  that LLMs can read, trigger from context, and execute on demand —
-  distinguished by progressive disclosure loading that keeps idle skill
-  knowledge out of the context window.
+  Skill Files are markdown documents with YAML frontmatter that store reusable
+  agent procedures; their key differentiator is a three-tier progressive
+  disclosure architecture that keeps rich domain knowledge outside the context
+  window until triggered by semantic description matching.
 sources:
-  - tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md
-  - repos/alirezarezvani-claude-skills.md
-  - papers/xu-agent-skills-for-large-language-models-architectu.md
-  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
-  - deep/repos/garrytan-gstack.md
+  - repos/greyhaven-ai-autocontext.md
+  - repos/kayba-ai-agentic-context-engine.md
+  - repos/memento-teams-memento-skills.md
   - deep/repos/anthropics-skills.md
-  - deep/papers/xu-agent-skills-for-large-language-models-architectu.md
+  - deep/repos/greyhaven-ai-autocontext.md
+  - deep/repos/kayba-ai-agentic-context-engine.md
+  - deep/repos/memento-teams-memento-skills.md
 related:
-  - claude-code
+  - anthropic
   - claude
-  - cursor
-last_compiled: '2026-04-06T02:04:55.802Z'
+  - openai
+  - agent-skills
+last_compiled: '2026-04-07T11:54:54.364Z'
 ---
-# skill.md
+# Skill Files
 
-**Type:** Convention / File Format
-**Bucket:** Agent Memory → Procedural Memory
-**Implements:** [Claude Code](../projects/claude-code.md), [Claude](../projects/claude.md), [Cursor](../projects/cursor.md)
+## What They Are
 
----
-
-## What It Is
-
-A `SKILL.md` file is a Markdown document that packages procedural knowledge — instructions, context, and references — into a self-contained unit that an agent can load and execute on demand. The file lives in a named folder (`skill-name/SKILL.md`), uses YAML frontmatter for a `name` and `description`, and contains the full how-to instructions in its body.
-
-The format is a convention, not a runtime specification. There is no interpreter, no type system, no execution engine. The agent reads the file, follows the instructions, and uses any bundled scripts or reference documents as directed. The "skill" is the structured prose, not compiled code.
-
-This distinguishes SKILL.md from tool calls (which execute functions and return outputs) and from system prompts (which are always loaded). A skill is loaded conditionally, only when the agent decides it is relevant.
-
----
-
-## Why It Matters
-
-LLM agents face a hard tradeoff: rich procedural knowledge costs context tokens, but agents need that knowledge to perform specialized tasks well. Baking all domain knowledge into a system prompt wastes context on irrelevant procedures. Leaving it out produces worse task execution.
-
-SKILL.md resolves this through **conditional loading**: the agent carries only a tiny description of each skill in its available context, loads the full instructions only when triggered, and fetches bundled resources on demand within execution. A system with 200 skills pays maybe a few hundred tokens for the full registry but only loads the 1-2 skill bodies actually needed per conversation.
-
-[Anthropic's canonical implementation](../raw/deep/repos/anthropics-skills.md) formalizes this as three-tier progressive disclosure:
-
-- **Tier 1 (always resident, ~100 tokens):** The `name` and `description` frontmatter fields
-- **Tier 2 (loaded on trigger, <5000 tokens / ~500 lines):** The SKILL.md body with full procedural instructions
-- **Tier 3 (fetched on demand, unlimited):** Bundled scripts, reference files, templates, assets
-
-This is the same insight behind [Progressive Disclosure](../concepts/progressive-disclosure.md) in UI design applied to context management: defer expensive information until the user (or agent) actually needs it.
-
----
-
-## How It Works
-
-### The File Structure
-
-A minimal skill looks like this:
+A Skill File is a `SKILL.md` document that stores a named, reusable procedure an agent can invoke during task execution. The minimal structure is a YAML frontmatter block with `name` and `description` fields, followed by markdown instructions:
 
 ```markdown
 ---
-name: code-review
-description: Conducts a structured code review focusing on correctness, 
-security, and maintainability. Trigger when reviewing diffs or PRs.
+name: claude-api
+description: Helps write code using the Anthropic API. TRIGGER when code imports `anthropic` or `@anthropic-ai/sdk`. DO NOT TRIGGER when code imports `openai`.
 ---
 
-## Review Process
-
-1. Check for N+1 queries, trust boundary violations, and retry logic flaws
-2. Run security scan against OWASP Top 10
-3. Verify test coverage matches changed paths
-4. Output findings as structured JSON with severity scores
-
-## Reference
-See `./security-checklist.md` for full OWASP criteria.
+## Instructions
+When the user wants to call Claude programmatically...
 ```
 
-The `name` must match the parent directory name. The `description` is the triggering mechanism — it is the only thing the agent reads before deciding whether to load the rest.
+[Anthropic](../projects/anthropic.md) originated the format through the `anthropics/skills` repository, which serves simultaneously as the canonical spec host for agentskills.io, a curated skill marketplace, and the production source for [Claude](../projects/claude.md)'s document capabilities. Memento-Skills extends the concept by making skill files mutable at runtime, where agents rewrite them based on execution outcomes. ACE (Agentic Context Engine) implements a parallel pattern called the Skillbook, storing natural-language strategies with embedding-based deduplication.
 
-### Triggering
+The `name` field must be 1–64 characters, lowercase with hyphens, matching the parent directory name. `description` allows up to 1,024 characters and doubles as the triggering signal. Optional fields include `license`, `compatibility` (environment requirements), `metadata` (arbitrary key-value map), and `allowed-tools` (experimental, space-delimited pre-approved tools like `Bash(git:*) Read`).
 
-Triggering is semantic, not programmatic. The agent reads all skill descriptions and decides whether a given user request warrants loading a skill's full body. This makes description quality the single most important factor in whether a skill actually gets used.
+## How They Work: Three-Tier Progressive Disclosure
 
-Effective descriptions are specific about when to trigger. [Anthropic's claude-api skill](../raw/deep/repos/anthropics-skills.md) demonstrates this pattern:
+The central mechanism is not the file format itself but the loading strategy. Skills load knowledge in three layers, solving the fundamental tension between rich domain knowledge and finite [context windows](../concepts/context-window.md).
+
+**Tier 1 — Metadata (~100 tokens, always in context).** The `name` and `description` fields are permanently resident in the agent's `available_skills` list. This is the triggering signal. The agent reads these fields and decides whether to consult the skill.
+
+**Tier 2 — SKILL.md body (loaded on trigger, under 5,000 tokens / ~500 lines).** The working instruction set. Loaded only when the agent determines the description matches the current task.
+
+**Tier 3 — Bundled resources (loaded on demand, unlimited).** Scripts, reference documents, assets, templates. Python scripts can execute without being loaded into context at all. Reference files are loaded selectively based on instructions in the SKILL.md body.
+
+This means a skill like `claude-api` can bundle 20+ reference files across eight programming languages while only loading the relevant language's docs for a given task. The anthropics/skills `pdf` skill bundles eight Python helper scripts (form extraction, fill, validate, convert) that execute without ever entering the context window. [Source](../raw/deep/repos/anthropics-skills.md)
+
+## Description-Driven Triggering
+
+There are no programmatic triggers, no file-pattern matchers, no project-type detectors. The agent reads the `description` field and decides semantically whether the skill applies.
+
+This makes description quality the primary performance variable. The `skill-creator` meta-skill documentation explicitly warns against undertriggering and recommends descriptions that are "a little bit pushy" — naming specific contexts and import patterns, not just general capability areas. The `claude-api` skill demonstrates precise trigger/no-trigger specification:
 
 ```
-TRIGGER when: code imports `anthropic`/`@anthropic-ai/sdk`
-DO NOT TRIGGER when: code imports `openai` or other AI SDK
+TRIGGER when: code imports `anthropic`/`@anthropic-ai/sdk`/`claude_agent_sdk`
+DO NOT TRIGGER when: code imports `openai`/other AI SDK
 ```
 
-Vague descriptions cause undertriggering. The agent simply does not invoke skills it cannot confidently match to the task at hand.
+Complex triggering conditions must be re-implemented inside the SKILL.md body after triggering, since the trigger layer itself is purely semantic. [Source](../raw/deep/repos/anthropics-skills.md)
 
-### Bundled Resources
+## Skill Directory Structure
 
-Skills can include scripts, reference documents, and assets in the same directory. The SKILL.md body tells the agent when to invoke each resource. Critically, bundled scripts execute without entering the context window — only their outputs are loaded. This is a significant optimization for deterministic operations like file conversion, validation, or schema checking.
+Skills are self-contained directories with a flat namespace:
 
-Anthropic's PDF skill bundles eight Python scripts (form extraction, fill, validate, convert) and tells Claude when to call each. The scripts never appear in context; only the results do.
+```
+skills/
+  skill-creator/       # meta-skill for building other skills
+    SKILL.md
+    scripts/           # Python eval/benchmark tooling
+    agents/            # subagent prompts (grader, comparator, analyzer)
+    references/        # schema docs
+    eval-viewer/       # HTML review interface
+  claude-api/
+    SKILL.md
+    python/
+    typescript/
+    java/ go/ ruby/ csharp/ php/ curl/
+    shared/
+  pdf/
+    SKILL.md
+    scripts/
+    reference.md
+```
 
-### The Frontmatter Schema
+The marketplace system uses a `.claude-plugin/marketplace.json` manifest to organize skills into installable bundles (`document-skills`, `example-skills`, `claude-api`). Claude Code users install via `/plugin marketplace add anthropics/skills`. [Source](../raw/deep/repos/anthropics-skills.md)
 
-Per the agentskills.io specification:
-- `name` — required, 1-64 chars, lowercase + hyphens, must match parent directory
-- `description` — required, 1-1024 chars, the triggering text
-- `license` — optional
-- `compatibility` — optional, environment requirements
-- `metadata` — optional, arbitrary key-value map
-- `allowed-tools` — optional, experimental; pre-approved tool list (e.g., `Bash(git:*) Read`)
+## Skill Pattern Taxonomy
 
-The `allowed-tools` field is nascent governance infrastructure: skills can declare which tools they are permitted to use, letting the runtime enforce least-privilege execution. Support varies across agent implementations.
+Analyzing the anthropics/skills catalog reveals four distinct architectural patterns:
 
----
+**Document production skills** (`pdf`, `xlsx`, `docx`, `pptx`): Heavy on bundled scripts for deterministic operations. The `xlsx` skill bundles a LibreOffice-based recalculation script and schema validation. These are the most complex, with SKILL.md files of 200–300 lines plus extensive script directories.
 
-## Who Implements It
+**Creative skills** (`algorithmic-art`, `frontend-design`, `theme-factory`): Emphasize process over rules. The `frontend-design` skill is prescriptive about avoiding specific aesthetic failure modes. The `theme-factory` skill bundles 10 pre-built theme definitions as reference assets.
 
-**[Claude](../projects/claude.md) and [Claude Code](../projects/claude-code.md):** [Anthropic's skills repository](../raw/deep/repos/anthropics-skills.md) is the canonical reference implementation. Skills install via `claude /plugin marketplace add anthropics/skills`. Claude.ai supports custom skill upload for paid plans. The API supports skills via a dedicated endpoint.
+**Meta-skills** (`skill-creator`, `mcp-builder`): Skills that help build other capabilities. The `skill-creator` implements a full eval-driven development loop (described below). `mcp-builder` implements a four-phase process with external documentation fetching.
 
-**[Cursor](../projects/cursor.md):** Supports SKILL.md files in the `.cursor/skills/` directory as part of its rules and context system. Skills trigger based on description matching during conversations.
+**Workflow skills** (`doc-coauthoring`): Multi-stage interactive processes with explicit state transitions. The `doc-coauthoring` skill implements a three-stage pipeline with subagent-based verification. [Source](../raw/deep/repos/anthropics-skills.md)
 
-**gstack (Garry Tan's Claude Code setup):** The most developed SKILL.md system in the wild. [gstack](../raw/deep/repos/garrytan-gstack.md) encodes 23+ specialist roles (CEO, Staff Engineer, QA Lead, Chief Security Officer, Release Engineer) as SKILL.md files, sequenced into a `Think > Plan > Build > Review > Test > Ship > Reflect` sprint pipeline. Each skill's output feeds the next skill's context via shared filesystem artifacts.
+## The Skill-Creator Meta-Skill
 
-gstack adds two patterns not in the canonical spec:
+The most architecturally significant entry in the anthropics/skills repo is `skill-creator` — a skill that teaches agents how to build, evaluate, and iterate on other skills. It implements an eval-driven development loop:
 
-1. **SKILL.md.tmpl templates** — human-authored prose with machine-filled placeholders (`{{COMMAND_REFERENCE}}`, `{{PREAMBLE}}`, `{{QA_METHODOLOGY}}`). Generated files are committed to git; CI validates freshness. This prevents documentation drift between skill instructions and the tools they reference.
+1. Capture intent via structured interview
+2. Write SKILL.md following the progressive disclosure pattern
+3. Create test prompts and run them via subagents (with-skill vs baseline)
+4. Grade with assertions (programmatic + [LLM-as-judge](../concepts/llm-as-judge.md))
+5. Aggregate into benchmarks with variance analysis
+6. Launch HTML viewer for human review of qualitative outputs
+7. Iterate based on feedback, re-running tests each cycle
+8. Optimize description via a 60/40 train/test split triggering eval
 
-2. **The preamble injection** — every skill starts with a `{{PREAMBLE}}` block that injects update checks, session tracking, operational self-improvement hooks, and a search-before-building directive. This turns the preamble into cross-cutting infrastructure rather than per-skill boilerplate.
+The description optimizer runs 3 times per query for reliable trigger rates and iterates up to 5 times. The full eval loop (20 queries × 3 runs × 5 iterations = 300 LLM calls) makes systematic optimization a significant cost center. There is no mechanism for ongoing trigger monitoring in production. [Source](../raw/deep/repos/anthropics-skills.md)
 
----
+The testing framework uses three tiers: static SKILL.md validation (free, under 2 seconds), full end-to-end via `claude -p` (~$3.85, ~20 minutes), and LLM-as-judge quality scoring (~$0.15, ~30 seconds).
 
-## Relationship to Other Memory Types
+## Runtime Evolution: The Mutable Variant
 
-SKILL.md is [Procedural Memory](../concepts/procedural-memory.md) made explicit and portable. It externalizes "how to do X" from model weights into readable, versionable files.
+The agentskills.io spec and anthropics/skills treat skill files as static artifacts evolved at development time. Memento-Skills extends this with a Read-Execute-Reflect-Write loop where skills mutate at deployment time.
 
-Compared to adjacent patterns:
+After execution, the reflection phase can:
+- Increment or decrement the skill's utility score based on outcome
+- Rewrite the skill's instructions and code based on failure analysis
+- Create an entirely new skill when no existing capability is adequate
 
-- **[claude.md](../concepts/claude-md.md):** Always-loaded configuration (persona, preferences, project context). SKILL.md loads conditionally. The two are complementary — `CLAUDE.md` sets the stage, skills provide specialized procedures.
-- **[Episodic Memory](../concepts/episodic-memory.md):** Stores what happened in past sessions. SKILL.md stores how to do things. gstack's `/learn` skill bridges these by writing operational learnings from past sessions into a JSONL store that future sessions read.
-- **[Semantic Memory](../concepts/semantic-memory.md):** Stores domain facts. SKILL.md stores procedures. A skill might reference semantic memory (documentation, schemas) but is itself procedural.
-- **[RAG](../concepts/rag.md):** Retrieves relevant documents from a corpus. Skill triggering is similar — matching a query to a skill description — but skills load complete procedural packages, not document fragments.
+The Pydantic `Skill` model adds fields absent from the minimal spec: `version` (integer counter), `execution_mode` (`KNOWLEDGE` or `PLAYBOOK`), `entry_script`, `required_keys`, and `parameters` (OpenAI/Anthropic-compatible schema). A skill becomes a "playbook" when its directory contains executable scripts alongside SKILL.md — this is auto-inferred from directory structure. [Source](../raw/deep/repos/memento-teams-memento-skills.md)
 
----
+The Memento-Skills paper (arXiv:2603.18743) evaluates on HLE (Humanity's Last Exam) and GAIA, finding that performance improvement tracks with skill library growth from lived task experience. These are self-reported benchmarks from the paper authors; no independent replication is documented.
 
-## Practical Implications
+## ACE Skillbook: The Embedding Variant
 
-### For Skill Authors
+ACE (Agentic Context Engine) implements a parallel concept called the Skillbook — a thread-safe dictionary of `Skill` objects where each skill carries:
 
-Description quality is the highest-leverage decision. A skill with imprecise instructions but a clear description will be invoked and attempt the task. A skill with perfect instructions but a vague description will never run.
+- `id`: Auto-generated as `{section_prefix}-{counter:05d}` (e.g., `general-00042`)
+- `content`: Natural-language strategy text
+- `justification` and `evidence`: Why the skill was added
+- `sources`: `InsightSource` objects tracking epoch, trace UID, sample question
+- `embedding`: Float vector for deduplication
+- `status`: `active` or `invalid` (soft-delete)
 
-Keep SKILL.md bodies under 500 lines (roughly 5000 tokens). Beyond this, context pressure from multiple simultaneously active skills becomes problematic. Move reference material to bundled files and tell the skill body when to fetch them.
+Skills are deduplicated by cosine similarity via a `SimilarityDetector`. When the system decides two skills should remain separate despite high similarity, it records a `KEEP` decision with reasoning and the similarity score, preventing re-evaluation of the same pair in subsequent epochs. Skills are injected into agent prompts either via full skillbook rendering or `retrieve_top_k()` — cosine similarity against the current query, returning only the most relevant skills.
 
-Use scripts for deterministic operations. If a task is algorithmic — format conversion, validation, schema checking — write a script. The script executes without consuming context tokens for its code.
+The ACE pattern differs from the agentskills.io spec in that skills are natural-language strategies rather than procedural instructions, and the entire lifecycle (creation, deduplication, injection, citation tracking) is automated through the three-role pipeline. [Source](../raw/deep/repos/kayba-ai-agentic-context-engine.md)
 
-### For System Designers
+## Relationship to Adjacent Memory Concepts
 
-Skill registry size has a phase transition. [Research from the agent skills survey](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md) documents that beyond some critical library size, routing accuracy degrades sharply. Flat registries do not scale. Plan for hierarchical organization (categories, sub-categories, meta-skills for routing) before the registry grows large.
+Skill files occupy a specific position in the [agent memory](../concepts/agent-memory.md) taxonomy. They are [procedural memory](../concepts/procedural-memory.md) — stored know-how for executing tasks — rather than [episodic memory](../concepts/episodic-memory.md) (records of past events) or [semantic memory](../concepts/semantic-memory.md) (factual knowledge). The [CLAUDE.md](../concepts/claude-md.md) file pattern is a related concept: project-level context that persists across sessions, but typically storing project facts and conventions rather than reusable executable procedures.
 
-The 26.1% vulnerability rate in community-contributed skills (from analysis of 42,447 skills across major marketplaces) means open skill ecosystems need security gates. Skills with executable scripts are 2.12x more vulnerable than instruction-only skills. The proposed four-tier trust governance model gates dangerous capabilities behind verification before allowing script execution.
+The progressive disclosure architecture is a specific application of [progressive disclosure](../concepts/progressive-disclosure.md) to [context management](../concepts/context-management.md): tier-1 metadata always loads, tier-2 instructions load on trigger, tier-3 resources load on demand. This aligns with [context compression](../concepts/context-compression.md) goals — keeping the context window focused on immediately relevant material.
 
-### The Composition Problem
-
-SKILL.md has no formal composition mechanism. Skills cannot declare dependencies on other skills, inherit from parent skills, or pass structured outputs to downstream skills. gstack works around this through implicit filesystem coupling — one skill writes artifacts that the next skill reads — but this is convention, not specification.
-
-Agents like [Voyager](../projects/voyager.md) and systems like [Agent Workflow Memory](../projects/agent-workflow-memory.md) demonstrate skill composition through code generation (skills that produce new skills) rather than static file linking. This closes the loop on skill evolution but produces opaque, weight-internal skills that cannot be audited.
-
----
+[Agent Workflow Memory](../projects/agent-workflow-memory.md) and [Voyager](../projects/voyager.md) implement related patterns where agents store and retrieve reusable workflows, though neither uses the SKILL.md format specifically.
 
 ## Strengths
 
-**Portable and inspectable.** A SKILL.md file is a text file. It git-blames cleanly, diffs cleanly, and any team member can read it. Learned agent behaviors in model weights cannot be audited this way.
+**Context budget efficiency.** The three-tier loading strategy means even a large skill library (dozens of skills, each with extensive reference documentation) imposes only the tier-1 metadata cost on every request. Only triggered skills load their full body, and only the specific reference files needed for the current task enter the context.
 
-**Context-efficient at scale.** Progressive disclosure lets agents "know about" hundreds of skills at metadata cost while paying full context only for active skills. This scales in a way that monolithic system prompts cannot.
+**No infrastructure dependency.** Skill files are plain markdown on disk. They require no vector database, no embedding model, no external service. The retrieval mechanism is the base LLM's semantic understanding of the description field.
 
-**Multi-surface.** The same SKILL.md works across Claude Code, Claude.ai, the API, and third-party agents that implement the spec. gstack extends this to eight different agent hosts via typed config files in `hosts/`.
+**Composable with scripted operations.** Bundled scripts handle deterministic operations without consuming context. A skill can combine LLM-driven reasoning (instructions in SKILL.md) with deterministic processing (Python scripts that execute externally) cleanly.
 
-**Self-improving with the right architecture.** Anthropic's `skill-creator` meta-skill runs a full eval-driven development loop: draft, test with subagents, grade via LLM-as-judge, iterate on description for trigger reliability. This is skill authoring as software engineering, with measurement.
-
----
+**Cross-surface portability.** The same SKILL.md works in Claude Code, Claude.ai, and the Claude API. The format is implementation-agnostic within the agentskills.io ecosystem.
 
 ## Critical Limitations
 
-**Undertriggering is the default failure mode.** When skills fail, they usually fail silently — the agent simply does not invoke the skill, handles the task without specialized knowledge, and produces mediocre output. There is no monitoring primitive for trigger rates. You do not know a skill is failing to trigger until you audit outputs.
+**Undertriggering is the primary failure mode.** When a skill would improve output quality but the description does not precisely match the user's phrasing, the skill simply does not load. The mitigation — writing aggressive, specific descriptions — creates a competing risk of false triggering on unrelated tasks. The anthropics/skills documentation acknowledges this directly. There is no fallback mechanism when description matching fails.
 
-**No runtime evolution.** Skills are static files. An agent cannot modify a SKILL.md based on what it learned mid-session. gstack's `/learn` skill captures operational learnings to a JSONL store for future sessions, but the skill instructions themselves cannot update. Compare this to [Self-Improving Agents](../concepts/self-improving-agents.md) where the agent rewrites its own procedures.
+**Unspoken infrastructure assumption: the agent must support the spec.** Skill files do nothing without an agent runtime that implements the three-tier loading protocol. The agentskills.io spec defines the format, but adoption outside Anthropic's own products is not documented. Teams building on LangChain, CrewAI, or custom frameworks must implement the loading protocol themselves.
 
-**Unspoken infrastructure assumption: a reliable filesystem.** The entire pattern assumes the agent can read files from a predictable location. This holds for local development (Claude Code, Cursor) but breaks in stateless serverless deployments, sandboxed execution environments, or multi-machine agent clusters where the filesystem is not shared. gstack explicitly warns that its multi-machine scaling limitation stems from agents on different machines operating in filesystem silos.
+## When Not to Use Skill Files
 
----
+**When tasks are simple and routine.** The skill-creator documentation notes that simple queries ("read this PDF") may not trigger skills at all because the base model handles them directly. Skills add value on complex, multi-step, specialized tasks.
 
-## When NOT to Use It
+**When you need cross-skill composition.** Skills have no mechanism for invoking each other. There is no shared scratchpad, no skill-to-skill data flow, no way for the output of one skill to influence triggering of another. Complex pipelines requiring skill chaining need a different architecture.
 
-**Stateless or sandboxed deployments.** If your agent runtime does not have persistent filesystem access, SKILL.md cannot load its bundled resources. The pattern degrades to prompt injection without the resource layer.
+**When you need runtime adaptation without human review.** Static skill files cannot learn from execution outcomes. The Memento-Skills mutable variant addresses this, but with the tradeoff that evolved skills are never formally validated — quality depends entirely on the base model's ability to diagnose its own failures.
 
-**Tasks requiring skill evolution.** If the agent needs to improve its own procedures based on task outcomes, SKILL.md's static nature is a hard constraint. Use [Reflexion](../concepts/reflexion.md)-style loops or weight-updating approaches instead.
-
-**High-velocity skill registries without governance.** If you plan to open skill contributions to a community, the 26.1% vulnerability rate means you need security infrastructure before launch, not after. Building the trust model retroactively is much harder.
-
-**Team-scale deployments without shared memory.** Multiple agents on multiple machines each reading their local skill files will diverge. Without a shared semantic layer ([Graphiti](../projects/graphiti.md), [Zep](../projects/zep.md), or similar), skills provide local procedural consistency but not cross-agent coordination.
-
----
+**When you need programmatic triggers.** If skill invocation depends on detecting specific file types, project structures, or system states rather than semantic task description, the description-only triggering mechanism is the wrong tool.
 
 ## Unresolved Questions
 
-**Trigger rate monitoring in production.** No current implementation exposes metrics for how often each skill triggers, how often it should have triggered but did not, or whether description changes improved trigger rates. The skill-creator's description optimizer runs during development, not continuously.
+**Governance of the agentskills.io spec.** The spec is hosted by Anthropic, but the governance model for community contributions, versioning, and compatibility across agent implementations is not publicly documented.
 
-**Skill conflict resolution.** When two skills have overlapping descriptions and both trigger for the same query, there is no specified resolution mechanism. Implementations handle this ad-hoc or by loading both.
+**Cost at scale with many installed skills.** The tier-1 metadata for all installed skills is always in context. With dozens of skills installed, the overhead of maintaining the `available_skills` list is non-trivial, and there is no published guidance on the practical limit before it degrades performance.
 
-**Team-scale governance.** The spec defines a trust model (four tiers: community, verified, certified, trusted) but no implementation ships it. Who runs the verification gates? What is the appeals process? How are revoked skills handled in running sessions?
+**`allowed-tools` field maturity.** The spec marks this field experimental. Support varies between agent implementations. It is the only governance mechanism for restricting what tools a skill can invoke, but it is not reliably enforced.
 
-**Cost at scale.** Skill loading costs tokens. For agents that run hundreds of tasks per day, the aggregate context cost of loading skill bodies (even with progressive disclosure) is non-trivial. There is no published cost analysis for large skill ecosystems.
-
----
+**Conflict resolution between skills.** When two installed skills have overlapping descriptions, there is no documented tie-breaking rule. Whether both load, one takes precedence, or the behavior is undefined is not specified.
 
 ## Alternatives
 
-- **[claude.md](../concepts/claude-md.md):** Use when knowledge should always be in context, not conditionally loaded. Good for project conventions, persona, and persistent preferences.
-- **[MCP (Model Context Protocol)](../concepts/mcp.md):** Use when you need tool connectivity (external APIs, databases, services) rather than procedural instructions. Skills and MCP compose well together.
-- **[Agent Workflow Memory](../projects/agent-workflow-memory.md):** Use when you want workflows extracted automatically from successful agent trajectories rather than authored by hand.
-- **[Voyager](../projects/voyager.md):** Use when skills need to be generated and composed programmatically in a code execution environment rather than authored as Markdown.
-- **[DSPy](../projects/dspy.md):** Use when you want prompt optimization (including skill-like modules) driven by metrics rather than human authoring.
+**[CLAUDE.md](../concepts/claude-md.md)**: Use when you need project-level context (conventions, architecture decisions, team norms) rather than reusable executable procedures. CLAUDE.md is always loaded; skills are conditional.
 
----
+**[Retrieval-Augmented Generation](../concepts/rag.md)**: Use when you need to retrieve information from large document collections based on query similarity. RAG retrieves facts; skill files retrieve procedures.
+
+**[Procedural Memory](../concepts/procedural-memory.md) systems (Letta, Mem0)**: Use when you need runtime memory evolution with formal persistence guarantees and multi-session continuity. These systems add infrastructure overhead that skill files avoid.
+
+**Memento-Skills**: Use skill files (agentskills.io spec) when skills are maintained by developers and deployed to users. Use Memento-Skills when the agent should improve its own skills from live task experience without developer intervention.
+
+**Direct system prompt**: Use when you have a single, stable task domain and do not need the overhead of a skill management system. A well-crafted system prompt outperforms a poorly-triggered skill file.
 
 ## Related Concepts
 
+- [Agent Skills](../concepts/agent-skills.md)
 - [Procedural Memory](../concepts/procedural-memory.md)
-- [Agent Memory](../concepts/agent-memory.md)
-- [Progressive Disclosure](../concepts/progressive-disclosure.md)
 - [Context Engineering](../concepts/context-engineering.md)
-- [Self-Improving Agents](../concepts/self-improving-agents.md)
-- [claude.md](../concepts/claude-md.md)
-- [Model Context Protocol](../concepts/mcp.md)
+- [Progressive Disclosure](../concepts/progressive-disclosure.md)
+- [CLAUDE.md](../concepts/claude-md.md)
+- [Context Management](../concepts/context-management.md)
+- [Agent Memory](../concepts/agent-memory.md)
+- [Self-Improving Agent](../concepts/self-improving-agent.md)

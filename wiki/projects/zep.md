@@ -3,10 +3,9 @@ entity_id: zep
 type: project
 bucket: agent-memory
 abstract: >-
-  Zep is a managed agent memory service built on Graphiti, a temporal knowledge
-  graph engine that tracks how facts change over time with bi-temporal indexing
-  — achieving 18.5% accuracy gains and 90% latency reduction vs. full-context
-  baselines on LongMemEval.
+  Zep is a managed agent memory service (with open-source Graphiti core) using a
+  temporal knowledge graph to track facts across time, achieving 18.5% accuracy
+  gains and 90% latency reduction over full-context baselines on LongMemEval.
 sources:
   - repos/getzep-graphiti.md
   - repos/memorilabs-memori.md
@@ -16,143 +15,142 @@ sources:
   - deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
 related:
   - graphiti
-  - rag
-  - episodic-memory
-  - hybrid-retrieval
-last_compiled: '2026-04-06T02:03:42.680Z'
+  - knowledge-graph
+  - hybrid-search
+  - openai
+  - mcp
+  - bm25
+  - mem0
+  - letta
+last_compiled: '2026-04-07T11:42:25.460Z'
 ---
 # Zep
 
-**Type:** Project — Agent Memory  
-**Repository:** [getzep/graphiti](https://github.com/getzep/graphiti) (24,473 stars)  
-**Paper:** [arXiv:2501.13956](https://arxiv.org/abs/2501.13956) — Rasmussen et al., January 2025  
-**License:** Apache-2.0
-
 ## What It Does
 
-Zep is a memory layer service for AI agents. Its open-source core, [Graphiti](../projects/graphiti.md), is a temporal knowledge graph engine that converts conversational and structured data into a queryable graph of entities, relationships, and communities. The commercial Zep product wraps Graphiti with multi-tenant management, sub-200ms retrieval SLAs, dashboards, and SDKs.
+Zep is a memory layer for AI agents built around [Graphiti](../projects/graphiti.md), a temporal [knowledge graph](../concepts/knowledge-graph.md) engine. It solves a specific problem: agents that operate across many sessions need memory that tracks how facts change, not just a list of things that were said. Standard [RAG](../concepts/rag.md) returns static document chunks. Zep stores facts with validity windows, so "Alice works at Google" can be marked invalid when Alice changes jobs, while preserving the historical record of what was believed and when.
 
-The core differentiator: facts carry explicit validity windows. When Alice switches jobs, the old employment edge is invalidated with a timestamp rather than deleted. Agents can query what is true now, what was true last year, or what the system believed at any given point. This bi-temporal design is standard in financial audit systems but rare in LLM memory stacks.
+The project has two layers. Graphiti is the open-source core (24,473 GitHub stars, Apache-2.0 license). Zep is the managed service built on Graphiti, adding multi-tenant user management, a developer dashboard, sub-200ms latency guarantees at scale, and SDKs for Python, TypeScript, and Go.
 
 ## Architecture
 
-Graphiti organizes memory as a three-tier hierarchical graph G = (N, E, phi):
+Graphiti organizes knowledge into a three-tier graph G = (N, E, phi):
 
-**Episodes (Tier 1):** Raw input stored verbatim — messages, JSON, text documents. Every derived fact traces back to the episode that produced it. Non-lossy by design.
+**Tier 1 — Episodes:** Raw input data stored without loss. Every message, document, or JSON object ingested becomes an episode node. All derived knowledge traces back to the episode that produced it, enabling source citation in production.
 
-**Semantic entities and edges (Tier 2):** Extracted entities (people, products, concepts) with typed relationships between them. Each `EntityEdge` carries four timestamps: `valid_at`, `invalid_at`, `created_at`, and `expired_at`, implementing a genuine bi-temporal model across two parallel timelines — event time (when facts were true in reality) and transaction time (when the system learned them).
+**Tier 2 — Semantic entities and relationships:** Entities extracted from episodes (people, organizations, concepts) with typed relationships between them. Relationships are fact triples: `(Entity) -[WORKS_AT {valid_at, invalid_at}]-> (Entity)`. Each edge carries four timestamps — when the fact became true, when it stopped being true, when the system learned it, and when the system stopped believing it. This is a genuine bi-temporal model from database theory, rarely implemented in LLM applications.
 
-**Communities (Tier 3):** Clusters of strongly connected entities detected via label propagation, with LLM-generated summaries. Community names embed key terms for search. Mirrors the cognitive distinction between episodic memory (discrete events) and [semantic memory](../concepts/semantic-memory.md) — the current tier 3 parallels the latter.
+**Tier 3 — Communities:** Clusters of strongly connected entities with LLM-generated summaries. Named with key terms and embedded for search. Communities make high-level queries ("what do we know about this company?") fast without traversing individual edges.
 
-The central class is `Graphiti` in `graphiti_core/graphiti.py`. Storage uses one of four pluggable graph backends: Neo4j (default, requires APOC), FalkorDB, Kuzu (embedded, good for development), or Amazon Neptune. All graph mutations use predefined Cypher queries — never LLM-generated ones — to prevent schema hallucinations.
+The storage backend is [Neo4j](../projects/neo4j.md) by default, with FalkorDB, Kuzu, and Amazon Neptune also supported. All graph mutations use predefined Cypher queries — never LLM-generated queries. This is an explicit design choice to prevent schema hallucinations and ensure consistency.
 
-## Core Mechanism: Episode Ingestion Pipeline
+## Core Mechanism: Episode Ingestion
 
-Each call to `add_episode()` runs 4–5 sequential LLM calls:
+Calling `add_episode()` triggers a multi-stage LLM pipeline:
 
-1. **Entity extraction** — LLM receives the current message plus 4 preceding messages for context, returns structured `ExtractedEntity` objects. The extraction prompt in `prompts/extract_nodes.py` is unusually strict: it explicitly forbids extracting pronouns, bare kinship terms ("dad" vs. "Nisha's dad"), and abstract nouns. A reflection step reviews extractions before committing.
+1. **Entity extraction** (`utils/maintenance/node_operations.py`): The LLM receives the current message plus the 4 preceding messages for context. It returns structured `ExtractedEntity` objects with names and type classifications. The extraction prompt is unusually detailed — it specifies what not to extract (pronouns, bare kinship terms, abstract concepts) and requires entity names to be specific and qualified.
 
-2. **Node deduplication** — Extracted entities are embedded (1024-dim vectors) and matched against existing entities via cosine similarity + BM25 full-text search. An LLM cross-encoder makes final merge decisions, handling cases like "NYC" = "New York City."
+2. **Node deduplication** (`resolve_extracted_nodes`): Each extracted entity is embedded to 1024 dimensions, compared against existing entities via cosine similarity and BM25 full-text search, then an LLM makes the final merge decision. "NYC" and "New York City" collapse to the same node; "Java (programming language)" and "Java (island)" stay separate.
 
-3. **Edge extraction** — LLM extracts fact triples: (source entity, SCREAMING_SNAKE_CASE relation, target entity, natural language description, valid_at, invalid_at). Temporal expressions like "last week" are resolved against the episode's `reference_time`.
+3. **Edge extraction** (`utils/maintenance/edge_operations.py`): The LLM extracts fact triples with `valid_at` and `invalid_at` temporal bounds. Relative temporal expressions ("last week") are resolved against the episode's `reference_time`.
 
-4. **Edge resolution** — New edges are compared against existing edges between the same entity pairs. The LLM identifies duplicates and contradictions. Contradicted edges receive an `expired_at` timestamp; they are never deleted. Newer information consistently takes precedence.
+4. **Edge resolution** (`resolve_extracted_edges`): New edges are compared against existing edges between the same entity pairs. The LLM identifies duplicates and contradictions. Contradicted edges get their `expired_at` set — they are not deleted. The system consistently prioritizes newer information.
 
-5. **Attribute extraction** — Entity summaries are updated to incorporate new information from non-duplicate edges.
+5. **Attribute extraction**: Entity summaries are updated to incorporate information from new edges.
 
-`add_episode_bulk` processes multiple episodes with shared node deduplication but skips edge invalidation — useful for historical imports where temporal consistency is not required.
+The minimum LLM call count per episode is 4–5. With community updates enabled, add more per affected community node. All operations are async, using `semaphore_gather` with a configurable concurrency limit (default `SEMAPHORE_LIMIT=10`) to prevent provider rate limit errors.
 
-## Retrieval
+## Hybrid Search
 
-The hybrid search pipeline runs three methods in parallel:
+Retrieval combines three complementary methods run in parallel:
 
-- **Cosine similarity** — 1024-dim vector search over fact fields, entity names, and community names
-- **BM25** — Full-text search via Neo4j's Lucene integration for lexical matches
-- **BFS** — Breadth-first graph traversal from recent episode nodes up to n hops; captures contextually related facts that share no semantic similarity with the query
+- **Cosine similarity** on 1024-dimensional fact embeddings — semantic similarity
+- **[BM25](../concepts/bm25.md)** via Neo4j's Lucene integration — word-level matching
+- **Breadth-first traversal** from seed nodes — contextual similarity (nodes closer in the graph appear in more similar conversational contexts)
 
-Results merge via configurable reranking: Reciprocal Rank Fusion (RRF), Maximal Marginal Relevance (MMR), episode mention frequency, graph distance from a centroid node, or neural cross-encoder reranking. `COMBINED_HYBRID_SEARCH_CROSS_ENCODER` is the prebuilt high-quality config; it costs more but retrieval quality reflects it.
+Results are reranked via [Reciprocal Rank Fusion](../concepts/reciprocal-rank-fusion.md), MMR, episode-mention frequency, graph distance, or a neural cross-encoder. The `COMBINED_HYBRID_SEARCH_CROSS_ENCODER` preset provides the highest-quality results at higher cost.
 
-This relates to [Hybrid Retrieval](../concepts/hybrid-retrieval.md) and extends [Retrieval-Augmented Generation](../concepts/rag.md) with temporal and graph-structural dimensions.
+This architecture implements [Hybrid Search](../concepts/hybrid-search.md) across four scopes simultaneously: semantic edges (fact text), entity nodes (names), community nodes (summary key terms), and raw episodes (source content).
 
-## Numbers
+## Key Numbers
 
-**Benchmarks (self-reported, from the Zep paper):**
+From the Zep paper (arXiv:2501.13956, authors at Zep Inc. — **self-reported**):
 
-On **LongMemEval** (115K-token conversations, more realistic than DMR):
+**LongMemEval** (~115k token conversations, the more meaningful benchmark):
 
-| Model | Full-context baseline | Zep | Delta |
-|---|---|---|---|
+| Model | Full-context baseline | Zep | Improvement |
+|-------|----------------------|-----|-------------|
 | gpt-4o-mini | 55.4% | 63.8% | +15.2% |
 | gpt-4o | 60.2% | 71.2% | +18.5% |
 
-Latency: 31.3s (full-context, gpt-4o-mini) → 3.20s with Zep — 90% reduction, driven by compressing 115K tokens to ~1.6K for the response model.
+Response latency: ~3.2s (Zep + gpt-4o-mini) vs ~31.3s (full-context baseline) — a 90% reduction. Context tokens drop from 115k to ~1.6k.
 
-Per question type (gpt-4o-mini):
-- Single-session-preference: +77.7%
-- Temporal-reasoning: +48.2%
-- Multi-session synthesis: moderate gains
-- **Single-session-assistant: -17.7%** (notable regression)
+**Per question type (gpt-4o-mini), where the architecture makes or breaks performance:**
+- Temporal reasoning: +48.2% — validates the bi-temporal model
+- Multi-session synthesis: +30.7%
+- Single-session assistant recall: **−17.7%** — a real regression, discussed below
 
-On **Deep Memory Retrieval** (DMR, the benchmark Zep uses most prominently in marketing):
-- Zep (gpt-4o-mini): 98.2% vs. MemGPT: 93.4%
+**Deep Memory Retrieval** (500 conversations, 60 messages each): Zep 94.8% vs MemGPT 93.4% with gpt-4-turbo. The paper itself criticizes DMR as inadequate — these conversations fit in modern context windows, making the benchmark unrepresentative of enterprise use cases.
 
-The DMR comparison is suspect: conversations in DMR fit comfortably in modern context windows, and the full-conversation baseline achieves 98.0% — nearly identical to Zep. The LongMemEval numbers are more meaningful. All benchmarks are self-reported by Zep's authors.
+Graphiti repo: 24,473 stars, Apache-2.0 license. These numbers are from the repo README.
 
 ## Strengths
 
-**Temporal reasoning at the data layer.** The +48.2% improvement on temporal reasoning tasks on LongMemEval reflects genuine architectural advantage, not retrieval tuning. Few agent memory systems model temporal validity as first-class data.
+**Temporal reasoning.** The bi-temporal data model is implemented correctly: separate timelines for when facts were true vs. when the system learned them. This enables queries like "what did we believe about Alice's employer in January 2023?" The +48.2% improvement on temporal reasoning tasks is the architecture's clearest validation.
 
-**Full provenance.** Every entity and edge traces back to the episode that produced it. This matters in production debugging and in domains (legal, medical, compliance) where "what was the basis for this conclusion?" has a real answer.
+**Evolving knowledge.** When facts contradict, old edges expire rather than get deleted. This is the right model for enterprise applications where people change jobs, policies update, and preferences shift. A system that just overwrites loses the audit trail.
 
-**Handles evolving facts without hallucination risk.** By invalidating rather than deleting contradicted edges, Zep avoids the failure mode where a memory system silently loses historical context when a user updates their preferences.
+**Integration surface.** [MCP](../concepts/mcp.md) server for Claude and Cursor. [LangGraph](../projects/langgraph.md) integration for agentic workflows. FastAPI REST service for programmatic access. Supports OpenAI, Anthropic, Gemini, Groq, Azure OpenAI, and local models via Ollama with `OpenAIGenericClient`.
 
-**Multi-tenant namespace isolation.** The `group_id` parameter isolates graph instances within a single database, enabling clean multi-user deployments without schema separation.
+**Provenance.** Every fact traces back to the episode that produced it. Production systems need this — when an agent makes a surprising decision, you need to trace which conversation turn caused the belief that drove the action.
 
 ## Critical Limitations
 
-**Concrete failure mode — assistant-generated content:** The -17.7% regression on single-session-assistant tasks reveals that the entity extraction pipeline is biased toward user-stated facts. The assistant's own outputs (recommendations, calculations, prior reasoning) are poorly indexed. For agentic workflows where the agent needs to recall what it previously decided or said, Zep underperforms a naive full-context approach. The paper flags this as "an area of current research."
+**The assistant-content gap.** The −17.7% regression on single-session-assistant tasks is a structural weakness. The entity extraction pipeline pulls facts stated by users far more reliably than it captures content generated by the assistant — recommendations, calculations, analyses, creative outputs. For agentic deployments where the agent's own prior outputs are critical context (a coding agent that needs to remember what solution it proposed last week), this is a meaningful failure mode.
 
-**Unspoken infrastructure assumption:** Zep requires a running Neo4j (or alternative graph database) instance with APOC installed. The hosted Zep service hides this dependency; self-hosting Graphiti means operating a non-trivial graph database alongside your application. Teams without graph database operational experience will hit problems: index configuration, APOC plugin management, Cypher query tuning as graphs grow. The quickstart Docker Compose masks this complexity.
+**Infrastructure assumption.** Graphiti requires a running graph database — Neo4j 5.26+ minimum, with APOC installed. This is not a drop-in replacement for a vector database. Kuzu runs embedded (good for development), but production deployments need Neo4j or FalkorDB running as separate services with their own operational overhead.
 
-**LLM call volume.** Every ingested message triggers 4–5 LLM calls. At high ingestion volume, this creates latency and cost accumulation. The paper recommends running `add_episode` as a background task (FastAPI background tasks, Celery) rather than in the request path — which means accepting eventual consistency between conversation and memory state.
+**Ingestion cost is opaque.** The paper reports 90% latency reduction at query time but does not report per-episode ingestion cost or latency. A single `add_episode` call makes 4–5 LLM calls minimum. At high message volume, ingestion cost can dominate. The README explicitly recommends running `add_episode` as a background task rather than in the request path.
 
 ## When NOT to Use Zep
 
-**Static document corpora.** If your knowledge base is a fixed set of documents that rarely changes, the per-episode LLM pipeline overhead is waste. Use standard [RAG](../concepts/rag.md) with a [vector database](../concepts/vector-database.md) like [Qdrant](../projects/qdrant.md) or [Pinecone](../projects/pinecone.md) instead.
+**Static document retrieval.** If your use case is "search a corpus of PDFs that doesn't change," standard RAG with a vector database is simpler, cheaper, and sufficient. Graphiti's value is in tracking change over time.
 
-**Single-session agents.** If your agent starts fresh each session with no cross-session context requirement, Zep's graph infrastructure adds cost and complexity with no benefit. The full-conversation baseline matches Zep on DMR precisely because short conversations fit in context.
+**Low-infrastructure tolerance.** If you can't operate a graph database, or your team has no familiarity with Neo4j, the operational complexity of Graphiti self-hosted will cause problems. Use the managed Zep service instead, or consider [Mem0](../projects/mem0.md) which runs on [PostgreSQL](../projects/postgresql.md).
 
-**Adversarial or open-domain QA.** A-MEM's results on LoCoMo show that memory systems with enriched semantic representations (like Zep's) perform worse on adversarial questions. If your agent handles queries designed to probe for inconsistencies, graph-based memory may amplify rather than reduce susceptibility.
+**High-frequency, low-latency writes.** 4–5 LLM calls per message ingested will hit rate limits quickly at scale. The `SEMAPHORE_LIMIT` parameter helps, but a chatbot handling thousands of concurrent users will find Graphiti's ingestion pipeline a bottleneck.
 
-**Teams without graph DB expertise who need production SLAs.** The open-source Graphiti path requires operating Neo4j or FalkorDB at scale. If you cannot staff that, either use the managed Zep service or choose a simpler memory architecture like [Mem0](../projects/mem0.md).
+**Adversarial query environments.** The richer contextual representations that help on multi-hop reasoning also amplify misleading signals from adversarial queries. A-MEM's benchmark showed a −28% regression on adversarial tasks with similar enriched-memory approaches.
 
 ## Unresolved Questions
 
-**Community refresh scheduling.** The paper acknowledges that incrementally updated communities diverge from optimal clustering over time and require periodic full recomputation. It does not specify when to trigger a refresh or how to detect that community quality has degraded enough to matter.
+**Community refresh scheduling.** The paper acknowledges that incremental label propagation diverges from optimal community structure over time and requires periodic full recomputation. It does not specify when to trigger refreshes, how to detect divergence, or what the cost of a full refresh is on a large graph.
 
-**Cost at scale.** The paper reports per-query latency and token counts for retrieval but not per-episode ingestion cost at volume. For a system ingesting thousands of messages per day, the 4–5 LLM calls per episode add up. No public data on cost profiles at enterprise ingestion rates.
+**Production ingestion cost.** No published data on cost per episode at scale. The paper benchmarks use gpt-4o-mini for graph construction, which helps, but the total cost for a production agent handling thousands of conversations per day is not characterized.
 
-**Contradiction resolution with authority weighting.** Zep always prioritizes newer information when facts conflict. For domains where a 2019 document may be more authoritative than a 2024 conversation — legal precedents, medical baselines, historical records — this heuristic fails. There is no source-authority weighting or confidence scoring on edges.
+**Contradiction authority.** The system always prioritizes newer information when detecting contradictions. For medical records, legal documents, or any domain where older information may be more authoritative, this assumption is wrong. There is no confidence scoring or source-authority weighting mechanism.
 
-**Entity extraction quality across model tiers.** The paper uses gpt-4o-mini for graph construction. The documentation warns that "using other services may result in incorrect output schemas and ingestion failures. This is particularly problematic when using smaller models." No published data on extraction quality degradation as model size decreases, which matters for cost optimization decisions.
+**Cross-driver parity.** Neo4j, FalkorDB, Kuzu, and Neptune each have separate operation implementations with significant code duplication. Bugs fixed in one driver may not propagate to others. The paper focuses entirely on Neo4j; other drivers are community contributions.
 
 ## Alternatives
 
-**Use [Mem0](../projects/mem0.md) when** you want simpler infrastructure (no graph DB required), accept flat fact strings over typed edges, and your use case does not require temporal reasoning or cross-session entity tracking. Mem0 uses 2 LLM calls per ingestion vs. Zep's 4–5.
+**[Mem0](../projects/mem0.md):** Runs on PostgreSQL + a vector store. Lower infrastructure requirements. Better choice when you need simple fact persistence without bi-temporal tracking and want easier deployment.
 
-**Use [Graphiti](../projects/graphiti.md) directly when** you want the open-source temporal graph engine without the managed Zep service — same architecture, self-hosted, more configuration required.
+**[Letta](../projects/letta.md):** Full agent runtime with memory as a first-class primitive. Better choice when you want the memory system tightly coupled to the agent execution model rather than as a separate service.
 
-**Use [Letta](../projects/letta.md) when** your agent needs in-context memory management (core memory that the agent can read and edit directly) rather than external retrieval. Different memory model: Letta keeps a persistent in-context state block; Zep retrieves from an external graph.
+**[Graphiti](../projects/graphiti.md):** The open-source core of Zep. Choose Graphiti when you want to self-host and build the surrounding infrastructure yourself. Choose managed Zep when you need production SLAs, sub-200ms latency guarantees, and a developer dashboard without operational work.
 
-**Use [LlamaIndex](../projects/llamaindex.md) or [LangChain](../projects/langchain.md) with a vector store when** your retrieval needs are over documents (not conversations) and the temporal dimension is irrelevant.
+**Plain vector database ([ChromaDB](../projects/chromadb.md), [Qdrant](../projects/qdrant.md), [Pinecone](../projects/pinecone.md)):** Choose when your memory is append-only and you don't need to track how facts change. Dramatically simpler to operate.
 
-**Use [HippoRAG](../projects/hipporag.md) when** you want graph-augmented retrieval over static document corpora with no ingestion-time LLM cost beyond indexing.
+Use Zep/Graphiti when your agents operate across many sessions, facts in your domain evolve over time, and you need to answer temporal queries about what was true when. The 90% latency reduction over full-context approaches is real, but you are trading that for a graph database dependency and multi-LLM-call ingestion overhead.
 
 ## Related Concepts
 
-- [Agent Memory](../concepts/agent-memory.md)
-- [Episodic Memory](../concepts/episodic-memory.md)
-- [Knowledge Graph](../concepts/knowledge-graph.md)
-- [Hybrid Retrieval](../concepts/hybrid-retrieval.md)
-- [Memory Consolidation](../concepts/memory-consolidation.md)
-- [Context Engineering](../concepts/context-engineering.md)
+- [Agent Memory](../concepts/agent-memory.md) — the broader problem space
+- [Knowledge Graph](../concepts/knowledge-graph.md) — the core data structure
+- [Episodic Memory](../concepts/episodic-memory.md) — what the episode tier implements
+- [Semantic Memory](../concepts/semantic-memory.md) — what the entity tier implements
+- [Hybrid Search](../concepts/hybrid-search.md) — the retrieval approach
+- [BM25](../concepts/bm25.md) — one of the three search methods
+- [GraphRAG](../concepts/graphrag.md) — the batch-oriented alternative Graphiti explicitly contrasts against
+- [Retrieval-Augmented Generation](../concepts/rag.md) — the paradigm Zep extends

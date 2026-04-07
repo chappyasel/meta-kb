@@ -3,152 +3,200 @@ entity_id: neo4j
 type: project
 bucket: knowledge-bases
 abstract: >-
-  Neo4j is a property graph database used as the primary backend for knowledge
-  graph storage in agent memory systems and RAG pipelines, offering native graph
-  queries, vector search integration, and ACID compliance at scale.
+  Neo4j is a native graph database used as the primary backend for knowledge
+  graphs in agent memory systems, with the strongest Cypher query language and
+  ecosystem support among graph databases.
 sources:
   - repos/topoteretes-cognee.md
   - deep/repos/getzep-graphiti.md
-  - deep/repos/topoteretes-cognee.md
   - deep/repos/mem0ai-mem0.md
+  - deep/repos/topoteretes-cognee.md
   - deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
 related:
-  - OpenAI
-  - Semantic Memory
-  - Episodic Memory
-last_compiled: '2026-04-05T23:08:00.852Z'
+  - openai
+  - anthropic
+  - bm25
+  - knowledge-graph
+  - mem0
+  - graphrag
+last_compiled: '2026-04-07T11:45:28.869Z'
 ---
 # Neo4j
 
 ## What It Does
 
-Neo4j stores data as nodes, relationships, and properties — the native graph structure that makes it the default backend in most production knowledge graph systems for LLM agents. When Graphiti, Cognee, Mem0, and similar agent memory frameworks need to store entity relationships, temporal edges, and community structures, they reach for Neo4j first.
+Neo4j is a graph database management system that stores data as nodes, relationships, and properties rather than rows and tables. In AI agent systems, it serves as the storage layer for [knowledge graphs](../concepts/knowledge-graph.md) that enable [agent memory](../concepts/agent-memory.md) systems to persist facts, track entity relationships, and support multi-hop queries that flat vector stores cannot express.
 
-The key architectural distinction from relational and vector databases: queries traverse relationships without joins. A Cypher query that walks five hops through a knowledge graph is one operation, not five sequential index lookups. This matters for [Semantic Memory](../concepts/semantic-memory.md) and [Episodic Memory](../concepts/episodic-memory.md) workloads where the answer to a question lives in how entities connect, not in the text of any single document.
+The system's architectural differentiator is its native graph storage engine: relationships are stored as first-class objects with direct physical pointers between nodes, so graph traversal operations run in O(1) per relationship hop rather than requiring join operations across indexed tables. This property — called "index-free adjacency" — is what makes Neo4j genuinely fast for pattern matching queries that would be expensive in relational databases.
 
 ## How It Works
 
-### Property Graph Model
+### Storage Model
 
-Neo4j stores data as:
-- **Nodes** with labels (`EntityNode`, `EpisodicNode`, `CommunityNode`) and arbitrary properties
-- **Relationships** with types (`MENTIONS`, `RELATES_TO`, `HAS_MEMBER`) and properties including timestamps
-- **Properties** on both nodes and relationships (strings, numbers, datetimes, lists)
+Neo4j organizes data into:
+- **Nodes**: entities with one or more labels and arbitrary key-value properties
+- **Relationships**: directed, typed connections between two nodes, with their own properties
+- **Labels**: categorical tags on nodes (e.g., `:Person`, `:Company`, `:Entity`)
+- **Indexes**: B-tree indexes for property lookups, full-text Lucene indexes for text search, and vector indexes for embedding similarity
 
-Every node and relationship carries a unique internal ID. Cypher queries pattern-match over this structure: `MATCH (a:Entity)-[r:RELATES_TO]->(b:Entity) WHERE a.name = 'Alice' RETURN r, b`.
-
-### Storage Internals
-
-Neo4j uses a custom page-cached store format, not a general-purpose B-tree. Each node record contains a pointer to its first relationship. Each relationship record contains pointers to the previous and next relationship for both the source and target nodes — a doubly-linked list per node. Traversal hops directly follow these pointers without touching any index.
-
-Indexes support both lookup and vector similarity search. Since Neo4j 5.x, native vector indexes (backed by Lucene's HNSW implementation) allow cosine similarity queries inside Cypher:
-
-```cypher
-CALL db.index.vector.queryNodes('entity_embeddings', 10, $queryVector)
-YIELD node, score
-RETURN node.name, score
-```
-
-Full-text indexes use Lucene's BM25 for keyword search. Combining both in one query implements the hybrid retrieval that Graphiti, Cognee, and similar frameworks depend on.
-
-### APOC Plugin
-
-Most agent memory frameworks require Neo4j with APOC (Awesome Procedures on Cypher). APOC adds:
-- `apoc.merge.node` and `apoc.merge.relationship` for upsert operations without race conditions
-- Batch operations for bulk node/edge creation
-- Graph algorithms (path finding, centrality) beyond what native Cypher provides
-- Utility functions for datetime handling, JSON parsing, and string operations
-
-Graphiti's `Neo4jDriver` explicitly requires APOC for its `operations/` directory — the `build_indices_and_constraints()` call will fail on Neo4j without it.
+The physical storage uses doubly-linked lists of relationship records, allowing Neo4j to traverse from any node to its neighbors by following pointers rather than scanning indexes. This is the basis for the O(k) traversal complexity claim, where k is the number of nodes visited, not the size of the full database.
 
 ### Cypher Query Language
 
-Cypher is declarative and pattern-based. A query that retrieves bi-temporal edges between entities:
+Neo4j's query language Cypher uses ASCII-art pattern syntax to describe graph shapes:
 
 ```cypher
-MATCH (a:Entity {name: $source})-[r:RELATES_TO]->(b:Entity)
-WHERE (r.valid_at IS NULL OR r.valid_at <= $queryTime)
-AND (r.invalid_at IS NULL OR r.invalid_at > $queryTime)
-AND (r.expired_at IS NULL)
-RETURN a, r, b
-ORDER BY r.valid_at DESC
-LIMIT 10
+MATCH (alice:Person {name: "Alice"})-[:WORKS_AT]->(company:Company)
+RETURN company.name, company.industry
 ```
 
-This pattern — filtering on `valid_at`, `invalid_at`, and `expired_at` — implements the bi-temporal model that Graphiti uses to track how facts change over time. The query planner determines index usage automatically; explicit index hints are available when needed.
+More complex patterns for agent memory queries:
 
-## Role in Agent Memory Systems
+```cypher
+// Find all entities within 2 hops of Alice, excluding expired edges
+MATCH path = (alice:Entity {name: "Alice"})-[r*1..2]->(n)
+WHERE ALL(rel IN relationships(path) WHERE rel.valid IS NULL OR rel.valid = true)
+RETURN n.name, n.summary, length(path) as distance
+ORDER BY distance
+```
 
-Neo4j appears in three distinct roles across the LLM knowledge base ecosystem:
+Cypher also supports:
+- `MERGE` for upsert semantics (create if not exists, return if exists)
+- Full-text search via `db.index.fulltext.queryNodes()`
+- Vector similarity via `db.index.vector.queryNodes()`
+- Aggregation, path algorithms (shortest path, PageRank), and community detection via the Graph Data Science library
 
-**Graph backend for temporal knowledge graphs (Graphiti/Zep):** Graphiti uses `Neo4jDriver` as its primary backend. All entity nodes, episodic edges, and community nodes live in Neo4j. The bi-temporal edge model — with `valid_at`, `invalid_at`, `expired_at`, and `reference_time` on every `EntityEdge` — requires a database that can store arbitrary properties on relationships. Neo4j's relationship property support is a hard requirement here; many graph databases treat edges as property-less. The Graphiti `Neo4jDriver` implements 10+ operation files with predefined Cypher queries (never LLM-generated) for node creation, edge updates, temporal invalidation, and community management. The Zep paper's benchmarks showing +18.5% accuracy on LongMemEval and 90% latency reduction all ran on Neo4j 5.x with APOC. [Source](../raw/deep/repos/getzep-graphiti.md)
+### Indexing for Hybrid Search
 
-**Optional graph layer for vector-primary systems (Mem0):** Mem0's default storage is a vector store (Qdrant). Neo4j activates only when `graph_store.config` is provided. In this mode, `MemoryGraph` in `mem0/memory/graph_memory.py` stores entity-relationship triples alongside the main vector memories. Nodes are merged with Cypher `MERGE` statements; relationships use soft deletion (`r.valid = false`, `r.invalidated_at = datetime()`). The graph layer adds 3+ LLM calls per `add()` operation for entity extraction, relation establishment, and deletion checking. [Source](../raw/deep/repos/mem0ai-mem0.md)
+[GraphRAG](../concepts/graphrag.md) systems like [Graphiti](../projects/graphiti.md) use Neo4j's indexing capabilities for hybrid retrieval:
 
-**One of several graph backends (Cognee):** Cognee abstracts graph storage behind a `GraphDBInterface`, supporting Neo4j, Kuzu, AWS Neptune, Memgraph, and Kuzu-remote. Neo4j is a production option but not the default (Kuzu is). Cognee's `TripletSearchContextProvider` runs brute-force triplet search over whatever graph backend is configured — the traversal strategy does not change between backends. [Source](../raw/deep/repos/topoteretes-cognee.md)
+1. **Vector indexes** (available since Neo4j 5.11): Store high-dimensional embeddings on node or relationship properties and support cosine or Euclidean similarity queries
+2. **Full-text indexes** via embedded Lucene: Support BM25 scoring for lexical search across text properties
+3. **Property indexes**: B-tree lookups for exact matches on scalar properties
+
+The combination enables search functions that run cosine similarity, BM25, and breadth-first graph traversal in parallel, then merge results with [Reciprocal Rank Fusion](../concepts/reciprocal-rank-fusion.md) or cross-encoder reranking.
+
+### APOC Plugin
+
+The APOC (Awesome Procedures On Cypher) plugin adds over 450 utility procedures. Several agent memory systems require it:
+
+- `apoc.create.uuids()`: Generates UUIDs for node IDs
+- `apoc.do.when()`: Conditional execution within Cypher
+- `apoc.text.*`: String manipulation utilities
+- `apoc.periodic.iterate()`: Batch processing for large graph updates
+- `apoc.schema.assert()`: Creates multiple constraints and indexes in one call
+
+Graphiti's `build_indices_and_constraints()` call requires APOC, which is why it cannot run against Neo4j Aura Free (the cloud tier) without explicitly enabling the plugin.
+
+### Graph Data Science Library
+
+The GDS library adds graph algorithms including:
+- **Label propagation**: Community detection used by Cognee and Graphiti
+- **Leiden algorithm**: Higher-quality but more expensive community detection used by [GraphRAG](../concepts/graphrag.md)
+- **PageRank, Betweenness Centrality**: Node importance scoring for retrieval reranking
+- **Node similarity, Cosine similarity**: Similarity-based relationship inference
+
+## Usage in Agent Memory Systems
+
+### Graphiti / Zep
+
+[Graphiti](../projects/graphiti.md) uses Neo4j as its default and primary-tested backend. The `Neo4jDriver` class in `graphiti_core/driver/neo4j_driver.py` implements the `GraphDriver` interface with operations in `graphiti_core/driver/neo4j_driver/operations/`. Key operations:
+
+- **Bulk node creation**: Uses `UNWIND` + `MERGE` to create or update multiple nodes in one round-trip
+- **Edge invalidation**: Sets `expired_at` on edges without deleting them, using `MATCH ... SET r.expired_at = $timestamp`
+- **Bi-temporal queries**: Filters on both `valid_at`/`invalid_at` (event time) and `expired_at` (transaction time)
+- **Community detection**: Calls GDS label propagation procedures
+
+The Zep paper (arXiv:2501.13956) reports that using predefined Cypher queries rather than LLM-generated ones "ensures consistent schema and reduces hallucinations." All write paths use parameterized Cypher, never string interpolation.
+
+Connection requirements: Neo4j 5.26+ with APOC plugin and vector index support.
+
+### Mem0
+
+[Mem0](../projects/mem0.md)'s graph layer (`mem0/memory/graph_memory.py`) uses Neo4j via `langchain_neo4j`. The integration is optional — activated only when `graph_store.config` is provided. It stores entity nodes and typed relationships, using `MERGE` for upsert and soft deletion (`SET r.valid = false, r.invalidated_at = datetime()`) for contradicted relationships.
+
+Mem0's graph queries are generated with the help of LangChain's Neo4j integration rather than raw Cypher, introducing a layer of abstraction that Graphiti explicitly avoids.
+
+### Cognee
+
+[Cognee](../projects/graphiti.md) supports Neo4j as one of six graph backends (Kuzu is the default for development; Neo4j for production). Its `GraphDBInterface` implementation handles node and edge CRUD with relationship type inference from DataPoint field names. The integration supports the APOC plugin for batch operations and uses Neo4j's vector indexes for `feedback_weight`-weighted retrieval.
 
 ## Key Numbers
 
-- **Stars:** Not a GitHub repo — commercial product with open-source Community Edition
-- **Neo4j Community Edition:** Free, single-instance, limited cluster support
-- **Neo4j Enterprise:** Licensed, full clustering (causal cluster), multi-database, security features
-- **AuraDB:** Managed cloud service with free tier (limited storage and memory), Professional tier, and Enterprise tier
-- **Vector index limit:** Up to ~10M vectors in a single index before performance degrades (reported by practitioners; not officially benchmarked at this scale)
-- **Graphiti benchmark on Neo4j:** 94.8% accuracy on DMR, 71.2% on LongMemEval (gpt-4o), 3.2s query latency vs 28.9s baseline — self-reported in the Zep paper but methodology is detailed and reproducible [Source](../raw/deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)
+- **Stars**: ~14,000 (GitHub, self-reported; not independently validated)
+- **Supported since Neo4j 5.x**: Native vector indexes, eliminating need for a separate vector database for embedding search
+- **Concurrent connections**: Configurable connection pool, recommended 50-100 for typical agent workloads
+- **Query language**: Cypher (proprietary, adopted as part of ISO GQL standard in 2024)
+
+Benchmarks from agent memory papers:
+- Graphiti on LongMemEval: 63.8-71.2% accuracy with Neo4j backend vs 55.4-60.2% full-context baseline (independently validated in the Zep paper; Neo4j-specific contribution is not isolated)
+- Latency reduction: 90% reduction in response latency (115k → ~1.6k tokens) using Neo4j-backed graph retrieval vs full-context approach
+
+These numbers reflect the full Graphiti/Zep stack, not Neo4j in isolation.
 
 ## Strengths
 
-**Relationship properties:** Neo4j stores arbitrary key-value properties on edges, not just on nodes. This is non-trivial — many graph databases (including some NewSQL systems) treat edges as property-less pointers. Temporal agent memory requires timestamps, scores, and provenance fields on relationships. Neo4j supports this natively.
+**Index-free adjacency**: Traversal from a node to its neighbors does not require index lookups. For 2-3 hop graph traversals typical in agent memory retrieval, this is meaningfully faster than equivalent SQL joins on large datasets.
 
-**Hybrid search in one query:** Combining vector similarity, BM25 full-text, and graph traversal inside a single Cypher query reduces round trips. Graphiti's search pipeline runs all three in parallel against Neo4j without coordinating across separate services.
+**Cypher expressiveness**: Writing queries like "find all facts about Alice and her direct relationships, excluding expired edges, sorted by recency" requires one Cypher statement. The equivalent SQL across multiple tables is substantially more complex.
 
-**ACID transactions:** Multi-node, multi-edge writes commit atomically. When Graphiti saves an episode's extracted entities, relationships, and community updates, they either all commit or none do. This matters for knowledge graph consistency — a partial write that creates a node without its edges corrupts the graph structure.
+**Hybrid indexing in one system**: Vector indexes (for embedding similarity), full-text Lucene indexes (for BM25), and property indexes (for exact lookups) coexist in one database. This eliminates the need to synchronize data across Neo4j + a separate vector database.
 
-**APOC ecosystem:** The plugin provides upsert primitives (`apoc.merge.node`) that eliminate write-write race conditions in concurrent ingestion pipelines. Without upsert support, concurrent entity extraction can create duplicate nodes.
+**Community detection via GDS**: The Graph Data Science library provides production-ready implementations of label propagation and Leiden, which community-detection features in Graphiti and GraphRAG use directly rather than re-implementing.
 
-**Mature Cypher tooling:** Query profiling (`EXPLAIN`, `PROFILE`), index management, and schema constraints are production-grade. Adding a uniqueness constraint on entity names is one Cypher statement; adding a vector index is another.
+**Mature ecosystem**: Official drivers for Python, Java, JavaScript, Go, .NET. The `neo4j` Python driver is well-maintained and used by all three major agent memory libraries (Graphiti, Mem0, Cognee). The `langchain_neo4j` package handles LangChain integration.
 
 ## Critical Limitations
 
-**Infrastructure requirement for development:** Running Neo4j locally requires either Docker or a JVM installation. The APOC plugin adds another configuration step. Frameworks that default to Neo4j (Graphiti) produce confusing errors when APOC is absent. Compare to Kuzu (Cognee's default), which runs embedded with no external process. For local development, this is a meaningful friction point.
+**Failure mode — Schema drift under concurrent writes**: Neo4j does not enforce relationship schema constraints (only node property constraints with `CREATE CONSTRAINT`). In multi-threaded agent systems, concurrent `add_episode()` calls for the same user can create duplicate nodes or inconsistent relationship states. Graphiti uses `semaphore_gather` with a configurable `SEMAPHORE_LIMIT` to control concurrency, but there is no database-level locking on the entity resolution step. Two concurrent episodes mentioning "Alice" may each independently merge to different node representations before the other's merge runs.
 
-**Unspoken assumption — write scaling:** Neo4j Community Edition is single-instance. The Enterprise clustering model (causal cluster) requires at least three nodes for write consensus. Systems that use Neo4j as a knowledge graph backend typically assume single-writer, single-reader topology. Graphiti's `add_episode()` does not implement sharding or distributed write coordination — it assumes one Neo4j instance per `group_id` namespace. At high ingestion rates (hundreds of episodes per minute), a single Neo4j instance becomes a bottleneck before vector stores do.
+**Infrastructure assumption — APOC is not always available**: Graphiti explicitly requires APOC, which is disabled by default on Neo4j Aura Free. This assumption is not stated in top-level documentation and causes silent failures on cloud deployments. Teams moving from local development (where they control APOC installation) to managed cloud Neo4j need to explicitly enable APOC or switch to Aura Enterprise.
 
-**Concrete failure mode — community detection at scale:** Graphiti's `get_community_clusters()` issues one Cypher query per entity node to count edge weights before running label propagation. On a graph with 50,000 entity nodes, this is 50,000 sequential queries. Neo4j does not parallelize these internally; the Python driver must await each. Community detection becomes unusable at this scale without batching the edge-count queries, which Graphiti does not do. This is documented nowhere in Graphiti's README or Neo4j's documentation.
+## When Not to Use It
 
-## When NOT to Use Neo4j
+**Small-scale or prototype workloads**: Neo4j requires a running server process with minimum ~1GB heap (2-4GB recommended). If your agent deployment stores fewer than ~100,000 nodes or doesn't need multi-hop traversal, Kuzu (embedded, zero-server) or SQLite with graph logic in application code is cheaper and simpler to operate.
 
-**When the graph is a thin wrapper over vectors:** If your retrieval is 95% vector similarity and 5% relationship traversal, Neo4j's operational overhead (process management, APOC, Cypher learning curve) does not pay off. Use Qdrant or PGVector with a flat metadata schema instead.
+**Pure embedding search workloads**: If your retrieval pattern is "find the top-k semantically similar facts to this query" without relationship traversal, a dedicated [vector database](../concepts/vector-database.md) like [Qdrant](../projects/qdrant.md) or [ChromaDB](../projects/chromadb.md) will outperform Neo4j on raw throughput and cost less to operate.
 
-**When you need sub-10ms write latency at high throughput:** Neo4j's ACID transactions add latency per write. For event-streaming workloads ingesting thousands of agent events per second, a purpose-built time-series store or a message queue with async Neo4j writes is the right pattern. Synchronous Graphiti ingestion (4-5 LLM calls + Neo4j writes per episode) is already slow; adding write contention makes it worse.
+**Teams without Cypher expertise**: LLM-generated Cypher is unreliable (which is why Graphiti explicitly avoids it). If your team cannot write and debug Cypher queries directly, the abstraction layers in LangChain Neo4j or OGM libraries add complexity without the performance benefits.
 
-**When the deployment environment is resource-constrained:** Neo4j requires at least 1-2 GB RAM in practice, more for large graphs. Edge deployments, embedded mobile applications, and serverless environments with memory limits under 512 MB cannot run Neo4j. Kuzu (embedded, column-oriented) is the correct choice in these environments.
-
-**When your team lacks Cypher expertise:** LLM-generated Cypher is unreliable — Graphiti explicitly chose predefined queries over LLM-generated ones for this reason. If no one on the team can read and debug Cypher, query performance issues and schema problems will be opaque.
+**Cost-sensitive serverless deployments**: Neo4j Aura pricing is based on memory allocation, and the minimum production tier (~$65/month as of 2024) is significant compared to serverless alternatives. For intermittent or bursty agent workloads, the always-on server cost is inefficient.
 
 ## Unresolved Questions
 
-**Cost at scale for AuraDB:** AuraDB pricing scales with memory allocation, not query count. A knowledge graph with 10M entity nodes and 50M relationships requires substantial memory allocation. Published pricing is available for small tiers; enterprise contracts are negotiated privately. Teams building on managed Neo4j without understanding the memory-to-cost curve can see unexpected bills as graphs grow.
+**License ambiguity at scale**: Neo4j is dual-licensed: Community Edition (GPL v3, requires open-sourcing derivatives in some interpretations) and Enterprise Edition (commercial). The GPL v3 scope for server-side applications using the driver protocol (rather than embedding Neo4j code) is ambiguous. Production deployments typically use Enterprise via AuraDB, but cost and terms are not publicly published — you negotiate pricing.
 
-**Conflict resolution across group_id namespaces:** Graphiti uses `group_id` to create isolated graph namespaces within one Neo4j instance. If two namespaces contain conflicting information about the same real-world entity (e.g., two users have different records for the same company), there is no cross-namespace reconciliation mechanism. The documentation does not address this.
+**Vector index maturity vs. dedicated vector DBs**: Native vector indexes arrived in Neo4j 5.11 (late 2023). Performance benchmarks comparing Neo4j vector search against dedicated vector databases at scale are not published. The convenience of having both in one system may come at a retrieval throughput cost that matters at high query volumes.
 
-**Neo4j 5.x vs 4.x compatibility:** Graphiti requires Neo4j 5.26+. The vector index API, APOC version compatibility, and some Cypher syntax changed between major versions. Existing Neo4j 4.x deployments cannot use Graphiti without upgrading. The migration path is documented by Neo4j but not by Graphiti.
+**Community detection refresh scheduling**: Graphiti's documentation acknowledges that incrementally updated label propagation communities "gradually diverge from full recomputation results, requiring periodic refreshes," but does not specify when or how expensive a full GDS label propagation run is at scale. This is an operational gap for production deployments.
 
-**Graph compaction and garbage collection:** Graphiti's bi-temporal model marks contradicted edges as expired but never deletes them. Neo4j's storage grows monotonically with the number of invalidated edges. There is no built-in compaction; periodic `MATCH (r:RELATES_TO) WHERE r.expired_at IS NOT NULL AND r.expired_at < $cutoff DELETE r` queries must be scheduled manually. No framework documents this maintenance requirement.
+**Multi-tenant isolation overhead**: Neo4j's built-in multi-tenancy uses separate databases per tenant (Enterprise only). Graphiti's `group_id` approach uses query filters on shared storage, which is cheaper but means all tenant data shares the same indexes. At high tenant counts, index scan overhead and potential cross-tenant data leakage via mis-scoped queries are uncharacterized.
 
 ## Alternatives
 
-**[Kuzu](https://kuzudb.com):** Embedded, column-oriented graph database. Cognee defaults to it. No external process, no Docker, no APOC. Kuzu edges cannot carry arbitrary properties the same way Neo4j can — Graphiti models this by treating edges as intermediate nodes in Kuzu. Use Kuzu when you need embedded graph storage for development or single-process deployments.
+**[Kuzu](../projects/graphiti.md)** (embedded, Apache 2.0): Zero-server graph database with Cypher-compatible query language. Graphiti supports it as an alternative backend. Use Kuzu when you want graph capabilities without a server process, or for single-developer deployments. Kuzu models edges as intermediate nodes, requiring schema adjustments, but the operational simplicity is significant.
 
-**FalkorDB:** Redis-compatible graph database supporting a subset of Cypher (openCypher). Graphiti supports it as an alternative backend. Lower operational overhead than Neo4j; less mature ecosystem and tooling. Use FalkorDB when you want lower infrastructure footprint and can accept a smaller feature surface.
+**FalkorDB** (Redis-based graph database): Lower latency for simple pattern queries, Redis-compatible deployment. Graphiti supports it. Use FalkorDB when you're already running Redis and want graph queries on that infrastructure.
 
-**AWS Neptune:** Managed graph database supporting both Gremlin and SPARQL. Graphiti and Cognee both support it. No JVM management, native AWS IAM integration. Requires OpenSearch Serverless for full-text search (separate service). Use Neptune when you're on AWS and need managed infrastructure; expect higher per-query latency than self-hosted Neo4j.
+**[PostgreSQL](../projects/postgresql.md) with Apache AGE**: SQL + graph queries in one database using the AGE extension. Cognee supports Apache AGE. Use when your team is PostgreSQL-native and you want to avoid a separate graph database. AGE's Cypher support is partial and less mature than Neo4j's.
 
-**Memgraph:** In-memory graph database with full Cypher support and MAGE (algorithm library, analogous to APOC). Cognee supports it. Faster query performance than Neo4j for in-memory workloads; data durability requires explicit snapshot configuration. Use Memgraph when query latency matters more than durability guarantees.
+**AWS Neptune**: Managed graph database supporting both property graphs (Gremlin/openCypher) and RDF (SPARQL). Graphiti and Cognee both support it. Use Neptune when you're AWS-native and want a fully managed graph database with no infrastructure to operate. Cost is substantially higher than self-hosted Neo4j.
 
-**PostgreSQL with AGE or pgvector:** Apache AGE adds graph query support to PostgreSQL via Cypher. pgvector adds vector similarity. Running both in one Postgres instance eliminates the separate graph database process. Use this when your team already runs Postgres and the graph is not the primary query pattern.
+**[Elasticsearch](../projects/elasticsearch.md)**: Not a graph database, but relevant for the hybrid search case. Elasticsearch's `more_like_this` and graph explore API provide some graph-like query patterns on top of inverted indexes. Use Elasticsearch when your primary need is text search with lightweight relationship filtering, not structural graph traversal.
+
+**Selection guidance**: Use Neo4j when you need production-grade graph traversal with Cypher expressiveness, have the infrastructure budget for a persistent server, and your team can write and maintain Cypher. Use Kuzu for development or single-deployment scenarios. Use Neptune when you need fully managed infrastructure on AWS. Use a vector database directly when multi-hop graph traversal is not in your query patterns.
 
 ## Related Concepts
 
-- [Semantic Memory](../concepts/semantic-memory.md)
-- [Episodic Memory](../concepts/episodic-memory.md)
+- [Knowledge Graph](../concepts/knowledge-graph.md): The data model Neo4j implements
+- [GraphRAG](../concepts/graphrag.md): Retrieval pattern that uses graph structure for multi-hop reasoning
+- [Hybrid Search](../concepts/hybrid-search.md): Combining Neo4j's vector, full-text, and graph traversal indexes
+- [Agent Memory](../concepts/agent-memory.md): The application layer that uses Neo4j for persistence
+- [Entity Extraction](../concepts/entity-extraction.md): The pipeline stage that populates Neo4j with entities and relationships
+
+## Related Projects
+
+- [Graphiti](../projects/graphiti.md): Most sophisticated Neo4j consumer in agent memory; bi-temporal knowledge graph
+- [Mem0](../projects/mem0.md): Uses Neo4j optionally for its graph memory layer
+- [LangChain](../projects/langchain.md): Provides `langchain_neo4j` integration used by Mem0
+- [LlamaIndex](../projects/llamaindex.md): Provides Neo4j graph store integration for document RAG pipelines

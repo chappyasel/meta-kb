@@ -3,161 +3,147 @@ entity_id: qdrant
 type: project
 bucket: knowledge-bases
 abstract: >-
-  Qdrant is an open-source vector database written in Rust, optimized for
-  high-throughput similarity search over dense embeddings with built-in payload
-  filtering, named vectors, and a Rust-native HNSW implementation that
-  prioritizes search speed over ingestion flexibility.
+  Qdrant is a Rust-built vector database offering filtered ANN search with
+  payload-based conditions, targeting production RAG and AI systems where hybrid
+  search and deployment flexibility matter.
 sources:
   - repos/nemori-ai-nemori.md
   - repos/yusufkaraaslan-skill-seekers.md
-  - deep/repos/topoteretes-cognee.md
   - deep/repos/mem0ai-mem0.md
+  - deep/repos/topoteretes-cognee.md
 related:
+  - postgresql
   - openai
-last_compiled: '2026-04-06T02:08:37.624Z'
+last_compiled: '2026-04-07T11:48:07.429Z'
 ---
 # Qdrant
 
-**Type:** Project — Vector Database / Similarity Search Engine
-**Bucket:** Knowledge Bases
-**GitHub:** [qdrant/qdrant](https://github.com/qdrant/qdrant)
-**Stars:** ~22,000 (as of mid-2025, self-reported growth metrics)
-**Language:** Rust
+**Type:** Project — Knowledge Base Infrastructure
+**Category:** Vector Database
+**Repository:** [qdrant/qdrant](https://github.com/qdrant/qdrant)
 **License:** Apache 2.0
-**Cloud offering:** Qdrant Cloud (managed), self-hosted free
-
----
+**Stars:** ~22,000 (GitHub, as of mid-2025)
 
 ## What It Does
 
-Qdrant stores high-dimensional vectors (embeddings) and retrieves the nearest neighbors to a query vector, fast. It runs as a standalone HTTP/gRPC service, so your application calls it over a network connection rather than embedding it in-process.
+Qdrant stores high-dimensional vectors alongside arbitrary JSON payloads and serves approximate nearest-neighbor (ANN) queries against both simultaneously. The defining capability is **filtered search**: a query can restrict results to vectors whose payload fields satisfy conditions (range, match, geo-radius, null check) without post-filtering — the filter gets applied inside the HNSW traversal, so result counts are guaranteed.
 
-The primary use case is [Retrieval-Augmented Generation](../concepts/rag.md): you embed your documents, store the vectors in Qdrant with attached metadata (the "payload"), and at query time you embed the question, run a nearest-neighbor search, and inject the retrieved chunks into an LLM prompt. Qdrant also fits agent memory architectures where [semantic memory](../concepts/semantic-memory.md) needs fast approximate retrieval at scale.
-
----
-
-## Architectural Differentiators
-
-**Rust core.** Qdrant is written entirely in Rust. This eliminates Python's GIL, gives tight control over memory layout, and enables the team to hand-tune their HNSW graph implementation rather than wrapping a C library like hnswlib. The tradeoff: the codebase is harder to fork or patch for users without Rust experience.
-
-**Named vectors.** A single point (document chunk) can carry multiple named vector fields — e.g., `{"dense": [...], "sparse": [...], "colbert": [...]}`. This enables [hybrid retrieval](../concepts/hybrid-retrieval.md) within a single collection without managing multiple indexes externally. You query each named vector separately and combine scores client-side or via Qdrant's built-in fusion operators.
-
-**Payload filtering during HNSW traversal.** Most vector databases filter after search: retrieve top-K candidates, then filter by metadata. Qdrant filters *during* graph traversal, pruning branches that can't satisfy the filter condition. For high-selectivity filters (e.g., "only documents from tenant X" in a multi-tenant setup), this substantially reduces scanned vectors. The implementation lives in `src/segment/src/index/hnsw_index/` — specifically the `HNSWIndex` struct's `search_with_graph` method which accepts a `Filter` at traversal time.
-
-**Sparse vector support (SPLADE/BM25).** Qdrant natively indexes sparse vectors as a separate index type (`SparseVectorConfig`), enabling [BM25](../concepts/bm25.md)-style keyword retrieval alongside dense semantic search. This makes true hybrid search possible without a separate Elasticsearch or OpenSearch instance.
-
-**Segment architecture.** Collections are divided into segments, each an independent HNSW index. Segments are sealed (immutable, memory-mapped) or appendable (in-memory buffer). New writes go to the appendable segment; background optimization merges and seals them. This design means writes don't degrade search on the sealed segments, but it also means freshly inserted vectors may live in a less-optimized structure until the next optimizer cycle.
-
----
+Built in Rust, Qdrant ships as a single binary or Docker image. It runs embedded (in-process via the Python `qdrant-client` local mode), as a self-hosted server, or as a managed cloud service. This deployment spectrum is the most complete of the major vector databases — [FAISS](../projects/faiss.md) is library-only, [Pinecone](../projects/pinecone.md) is cloud-only, and [ChromaDB](../projects/chromadb.md) targets local/dev more than production scale.
 
 ## Core Mechanism
 
-**Collection → Points → Vectors + Payload.** The fundamental data model: a *collection* holds *points*, each with a UUID, one or more named vectors, and a JSON *payload* (arbitrary metadata for filtering and return). No schemas required.
+### Data Model
 
-**HNSW indexing.** Qdrant builds a Hierarchical Navigable Small World graph per named vector per segment. The relevant source directory is `lib/segment/src/index/hnsw_index/`. The `HnswGraphLayersBuilder` constructs the multi-layer graph during indexing. At search time, `HNSWIndex::search_with_graph` enters at the top layer, greedily descends toward the query, and at the bottom layer collects candidates — all while respecting the filter predicate on each candidate point's payload.
+The top-level unit is a **collection** — a named set of points sharing a vector configuration. Each **point** contains:
 
-**Quantization.** Qdrant supports scalar quantization (SQ8), product quantization (PQ), and binary quantization. Quantized vectors live in a compressed on-disk format; a rescore step uses original vectors for final ranking. Quantization reduces RAM requirements and increases throughput at the cost of recall — the `hnsw_config.ef` parameter controls the recall-speed tradeoff during search.
+- `id`: UUID or unsigned integer
+- `vector`: one or more named dense vectors, sparse vectors, or multi-vectors
+- `payload`: arbitrary JSON document, indexable
 
-**WAL + snapshots.** Writes first go to a Write-Ahead Log, then apply to the appendable segment. Snapshots serialize a collection to a portable archive for backup or migration. The optimizer runs background merges asynchronously.
+Collections support multiple named vectors per point (e.g., `title_embedding` and `body_embedding` on the same document), enabling separate embedding spaces queried independently or together.
 
-**Distributed mode.** Qdrant shards collections across nodes. Each shard is a self-contained set of segments. A leader node routes queries to the appropriate shards and merges results. Replication factor is configurable per collection.
+### Indexing
 
----
+Qdrant uses **HNSW** (Hierarchical Navigable Small World graphs) as its primary ANN structure, with two complementary indexes:
+
+- **Vector index**: HNSW built incrementally as points are inserted. Key parameters: `m` (number of edges per node, default 16) and `ef_construct` (search width during construction, default 100). Higher values increase recall at the cost of memory and build time.
+- **Payload index**: Per-field indexes (keyword, integer, float, geo, datetime, text with BM25) created explicitly via `create_payload_index`. Without these, payload filtering works via brute-force scan of HNSW candidates.
+
+The HNSW-with-filter combination is Qdrant's core technical contribution versus libraries like FAISS. FAISS performs ANN then post-filters, meaning a query for "top 10 results where category=X" may require fetching thousands of candidates to find 10 that pass the filter. Qdrant's filtered HNSW integrates payload conditions into graph traversal, providing accurate top-k with guaranteed count.
+
+### Storage
+
+Qdrant separates vector storage from payload storage:
+
+- Vectors: stored in memory-mapped files (`*.bin`) or in RAM, configurable per collection
+- Payloads: stored in RocksDB or in-memory
+- **On-disk storage**: collections can be configured with `on_disk: true` for vectors, reducing RAM requirements at the cost of latency
+
+Vectors support quantization (scalar, binary, product) to reduce memory footprint. Scalar quantization to int8 cuts memory 4x with ~1% recall loss in typical benchmarks.
+
+### Hybrid Search
+
+Qdrant supports [hybrid search](../concepts/hybrid-search.md) combining dense and sparse vectors. Sparse vectors (compatible with BM25-style representations like SPLADE) live alongside dense vectors in the same collection. [Reciprocal Rank Fusion](../concepts/reciprocal-rank-fusion.md) or weighted sum merges the result sets. This is the primary mechanism for combining semantic similarity with keyword matching in [RAG](../concepts/rag.md) pipelines.
+
+### Distributed Mode
+
+For scale, Qdrant runs as a cluster. Collections are sharded across nodes; each shard can have replicas. Writes go to a leader shard; reads can fan out to replicas. The distributed mode requires explicit setup — it is not automatic with Docker Compose.
+
+### Versioning and Snapshots
+
+Collections support snapshots (point-in-time exports to `.snapshot` files) for backup and migration. The REST and gRPC APIs expose full CRUD plus bulk operations (`upsert`, `delete`, `update_vectors`).
 
 ## Key Numbers
 
-| Metric | Value | Credibility |
-|---|---|---|
-| GitHub stars | ~22,000 | Public, independently verifiable |
-| ANN Benchmarks (recall@10, 1M vectors, 768-dim) | 0.95+ recall at ~2,000 QPS on single node | Self-reported in Qdrant blog posts; independently benchmarked at [ann-benchmarks.com](https://ann-benchmarks.com) — results vary by hardware |
-| Qdrant Cloud free tier | 1GB RAM, 1 node | Self-reported |
-| Max vector dimensions | 65,535 | From source code (`src/common/src/types.rs`) |
+| Metric | Value | Source |
+|--------|-------|--------|
+| GitHub stars | ~22,000 | GitHub (independently verifiable) |
+| Default HNSW `m` | 16 | Source code / docs |
+| Default `ef_construct` | 100 | Source code / docs |
+| Scalar quantization memory reduction | ~4x | Self-reported, plausible from int8 math |
+| Cloud regions | 3 (AWS, GCP, Azure) | Qdrant docs |
 
-ANN Benchmarks (ann-benchmarks.com) includes Qdrant in standard test suites — this is one of the few vector databases with independent third-party benchmark coverage. Results confirm competitive recall/speed tradeoffs, though exact numbers depend on the dataset, ef_construction settings, and hardware.
-
----
+Qdrant publishes ANN benchmarks at [ann-benchmarks.com](https://ann-benchmarks.com) entries and their own benchmark site. These are self-reported or run by the Qdrant team on their infrastructure. Independent reproduction by third parties (e.g., Zilliz's benchmark comparisons) shows Qdrant competitive with Weaviate and Milvus on filtered search, typically 10-30ms P95 at 1M vectors with in-memory storage. Treat any specific number as directional, not a guarantee for your hardware and access pattern.
 
 ## Strengths
 
-**Filtering performance at high selectivity.** When your query needs both semantic similarity *and* a tight metadata condition (user ID, date range, language code), Qdrant's filtered HNSW traversal consistently outperforms post-filter approaches. This is the clearest architectural advantage over systems that bolt filtering onto a standard HNSW library.
+**Filtered ANN is genuinely better.** For [RAG](../concepts/rag.md) use cases that filter by metadata — user ID, document date, category, tenant — Qdrant's integrated filtering avoids the candidate-bloat problem. This is measurable: at 90% selectivity (10% of points match a filter), post-filter ANN requires ~10x more candidates to return k valid results. Qdrant's approach does not.
 
-**Multi-tenant isolation without multiple collections.** Payload filtering plus named tenant fields lets you serve thousands of tenants from a single collection. Alternatives often push you toward per-tenant collections, which creates collection proliferation and management overhead.
+**Deployment flexibility.** The same API works for an embedded Python process (local development, testing), a single Docker container (small production), and a multi-node cluster (high-volume). This means development code runs in production without adapter changes. Most alternatives force a choice between local library and cloud service.
 
-**Hybrid retrieval without external systems.** Named vectors + sparse vector support means you can run dense semantic search and sparse keyword search in the same query, with Qdrant's reciprocal rank fusion combining scores. Competitors like [ChromaDB](../projects/chromadb.md) lack native sparse vector support and require external keyword indexes.
+**Rust performance characteristics.** Memory usage is predictable; there are no JVM pauses or Python GIL constraints in the hot path. Cold-start times are fast.
 
-**Stable REST and gRPC APIs.** The OpenAPI spec is comprehensive and versioned. Client libraries exist for Python, JavaScript/TypeScript, Go, Rust, Java, and .NET. The Python client (`qdrant-client`) is the most actively maintained and covers the full API surface.
+**Named vector support.** Multi-vector per point, with separate index parameters per vector, handles architectures like ColBERT-style late interaction or separate title/body embedding without duplicating points.
 
-**Production operational model.** Qdrant runs as a Docker container or binary, persists data to disk by default, and supports multi-node replication. It behaves like a database, not a library — appropriate for production deployments where the service needs to survive restarts.
-
----
+**Client ecosystem.** Official clients for Python, JavaScript/TypeScript, Rust, Go, and .NET. The Python client supports both HTTP and gRPC transports.
 
 ## Critical Limitations
 
-**Concrete failure mode — optimizer lag during bulk ingestion.** Qdrant's segment optimizer runs asynchronously. When you bulk-insert a large corpus (hundreds of thousands of vectors), newly inserted points sit in unoptimized appendable segments until the optimizer catches up. During this window, search recall can drop measurably because HNSW quality on the appendable segment is lower. Workaround: wait for `optimizers_status.ok` in the collection info endpoint before running production queries. Many teams hit this when loading initial datasets and see poor results, not realizing the index isn't fully built.
+**Concrete failure mode — large payload writes under load.** Qdrant batches payload updates through RocksDB. Under high concurrent write rates with large payloads (>10KB JSON per point), write amplification can cause P99 write latency spikes that do not appear in benchmarks run at lower concurrency. This is a known RocksDB compaction behavior, not Qdrant-specific, but Qdrant's architecture does not expose tuning knobs for RocksDB compaction at the collection level — you get the defaults. Workloads that update payloads frequently (e.g., updating user session state on every interaction) should benchmark this specific pattern before committing to Qdrant.
 
-**Unspoken infrastructure assumption — memory sizing.** HNSW graphs are stored in RAM for active segments. At 768-dimensional float32 vectors, rough estimate: 1M vectors ≈ 3-4GB RAM for the index alone, before payload. Qdrant Cloud's free tier (1GB RAM) handles roughly 200K-300K vectors at this dimension. Teams that start on the free tier and scale without re-planning RAM hit OOM restarts. The documentation mentions this but doesn't provide explicit sizing calculators, so teams discover it at scale.
-
----
+**Unspoken infrastructure assumption — RAM for in-memory collections.** Qdrant's default collection configuration stores vectors in memory-mapped files, but production recommendations and benchmark configurations often use `on_disk: false` (full in-memory) for best latency. At 1536 dimensions (OpenAI `text-embedding-3-small`) and float32, 1 million vectors require ~6GB RAM for vectors alone, before payload, HNSW graph, or OS overhead. Many teams undersize initial deployments because they test with smaller vector counts or use disk storage, then hit latency cliffs at scale. The documentation mentions on-disk storage but does not prominently surface the RAM math.
 
 ## When NOT to Use It
 
-**Very small datasets (under ~50K vectors).** The HNSW index has a build cost and memory floor. For small datasets, brute-force exact search is faster to implement, zero infrastructure overhead, and competitive on latency. [ChromaDB](../projects/chromadb.md) running in-process is simpler and adequate.
+**Heavy relational queries with vector as secondary.** If your application primarily queries by structured attributes (user ID, date range, category) and uses vector similarity as a tiebreaker or optional enhancement, a database with pgvector ([PostgreSQL](../projects/postgresql.md)) gives you SQL joins, transactions, and full ACID semantics with acceptable vector search performance. Qdrant forces you to maintain payload synchronization with a source-of-truth database, adding a consistency surface.
 
-**Embedded/in-process use.** Qdrant runs as a service. If your application needs to ship a single binary or run in environments where a separate network service is impossible (edge devices, serverless with tight cold-start budgets), Qdrant is wrong. Use [ChromaDB](../projects/chromadb.md)'s ephemeral in-memory mode or a library like `usearch`.
+**Sub-10ms SLA at 10M+ vectors without hardware budget.** At very large scale with strict latency requirements, Qdrant's single-process architecture hits limits that dedicated systems like Milvus (which separates storage, indexing, and query into independent scalable components) handle more gracefully. If you need horizontal read scaling without resharding, Milvus or Pinecone's architecture fits better.
 
-**Teams that need a Python-native extensibility model.** Qdrant's Rust core means you cannot extend it in Python. You cannot add custom distance functions, custom index types, or custom scoring logic without forking the Rust codebase. Systems like Weaviate or LanceDB offer more accessible extensibility points.
+**Transactional workloads.** Qdrant has no multi-point transactions. Writes are eventually consistent in distributed mode. Applications that need "upsert vectors and update relational record atomically" will implement compensating logic or accept failure windows.
 
-**Workloads requiring SQL joins.** Qdrant has no relational query capability. If your retrieval needs involve complex multi-collection joins or aggregations, you need a vector extension on a relational DB (pgvector on PostgreSQL) rather than a pure vector database.
-
-**Heavy write throughput with low read latency simultaneously.** The segment/optimizer architecture optimizes for read-heavy workloads. Systems that require both continuous high-volume writes *and* sub-millisecond search latency on the freshest data will experience tension between the two, because fresh vectors live in less-optimized segments.
-
----
+**Prototype with budget constraints on API keys.** The embedded local mode is convenient for development, but the Qdrant Cloud free tier (1 cluster, limited storage) is less generous than Pinecone's free tier for early validation. For budget-constrained prototyping, [ChromaDB](../projects/chromadb.md) or an in-memory FAISS index is simpler.
 
 ## Unresolved Questions
 
-**Cost at scale on Qdrant Cloud.** Qdrant Cloud pricing is consumption-based, but the public pricing page uses resource units (RAM, CPU) rather than simple per-vector fees. Teams running multi-tenant workloads with variable load patterns have reported difficulty predicting monthly costs before observing actual usage.
+**Collection-level access control.** Qdrant supports API keys at the instance level and read-only keys, but not per-collection authorization. Multi-tenant deployments must either run separate Qdrant instances per tenant (expensive) or implement tenant isolation via payload filters (requires trusting the application layer to always apply the filter). The roadmap has mentioned collection-level permissions but this was not shipped as of mid-2025.
 
-**Conflict resolution in distributed mode.** The documentation describes replication but does not specify the consistency model precisely. Is it eventual consistency or does a write require acknowledgment from N replicas? The source code suggests configurable write consistency (`WriteOrdering`), but the default behavior and failure semantics during network partitions are underdocumented.
+**Cost at scale on managed cloud.** Qdrant Cloud pricing is compute-plus-storage, but the cost model for a 50M-vector corpus with 10K QPS is not transparently documented without contacting sales. The free tier and small-cluster pricing are public; enterprise pricing is not. Teams scaling past ~5M vectors should request quotes before architectural commitment.
 
-**Long-term governance.** Qdrant GmbH controls the project. The Apache 2.0 license is permissive, but the company could relicense future versions or move features to a proprietary cloud tier (a pattern seen with other infrastructure companies). No community governance structure is documented.
+**Conflict resolution in distributed writes.** The documentation describes shard leadership and replication but does not specify behavior when a network partition occurs mid-write. Is the write acknowledged as failed, retried, or silently dropped? The `consistency` parameter on search (`all`, `majority`, `quorum`, `factor`) is documented, but write consistency guarantees during partition are not explicitly specified.
 
-**HNSW parameter guidance at scale.** The `ef_construction` and `m` parameters in `hnsw_config` significantly affect index quality, build time, and RAM usage. Qdrant provides defaults but minimal guidance on how to tune these for specific recall/throughput targets. Users typically discover optimal settings through experimentation.
+**Long-term compatibility of snapshot format.** Qdrant snapshots are the primary migration and backup mechanism. Whether snapshot files from version N can be restored into version N+2 is not documented with a clear policy. Given Qdrant's rapid version cadence (multiple minor releases per month), teams relying on snapshots for disaster recovery should test restoration across version upgrades.
 
----
+## Alternatives and Selection Guidance
 
-## Alternatives — Selection Guidance
+| Alternative | Use when |
+|-------------|----------|
+| [PostgreSQL](../projects/postgresql.md) + pgvector | You need SQL joins, existing PG infrastructure, or <5M vectors with moderate QPS |
+| [ChromaDB](../projects/chromadb.md) | Local development, prototyping, or embedded use in a Python process without production SLA |
+| [FAISS](../projects/faiss.md) | Maximum raw ANN throughput, no metadata filtering, research or batch processing contexts |
+| [Pinecone](../projects/pinecone.md) | Fully managed, no ops burden, willing to pay for scale, no self-hosting requirement |
+| Weaviate | GraphQL query interface matters, or you want built-in object-level authorization |
+| Milvus | 100M+ vectors, horizontal read scaling, dedicated indexing/query separation needed |
 
-| Alternative | Choose when... |
-|---|---|
-| [ChromaDB](../projects/chromadb.md) | You need in-process simplicity, prototyping, or small datasets without a separate service |
-| [Pinecone](../projects/pinecone.md) | You want fully managed serverless with zero operational overhead and are willing to pay for it |
-| pgvector (PostgreSQL extension) | Your data already lives in Postgres and you want SQL joins + vector search in the same query |
-| Weaviate | You need a GraphQL interface, built-in vectorization modules, or richer object schema support |
-| LanceDB | You need columnar storage, multi-modal data, or in-process embedding without a separate service |
-| Milvus | You need the highest write throughput at very large scale (billions of vectors) with multi-node parallelism |
+Qdrant is the right choice when: you need filtered ANN with guaranteed result counts, you want deployment flexibility from laptop to cluster, your team can manage a Rust service, and you are building a [RAG](../concepts/rag.md) or [semantic memory](../concepts/semantic-memory.md) system where metadata filtering is a first-class query requirement rather than an afterthought.
 
-Qdrant is the right choice when you need filtered HNSW performance on hundreds of millions of vectors, hybrid dense+sparse retrieval, a stable production service model, and don't want vendor lock-in.
+## Ecosystem Position
 
----
+Qdrant functions as the default vector backend in several adjacent projects. [Mem0](../projects/mem0.md) defaults to Qdrant with local file storage (`~/.mem0/`). The Skill Seekers MCP server exposes an `export_to_qdrant` tool. [LangChain](../projects/langchain.md) and [LlamaIndex](../projects/llamaindex.md) both maintain Qdrant integrations in their vector store modules. In [agentic RAG](../concepts/agentic-rag.md) architectures, Qdrant's named-vector support maps cleanly to multi-hop retrieval where different embedding models index different content types.
 
-## Ecosystem Integration
+The [vector database](../concepts/vector-database.md) space treats Qdrant as the open-source reference implementation for filtered ANN search, in the same way FAISS is the reference for raw similarity search without filters.
 
-Qdrant appears as the default vector store backend in several adjacent systems:
 
-- **[Mem0](../projects/mem0.md)** uses Qdrant as its default vector store (`~/.mem0/` local file storage via `qdrant-client`'s local mode)
-- **Cognee** lists Qdrant as one of seven supported vector backends (`VECTOR_DB_PROVIDER=qdrant`)
-- **[LangChain](../projects/langchain.md)** and **[LlamaIndex](../projects/llamaindex.md)** both ship Qdrant integrations as first-class vector store options
-- **Skill Seekers** exposes an `export_to_qdrant` MCP tool for packaging documentation into Qdrant-ready format
-- **[Graphiti](../projects/graphiti.md)** and **[Zep](../projects/zep.md)** support Qdrant as an alternative vector backend
+## Related
 
-This breadth of ecosystem adoption reflects Qdrant's stable API and active Python client maintenance — the `qdrant-client` library is consistently referenced as the most complete integration path.
-
----
-
-## Related Concepts
-
-- [Vector Database](../concepts/vector-database.md) — the broader category
-- [Hybrid Retrieval](../concepts/hybrid-retrieval.md) — dense + sparse search patterns Qdrant enables natively
-- [Retrieval-Augmented Generation](../concepts/rag.md) — primary application pattern
-- [Semantic Memory](../concepts/semantic-memory.md) — agent memory systems built on top of vector retrieval
-- [BM25](../concepts/bm25.md) — sparse retrieval that Qdrant's sparse vectors approximate
+- [PostgreSQL](../projects/postgresql.md) — alternative_to (0.5)
+- [OpenAI](../projects/openai.md) — part_of (0.4)

@@ -3,120 +3,140 @@ entity_id: opencode
 type: project
 bucket: agent-systems
 abstract: >-
-  OpenCode is an open-source agentic coding tool compatible with the Agent
-  Skills ecosystem, serving as a Claude Code alternative that shares the same
-  SKILL.md plugin format and supports cross-harness skill deployment.
+  OpenCode is an open-source terminal-based AI coding agent that runs any LLM
+  via OpenRouter/LiteLLM, distinguished by its Go backend, multi-runtime
+  support, and native integration with the emerging Agent Skills ecosystem.
 sources:
   - repos/human-agent-society-coral.md
   - repos/kevin-hs-sohn-hipocampus.md
   - repos/alirezarezvani-claude-skills.md
-  - repos/tirth8205-code-review-graph.md
+  - repos/volcengine-openviking.md
   - repos/kepano-obsidian-skills.md
   - papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
-  - deep/repos/affaan-m-everything-claude-code.md
   - deep/repos/human-agent-society-coral.md
+  - deep/repos/affaan-m-everything-claude-code.md
   - deep/repos/kevin-hs-sohn-hipocampus.md
   - deep/repos/kepano-obsidian-skills.md
   - deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
 related:
-  - Claude Code
-  - OpenAI Codex
-  - Agent Skills
-  - Cursor
-  - Gemini
-  - skill.md
-  - OpenClaw
-last_compiled: '2026-04-05T23:00:36.490Z'
+  - claude-code
+  - codex
+  - openclaw
+  - gemini
+  - rag
+  - cursor
+  - agent-skills
+  - obsidian
+  - bm25
+  - vector-database
+  - claude-md
+  - context-management
+  - github-copilot
+  - antigravity
+  - unknown-unknowns
+last_compiled: '2026-04-07T11:37:27.514Z'
 ---
 # OpenCode
 
 ## What It Is
 
-OpenCode is an open-source agentic coding tool that competes with Claude Code, Cursor, and Codex CLI. It runs autonomous coding sessions in the terminal, executes tools (file reads, edits, bash commands), and follows structured instruction files to complete programming tasks. Its primary differentiator is open-source availability and compatibility with the emerging Agent Skills standard, meaning skills, hooks, and configuration files authored for Claude Code can be adapted for OpenCode with minimal changes.
+OpenCode is an open-source terminal coding agent, broadly analogous to [Claude Code](../projects/claude-code.md) and [Cursor](../projects/cursor.md) but model-agnostic and self-hostable. It runs in the terminal, executes tools (bash, file read/write, search), and accepts the same `AGENTS.md` / `opencode.json` instruction file conventions that have emerged across the CLI agent ecosystem.
 
-From the source material, OpenCode appears consistently as a supported target platform alongside Claude Code, Cursor, Codex, and Gemini CLI in cross-platform agent skill collections. It is not the primary platform in any of the reviewed projects, but its presence as a first-class integration target in three independent codebases suggests genuine adoption.
+The project targets developers who want full control over their LLM backend, don't want to depend on Anthropic's billing, or are running agents inside automated pipelines where a GUI IDE is impractical. It competes directly with [Claude Code](../projects/claude-code.md), [OpenAI Codex](../projects/codex.md), [GitHub Copilot](../projects/github-copilot.md), and [Cursor](../projects/cursor.md) in the terminal/headless segment.
 
-## Core Mechanism
+## Architectural Characteristics
 
-OpenCode reads agent instructions from an `AGENTS.md` file at the project root (parallel to Claude Code's `CLAUDE.md` and Codex's `AGENTS.md`). Configuration lives in `.opencode/` at the project root, with the following structure observed in the wild:
+OpenCode's distinguishing architectural choice is model agnosticism backed by [LiteLLM](../projects/litellm.md) and [OpenRouter](../projects/openrouter.md). Any model reachable through those proxies (Claude, GPT-4, Gemini, local models via [Ollama](../projects/ollama.md), [DeepSeek](../projects/deepseek.md)) runs through the same agent loop without code changes.
 
-```
-.opencode/
-  opencode.json        # Permissions and plugin configuration
-  prompts/agents/      # 28+ agent prompt definitions
-  commands/            # 30+ slash commands
-  tools/               # Custom tools (security-audit, run-tests, etc.)
-  plugins/             # Hook plugins
-```
+The configuration surface lives in `opencode.json` at the project root, which defines:
+- Model and provider routing
+- Tool permissions (what the agent can run)
+- Custom tools (shell scripts exposed as agent capabilities)
+- Hook plugins (pre/post tool event handlers)
 
-The `opencode.json` manifest maps permissions and hooks to OpenCode's native format, analogous to how `.claude/settings.json` works for Claude Code. Skills are auto-discovered from `~/.opencode/skills/` directories, with each `SKILL.md` file loaded according to the Agent Skills spec: metadata at startup, full instructions on activation, reference files on demand.
+The `.opencode/` directory convention houses `prompts/agents/` (subagent definitions), `commands/` (slash commands), `tools/` (custom tool scripts like `security-audit`, `run-tests`), and `plugins/` (hook plugins). This mirrors the `.claude/` layout closely enough that cross-harness skill collections like Everything Claude Code maintain a parallel `.opencode/` directory with equivalent content.
 
-OpenCode supports 11 hook event types (compared to Claude Code's 8 core types and Cursor's 15), enabling pre/post tool use automations and session lifecycle events.
+From the CORAL multi-agent system's source, OpenCode is explicitly supported as a first-class agent runtime alongside Claude Code and Codex. CORAL's `AgentRuntime` protocol abstracts the three runtimes uniformly, with OpenCode mapping its permissions to `opencode.json` format. Its instruction file is `opencode.json` rather than `CLAUDE.md` or `AGENTS.md`.
 
-### Plugin and Skill Integration
+## How It Plugs Into the Broader Ecosystem
 
-The [Everything Claude Code](../projects/everything-claude-code.md) project maintains dedicated `.opencode/` integration with 28 agent prompts, 30+ commands, and 6 native custom tools. The [Hipocampus](../projects/hipocampus.md) memory system ships an OpenCode plugin alongside its Claude Code and OpenClaw integrations, using platform-specific skill files while sharing the same compaction tree architecture.
+OpenCode participates in the [Agent Skills](../concepts/agent-skills.md) standard (`SKILL.md` files, as documented in the Obsidian-skills analysis). The agentskills.io specification names OpenCode as a compatible runtime alongside Claude Code, Codex, Cursor, Gemini CLI, and GitHub Copilot. Skills written to the SKILL.md standard are placed in `~/.opencode/skills/` and auto-discovered.
 
-The [Obsidian-skills](../projects/obsidian-skills.md) repository documents OpenCode installation as: clone the full repo to `~/.opencode/skills/obsidian-skills/`, after which OpenCode auto-discovers all `SKILL.md` files. This differs from Claude Code's marketplace install but achieves the same result.
+The Everything Claude Code project (a 156-skill, 38-agent configuration collection) explicitly maintains OpenCode parity with 11 hook event types and 6 native custom tools under `.opencode/`, making it the most feature-complete publicly available OpenCode configuration reference. This means practitioners can draw heavily on the ECC library as a starting point.
 
-The [Agentic Researcher framework](../concepts/agentic-researcher.md) lists OpenCode alongside Claude Code, Codex CLI, and Gemini CLI as a compatible runtime for autonomous research sessions, suggesting its tool execution model is sufficiently mature for 20+ hour autonomous operation.
+For [context management](../concepts/context-management.md), OpenCode integrates with the Hipocampus memory system (the file-based proactive memory architecture that uses a 3K-token compressed topic index). The Hipocampus repo explicitly lists OpenCode as a supported platform alongside Claude Code and OpenClaw.
+
+[CORAL](../projects/openclaw.md) uses OpenCode as one of three agent runtimes in its multi-agent coding optimization system, running multiple OpenCode instances in parallel git worktrees with shared filesystem state.
+
+## Context Management Approach
+
+OpenCode follows the same [context management](../concepts/context-management.md) patterns as the broader CLI agent ecosystem. The `opencode.json` permission model scopes what tools agents can access. Like Claude Code, it reads instruction files from the project root and `.opencode/` directory.
+
+The [CLAUDE.md](../concepts/claude-md.md) pattern applies here too, though the file is `opencode.json` for structured configuration and `AGENTS.md` for prose instructions. The same [progressive disclosure](../concepts/progressive-disclosure.md) approach used in SKILL.md files works in OpenCode: metadata loads at startup, full skill content loads on activation.
 
 ## Key Numbers
 
-Specific GitHub star counts or benchmark numbers for OpenCode itself are not present in the source material. What the sources establish is its adoption as an integration target: at least three independent projects (Everything Claude Code, Hipocampus, Obsidian-skills) maintain dedicated OpenCode support. These are self-reported adoption signals, not independently validated metrics.
+GitHub star counts and benchmark numbers for OpenCode specifically were not available in the source material. The project is newer than Claude Code and Codex, and independently validated performance benchmarks (e.g., [SWE-bench](../projects/swe-bench.md) scores) are not documented in available sources.
+
+What is documented: OpenCode appears in multiple independent multi-platform projects (CORAL, Everything Claude Code, Hipocampus, Obsidian-skills) as a supported runtime, which suggests real adoption beyond the maintainer's own usage. The agentskills.io standard listing it alongside Anthropic and OpenAI products indicates it has enough traction to warrant ecosystem inclusion.
+
+All adoption signals here are qualitative, not independently validated benchmark data.
 
 ## Strengths
 
-**Cross-platform skill compatibility.** OpenCode's adoption of the Agent Skills standard (SKILL.md format) means the growing library of community skills works without rewriting. Skills authored for Claude Code require only an adapter layer, not a full port.
+**Model flexibility.** Swapping from Claude to Gemini to a local DeepSeek model requires changing a config value, not rewriting agent scaffolding. For teams with model procurement constraints, cost sensitivity, or air-gapped environments, this is the primary reason to choose OpenCode over Claude Code.
 
-**Open-source availability.** Unlike Claude Code (Anthropic-proprietary) or Cursor (commercial), OpenCode's open-source nature allows self-hosting, customization, and auditability. For organizations with strict data residency requirements, this matters.
+**Custom tool integration.** The `.opencode/tools/` convention lets teams expose arbitrary shell scripts as agent capabilities without writing plugin code. A `run-tests` tool or `security-audit` tool becomes a first-class agent action.
 
-**Active ecosystem integration.** Being a first-class target in large skill collections means users get mature, tested configurations rather than experimental ports.
+**Ecosystem portability.** Because OpenCode follows the Agent Skills standard and AGENTS.md conventions, the growing library of cross-platform skills (ECC's 156 skills, Hipocampus memory, Obsidian skills) works without modification.
 
-**Custom tool support.** The `.opencode/tools/` directory enables native custom tools (run-tests, security-audit) that integrate directly with OpenCode's permission model, rather than relying solely on bash script wrappers.
+**Multi-agent compatibility.** CORAL treats OpenCode as an equal runtime to Claude Code for spawning parallel autonomous coding agents in isolated worktrees.
 
-## Critical Limitations
+## Limitations
 
-**Concrete failure mode:** OpenCode's hook coverage (11 event types) sits between Cursor (15) and Claude Code (8 core types). Skills authored against Claude Code's full hook surface may silently degrade when deployed to OpenCode -- hooks that expect `PreCompact` or `Notification` events may simply not fire. This creates a lowest-common-denominator problem for cross-harness skill authors who cannot test every platform combination.
+**Concrete failure mode: Hook execution maturity.** The Everything Claude Code analysis explicitly notes that Codex gets "instruction-based support with no hook execution yet," and OpenCode gets 11 hook event types vs. Claude Code's 20+. Cross-harness parity is real but incomplete. Hooks that work in Claude Code (particularly complex pre/post tool chains) may not have OpenCode equivalents, meaning any configuration library built primarily for Claude Code degrades when ported.
 
-**Unspoken infrastructure assumption:** OpenCode assumes local file system access and a terminal environment. It does not appear to have a hosted/cloud mode analogous to Claude Code's planned remote execution features. Organizations running fully containerized or remote development environments may find the local-first model constraining.
+**Unspoken infrastructure assumption.** OpenCode's model-agnostic positioning assumes you have stable API access to your chosen backend. In practice, this means either paying for OpenRouter/LiteLLM routing (adding a dependency and latency) or running a local model server (adding operational overhead). Teams expecting "just works" parity with Claude Code's hosted backend will hit setup friction.
 
-## When NOT to Use It
+**Documentation depth.** The available source material references OpenCode's configuration format and ecosystem integrations extensively but provides less implementation-level detail (no equivalent of Claude Code's deep architecture analysis). This makes it harder to reason about edge cases or failure modes without hands-on testing.
 
-**If you depend on Claude's specific capabilities.** OpenCode abstracts the model layer, but if your workflows rely on Claude's specific instruction-following behavior, tool use patterns, or context window characteristics, OpenCode with a different underlying model will produce different results. The agent runtime is not interchangeable with the model.
+## When NOT to Use OpenCode
 
-**If you need the largest ecosystem.** Claude Code has the most skills, hooks, and community configuration in active development. OpenCode is a compatible target, not the primary development surface for most skill authors.
+**When you need maximum benchmark-validated performance.** Claude Code and Codex both have published SWE-bench scores and external evaluations. OpenCode's performance is currently unverified by independent sources. If your use case requires documented task completion rates, pick a runtime with published benchmarks.
 
-**If you need enterprise support.** There is no evidence of commercial support, SLA, or enterprise licensing. For teams that need vendor accountability, Claude Code or Cursor are better choices.
+**When your team is on Anthropic's ecosystem already.** If you're using Claude models, paying Anthropic directly, and relying on Claude Code's session resumption, `CLAUDE.md` auto-loading, and hook ecosystem, switching to OpenCode introduces friction for limited gain. Claude Code's native integration with its own models is tighter than anything OpenCode can replicate via LiteLLM routing.
+
+**When you need the richest hook ecosystem.** With 20+ event types vs. OpenCode's 11, Claude Code provides more granular automation surfaces. Complex pre-commit quality gates, per-tool-call monitoring, and session lifecycle hooks are better supported in Claude Code.
+
+**When running long autonomous sessions requiring session resumption.** CORAL's session resumption mechanism uses Claude Code's `--resume` flag and session ID persistence. OpenCode's equivalent (if any) is not documented in available sources.
 
 ## Unresolved Questions
 
-The source material does not address:
+**Governance and maintenance trajectory.** Who maintains OpenCode, what the release cadence is, and how breaking changes in the agent skills ecosystem get adopted are not addressed in available documentation. For a project that multiple ecosystem tools depend on as a runtime, this matters.
 
-- **Governance and maintenance cadence.** Who maintains OpenCode, how actively, and what the release cycle looks like are not established.
-- **Model backend flexibility.** Whether OpenCode supports multiple LLM backends (OpenAI, Anthropic, local models) or is tied to a specific provider is unclear from the available sources.
-- **Cost at scale.** Since OpenCode is open-source, infrastructure costs fall on the operator. At scale (many concurrent agents, long sessions), this cost structure differs significantly from hosted alternatives.
-- **Session persistence and resumption.** Claude Code's `--resume` flag enables session continuity across interruptions. Whether OpenCode has equivalent functionality is not documented in the sources. CORAL's multi-agent system notes session resumption via saved session IDs for Claude Code and Codex, but OpenCode's equivalent is not specified.
-- **Conflict resolution between skills.** No source addresses how OpenCode handles skill conflicts when multiple activated skills provide contradictory guidance.
+**Cost at scale in multi-agent configurations.** Running OpenCode inside CORAL-style multi-agent systems routes all LLM traffic through the OpenRouter/LiteLLM proxy. Per-agent cost attribution, rate limiting behavior, and failure modes when the proxy is unavailable are undocumented.
 
-## Alternatives
+**Context window behavior under pressure.** How OpenCode handles context exhaustion in long sessions, whether it has equivalent compaction behavior to Claude Code's `/compact` command, and how it interacts with the Hipocampus memory system's ROOT.md injection are not detailed in available sources.
 
-| Alternative | When to Choose It |
-|-------------|-------------------|
-| [Claude Code](../projects/claude-code.md) | Maximum skill ecosystem, tightest Anthropic model integration, official support |
-| Cursor | IDE-first workflow, strong inline completion, team features, 15 hook event types |
-| Codex CLI | OpenAI model preference, simpler configuration surface, AGENTS.md format |
-| Gemini CLI | Google ecosystem integration, GEMINI.md format, Gemini model access |
+**Conflict resolution in opencode.json.** When project-level `opencode.json` conflicts with user-level configuration, which takes precedence and how the agent signals the conflict is unclear.
 
-Choose OpenCode when open-source licensing is a hard requirement, when you want to run the agent infrastructure on your own hardware, or when you are building cross-platform skills and need a compatible open target for testing. Avoid it if your team's skills are invested in a specific IDE or if you need guaranteed commercial support.
+## Alternatives: Selection Guidance
 
+| When... | Use... |
+|---|---|
+| You need documented benchmark performance on coding tasks | [Claude Code](../projects/claude-code.md) or [Codex](../projects/codex.md) |
+| You want model-agnostic routing with any backend | OpenCode |
+| You need a full IDE with GUI, codebase indexing, and tab completion | [Cursor](../projects/cursor.md) or [Windsurf](../projects/windsurf.md) |
+| You're building multi-agent coding optimization pipelines | [Claude Code](../projects/claude-code.md) via CORAL (better documented runtime support) |
+| You need the richest hook/automation ecosystem | [Claude Code](../projects/claude-code.md) |
+| You want proactive memory across sessions in a file-based system | Any runtime + Hipocampus (works with OpenCode, Claude Code, OpenClaw) |
+| You're running completely local models | OpenCode via [Ollama](../projects/ollama.md) backend |
 
-## Related
+The clearest selection signal: if you know which model you're using and it's Claude, use Claude Code. If you need to swap models frequently, run local models, or avoid vendor lock-in, OpenCode is the natural choice given its explicit design for that use case.
 
-- [Claude Code](../projects/claude-code.md) — competes_with (0.6)
-- [OpenAI Codex](../projects/codex.md) — alternative_to (0.6)
-- [Agent Skills](../concepts/agent-skills.md) — implements (0.6)
-- [Cursor](../projects/cursor.md) — competes_with (0.6)
-- [Gemini](../projects/gemini.md) — part_of (0.4)
-- [skill.md](../concepts/skill-md.md) — implements (0.6)
-- [OpenClaw](../projects/openclaw.md) — alternative_to (0.5)
+## Related Concepts
+
+- [Agent Skills](../concepts/agent-skills.md): The SKILL.md standard OpenCode participates in
+- [CLAUDE.md](../concepts/claude-md.md): The instruction file pattern OpenCode adapts as `opencode.json`/`AGENTS.md`
+- [Context Management](../concepts/context-management.md): How OpenCode manages context within sessions
+- [Context Engineering](../concepts/context-engineering.md): Techniques applicable across all CLI agents including OpenCode

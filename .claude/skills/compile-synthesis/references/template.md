@@ -59,13 +59,23 @@ Cite sources with actual paths: [Source](../raw/deep/repos/file.md)]
 
 ## The Convergence
 
-[THREE things all serious systems agree on that would have been
-controversial 6 months ago. Be specific. Name the systems that converged.]
+[THREE specific technical decisions all serious systems now share.
+Each stated as a falsifiable claim: "All production systems now do X."
+For each: name the project that held out longest against this consensus.
+If you cannot find three, state two. Do not pad.]
 
 ## What the Field Got Wrong
 
-[One major assumption that turned out to be false. Provide evidence from
-sources. Explain what replaced it and why.]
+[One assumption practitioners held that the evidence now contradicts.
+Name the assumption. Name who held it (project/paper/practitioner).
+Cite the evidence that disproved it. State what replaced it.
+Do NOT hedge with "while X had merits." Pick a side.]
+
+## Deprecated Approaches
+
+[2-3 approaches practitioners adopted pre-2025 and have since abandoned.
+For each: name the approach, why it seemed right at the time, what
+specific evidence killed it, and what replaced it.]
 
 ## Failure Modes
 

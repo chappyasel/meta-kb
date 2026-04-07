@@ -3,143 +3,148 @@ entity_id: knowledge-base
 type: concept
 bucket: knowledge-bases
 abstract: >-
-  A structured repository of information that grounds AI agents during retrieval
-  and reasoning, ranging from flat document stores to linked markdown wikis to
-  vector databases and knowledge graphs.
+  An LLM knowledge base is a structured markdown repository that LLM agents
+  actively build, query, and maintain — distinguished from traditional RAG
+  systems by treating the knowledge store as a living artifact the agent writes
+  to, not just reads from.
 sources:
-  - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
   - tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md
+  - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
+  - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
   - repos/agenticnotetaking-arscontexta.md
-  - repos/aiming-lab-agent0.md
-  - deep/repos/michaelliv-napkin.md
+  - repos/origintrail-dkg-v9.md
+  - papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
+  - articles/agent-skills-overview.md
 related:
-  - obsidian
+  - claude-code
+  - andrej-karpathy
+  - rag
   - agent-memory
-last_compiled: '2026-04-06T02:16:12.334Z'
+  - knowledge-graph
+last_compiled: '2026-04-07T12:01:14.029Z'
 ---
-# Knowledge Base
+# LLM Knowledge Base
 
 ## What It Is
 
-A knowledge base is a structured collection of information that an AI agent reads from, writes to, and reasons over. The term covers a wide range of implementations: flat collections of markdown files, relational databases, vector stores, property graphs, and hybrid systems combining several of these. What distinguishes a knowledge base from raw data is structure that supports retrieval — some mechanism for finding relevant information without scanning everything.
+An LLM knowledge base is a structured collection of documents — typically markdown files — organized so that LLM agents can read, write, update, and query them autonomously. The defining characteristic separating this from a traditional document store is agency over the content: the LLM does not just retrieve from the knowledge base, it maintains it.
 
-In agent systems, the knowledge base plays the role that long-term memory plays in human cognition. The model's weights encode general knowledge baked in at training time; the knowledge base supplies domain-specific, project-specific, or session-accumulated knowledge that the model cannot have learned during training. The boundary between [Agent Memory](../concepts/agent-memory.md) and knowledge base is porous — many frameworks treat them as the same system. The distinction that holds up is temporal: agent memory typically captures what happened during an interaction, while a knowledge base captures what is durably true about a domain.
+[Andrej Karpathy](../concepts/andrej-karpathy.md) described the pattern in a widely circulated 2024 post: raw source material (articles, papers, repos) lands in a `raw/` directory, and an LLM agent compiles it incrementally into a `wiki/` directory of interconnected `.md` files with summaries, backlinks, and concept articles. The agent writes and updates every file. The human rarely touches the wiki directly.
 
-## Why It Matters
+This inverts the typical knowledge management workflow. Instead of a human curating a knowledge base that an AI queries, the AI curates a knowledge base that humans browse.
 
-Models have fixed context windows. Any project with more relevant information than fits in one context requires selective retrieval. The knowledge base is the structure that makes selection possible without discarding everything.
+## Core Mechanism
 
-The failure mode without a knowledge base is one of two bad choices: stuff the entire corpus into context on every query (expensive, often impossible, and increasingly counterproductive as context fills with irrelevant material), or answer without the relevant information (hallucination, stale knowledge, wrong answers). A well-structured knowledge base enables a third option: retrieve what is relevant, ignore the rest.
+The architecture has five distinct layers:
 
-Beyond storage, knowledge bases serve as the accumulation layer for agent learning. Andrej Karpathy described this pattern directly in a widely-circulated 2024 post: dump raw sources into a `raw/` directory, use an LLM to compile them into a markdown wiki, then run agents against the wiki for Q&A and incremental enhancement. Each query adds back to the base. The knowledge compounds rather than evaporating at session end. [Source](../raw/tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md)
+**Ingest.** Source documents enter a `raw/` directory without preprocessing. Web articles convert to markdown via tools like the Obsidian Web Clipper extension. Images download alongside text so multimodal models can reference them.
 
-## Storage Architectures
+**Compilation.** An LLM agent reads new raw documents and incrementally updates the wiki. It writes summaries, creates concept articles, adds backlinks between related entries, and maintains index files. At Karpathy's reported scale (~100 articles, ~400K words), the agent can manage navigation through self-maintained indexes rather than requiring vector search infrastructure.
 
-Four primary storage patterns appear in production systems, each with different retrieval tradeoffs.
+**Q&A routing.** When a user poses a question, the agent reads index files to identify relevant wiki sections, then reads those sections to construct an answer. The agent outputs results as markdown files, Marp slide decks, or matplotlib visualizations — all written back into the vault.
 
-### Flat Document Stores
+**Linting.** Periodic health-check passes find inconsistencies, impute missing data via web search, and surface candidates for new articles. This self-healing loop prevents knowledge rot as the corpus grows.
 
-Files on disk — markdown, PDF, plain text — organized in a directory structure. Retrieval happens through keyword search ([BM25](../concepts/bm25.md)), filename matching, or agent navigation of the directory tree. The Karpathy pattern uses this architecture: `raw/` for source documents, `wiki/` for LLM-compiled summaries and cross-references.
+**Output filing.** Query outputs get written back into the wiki, so exploration compounds. Each answer enriches the base for subsequent questions.
 
-Advantages: human-readable, version-controllable, no infrastructure dependencies, immediately editable by both agents and humans. Flat document stores are the substrate that [Obsidian](../projects/obsidian.md) exposes as an IDE, and what the napkin project ([Source](../raw/deep/repos/michaelliv-napkin.md)) shows can outperform vector databases on long-term memory benchmarks when combined with TF-IDF keyword extraction and backlink counting.
+The [Ars Contexta](../projects/openclaw.md) Claude Code plugin formalizes this into a six-phase pipeline it calls the **6 Rs**: Record, Reduce, Reflect, Reweave, Verify, Rethink. Each phase runs in a fresh subagent context window to avoid attention degradation across long processing chains. The project's `reference/kernel.yaml` defines 15 primitives every generated system must include, and `methodology/` contains 249 interconnected research claims backing every architectural decision.
 
-### Vector Databases
+## Directory Structure
 
-Documents chunked into segments, embedded into high-dimensional vectors, stored in a database that supports approximate nearest-neighbor search. Retrieval returns semantically similar chunks regardless of keyword overlap. Standard infrastructure: [ChromaDB](../projects/chromadb.md), [Qdrant](../projects/qdrant.md), [Pinecone](../projects/pinecone.md).
+A typical LLM knowledge base separates content into three spaces:
 
-The retrieval mechanism is [Retrieval-Augmented Generation](../concepts/rag.md): embed the query, find cosine-similar chunks, inject them into the model's context. Handles synonym matching and conceptual queries that BM25 misses ("authentication" matching "login"). The cost is an embedding model dependency, preprocessing latency, and a retrieval step that makes decisions before the full-capability LLM ever sees the question.
+```
+vault/
+├── raw/           # Source documents, unprocessed
+├── wiki/          # LLM-compiled articles, summaries, indexes
+│   ├── concepts/  # Synthesized concept articles
+│   ├── sources/   # Per-document summaries with backlinks
+│   └── index.md   # Navigation entry point
+└── outputs/       # Query results filed back in
+```
 
-### Knowledge Graphs
+The [Ars Contexta](../repos/agenticnotetaking-arscontexta.md) system names these `self/`, `notes/`, and `ops/` — agent persistent state, the knowledge graph, and operational coordination respectively. The names adapt to domain but the separation is architectural, not cosmetic.
 
-Entities and relationships stored as nodes and edges. [Knowledge Graph](../concepts/knowledge-graph.md) systems like [Graphiti](../projects/graphiti.md) maintain typed edges (`KNOWS`, `CAUSED`, `PART_OF`) that enable multi-hop traversal — answering questions that require chaining through several relationships. [GraphRAG](../projects/graphrag.md) combines graph traversal with vector retrieval to handle queries requiring synthesis across an entire document corpus.
+## Relation to RAG
 
-Graphs encode relational structure that flat stores lose. A markdown file can mention that Alice and Bob worked on project X, but a graph stores that relationship as a traversable edge. The cost is construction: building and maintaining a knowledge graph from raw text requires entity extraction and relationship parsing, either by pipeline (expensive, lossy) or LLM (accurate, slow). [Zep](../projects/zep.md) automates this for conversational memory.
+LLM knowledge bases and [Retrieval-Augmented Generation](../concepts/rag.md) overlap but are not the same thing.
 
-### Hybrid Systems
+[RAG](../concepts/rag.md) typically involves embedding documents, storing vectors in a [vector database](../concepts/vector-database.md), and retrieving chunks at query time via similarity search. The knowledge store is static between queries; a separate ingestion pipeline updates it.
 
-Most production systems combine at least two of the above. [Hybrid Retrieval](../concepts/hybrid-retrieval.md) typically means BM25 keyword search plus vector similarity search, with scores merged via Reciprocal Rank Fusion. The motivation: keyword search handles precise term matching; semantic search handles conceptual similarity. Neither alone covers all queries.
+An LLM knowledge base treats the agent as the curator. The agent writes index files, updates summaries when new sources arrive, and maintains navigational structure. At small-to-medium scale (under ~500K words), this can replace vector retrieval entirely: the agent reads its own indexes to find relevant sections, then reads those sections directly. Karpathy noted he expected to need "fancy RAG" but found the agent's self-maintained indexes sufficient.
 
-The napkin benchmark demonstrates a counter-argument: for structured, well-organized markdown knowledge bases, BM25 plus backlink counting plus recency weighting achieves 91% on LongMemEval-S, beating hybrid systems at a fraction of the infrastructure cost. This result holds for tightly-curated, domain-specific knowledge bases — it likely does not generalize to large heterogeneous corpora where vocabulary gaps are common.
+At larger scales, the two approaches combine: [hybrid search](../concepts/hybrid-search.md) across the markdown corpus, [BM25](../concepts/bm25.md) for keyword matching, or purpose-built tools like `qmd` (a semantic search CLI) layer on top of the file structure rather than replacing it.
 
-## Retrieval Mechanisms
+## Relation to Agent Memory
 
-How the agent gets from a question to relevant content determines the knowledge base's practical utility more than how the data is stored.
+LLM knowledge bases occupy the [semantic memory](../concepts/semantic-memory.md) tier of [agent memory](../concepts/agent-memory.md) taxonomies: durable, factual, queryable across sessions. They differ from [episodic memory](../concepts/episodic-memory.md) (session logs, interaction history) and [procedural memory](../concepts/procedural-memory.md) (skills, workflows encoded as instructions).
 
-**Keyword Search (BM25):** Term frequency times inverse document frequency, the statistical backbone of traditional search. Fast, interpretable, zero preprocessing. Fails when query and document use different vocabulary.
+[CLAUDE.md](../concepts/claude-md.md) files and [Skill Files](../concepts/skill-md.md) sit in the procedural layer: they tell the agent *how* to work, not *what is known*. A complete agent intelligence system typically combines all three layers.
 
-**Semantic Search:** Embedding-based similarity. Handles vocabulary mismatches, finds conceptually related content. Requires an embedding model and a vector store. The embedding model makes retrieval decisions before the full LLM reasons over results — a design choice worth scrutinizing.
+The [Ars Contexta](../repos/agenticnotetaking-arscontexta.md) three-space model makes this separation explicit: `self/` (agent identity and methodology — procedural), `notes/` (knowledge graph — semantic), `ops/` (session state — episodic).
 
-**Progressive Disclosure:** Rather than one retrieval step, a tiered approach. [Progressive Disclosure](../concepts/progressive-disclosure.md) starts with a compressed overview (keyword map of the knowledge base, ~1-2K tokens), narrows to search results (~2-5K tokens), then reads full documents only as needed. The napkin architecture formalizes this as L0 through L3: always-loaded orientation note, TF-IDF keyword overview, BM25 search, full file read. This respects context window budgets and lets the full-capability LLM navigate rather than delegating navigation to a smaller embedding model.
+## Tooling and IDE
 
-**Agentic Retrieval:** The agent itself controls retrieval, issuing search calls, following links, synthesizing across sources. [Agentic RAG](../concepts/agentic-rag.md) systems like [LlamaIndex](../projects/llamaindex.md) and [LangChain](../projects/langchain.md) provide tool interfaces for this. The agent queries, reads results, decides what to read next. More expensive in tokens and latency; better suited to complex multi-hop questions.
+[Obsidian](../projects/obsidian.md) appears consistently as the preferred human-facing interface. It renders markdown with backlink visualization, supports plugins for alternate views (Marp for slides, graph view for link topology), and stores everything as plain files — no database, no lock-in. The LLM writes to the files; the human browses in Obsidian.
 
-**Graph Traversal:** For knowledge graphs, retrieval means following edges from seed entities. Spreading activation — starting from a matched node and traversing to nearby nodes — surfaces related information that keyword or vector search misses. [HippoRAG](../projects/hipporag.md) models this on hippocampal memory processes.
+[Claude Code](../projects/claude-code.md) is the primary agent runtime in documented implementations, both in Karpathy's workflow and the Ars Contexta plugin architecture. The plugin system's `PostToolUse` hooks enforce schema validation on every file write and auto-commit to git.
 
-## The Write Side
+Custom CLI tools built alongside the knowledge base — Karpathy mentioned building "a small and naive search engine" — serve as tools the agent can invoke during Q&A sessions. This keeps the knowledge base inspectable and the tooling minimal.
 
-Most knowledge base discussions focus on retrieval. The write side matters as much for systems that accumulate knowledge over time.
+## Strengths
 
-**Manual Curation:** A human writes documents, edits them, maintains structure. High quality, low automation. The Zettelkasten method ([Zettelkasten](../concepts/zettelkasten.md)) is the systematic version of this: atomic notes, explicit links, no large aggregated files.
+**Inspectability.** Every piece of knowledge is a readable markdown file. No opaque vector embeddings, no database queries needed to understand what the agent knows. Debugging a bad answer means reading the relevant wiki article.
 
-**LLM Compilation:** An agent reads raw sources and synthesizes them into structured wiki articles. Karpathy's pattern: dump PDFs, web clips, and papers into `raw/`, run an LLM compilation step to produce `wiki/*.md` files with cross-references. The agent writes; the human reviews. Knowledge accumulates without manual note-taking. [Source](../raw/tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md)
+**Compounding value.** Filed query outputs mean the knowledge base improves with use. A question answered in week one becomes context that makes week-four answers better.
 
-**Auto-Distillation:** At session end, a background process extracts knowledge from the conversation and writes it back to the knowledge base. Napkin's distill system does this: a sub-agent receives the full conversation, explores existing vault content to find relevant notes, identifies gaps, and creates new notes with wikilinks to existing ones. The read/write loop — inject context at session start, distill knowledge at session end — makes the base accumulate without user intervention.
+**Infrastructure simplicity.** At moderate scale, plain files with git versioning replace vector databases, embedding pipelines, and retrieval infrastructure. Operational complexity is low.
 
-**Continuous Extraction:** Systems like Zep and Graphiti maintain a graph by extracting entities and facts from every message in real time. The graph grows as conversations happen. This is [Organizational Memory](../concepts/organizational-memory.md) at the infrastructure layer.
+**Domain adaptation.** The agent writes concept articles in the vocabulary of the domain, not generic summaries. A knowledge base on interpretability research develops the terminology of interpretability research, not NLP-in-general.
 
-## The Linting Problem
+## Limitations
 
-Raw accumulation degrades quality. Inconsistent terminology, duplicate facts, stale entries, broken links, and orphaned notes accumulate faster than any agent catches them in normal operation. Knowledge bases require maintenance.
+**Concrete failure mode — stale inconsistency at scale.** As the wiki grows past a few hundred articles, the agent's self-maintained indexes can lag new additions. If the agent writes a new concept article but doesn't update the main index and backlinks in related articles, navigation breaks. Linting passes help but require explicit scheduling. A knowledge base that grows faster than linting runs accumulates invisible gaps.
 
-Karpathy calls this "linting": running LLM health checks over the wiki to find inconsistent data, impute missing facts via web search, identify new article candidates, and suggest further questions. This is not a one-time cleanup but an ongoing process. [DataChaz's analysis](../raw/tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md) highlights self-healing as the feature that makes the system sustainable — the agent maintains its own memory layer rather than requiring constant human intervention.
+**Unspoken infrastructure assumption — local file access.** The entire pattern assumes the LLM agent has read/write access to a local or network filesystem. Cloud-based chat interfaces (ChatGPT, Claude.ai without projects) cannot implement this architecture. It requires an agent runtime with tool use and file system access: Claude Code, a local LangChain setup, or equivalent.
 
-The ars contexta project formalizes this as the `/reweave` and `/verify` commands: backward passes that update older notes with new connections, and quality checks that validate schema compliance. [Source](../raw/repos/agenticnotetaking-arscontexta.md)
+## When Not to Use It
 
-## Granularity
+Skip this architecture if:
 
-Note size significantly affects retrieval quality. Large aggregated documents dilute term frequency across many topics, making BM25 less discriminating. Napkin's benchmark design uses per-round notes (~2,500 characters each) rather than full session logs (~15,000 characters), organized in day directories. This concentrates terms per note and enables temporal keyword extraction in the overview. The principle generalizes: many small, focused notes outperform few large aggregated ones for keyword retrieval. The tradeoff is management overhead — a vault with 50,000 atomic notes requires robust navigation support.
+- Your knowledge base needs to scale beyond ~1M words in the near term. At that size, index-based navigation breaks down and you need vector retrieval infrastructure anyway. Build on [RAG](../concepts/rag.md) from the start.
+- Multiple humans need to edit the knowledge base. LLM-maintained files conflict badly with human editorial conventions. Use a proper wiki or documentation system.
+- Your retrieval accuracy requirements are high and measurable. Self-maintained markdown indexes are less precise than embedding-based retrieval for specific factual lookups. If you need to benchmark retrieval quality, use [vector databases](../concepts/vector-database.md) with [hybrid search](../concepts/hybrid-search.md).
+- You need real-time updates. Compilation passes are batch processes. A knowledge base that must reflect events within minutes needs a different pipeline.
 
-## Grounding and Hallucination
+## Unresolved Questions
 
-A knowledge base grounds model responses in specific documents. When the agent cites content from the base, the response is checkable — someone can read the source and verify the claim. This does not eliminate hallucination, but it changes the failure mode from fabrication to misquotation, which is easier to detect and correct.
+The documented implementations leave several questions open:
 
-[Context Engineering](../concepts/context-engineering.md) treats knowledge base content as one input to context construction alongside system prompts, conversation history, and tool outputs. The knowledge base provides factual grounding; the other inputs provide task framing. Together they populate the context window with relevant, accurate, structured information.
+**Conflict resolution.** When the agent rewrites an article and the new version contradicts the old one, nothing in the described architecture resolves which version is authoritative. Human review catches some conflicts; linting catches others. How often this fails in practice is not reported.
 
-## Failure Modes
+**Cost at scale.** Karpathy mentions a ~400K word wiki as "small scale." Compiling and linting this size corpus with frontier models costs meaningfully in tokens. No public cost benchmarks exist for different corpus sizes or linting frequencies.
 
-**Vocabulary mismatch:** BM25-only retrieval fails when query and document use different terms for the same concept. Embedding-based retrieval handles this but requires infrastructure. No retrieval approach handles all cases.
+**Cross-session coherence.** The agent that compiled article A three months ago may reason differently than the agent running today. No described mechanism detects or reconciles stylistic or factual drift across compilation sessions.
 
-**Staleness:** A knowledge base that grows but never prunes accumulates stale information. A fact added six months ago may contradict a fact added last week. Without explicit versioning or temporal metadata, the agent has no way to prefer the newer claim. [Memory Consolidation](../concepts/memory-consolidation.md) systems address this by periodically merging and reconciling entries.
+**Governance for multi-user systems.** Every described implementation is single-user. Whether the pattern extends to team knowledge bases — with multiple agents writing, potentially conflicting — is not addressed.
 
-**Context collapse:** As the knowledge base grows and the agent injects more retrieved content, context fills with marginally relevant material. [Context Collapse](../concepts/context-collapse.md) — where the context window contains too much noise — degrades response quality. Progressive disclosure architectures mitigate this; naive "stuff everything relevant" approaches do not.
+## Alternatives
 
-**False confidence:** A knowledge base returns results regardless of whether they actually answer the question. Napkin scores 50% on abstention tasks — when the right answer is "I don't know," the system still retrieves something and tends to use it. Systems without calibrated confidence thresholds fail silently on out-of-scope queries.
-
-**Distillation quality dependence:** Auto-distillation produces a knowledge base whose quality depends on the LLM's extraction judgment. Poor distillation writes irrelevant notes, misses connections, and corrupts the vocabulary consistency that retrieval relies on. There is no standard validation layer for knowledge written by agents.
-
-## Implementations in This Space
-
-- [Obsidian](../projects/obsidian.md): Markdown vault IDE with graph visualization, backlinks, and an ecosystem of plugins. The front-end for LLM-driven knowledge base workflows.
-- [LlamaIndex](../projects/llamaindex.md) and [LangChain](../projects/langchain.md): Framework-level abstractions for connecting LLMs to document stores, vector databases, and graph systems.
-- [Graphiti](../projects/graphiti.md) and [Zep](../projects/zep.md): Knowledge graph construction from conversational data, supporting temporal queries and relationship traversal.
-- [GraphRAG](../projects/graphrag.md): Microsoft's system for graph-enhanced retrieval, suited to large corpora requiring cross-document synthesis.
-- [HippoRAG](../projects/hipporag.md) and [RAPTOR](../projects/raptor.md): Research systems extending RAG with biologically-inspired retrieval and hierarchical tree structures respectively.
-- [Mem0](../projects/mem0.md) and [Letta](../projects/letta.md): Agent memory systems that maintain knowledge bases as first-class infrastructure.
-
-## When Not to Use a Dedicated Knowledge Base
-
-For tasks that fit within a single context window, a knowledge base adds latency and complexity without benefit. Load the documents directly. The retrieval overhead only pays off when the corpus exceeds what the context window can hold, when the same information will be queried many times across sessions, or when multiple agents need shared access to the same information.
-
-For purely ephemeral agents — one-shot queries with no continuity — session memory suffices. Knowledge bases earn their cost in systems where learning compounds across sessions.
+- **[RAG](../concepts/rag.md)** when retrieval precision matters more than inspectability, or corpus size exceeds ~500K words.
+- **[Knowledge Graph](../concepts/knowledge-graph.md) / [GraphRAG](../concepts/graphrag.md)** when relationship structure between entities matters as much as document content — entity resolution, multi-hop queries.
+- **[Mem0](../projects/mem0.md) or [Zep](../projects/zep.md)** when you need managed memory infrastructure with APIs rather than a file-based system you maintain yourself.
+- **[Letta](../projects/letta.md)** when agent memory needs to persist across sessions in a production system with multiple concurrent agents.
+- **Static documentation (Notion, Confluence, GitHub wikis)** when humans are the primary authors and the knowledge base changes infrequently.
 
 ## Related Concepts
 
-- [Agent Memory](../concepts/agent-memory.md) — the broader category of how agents store and access information
-- [Semantic Memory](../concepts/semantic-memory.md) — factual, declarative knowledge; the type most knowledge bases store
-- [Retrieval-Augmented Generation](../concepts/rag.md) — the standard retrieval pattern for grounding LLM outputs
-- [Vector Database](../concepts/vector-database.md) — the infrastructure layer for embedding-based retrieval
-- [Knowledge Graph](../concepts/knowledge-graph.md) — relational structure enabling multi-hop reasoning
-- [Progressive Disclosure](../concepts/progressive-disclosure.md) — tiered retrieval that respects context budgets
-- [Context Engineering](../concepts/context-engineering.md) — the discipline of constructing effective context windows
-- [Zettelkasten](../concepts/zettelkasten.md) — the note-taking methodology that informs atomic knowledge base design
-- [Organizational Memory](../concepts/organizational-memory.md) — knowledge bases at team and enterprise scale
+- [Retrieval-Augmented Generation](../concepts/rag.md)
+- [Agent Memory](../concepts/agent-memory.md)
+- [Semantic Memory](../concepts/semantic-memory.md)
+- [Context Engineering](../concepts/context-engineering.md)
+- [Knowledge Graph](../concepts/knowledge-graph.md)
+- [Hybrid Search](../concepts/hybrid-search.md)
+- [CLAUDE.md](../concepts/claude-md.md)
+- [Skill Files](../concepts/skill-md.md)
+- [Progressive Disclosure](../concepts/progressive-disclosure.md)
+- [Zettelkasten](../concepts/zettelkasten.md)

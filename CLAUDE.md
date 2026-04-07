@@ -32,10 +32,18 @@ For comparison runs, tell the agent to write to `wiki-{name}/` instead of `wiki/
 
 ```bash
 bun run compile                    # full 8-pass compilation → wiki/, build/
+bun run compile --incremental      # only recompile what changed since last run
+bun run compile --status           # show pending changes without compiling
 bun run compile --from-pass=3a     # resume from synthesis articles
 bun run compile --to-pass=2        # just rebuild entities + graph (passes 0-2)
 bun run compile --wiki-dir=wiki-v3 --build-dir=build-v3  # alternate output dir
 ```
+
+**Incremental mode** (`--incremental`): Detects new/modified/deleted sources via content hashing,
+skips entity extraction for unchanged sources (Pass 1a), only regenerates synthesis articles and
+reference cards for affected buckets/entities, and preserves existing claims for clean buckets.
+Forces full recompilation if `config/domain.ts` or compilation thresholds change. State is saved
+to `build/incremental-state.json` after every compilation (full or incremental).
 
 ### Other commands
 
@@ -48,8 +56,23 @@ bun run ingest:arxiv [urls...]
 bun run ingest:article [urls...]
 bun run rescore                    # score unscored sources for relevance
 bun run rescore --force            # re-score everything
-bun test
+bun test                           # run incremental compilation tests (28 tests, 0 LLM calls)
 ```
+
+### Agent Skills
+
+The skill graph in `.claude/skills/` provides agent-native compilation:
+
+| Skill | Purpose |
+|-------|---------|
+| `compile-wiki` | Full compilation orchestrator (6 phases, spawns subagents) |
+| `incremental-compile` | Incremental recompilation (detects changes, selective synthesis) |
+| `compile-synthesis` | Writes one synthesis article per bucket |
+| `compile-cards` | Writes reference cards for entities |
+| `compile-field-map` | Writes the field-map.md overview |
+| `compile-index` | Generates ROOT.md, indexes, comparison table |
+| `compile-claims` | Extracts claims + runs self-eval |
+| `deep-research` | Deep-dives into a project/paper's source code |
 
 ## Architecture
 
@@ -126,7 +149,7 @@ Two-phase discovery system (gitignored, not committed):
 | 1a | Haiku (parallel) | Entity extraction per source |
 | 1b | Sonnet (×1) | Entity resolution & dedup |
 | 2 | Sonnet (×1) | Graph construction from co-occurrences |
-| 3a | Sonnet (per bucket, sequential) | Synthesis articles with abstracts + staleness markers |
+| 3a | Opus (per bucket, sequential) | Synthesis articles with abstracts + staleness markers |
 | 3b | Sonnet (per entity, parallel) | Reference cards with abstracts |
 | 3c | Sonnet (per bucket, sequential) | Claim extraction from synthesis articles |
 | 4 | — | Field map, ROOT.md (template), indexes, README |

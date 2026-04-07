@@ -73,7 +73,7 @@ ACE reports 82-92% cost reduction vs alternatives that use full-context rewritin
 
 ### Prompt Compression
 
-[Prompt Compression](../concepts/prompt-compression.md) addresses accumulation collapse by reducing token count before injection. Techniques like LLMLingua identify and remove low-salience tokens from retrieved documents or conversation history. This buys window space but trades completeness for efficiency. Aggressive compression causes its own form of collapse if it removes tokens the model needed.
+Prompt Compression addresses accumulation collapse by reducing token count before injection. Techniques like LLMLingua identify and remove low-salience tokens from retrieved documents or conversation history. This buys window space but trades completeness for efficiency. Aggressive compression causes its own form of collapse if it removes tokens the model needed.
 
 ### Selective Retrieval
 

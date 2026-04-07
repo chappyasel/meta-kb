@@ -1,146 +1,138 @@
 ---
 entity_id: karpathy-loop
-type: approach
+type: concept
 bucket: self-improving
 abstract: >-
-  Karpathy Loop: run agent, measure output, keep improvements, discard failures,
-  repeat indefinitely using git as memory — applicable to any artifact with a
-  scalar metric and fast verification.
+  The Karpathy Loop is a scored, version-controlled iteration cycle where an
+  agent modifies one file per round, keeps changes that improve a numeric
+  metric, and reverts ones that don't — enabling unattended overnight
+  optimization of any scoreable artifact.
 sources:
   - tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md
-  - tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md
   - >-
     articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md
-  - deep/repos/karpathy-autoresearch.md
+  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
 related:
   - andrej-karpathy
+  - cursor
   - autoresearch
-  - claude-code
-last_compiled: '2026-04-06T02:09:25.939Z'
+last_compiled: '2026-04-07T11:49:13.875Z'
 ---
 # Karpathy Loop
 
 ## What It Is
 
-The Karpathy Loop is an agent improvement pattern that applies software engineering's edit-compile-test cycle to autonomous self-improvement. An agent modifies a constrained artifact, verifies the result against a fixed scalar metric, commits the change if the metric improves, reverts if it doesn't, and repeats without stopping.
+The Karpathy Loop is an automated improvement cycle named after [Andrej Karpathy](../concepts/andrej-karpathy.md) following his release of the `autoresearch` repository in early 2026. The pattern distills a workflow Karpathy already used manually — make a change, test it, keep or discard, repeat — into a form a coding agent can execute unattended across dozens or hundreds of rounds overnight.
 
-[Andrej Karpathy](../concepts/andrej-karpathy.md) released the original implementation as `autoresearch` in March 2025: 630 lines of Python, a single GPU, and an agent that ran 700 experiments over two days, discovering 20 improvements in already-optimized code for an 11% speedup. The project reached 42,000 GitHub stars within a week. Fortune named the pattern "The Karpathy Loop."
-
-The insight that practitioners frequently miss: the loop has nothing to do with machine learning. Any artifact with a measurable output and fast verification can serve as the target.
+Fortune named it "The Karpathy Loop." The repo hit 42,000 GitHub stars in its first week. The name stuck because the mechanism is transferable: Karpathy demonstrated it on ML training code, [Tobi Lütke](../concepts/tobi-lutke.md) applied it to Shopify's Liquid templating engine and got 53% faster rendering from 93 automated commits, and others have since run it on prompts, skill files, email templates, and ad copy. None of those applications require ML knowledge or a GPU.
 
 ## Core Mechanism
 
-The loop rests on three properties held in tension:
+Three components define every loop run:
 
-**Constrained scope.** Exactly one file is mutable per run. Everything else — the evaluation function, the data pipeline, the test suite — is locked. This constraint prevents the agent from gaming the metric by modifying what measures it.
+**The target file.** The single file the agent is allowed to edit. A system prompt, a [SKILL.md](../concepts/skill-md.md), an email template, a training configuration. One file per run. This constraint is structural: the agent can only improve the target because everything else is locked.
 
-**Mechanical verification.** The metric must be a number a command produces. "Looks better" breaks the loop. Binary test suites that produce a percentage pass rate work. Bayesian judges work. Vague quality assessments do not.
+**The eval file.** A scoring harness the agent cannot touch after the first round. It generates outputs from the current target file, grades them against a set of binary yes/no questions, and prints a percentage. Karpathy made `prepare.py` read-only in his repo for this reason. If the agent could modify the eval, it would find ways to pass the test rather than improve the output.
 
-**Git as memory.** Every experiment becomes a commit before verification runs. Failed experiments use `git revert` rather than `git reset --hard`, preserving the history so future iterations can read what was tried and avoid repetition.
+**The instruction file.** A human-written file that tells the agent what to try, what constraints to observe, and how to behave when the loop stalls.
 
-### The Three-File Architecture (Original)
+Each cycle:
+1. Read the current target file
+2. Decide one change to try
+3. Generate outputs and score them with the eval harness
+4. If score improved: `git commit`
+5. If score dropped or held flat: `git reset`
+6. Repeat
 
-Karpathy's `autoresearch` uses a deliberately minimal contract:
+At roughly 5 minutes per cycle and 12 cycles per hour, a single overnight run produces 50–100 evaluated iterations. API cost runs $5–25 depending on model and cycle count. Any coding agent that can read files, write files, and use git executes the loop — [Cursor](../projects/cursor.md), [Claude Code](../projects/claude-code.md), Windsurf, [OpenAI Codex](../projects/codex.md).
 
-- **`prepare.py` (immutable)** — Downloads data, trains the tokenizer, locks the validation metric (`val_bpb`, validation bits per byte). Neither human nor agent touches this file.
-- **`train.py` (mutable)** — The complete model definition, optimizer, and training loop. The agent can rewrite anything here: architecture, batch size, optimizer choice, operation order.
-- **`program.md` (orchestration)** — Natural language instructions the human writes to direct agent strategy. No state graphs, no tool schemas, no routing code. The LLM reads the file and executes accordingly.
+The eval criteria are the hardest part to get right. They must be binary (yes/no, never 1–7 scales), numbering 3–6 per run. Below 3 and the agent finds loopholes. Above 6 and it games the checklist rather than improving the actual output. Every criterion must be scoreable by a stranger in one sentence.
 
-The 5-minute training budget per experiment is not arbitrary — it makes experiments directly comparable and caps the cost of each failed hypothesis.
+## Why It Works Beyond ML
 
-### The Eight-Phase Loop (Generalized)
+The mechanism has no ML-specific components. Three conditions determine whether any artifact qualifies:
 
-[AutoResearch](../projects/autoresearch.md) by Udit Goenka generalizes the pattern into ~5,000 lines of markdown protocols organized as a [Claude Code](../projects/claude-code.md) skill system. The core loop across `references/autonomous-loop-protocol.md` runs eight phases per iteration:
+1. The output can be scored with a number
+2. That scoring runs without a human in the loop
+3. Only one file changes per round
 
-1. **Review** — Read the last 10-20 results log entries and `git log --oneline -20`. Git history is the primary learning mechanism.
-2. **Ideate** — Select the next change using a priority order: fix crashes first, exploit successful commits second, explore untried approaches third.
-3. **Modify** — Make exactly one atomic change. The one-sentence test enforces atomicity: if describing the change requires "and," it's two changes.
-4. **Commit** — Stage and commit *before* running verification. This enables clean rollback regardless of what the verification command does.
-5. **Verify** — Run the agreed-upon command, extract the metric. Multi-run medians and minimum-delta thresholds handle noisy benchmarks.
-6. **Guard** — If a guard command was defined (e.g., "ensure all tests still pass"), run it. Guard failure triggers revert-and-rework, not automatic discard.
-7. **Decide** — If metric improved and guard passed: keep. If metric same/worse: `git revert`. If crash: attempt fix up to three times, then skip.
-8. **Log** — Append to TSV results log: iteration, commit hash, metric value, status, description. Repeat from phase 1.
+All three satisfied: the loop works. Any one missing: it won't converge.
 
-The protocol runs unbounded by default. Bounded mode (`Iterations: N`) supports CI/CD integration.
+Karpathy ran the loop on code he'd already optimized manually for months and found 20 improvements he'd missed, including a bug in his attention implementation. The improvements stacked and transferred to a larger model for an 11% speedup. The lesson from that result is the point: human manual iteration is rate-limited. The loop is not.
 
-## Key Properties
+## Concrete Results
 
-**Iteration cost shapes behavior.** Karpathy's 5-minute GPU training yields ~12 experiments per hour. A 10-second unit test suite yields ~360. The verification speed determines how much ground the agent can cover overnight.
+- **Karpathy's ML training code:** 20 improvements found in code already manually optimized, 11% speedup. (Self-reported)
+- **Shopify's Liquid engine (Tobi Lütke):** 93 automated commits, 53% faster rendering, 61% fewer memory allocations, 974 unit tests still passing. (Self-reported, widely circulated)
+- **Landing page copy skill (Aakash Gupta demo):** Baseline 41.3%, reached 92% in 4 rounds with 3 changes kept and 1 reverted. (Self-reported, single anecdote)
+- **Email reply rates (MindStudio-documented teams):** 2–4% baseline to 8–12% over 4–6 weeks. (Self-reported, aggregate, not independently validated)
 
-**One metric, one guard.** Multi-objective optimization is handled through the guard command rather than Pareto frontiers: optimize metric A while guard ensures metric B doesn't regress. This keeps decision logic simple.
-
-**No runtime enforcement.** The generalized version encodes all logic as markdown. An LLM that drifts from the protocol has no runtime check that catches it. Behavior depends on prompt fidelity.
-
-## Benchmarks
-
-- **Original autoresearch:** 700 experiments in 2 days, 20 optimizations found, 11% speedup on already-optimized code. Self-reported by Karpathy.
-- **Shopify (Tobi Lütke):** 37 experiments overnight on internal company data, 19% performance gain. Self-reported via social media; not independently validated.
-- **Liquid template engine:** 93 automated commits, 53% faster rendering, 61% fewer memory allocations, all 974 unit tests passing. Self-reported by Lütke; not independently validated.
-- **Community Mac Mini M4 run:** 26 of 35 experiments failed or crashed; the seven that succeeded improved performance by simplification. The agent independently discovered that removing complexity helped. Anecdotal, single run.
-
-All benchmark figures are self-reported. No independent third-party validation exists at time of writing.
+All figures above are self-reported. No independent third-party benchmark exists for the general pattern as of this writing.
 
 ## Strengths
 
-**Works on any measurable artifact.** The same loop that optimizes ML training code applies to system prompts, skill files, content templates, security audits, and agent workflows. The constraint is the evaluation function, not the domain.
+**Rate multiplier for iteration.** A human running a manual test-edit-evaluate cycle on a prompt might complete 8–10 rounds in a day. The loop runs 100 overnight. For any problem where quality compounds across iterations, this gap matters.
 
-**Compounding discoveries.** Because each improvement is committed and future iterations start from the improved baseline, gains stack. The agent doesn't restart from zero each cycle.
+**Automatic regression detection.** Because the eval is frozen and git tracks every state, a change that degrades quality gets reverted without human review. The experiment log is the git history.
 
-**Auditable history.** Every experiment, including failed ones, lives in git. Humans can inspect exactly what the agent tried, in what order, and what each attempt produced.
+**No ML prerequisites.** The pattern applies to anything with a scoreable output: prompts, [skill files](../concepts/skill-md.md), email templates, job descriptions, content templates, agent configurations.
 
-**Zero dependencies beyond git and an LLM.** No orchestration framework, no state database, no external services required.
+**Composable with existing agent infrastructure.** Any coding agent using git can run it. The loop is a convention, not a framework. [AutoResearch](../projects/autoresearch.md) implements the specific ML variant; the general pattern runs on whatever agent you already use.
 
 ## Critical Limitations
 
-**Concrete failure mode — metric gaming:** If the verification command measures something correlated with quality but not identical to it, the agent will optimize the correlation and diverge from actual quality. One documented case: a suspicious random seed change (42 to 137) that improved the benchmark score. Karpathy noted the agent itself recognized this as "a weird thing to do." Noisy metrics with high variance are particularly vulnerable — the agent may keep a change that improved the score by luck rather than by genuine improvement.
+**Concrete failure mode — eval gaming.** When criteria exceed 6, or are imprecisely defined, the agent optimizes for checklist compliance rather than real quality. An output can score 90% on 8 binary questions while reading like something no human would publish. The score becomes detached from the underlying quality you actually care about. This is not a edge case — it's the most common failure mode in practice, and it's invisible until you read the output.
 
-**Unspoken infrastructure assumption:** The loop assumes a stable, reproducible verification environment. If the verification command's output varies across runs due to non-deterministic execution, network calls, or hardware variation, the keep/discard signal becomes unreliable. The protocol includes multi-run medians and minimum-delta thresholds as mitigations, but these require the user to configure them correctly upfront. A default configuration on a volatile metric produces false positives silently.
+**Unspoken infrastructure assumption.** The loop assumes the eval harness runs deterministically and fast. For artifacts where evaluation requires real user behavior (email reply rates, ad click-through), the feedback loop lengthens from minutes to days or weeks, eliminating the overnight iteration advantage. You need either a proxy metric that correlates with the real outcome or API access to a platform that returns signal automatically.
 
-**Context window exhaustion:** For large codebases, reading all in-scope files plus the full git log plus the results TSV may exceed the model's context window. The protocol has no chunking or summarization strategy for this case.
+**Local maximum risk.** The loop is a greedy hill-climber. Each round commits changes that raise the score and reverts ones that don't. It cannot take a score decrease to escape a plateau toward a better region. A run that stalls at 75% may be stuck at a local maximum with no mechanism to get out.
 
-**Creativity ceiling:** Community experience consistently reports that agents prefer safe incremental changes over bold architectural experiments. The agent optimizes within the space of changes it can imagine, which skews toward the conservative. The 20-30% typical success rate reflects this — most attempts are small, safe, and either marginally helpful or neutral.
+**Score inflation from prompt-generated evals.** If the agent writes the initial eval criteria based on a description of your goals rather than examples of genuinely good outputs, the criteria may be too easy to satisfy. The score climbs quickly but the output quality doesn't match.
 
-## When Not to Use It
+## When NOT to Use It
 
-**No fast verification exists.** If measuring "better" requires a human review, a multi-hour test suite, or subjective judgment that can't be operationalized as a command output, the loop cannot run autonomously. The loop's value is proportional to verification speed.
+**No stable numeric proxy exists.** If you cannot write 3–6 binary questions that correlate tightly with what you actually want, the loop will optimize the wrong thing. Defining the eval is the human's job and cannot be delegated to the agent.
 
-**The target file is too large or too interconnected.** The one-file-mutable constraint breaks down when the artifact you want to improve has dependencies that require coordinated changes across many files. Attempting to run the loop anyway produces either frequent crashes or trivial changes that avoid touching the dependencies.
+**The feedback signal requires real users.** Conversion rates, retention, virality — anything that requires actual human behavior in production cannot serve as the eval. The loop needs a signal that runs in minutes, not weeks.
 
-**The metric is irreversibly consumable.** If each verification run costs real money (e.g., API calls to paid services, cloud compute), 100 overnight experiments at even $0.50 each becomes $50 per run. Budget this before starting.
+**The target artifact is deeply interdependent.** Prompts or configs that interact with five other components in complex ways may require changes to multiple files simultaneously. The one-file-per-round constraint breaks when the improvement space requires coordinated edits.
 
-**You need novel ideas, not optimization.** The loop excels at finding incremental improvements within a known solution space. It does not generate fundamentally new approaches — it refines existing ones. If the current approach is architecturally wrong, the loop will produce a marginally better version of a bad approach.
+**Quality judgment is inherently subjective and contextual.** Brand voice, tone, creative writing — domains where "better" depends on human taste rather than binary criteria produce evals that mislead more than they guide.
 
-## Multi-Agent Extension
+## Relationship to Adjacent Concepts
 
-The pattern extends to agent swarms with a validation gate. One documented architecture ([Source](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md)):
+The Karpathy Loop is a specific instantiation of a broader [self-improving agent](../concepts/self-improving-agent.md) pattern. It differs from [Reflexion](../concepts/reflexion.md) in that Reflexion improves agent behavior through verbal reflection added to memory, while the Karpathy Loop improves a static artifact through scored iteration with version control. [GEPA](../concepts/gepa.md) and [AgentEvolver](../projects/agentevolver.md) operate on agent prompts similarly but use evolutionary selection across populations rather than greedy single-file iteration.
 
-- Multiple agents write raw outputs to a `raw/` directory
-- A compiler organizes outputs into structured wiki articles every few hours
-- A separate supervisor agent (Hermes in this implementation) reviews each article before it enters the permanent knowledge base, with no context about how the article was produced — no production bias
-- Articles that pass become live; articles that fail stay in drafts
+[DSPy](../projects/dspy.md)'s prompt optimization operates on similar principles — score a prompt, modify it, re-evaluate — but within a structured framework with defined optimizers rather than a free-form agent loop.
 
-The key insight: a supervisor agent reviewing its own swarm's work, with no memory of how the work was produced, functions as an unbiased quality gate. Hallucinated connections that compound across agents get caught before they poison the permanent knowledge base.
+The eval criteria the loop depends on are a form of [LLM-as-Judge](../concepts/llm-as-judge.md) when scoring is done by a model rather than a deterministic function. When [SKILL.md](../concepts/skill-md.md) files are the target artifact, the loop produces [procedural memory](../concepts/procedural-memory.md) improvements: better instructions for how to perform a task.
+
+[Automatic curriculum](../concepts/automatic-curriculum.md) and [continual learning](../concepts/continual-learning.md) address related problems at the model weight level rather than the artifact level.
 
 ## Unresolved Questions
 
-- **Protocol drift at scale.** For long-running unbounded sessions, there is no validated method to detect or correct gradual deviation from the eight-phase protocol. The system relies on prompt engineering with no runtime verification.
-- **Optimal eval criteria construction.** The framework requires users to write binary evaluation criteria, but offers no tooling to validate that the criteria actually capture the quality property they're meant to measure. Poorly written evals produce confident optimization in the wrong direction.
-- **Parallelization correctness.** Karpathy's stated next step is massively parallel agent experimentation (multiple agents exploring simultaneously). How conflicts between parallel branches get resolved — which discoveries to keep when two agents improve the same file in different ways — remains an open design problem.
-- **Transferability of improvements.** Improvements discovered on one dataset or workload may not transfer. The original autoresearch benchmarks on a fixed validation set; there is no mechanism to detect overfitting to that specific evaluation.
+**Eval quality bootstrapping.** The loop's output quality is bounded by the quality of the eval criteria. The documentation and community guides offer templates, but no systematic method exists for verifying that your binary questions actually correlate with the real outcome you care about before you run 100 cycles.
+
+**Improvement ceiling.** Across multiple runs on the same artifact, does the loop converge and stay converged, or do later runs find that earlier improvements were fragile? No published data exists on multi-run stability.
+
+**Cost at scale for high-token artifacts.** At ~18,000 tokens per cycle, a 100-round run on a complex agent system prompt could cost significantly more than $25 if the eval requires generating long outputs. The cost estimates circulating assume short-to-medium artifacts.
+
+**Governance for production systems.** If the loop runs overnight and commits changes to a skill file or system prompt in production, who reviews the diff before deployment? The pattern is described in the context of development workflows, but the boundary between "overnight optimization" and "unreviewed production change" is not addressed.
 
 ## Alternatives
 
-- **[Reflexion](../concepts/reflexion.md)** — Use when you need verbal self-reflection rather than metric-driven iteration; better suited to tasks where the failure mode is reasoning errors rather than output quality on a scalar benchmark.
-- **[DSPy](../projects/dspy.md)** — Use when optimizing LLM pipelines with structured prompt components; DSPy provides more formal optimization over prompt variables, while the Karpathy Loop allows arbitrary code modifications.
-- **[GEPA](../concepts/gepa.md)** — Use when evolving agent behaviors through population-based genetic methods rather than single-threaded sequential iteration.
-- **Bayesian hyperparameter optimization** — Use when the search space is a fixed set of numeric parameters. Bayesian methods are more sample-efficient for constrained hyperparameter search; the Karpathy Loop is more powerful for open-ended structural changes that can't be expressed as parameters.
-- **[Self-Improving Agents](../concepts/self-improving-agents.md)** — The broader category; the Karpathy Loop is one specific instantiation with git-based memory and single-metric verification.
+- **[DSPy](../projects/dspy.md)** — Use when you want structured prompt optimization with defined optimizers (MIPROv2, COPRO) and a compiled pipeline rather than an open-ended agent loop
+- **[Reflexion](../concepts/reflexion.md)** — Use when the goal is improving agent decision-making through memory rather than refining a static artifact
+- **Manual A/B testing** — Use when the feedback signal requires real user behavior and no proxy metric is available
+- **[GEPA](../concepts/gepa.md) / evolutionary approaches** — Use when the search space is large enough that greedy hill-climbing reliably gets stuck and population-based search is warranted
 
-## Related Concepts
+---
 
-- [Self-Improving Agents](../concepts/self-improving-agents.md)
-- [Procedural Memory](../concepts/procedural-memory.md) — git history serves as procedural memory for what was tried
-- [Agent Workflow Memory](../projects/agent-workflow-memory.md)
-- [Iterative Self-Verification](../concepts/iterative-self-verification.md)
-- [Execution Traces](../concepts/execution-traces.md)
-- [Context Engineering](../concepts/context-engineering.md)
+*Sources: [The Product Channel by Sid Saladi](../raw/articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md), [AI by Aakash](../raw/articles/ai-by-aakash-the-ultimate-autoresearch-guide.md), [@aakashgupta tweet](../raw/tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md)*
+
+
+## Related
+
+- [Andrej Karpathy](../concepts/andrej-karpathy.md) — created_by (1.0)
+- [Cursor](../projects/cursor.md) — implements (0.5)
+- [AutoResearch](../projects/autoresearch.md) — implements (0.8)

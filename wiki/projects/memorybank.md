@@ -3,103 +3,106 @@ entity_id: memorybank
 type: project
 bucket: agent-memory
 abstract: >-
-  MemoryBank is a long-term memory system for LLMs that selectively reinforces
-  or decays stored memories using the Ebbinghaus forgetting curve, enabling
-  persistent personality modeling across sessions without unbounded context
-  growth.
+  MemoryBank adds Ebbinghaus-inspired forgetting curves to LLM memory,
+  dynamically updating and retiring facts based on recency and importance rather
+  than accumulating them indefinitely.
 sources:
   - repos/zhongwanjun-memorybank-siliconfriend.md
-  - papers/xu-a-mem-agentic-memory-for-llm-agents.md
-  - deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md
+  - repos/bingreeky-memevolve.md
+  - repos/memorilabs-memori.md
+  - deep/repos/memorilabs-memori.md
+  - deep/repos/bingreeky-memevolve.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
-related: []
-last_compiled: '2026-04-05T23:18:12.363Z'
+related:
+  - rag
+  - openclaw
+  - openai
+  - mcp
+last_compiled: '2026-04-07T11:59:21.102Z'
 ---
 # MemoryBank
 
-## What It Is
+## What It Does
 
-MemoryBank is a memory mechanism for LLMs that gives models persistent access to past interactions, user personality summaries, and contextually relevant history. The core differentiator: memories age and decay according to the Ebbinghaus forgetting curve rather than persisting indefinitely at equal weight or being naively truncated. The companion application, SiliconFriend, demonstrates the mechanism in a long-term AI companionship chatbot tuned for empathetic responses via LoRA on 38K Chinese psychological dialog examples.
+MemoryBank is a memory mechanism for LLMs that models human-like forgetting. Where most agent memory systems accumulate facts indefinitely and rely on retrieval to surface relevant ones, MemoryBank explicitly expires and deprioritizes memories over time using the Ebbinghaus forgetting curve: memories decay unless reinforced by repeated access. The system also extracts user personality summaries as a separate memory tier, giving it both episodic (event-based) and semantic (trait-based) storage.
 
-The system integrates with both closed-source models (ChatGPT) and open-source models (ChatGLM, BELLE).
-
-**Repository:** [zhongwanjun/MemoryBank-SiliconFriend](https://github.com/zhongwanjun/MemoryBank-SiliconFriend)
-**Paper:** [MemoryBank: Enhancing Large Language Models with Long-Term Memory](https://arxiv.org/pdf/2305.10250.pdf)
-**Stars:** 419 | **Forks:** 60 | **License:** MIT
+The core differentiator is the forgetting mechanism itself. Retrieval-based systems like [Mem0](../projects/mem0.md) and [Zep](../projects/zep.md) let memory grow without bound, controlling relevance through vector similarity at query time. MemoryBank controls relevance through temporal decay, modifying memory strength before retrieval happens. This shifts the design philosophy: rather than "store everything, filter at recall," MemoryBank asks "what would a human still remember after N days?"
 
 ## Core Mechanism
 
-### Ebbinghaus Forgetting Curve
+The Ebbinghaus model computes memory retention as:
 
-The defining feature is memory decay modeled on Hermann Ebbinghaus's 1885 retention research. Rather than treating all stored memories as equally available, MemoryBank calculates a retention probability for each memory based on:
+**R(t) = e^(-t/S)**
 
-- **Time elapsed** since last access or creation
-- **Repetition count**: how often this memory has been retrieved or reinforced
-- **Significance**: a weight assigned at storage time
+where `t` is elapsed time since last access and `S` is memory stability (a function of how many times the memory has been reinforced). Each memory entry carries a retrieval count and last-access timestamp. When the system retrieves a memory, it updates both values, increasing stability and resetting the decay clock. Memories whose computed retention falls below a threshold are either deprioritized in ranking or purged.
 
-Memories that are accessed repeatedly stay strong; memories that sit unused decay. This mirrors how human episodic memory works and solves a real production problem: naive retrieval systems return stale, irrelevant memories at the same confidence as recent, important ones.
+Memory storage uses [FAISS](../projects/faiss.md) for vector retrieval, with memories stored as text chunks with associated metadata (timestamps, retrieval counts, stability scores). At recall time, candidate memories pass through a two-stage filter: vector similarity (cosine distance from the query embedding) followed by retention score weighting. Highly similar but rarely-accessed old memories rank lower than moderately similar but frequently-reinforced ones.
 
-### Memory Pipeline
+The personality summary tier operates separately. Periodically, the system runs an LLM-based summarization pass over recent conversation history, extracting stable user traits (preferences, communication style, background) into a separate summary document. This summary is always injected into context regardless of the forgetting curve, functioning as [Core Memory](../concepts/core-memory.md) in [Letta](../projects/letta.md)'s terminology.
 
-1. **Storage**: Conversations are summarized (using OpenAI's API for summarization, even in open-source model deployments) and written to a memory bank as structured entries in `memory_bank.json` files.
+The architecture also includes a "memory update" step distinct from insertion: when a new memory contradicts an existing one (e.g., user changes job), the system can overwrite rather than append, reducing the contradictory-facts accumulation problem that plagues purely additive memory systems.
 
-2. **Retrieval**: At query time, the system fetches semantically relevant memories, then applies the forgetting curve to re-rank them. A memory that is a good semantic match but was accessed six months ago gets downweighted against a slightly weaker match from last week.
+## Key Numbers
 
-3. **Update**: Retrieved memories get their access timestamps updated, reinforcing retention. Memories consistently ignored decay toward forgetting threshold and are eventually pruned.
+MemoryBank was evaluated on a custom long-term conversation dataset (SiliconFriend) with GPT-4 as judge. Reported results show improvements over no-memory baselines on empathy, persona consistency, and factual recall metrics. These results are **self-reported by the original paper authors** and have not been independently reproduced on standard benchmarks like [LoCoMo](../projects/locomo.md) or [LongMemEval](../projects/longmemeval.md). The paper targets ChatYuan and ChatGLM as base models, which limits direct comparisons to GPT-4-class systems evaluated in competing work.
 
-4. **Personality Synthesis**: Beyond individual episodic memories, the system maintains a synthesized personality model of the user, built from accumulated interaction history. This is stored separately and updated periodically.
-
-### SiliconFriend
-
-The demonstration application (`SiliconFriend-ChatGLM-BELLE/`) runs a bilingual (Chinese/English) chatbot using ChatGLM or BELLE with LoRA adapters fine-tuned on psychological dialog data. The LoRA checkpoints are hosted as GitHub releases (~500MB each). The web demo uses Gradio; CLI usage is also supported.
-
-## Evaluation
-
-The evaluation setup uses ChatGPT to simulate users with distinct personalities, generating conversation histories across multiple topics stored in `eval_data/cn/memory_bank_cn.json` and `eval_data/en/`. Researchers then manually crafted 100 probing questions to test memory retrieval accuracy.
-
-Qualitative analysis uses real-world user dialogs. Quantitative analysis uses the simulated dialogs. The paper reports that SiliconFriend with MemoryBank demonstrates "strong capability for long-term companionship" including empathetic responses, relevant memory recall, and user personality understanding.
-
-**Credibility note:** These results are self-reported by the authors. The evaluation benchmark is bespoke and not independently validated against standardized long-term memory benchmarks like LongMemEval or MADail-Bench. The probing question set (100 questions) is small.
+The GitHub repository has several hundred stars but is primarily a research artifact rather than a maintained production library.
 
 ## Strengths
 
-**Human-plausible memory dynamics.** The forgetting curve mechanism produces behavior that users find natural: the system remembers things you mention repeatedly and forgets details from isolated, old conversations. This matters for companionship applications where unnatural recall ("you mentioned that once eighteen months ago") can feel surveillance-like rather than helpful.
+**Principled memory pruning.** Most memory systems have no answer to "how does memory stay tractable over months of use?" MemoryBank's forgetting curve provides a theoretically grounded answer. Facts the user never revisits gradually fade; facts they reinforce (by mentioning repeatedly or asking about) persist. This mirrors how human memory works and naturally handles the case where old information becomes stale or irrelevant.
 
-**Broad model compatibility.** The architecture treats memory retrieval and summarization as separate from the inference model. Swapping ChatGLM for BELLE for ChatGPT requires changing configuration, not rewriting the memory layer. This is a real engineering advantage for teams experimenting with model choices.
+**Contradictory memory handling.** The explicit update mechanism, where new memories can overwrite conflicting old ones, addresses a real failure mode in additive systems. A user who moves cities, changes jobs, or updates preferences will eventually create contradictions in append-only stores. MemoryBank's architecture has a path to resolving this.
 
-**Compact memory representation.** Summarizing conversations into memory entries rather than storing raw transcripts keeps the memory bank manageable and retrieval fast, without requiring vector database infrastructure for small deployments.
+**Dual-tier design.** Separating episodic event memories (subject to forgetting) from semantic personality summaries (stable, always-present) maps well onto how long-term assistant relationships actually work. Knowing someone prefers bullet points should never decay; knowing what they ordered for lunch last Tuesday should.
 
 ## Critical Limitations
 
-**Concrete failure mode:** The forgetting curve parameters (decay rate, significance weights, repetition thresholds) appear fixed rather than learned per user or per domain. For a user who mentions a critical medical condition once and never again, the memory will decay toward forgetting threshold despite its obvious importance. The system has no mechanism to distinguish "mentioned rarely because unimportant" from "mentioned rarely because traumatic or taken for granted."
+**Concrete failure mode: calibration sensitivity.** The forgetting curve has two free parameters: initial stability and the decay rate. The system sets these as constants or uses simple heuristics. But different memory types warrant different stability profiles: a user's name should have near-infinite stability, while a temporary preference ("I'm in a meeting, keep responses short") should decay within hours. With uniform parameters, either important facts decay too fast or trivial facts never leave. The paper does not provide principled guidance on parameter selection, and production deployments would require significant empirical tuning per domain.
 
-**Unspoken infrastructure assumption:** Memory summarization relies on OpenAI's API even when the inference model is open-source. The `launch_chatglm_app.sh` configuration requires `OPENAI_API_KEY`. Teams deploying in air-gapped environments, with strict data residency requirements, or on tight API budgets face a hidden dependency that the README mentions only in passing.
-
-**No multi-hop reasoning.** MemoryBank retrieves relevant memories and injects them into context, but it does not link memories to each other or propagate updates across related memories. Asking "how have my feelings about my job changed over the past year?" requires synthesizing a chain of episodic memories. A-MEM's Zettelkasten-style linking and memory evolution would handle this better; MemoryBank would return a flat list of job-related memories without temporal synthesis. [See A-MEM for the contrast.](../concepts/agentic-memory.md)
-
-**Scale limits untested.** All experiments use a single Tesla A100 80GB GPU. The system stores memories in JSON files rather than a vector database. At thousands of conversations or millions of memories, the retrieval approach needs replacement.
+**Unspoken infrastructure assumption.** MemoryBank assumes all interactions flow through a single memory system with accurate timestamps. In practice, users interact across multiple interfaces, sessions have gaps, and timestamps may not reflect actual conversation time (batch imports, API replays). The forgetting curve computes decay from "time since last access" -- but if access logs are incomplete or the system hasn't been queried in two weeks due to user inactivity (not forgetting), the model will incorrectly decay memories the user actually remembers fine. The system has no mechanism to distinguish "user forgot this" from "user didn't mention this recently."
 
 ## When NOT to Use It
 
-**Multi-hop reasoning tasks.** If your application requires synthesizing relationships across multiple stored memories (connecting a past project failure to a current proposal, tracing how user preferences evolved), MemoryBank's flat retrieval model will underperform systems with explicit memory linking like A-MEM or graph-enhanced approaches.
+Skip MemoryBank when:
 
-**Strict data privacy deployments.** The dependency on OpenAI for summarization means conversation content leaves your infrastructure. Healthcare, legal, and enterprise deployments with data residency requirements need to replace this component explicitly.
-
-**High-volume production systems.** JSON-file memory storage and the absence of a proper vector database layer mean this architecture requires non-trivial re-engineering before handling production load at scale.
-
-**Tasks requiring temporal precision.** "What did the user say on March 4th?" or "What changed between month one and month three?" require temporal indexing. The forgetting curve addresses relevance over time, not temporal lookup. Zep's bi-temporal indexing is the better fit for temporal queries.
+- You need production-grade reliability. The repository is a research artifact without active maintenance or versioning guarantees.
+- Your use case involves high-stakes persistent facts (medical history, legal preferences, account settings). The forgetting mechanism can delete information the user explicitly provided. Systems like [Letta](../projects/letta.md) with explicit core memory tiers handle this more safely.
+- You're building on top of GPT-4-class models and need benchmark-validated performance. MemoryBank's evaluations use older Chinese LLMs; the architecture may work on GPT-4 but this hasn't been validated against current baselines.
+- You need multi-user or multi-session memory with attribution. The research codebase doesn't address the entity-scoping concerns that production multi-tenant systems require.
+- You're comparing against [Mem0](../projects/mem0.md), [Zep](../projects/zep.md), or [Letta](../projects/letta.md) on standard benchmarks. None of MemoryBank's results appear on shared leaderboards, making comparison impossible.
 
 ## Unresolved Questions
 
-The documentation does not address how significance scores are assigned at storage time, whether this is automated or manual, or how to tune the weights for domains other than companionship. There is no explanation of what happens when the forgetting curve prunes a memory that turns out to be important later, or how to audit what the system has forgotten. The relationship between the personality synthesis mechanism and individual episodic memories is also underspecified: when new memories contradict the existing personality model, which wins?
+**Parameter governance at scale.** How should decay rate and stability parameters be set for different memory types? The paper uses fixed values but provides no analysis of sensitivity or domain-specific recommendations.
+
+**Conflict resolution semantics.** When does a new memory overwrite an old one versus coexist with it? The system needs some similarity threshold to detect conflicts, but the paper doesn't specify this mechanism or its failure modes when the threshold is wrong.
+
+**Cost at scale.** The periodic personality summarization step requires an LLM call over recent history. At what conversation volume does this become expensive? Is it batched, triggered by event count, or run on a schedule? The paper doesn't address operational costs for systems with thousands of users.
+
+**Interaction with [RAG](../concepts/rag.md) pipelines.** MemoryBank is positioned as a standalone memory layer. How it composes with document retrieval, tool use, or other context sources is unexplored. The context budget competition between decayed-but-retrieved memories and fresh document retrievals has no principled resolution.
+
+## Relationship to Broader Concepts
+
+MemoryBank is an instance of [Episodic Memory](../concepts/episodic-memory.md) with explicit temporal dynamics. It sits within the broader [Agent Memory](../concepts/agent-memory.md) design space but occupies a specific niche: time-aware memory management for long-running personal assistants rather than task-completion agents.
+
+The forgetting curve connects to [Continual Learning](../concepts/continual-learning.md) literature, where [Catastrophic Forgetting](../concepts/catastrophic-forgetting.md) is the central problem. MemoryBank addresses a related but distinct concern: external memory stores don't suffer catastrophic forgetting, but they do suffer from information staleness and unbounded growth. The Ebbinghaus approach handles staleness through decay; growth is handled implicitly by pruning low-retention entries.
+
+The [Memory Evolution](../concepts/memory-evolution.md) approach taken by [MemEvolve](../projects/memevolve.md) is architecturally orthogonal: MemEvolve evolves the memory architecture itself, while MemoryBank assumes a fixed architecture and evolves memory contents through forgetting dynamics. A combined system might use MemEvolve to discover optimal decay parameters for a given domain.
 
 ## Alternatives
 
-| Use case | Better choice |
-|---|---|
-| Multi-hop reasoning across memories | [A-MEM](https://github.com/WujiangXu/A-mem): Zettelkasten-style linking, memory evolution, 2.5x improvement on multi-hop F1 |
-| Temporal queries ("what changed when?") | Zep with bi-temporal indexing |
-| Production scale with structured retrieval | MemGPT / Letta: OS-inspired memory hierarchy with explicit paging |
-| Pure retrieval without decay semantics | Standard RAG with a vector database (Chroma, Pinecone, Weaviate) |
+- **[Mem0](../projects/mem0.md)**: Production-maintained, benchmark-validated on LoCoMo, supports entity attribution and conflict detection. Use when you need a maintained library with community support and independent performance validation.
+- **[Letta](../projects/letta.md)**: Explicit memory tier separation (core, archival, recall) with fine-grained control. Use when you need deterministic control over what persists versus what can be forgotten.
+- **[Zep](../projects/zep.md)**: Temporal knowledge graph with session-aware retrieval. Use when you need structured relationship tracking alongside episodic memory.
+- **[Graphiti](../projects/graphiti.md)**: Graph-based memory with temporal edges. Use when your use case involves reasoning over relationships between entities rather than personal preference recall.
 
-Use MemoryBank when the forgetting/reinforcement dynamics matter for the user experience specifically, particularly in companionship or coaching applications where human-like memory behavior is a feature rather than an implementation detail, and when the deployment is small enough to avoid the JSON storage scaling wall.
+Use MemoryBank when you're building a research prototype exploring human-inspired memory dynamics and want a theoretically motivated starting point. It is not the right choice for production deployment without significant engineering work to validate parameters, handle edge cases, and address the missing infrastructure assumptions.
+
+
+## Related
+
+- [Retrieval-Augmented Generation](../concepts/rag.md) — part_of (0.5)
+- [OpenClaw](../projects/openclaw.md) — part_of (0.3)
+- [OpenAI](../projects/openai.md) — part_of (0.3)
+- [Model Context Protocol](../concepts/mcp.md) — part_of (0.3)

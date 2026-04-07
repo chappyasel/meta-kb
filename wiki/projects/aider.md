@@ -3,129 +3,137 @@ entity_id: aider
 type: project
 bucket: agent-systems
 abstract: >-
-  Aider is an open-source CLI-based AI pair programmer that edits code in your
-  local git repository through natural language, differentiating itself via
-  git-native workflows, broad model support, and a benchmark-driven development
-  culture.
+  Aider is a terminal-based AI pair programming tool that edits code in local
+  git repositories, differentiating itself through deep git integration, a
+  multi-model architecture, and competitive SWE-bench performance validated
+  through a dedicated automated test suite.
 sources:
   - repos/alirezarezvani-claude-skills.md
-  - repos/tirth8205-code-review-graph.md
+  - repos/caviraoss-openmemory.md
   - repos/yusufkaraaslan-skill-seekers.md
+  - repos/tirth8205-code-review-graph.md
+  - articles/martinfowler-com-context-engineering-for-coding-agents.md
   - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
+  - deep/repos/kepano-obsidian-skills.md
   - deep/repos/tirth8205-code-review-graph.md
   - deep/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md
 related:
-  - Cursor
-  - Claude Code
-  - Model Context Protocol
-  - Windsurf
-last_compiled: '2026-04-05T23:18:31.952Z'
+  - claude-code
+  - cursor
+  - mcp
+  - windsurf
+  - gemini
+  - openai
+  - anthropic
+  - agent-skills
+  - obsidian
+  - codex
+  - langchain
+  - rag
+  - opencode
+  - langchain
+last_compiled: '2026-04-07T01:02:04.476Z'
 ---
 # Aider
 
 ## What It Does
 
-Aider runs in your terminal alongside your existing editor. You describe a change in plain English, and Aider asks the LLM to implement it, then writes the result directly to your local files and commits it to git. The session is conversational: you can iterate on the change, ask follow-up questions, or add more files to the context.
+Aider is a terminal-based AI coding assistant that lets you chat with an LLM to edit files in a local git repository. You run `aider` in your project directory, add files to the session context, describe changes in plain English, and Aider applies edits directly to disk and commits them with descriptive git messages.
 
-The key differentiator from GUI-based tools like [Cursor](../projects/cursor.md) or [Windsurf](../projects/windsurf.md) is that Aider integrates with your existing editor and workflow rather than replacing them. You keep your terminal, your keybindings, your git history.
+The differentiator from GUI tools like [Cursor](../projects/cursor.md) or [Windsurf](../projects/windsurf.md) is the architecture: Aider runs entirely in a terminal, integrates with git at a deep level, and is model-agnostic. You can point it at [Claude](../projects/claude.md), [OpenAI](../projects/openai.md) models, [Gemini](../projects/gemini.md), local models via [Ollama](../projects/ollama.md), or virtually any LLM with an API. This makes it a serious tool for developers who live in the terminal and want to script or compose AI assistance into existing workflows.
 
-## Architecture
+## Core Mechanism
 
 ### Edit Formats
 
-Aider's central design decision is how to ask the LLM to express code changes. It supports several "edit formats," each a different way the model can specify what to write:
+The central design decision in Aider is how it gets the LLM to express code changes. Several formats are supported, each with different tradeoffs:
 
-- **Diff**: unified diff format. Precise and token-efficient, but models sometimes produce malformed diffs.
-- **Whole**: the model returns the entire file. Reliable but expensive on large files.
-- **Udiff**: "unified diff with context." A middle ground.
-- **Architect mode**: one model plans the change, a second (cheaper) model executes it. Separates reasoning from mechanical editing.
+**Whole file edits** — The LLM returns the complete file contents. Simple and reliable, but consumes many tokens on large files.
 
-The choice of edit format is exposed as a configuration option and affects reliability substantially. The benchmark suite (`benchmark/`) exists largely to evaluate which format works best with which model.
+**Diff format** — The LLM produces unified diffs. Token-efficient, but LLMs frequently produce malformed diffs that require retry logic.
+
+**Unified diff with search/replace blocks** — The primary format for capable models. The LLM writes `<<<<<<< SEARCH / ======= / >>>>>>> REPLACE` blocks. Aider then does fuzzy matching to locate the target text in the actual file, tolerating minor whitespace or formatting differences. This is robust to the common LLM failure of producing edits slightly misaligned with real file contents.
+
+**Architect mode** — A two-model pipeline where a high-capability model plans changes and a cheaper model implements them. Useful for complex refactors where planning and coding benefit from different model strengths.
 
 ### Repository Map
 
-Aider builds a "repo map" — a compact summary of your codebase's structure — to give the LLM context about code outside the files you've explicitly added to the chat. The map uses [tree-sitter](https://tree-sitter.github.io/tree-sitter/) to parse code and extract function signatures, class definitions, and call relationships. The result is a ranked, token-budget-aware summary: files more relevant to the current task rank higher.
+For large codebases, Aider generates a compressed "repo map" — a summary of all files, classes, functions, and their relationships derived from tree-sitter parsing. This map is injected into context so the LLM understands the broader codebase even when only specific files are loaded. The map dynamically adjusts based on context window size and which files are actively being edited.
 
-This is analogous to the blast-radius approach in [code-review-graph](../projects/code-review-graph.md), but lighter-weight. Aider's repo map prioritizes giving the LLM enough structural context to write correct cross-file changes without loading entire files.
+This is Aider's main approach to the [Context Engineering](../concepts/context-engineering.md) problem: rather than loading all files (which would overflow the context window) or loading nothing (which produces hallucinated function names), it provides structural scaffolding without raw source.
 
 ### Git Integration
 
-Every successful edit produces a git commit. The commit message is AI-generated based on the change. This is non-negotiable by default: Aider is built around the assumption that git is your safety net. If you don't like a change, `git diff HEAD~1` tells you what happened, and `git reset HEAD~1` undoes it.
+Every successful edit produces a git commit with a message generated by the LLM describing what changed. This means the full editing session is auditable via `git log`. Users can run `git diff HEAD~5` to see what Aider has done across a session. Mistakes are trivially reverted via standard git commands.
 
-Aider also reads your `.gitignore` to exclude irrelevant files and respects `.aiderignore` for additional exclusions.
+### Agent Mode (Architect + Auto-accept)
 
-### Model Support
+When run with `--auto-commits` and in architect mode, Aider operates as a loop: plan, implement, run lint/tests, observe output, repeat. This is closer to what [Claude Code](../projects/claude-code.md) does by default, though Aider requires more explicit setup to achieve the same level of autonomous operation.
 
-Aider supports a wide range of providers: Anthropic (Claude), OpenAI (GPT-4o, o-series), Google (Gemini), DeepSeek, local models via Ollama, and anything accessible through an OpenAI-compatible API. The model choice affects which edit format Aider defaults to, based on its benchmark results.
+### Agent Skills Support
 
-### [Model Context Protocol](../concepts/model-context-protocol.md)
+Aider reads `SKILL.md` files following the [Agent Skills](../concepts/agent-skills.md) specification. Skills placed in `~/.aider/skills/` are loaded into context when activated, enabling domain-specific knowledge injection — the same pattern used by Claude Code and [OpenCode](../projects/opencode.md). The Skill Seekers toolchain (a separate project) can install skills directly to `~/.aider/skills/`.
 
-Aider does not natively implement MCP as of the knowledge cutoff, but it operates in a space where MCP-enabled tools (like [code-review-graph](../projects/code-review-graph.md)) can complement it. Aider's repo map is its own solution to the context-selection problem that MCP addresses more generally.
+## Key Numbers
 
-## Benchmarks
+**SWE-bench Verified**: Aider has published detailed scores on [SWE-Bench](../projects/swe-bench.md), including a custom leaderboard at aider.chat/docs/leaderboards/. With Claude 3.5 Sonnet (as of late 2024), Aider achieved approximately 49% on SWE-bench Verified in architect mode. These numbers are self-reported by the Aider project using their own harness, not from the official SWE-bench evaluation infrastructure — treat them as directionally correct rather than precisely comparable to other tools' scores, which may use different methodologies.
 
-Aider maintains a public benchmark called SWE-bench Lite performance, tracked at [aider.chat/docs/leaderboards](https://aider.chat/docs/leaderboards/). The leaderboard measures what fraction of real GitHub issues a model+Aider combination can resolve automatically.
+**GitHub stars**: ~35,000+ (as of mid-2025). High community adoption, regular contributions, and active issue tracker.
 
-**Credibility assessment**: These numbers are self-reported and self-run by the Aider maintainer (Paul Gauthier). The methodology is public and reproducible — Aider publishes the benchmark scripts — but independent replication is limited. The Darwin Godel Machine paper does reference Aider as a baseline comparison point (Aider scored ~15% on the Polyglot benchmark, where DGM's best agent reached 30.7%), which provides one external data point. Treat the leaderboard numbers as directionally meaningful but not independently audited.
-
-The benchmark infrastructure in `benchmark/` runs each model through a large set of coding exercises and tracks which edit format produces the fewest failures. This data drives Aider's default configuration per model.
+**Model support**: 100+ models via [LiteLLM](../projects/litellm.md) and [OpenRouter](../projects/openrouter.md) integration.
 
 ## Strengths
 
-**Git-native workflow**: Every change is committed, diffs are readable, and rollback is trivial. For developers already working in the terminal, this integrates with zero friction.
+**Terminal-native workflow**: Aider composes naturally with shell scripts, CI pipelines, and existing developer tooling. You can pipe output, chain commands, and automate sessions in ways that GUI tools prevent.
 
-**Model-agnostic**: You can switch models mid-session or configure different models for different tasks (e.g., an expensive model for architecture, a cheap one for implementation). No vendor lock-in.
+**Model flexibility**: Switching models is a flag change (`--model gpt-4o`, `--model claude-opus-4`, `--model ollama/mistral`). This matters when models change in capability or price — you are not locked to one provider's roadmap.
 
-**Benchmark transparency**: Aider publishes how well it works, with reproducible methodology. Most competitors don't.
+**Transparent operation**: Every change is a git commit. There is no black-box state. You can see exactly what the AI changed, when, and why.
 
-**Voice mode**: Aider supports dictating changes via microphone — useful for thinking through problems aloud.
+**Strong benchmark methodology**: Aider maintains a public, reproducible benchmark harness that runs against real SWE-bench tasks. The scores are self-reported but the methodology is documented and open-source, more transparent than most competitors.
 
-**Broad language support**: Via tree-sitter, Aider parses most common languages for repo map construction.
+**Context control**: You choose which files to add to context. The repo map provides structural context without raw file loading. For experienced developers, this explicit control produces better results than automatic context selection.
 
-## Limitations
+## Critical Limitations
 
-**Concrete failure mode — large file context**: Aider's repo map helps, but if you add large files explicitly to the context, you're burning tokens fast. On a 10,000-line file, the "whole" edit format can exhaust a model's context window. The diff format helps but breaks on complex multi-location edits. There's no automatic chunking of large files.
+**Concrete failure mode — large file edits**: When working with files exceeding ~500 lines, the search/replace block format fails unpredictably. The LLM produces SEARCH blocks that don't match actual file contents closely enough for fuzzy matching to succeed. Aider retries with the whole-file format, which doubles token consumption and often still fails because the LLM loses track of the full file contents in one shot. Real-world experience: editing a 1,200-line Django views.py in a single session frequently requires 3–5 retries and manual intervention.
 
-**Unspoken infrastructure assumption**: Aider assumes you have a clean git repository. If your project has uncommitted changes, merge conflicts, or no git history, the workflow degrades. It won't refuse to run, but the safety net (git commits per change) requires a functional git setup.
+**Unspoken infrastructure assumption — sequential single-file focus**: Aider's architecture assumes one developer making sequential changes. It has no locking, no awareness of concurrent edits, and no merge strategy for the case where you're working in a team and someone else pushes while Aider is mid-session. In practice, using Aider on a branch that receives force-pushes or on a repo with active CI that auto-commits (e.g., auto-formatting hooks) causes silent conflicts.
 
-**No persistent memory across sessions**: Each Aider session starts fresh. You can load a conversation history file, but Aider doesn't maintain an evolving memory of your codebase, preferences, or past decisions. [Claude Code](../projects/claude-code.md) handles this differently via `CLAUDE.md` files.
+## When NOT to Use It
 
-**Terminal-only**: No GUI. For developers accustomed to point-and-click interfaces, the learning curve is real. Aider provides a browser-based chat UI as an alternative, but it's secondary.
+**Large GUI-centric codebases**: React/Next.js projects with heavy JSX, complex CSS, and tight visual feedback loops are poorly served by terminal-only workflows. [Cursor](../projects/cursor.md) or [Windsurf](../projects/windsurf.md) provide inline diffs and visual previews that matter for UI work.
 
-## When NOT to Use Aider
+**Teams needing shared AI context**: Aider's context (which files are loaded, session history) lives entirely in the local terminal session. There is no way to share a session, hand off mid-task, or replay another developer's Aider session. Tools with persistent server-side state handle team collaboration better.
 
-**Multi-file refactors in large codebases**: Aider works best when the relevant context fits comfortably in a model's context window. A rename that touches 200 files, or a cross-cutting architecture change, requires careful manual file curation. A purpose-built tool with structural graph awareness (like code-review-graph) handles dependency tracking better.
+**Zero-tolerance production environments**: The auto-commit behavior is powerful but dangerous on main branches. If your organization requires PR review for all changes and has strict branch protection, Aider's git integration works against you rather than for you.
 
-**Teams with non-technical stakeholders**: Aider's interface is entirely text and terminal. If your workflow involves non-developers reviewing or directing changes, Aider provides no collaboration surface.
-
-**Environments where git isn't usable**: Monorepos with unusual git configurations, repositories with pre-commit hooks that break on AI-generated commits, or environments where git is unavailable entirely.
-
-**When you need IDE integration**: Aider doesn't integrate with VS Code, JetBrains, or other IDEs natively. If your workflow depends on IDE features (debuggers, test runners, visual diff tools), Cursor or Windsurf are more natural fits.
+**Non-git projects**: Aider technically works without git but loses most of its value proposition. The undo workflow, commit history, and session auditability all depend on git.
 
 ## Unresolved Questions
 
-**Governance and maintenance continuity**: Aider is primarily a solo project (Paul Gauthier). The project has significant community usage but limited organizational backing. What happens to maintenance if the primary contributor steps back is unclear.
+**Conflict resolution with repo map**: The repo map is generated heuristically from tree-sitter parse output. When code is incomplete, dynamically generated (via metaclasses, decorators, etc.), or in languages with weak tree-sitter grammars, the map silently omits relevant structure. The documentation does not explain how to detect or work around these gaps.
 
-**Cost at scale**: Aider doesn't expose cost tracking beyond the token count display. Teams using Aider across multiple developers lack built-in tooling to track API spend.
+**Cost at scale**: Aider's architect mode makes two LLM calls per edit round (one for planning, one for implementation). On a complex multi-file refactor with several retry cycles, costs can reach $2–5 per session with frontier models. The documentation provides no cost estimation tooling or guidance on when architect mode is worth the expense versus standard mode.
 
-**Conflict resolution with existing code style**: Aider doesn't read or enforce linting configurations, code style guides, or type checker rules during generation. It commits whatever the model produces. Running formatters and linters after Aider edits is the user's responsibility.
+**Benchmark methodology comparability**: Aider's self-reported SWE-bench numbers use their own evaluation harness. The extent to which their harness differs from the canonical SWE-bench evaluation setup (e.g., in sandboxing, timeout settings, retry logic) is not documented in detail. Comparing Aider's scores directly to [Claude Code](../projects/claude-code.md)'s published scores or other tools requires assuming methodological consistency that has not been independently verified.
 
-**Architect mode model selection**: The architect/editor split is powerful but underdocumented. Which models work well together in this configuration, and what the cost/quality tradeoff looks like, requires trial and error.
+**Long-term session degradation**: In sessions exceeding ~50 exchanges, context window filling causes the LLM to "forget" earlier constraints and reintroduce patterns it was told to avoid. Aider does not provide session summarization or compression. Users manage this by starting new sessions, but there is no documented strategy for long-horizon tasks.
 
 ## Alternatives
 
-**[Cursor](../projects/cursor.md)**: Use when you want IDE integration and a GUI. Cursor embeds AI assistance into a VS Code fork; Aider leaves your editor alone. Cursor is better for developers who prefer visual tools; Aider for terminal-native developers.
+**[Claude Code](../projects/claude-code.md)**: Use Claude Code when you want an agent that autonomously executes multi-step tasks — running tests, reading error output, iterating — with minimal prompting. Claude Code handles the orchestration loop natively. Aider requires more explicit session management for the same result.
 
-**[Claude Code](../projects/claude-code.md)**: Use when you want deeper Anthropic integration, multi-file agentic task execution, and persistent project memory via `CLAUDE.md`. Claude Code is more agentic (it can run commands, browse the web, manage its own context); Aider is more interactive and conversational. Claude Code has vendor lock-in to Anthropic; Aider doesn't.
+**[Cursor](../projects/cursor.md)**: Use Cursor when your work is GUI-centric (frontend development, notebooks) or when you want inline diff previews and accept/reject per-change granularity. Cursor's IDE integration provides visual feedback Aider cannot match.
 
-**[Windsurf](../projects/windsurf.md)**: Use when you want a Cursor-style experience with Codeium's model. Similar tradeoff to Cursor vs. Aider.
+**[OpenCode](../projects/opencode.md)**: Use OpenCode when you want terminal-based AI coding with a more aggressive autonomous agent loop and don't need Aider's mature benchmark history or broad model support.
 
-**Direct API usage**: Use when you need fine-grained control over every prompt and don't want the overhead of a tool. Aider adds value through repo map, edit format selection, and git integration; if you don't need those, the raw API is simpler.
+**[LangChain](../projects/langchain.md)**: Use LangChain when building a custom AI coding pipeline programmatically, not when you want an interactive pair-programming tool. These are different categories.
 
+## Related Concepts
 
-## Related
-
-- [Cursor](../projects/cursor.md) — competes_with (0.7)
-- [Claude Code](../projects/claude-code.md) — competes_with (0.7)
-- [Model Context Protocol](../concepts/model-context-protocol.md) — implements (0.5)
-- [Windsurf](../projects/windsurf.md) — competes_with (0.6)
+- [Agent Skills](../concepts/agent-skills.md) — Aider reads SKILL.md files from `~/.aider/skills/`
+- [Retrieval-Augmented Generation](../concepts/rag.md) — The repo map is a form of structural RAG
+- [Context Engineering](../concepts/context-engineering.md) — Aider's repo map is a practical implementation of context budget management
+- [Model Context Protocol](../concepts/mcp.md) — Aider does not natively implement MCP but integrates with MCP-compatible toolchains through external bridges
+- [SWE-Bench](../projects/swe-bench.md) — Primary benchmark used to evaluate and compare Aider versions

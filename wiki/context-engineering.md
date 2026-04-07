@@ -3,16 +3,17 @@ title: The State of Context Engineering
 type: synthesis
 bucket: context-engineering
 abstract: >-
-  Context engineering has shifted from a question of "how do we prompt the
-  model?" to "how do we architect the full information space the agent operates
-  in?" — driven by the recognition that long-context performance, agent memory,
-  and skill composition are fundamentally infrastructure problems, not
-  prompt-writing problems.
-source_date_range: 2025-01-20 to 2026-04-05
-newest_source: '2026-04-05'
+  Context engineering has split into two opposing camps: file-based systems that
+  treat markdown as the universal memory substrate versus graph-and-vector
+  architectures that model relationships and time. Both work. Neither subsumes
+  the other. The choice depends on whether your agent needs to discover
+  connections it wasn't asked about.
+source_date_range: 2025-01-20 to 2026-04-07
+newest_source: '2026-04-07'
 staleness_risk: low
 sources:
   - tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md
+  - articles/x-twitter-meta-agent-continual-learning-for-agents.md
   - repos/mem0ai-mem0.md
   - papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
   - tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md
@@ -36,169 +37,150 @@ sources:
   - repos/martian-engineering-lossless-claw.md
   - repos/volcengine-openviking.md
   - repos/kepano-obsidian-skills.md
-  - papers/zhang-agentic-context-engineering-evolving-contexts-for.md
 entities:
   - mcp
   - context-engineering
   - progressive-disclosure
-  - claude-md
   - prompt-engineering
   - dspy
-  - context-graphs
-  - prompt-compression
-  - llmlingua
+  - claude-md
+  - context-compression
+  - context-window
   - chain-of-thought
-  - context-collapse
-  - three-space-architecture
-  - compaction-tree
-  - context-database
+  - context-management
   - dspy-optimization
-last_compiled: '2026-04-06T01:51:32.153Z'
+  - unknown-unknowns
+last_compiled: '2026-04-07T11:31:09.948Z'
 ---
 # The State of Context Engineering
 
-The question practitioners asked twelve months ago was: "How do I write better prompts?" The question now is: "How do I design the system that decides what goes into context, when, and in what form?" That shift from craft to architecture is what [Context Engineering](concepts/context-engineering.md) actually means, and it's driving a wave of tooling that treats the LLM's context window as a managed resource rather than a text field.
+[Andrej Karpathy](concepts/andrej-karpathy.md) built a personal knowledge system from markdown files, auto-maintained indexes, and LLM "health checks," then declared he didn't need "fancy RAG" for ~400K words of research notes ([source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)). [Zep](projects/zep.md) published a paper showing their temporal knowledge graph beat MemGPT on the Deep Memory Retrieval benchmark at 94.8% accuracy while cutting latency by 90% on enterprise-critical tasks like cross-session information synthesis ([source](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)). These two projects made opposite bets on the same problem: Karpathy treats context as files the LLM can directly read and maintain; Zep treats context as a temporal graph that must be queried through structured retrieval. Both report strong results. The tension between them defines this space.
 
 ## Approach Categories
 
-### Category 1: How do you keep an agent's knowledge current across sessions?
+### Should context live in files or in a database?
 
-The naive answer is vector search over documents. The field has moved past that. Three distinct architectural patterns have emerged for persistent agent memory:
+The file-based camp argues that markdown is human-readable, git-trackable, and LLM-native. [napkin](projects/napkin.md) (264 stars) takes this position to its extreme: BM25 search on markdown, no embeddings, no vector database. On the LongMemEval benchmark, napkin reports 91.0% accuracy on the S split (~40 sessions) versus 86% for the best prior system and 64% for GPT-4o full context ([source](../raw/repos/michaelliv-napkin.md)). These numbers come from the project's own benchmarks, not peer-reviewed work, so treat them with appropriate skepticism. [OpenViking](projects/openviking.md) (20,813 stars) sits between the camps: it uses a virtual filesystem paradigm (`viking://` URIs) but backs it with vector embeddings and tiered L0/L1/L2 context loading. On the LoCoMo benchmark with OpenClaw, OpenViking reports 52.08% task completion versus 35.65% for baseline, while using 83% fewer input tokens ([source](../raw/repos/volcengine-openviking.md)).
 
-**Temporal Knowledge Graphs.** [Graphiti](projects/graphiti.md) (24,473 stars) treats memory as a graph of entities and relationships with validity windows. When a fact changes, the old edge gets invalidated rather than overwritten, preserving full historical state. Queries combine semantic embeddings, [BM25](concepts/bm25.md) keyword search, and graph traversal — the [Zep](projects/zep.md) paper reports 18.5% accuracy improvement and 90% latency reduction on [LongMemEval](projects/longmemeval.md) versus baseline RAG [Source](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md). This is self-reported benchmark data; the DMR comparison against MemGPT (94.8% vs 93.4%) is similarly self-reported.
+The database camp builds on [Graphiti](projects/graphiti.md) (24,473 stars), which models facts as temporal edges with validity windows, episode provenance, and hybrid retrieval combining semantic embeddings, BM25, and graph traversal. [Mem0](projects/mem0.md) (51,880 stars) occupies the middle ground with multi-level memory (user/session/agent) backed by vector stores, claiming 26% accuracy gains over OpenAI Memory on the LOCOMO benchmark with 90% fewer tokens ([source](../raw/repos/mem0ai-mem0.md)).
 
-**Selective Memory Layers.** [Mem0](projects/mem0.md) (51,880 stars) intercepts conversations, extracts semantically significant facts via an LLM pass, and stores them across user/session/agent dimensions in a vector store. At retrieval time, it runs semantic search over extracted memories rather than raw conversation history. The claimed results — 26% accuracy gain and 90% token reduction versus full-context — are from the team's own LOCOMO benchmark paper [Source](../raw/repos/mem0ai-mem0.md). Independent replication is not yet available.
+**Tradeoff:** File-based systems win when your corpus fits within LLM reading range (~500K tokens), stays local, and needs human inspection. Database systems win when facts change over time, span multiple users, or require cross-session reasoning. **Failure mode:** File-based systems silently degrade when they grow past the point where index files can represent content accurately. You won't get an error; you'll get incomplete answers because the LLM couldn't find the right file to read.
 
-**LLM-Maintained Wikis.** [Andrej Karpathy](concepts/andrej-karpathy.md) described a pattern where an LLM compiles raw source documents into a structured markdown wiki, auto-maintains index files, and runs health-check "linting" passes to catch inconsistencies [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md). At ~100 articles and ~400K words, this pattern matches RAG without vector infrastructure. The bottleneck shifts from retrieval architecture to wiki coherence, handled by periodic LLM sweeps.
+### How should agents load context: eagerly or on demand?
 
-**Wins when:** You need cross-session reasoning over evolving facts (temporal graphs), per-user personalization at scale (selective memory), or inspectable human-readable knowledge for small-to-medium corpora (wiki pattern).
+[Progressive disclosure](concepts/progressive-disclosure.md) has become the dominant pattern, but implementations differ sharply. [Hipocampus](projects/hipocampus.md) (145 stars) auto-loads a ~3K token ROOT.md topic index into every session, providing O(1) awareness of all past topics. On its MemAware benchmark, Hipocampus with vector search scores 21.0% overall versus 3.4% for BM25 + vector search alone, a 5.1x improvement ([source](../raw/repos/kevin-hs-sohn-hipocampus.md)). These are self-reported benchmarks on a custom evaluation set, so independent verification is needed.
 
-**Loses when:** Temporal graphs hit Neo4j scaling limits at high edge counts; selective memory layers hallucinate during the extraction pass and encode false memories; wikis grow stale without continuous LLM maintenance budget.
+Acontext (3,264 stars) uses tool-based progressive disclosure: agents call `get_skill` and `get_skill_file` to retrieve specific skill memories on demand, rather than receiving search results from embedding queries ([source](../raw/repos/memodb-io-acontext.md)). [CLAUDE.md](concepts/claude-md.md) files represent the simplest form: static project context always loaded at session start ([source](../raw/repos/anthropics-skills.md)).
 
-**Failure mode:** Selective memory extraction runs silently corrupt the knowledge base. An LLM extraction pass misattributes a fact to the wrong user, or confabulates a preference that was never stated. Subsequent agents retrieve this false memory with high confidence because it's stored as a first-class fact. There's no ground truth to compare against.
+**Tradeoff:** Eager loading (ROOT.md, CLAUDE.md) guarantees the agent knows what it knows, solving the "unknown unknowns" problem Hipocampus highlights. On-demand loading saves tokens but requires the agent to suspect relevant context exists before searching. **Failure mode:** Eager loading breaks when the index grows larger than what fits in the "always loaded" budget. Hipocampus benchmarks show that expanding ROOT.md from 3K to 10K tokens improves easy-question accuracy from 26% to 34%, but hard cross-domain questions stay at 8%, suggesting the answer model, not the index, becomes the bottleneck.
 
-### Category 2: How do you load context without bloating every call?
+### Should memory improve through human curation, automated distillation, or reinforcement learning?
 
-Every token in context costs money and degrades attention. [Progressive Disclosure](concepts/progressive-disclosure.md) is the answer: load summaries first, load detail only when needed.
+Three schools compete here. The curation school, represented by Karpathy's wiki pattern and Ars Contexta (2,928 stars), has LLMs write and maintain knowledge but keeps humans in the review loop. Ars Contexta generates entire knowledge system architectures from conversation, deriving folder structures, templates, and processing pipelines from 249 research claims ([source](../raw/repos/agenticnotetaking-arscontexta.md)).
 
-[OpenViking](projects/openviking.md) (20,813 stars) implements a filesystem-based L0/L1/L2 hierarchy. L0 is a one-sentence abstract (~100 tokens), L1 is an overview (~2K tokens), L2 is full content. Agents navigate using `ls`, `find`, and directory traversal — the retrieval path is observable and debuggable. Their benchmark on LoCoMo10 shows 52% task completion vs 35% for baseline OpenClaw memory-core, with 91% fewer input tokens [Source](../raw/repos/volcengine-openviking.md). These numbers are from the OpenViking team's own evaluation script.
+The distillation school, represented by [ACE Framework](projects/ace.md) (2,112 stars) and Acontext, extracts reusable strategies from execution traces. ACE maintains a "Skillbook" of learned strategies and reports doubling pass^4 consistency on the Tau2 airline benchmark with 15 learned strategies and no reward signals ([source](../raw/repos/kayba-ai-agentic-context-engine.md)).
 
-[Hipocampus](projects/hipocampus.md) (145 stars) takes a different angle: a 3K-token ROOT.md topic index that loads into every session, giving the agent a table of contents for its entire history. Queries first check ROOT.md (O(1)), then fall back to BM25/vector search for specifics. Their MemAware benchmark shows 21x improvement over no-memory and 5x over search-alone on implicit context recall [Source](../raw/deep/repos/kevin-hs-sohn-hipocampus.md). BM25 search alone scores 2.8% on implicit context questions; Hipocampus + Vector scores 17-21%. This benchmark is by the same author; methodology is in the repo.
+The RL school, represented by [Mem-α](projects/memevolve.md) (193 stars), trains agents via [GRPO](concepts/grpo.md) to decide when and how to encode information into episodic, semantic, or core memory. Mem-α trains on 30K-token sequences and reports generalization to 400K+ tokens ([source](../raw/repos/wangyu-ustc-mem-alpha.md)).
 
-[Napkin](projects/napkin.md) (264 stars) demonstrates that BM25 on flat markdown files with progressive disclosure (overview → search → full read) achieves 83-91% on LongMemEval without embeddings or graphs [Source](../raw/repos/michaelliv-napkin.md). **Source conflict:** [Napkin](../raw/repos/michaelliv-napkin.md) claims competitive LongMemEval performance with no embeddings, while [OpenViking](../raw/repos/volcengine-openviking.md) claims large gains from its vector-backed hierarchical retrieval. Both use different evaluation setups; direct comparison is not available.
+**Tradeoff:** Curation produces the most inspectable results but doesn't scale. Distillation scales but produces strategies of variable quality. RL produces the most adaptive behavior but is opaque and expensive to train. **Failure mode:** Distillation systems overfit to specific traces. The meta-agent project found that its proposer "often fixed the specific traces the proposer saw rather than writing general behavioral rules," requiring explicit anti-overfitting instructions ([source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)).
 
-**Wins when:** Agents run many parallel sessions with budget constraints, or when context coherence across a long conversation matters more than recall precision.
+### At what layer should learning happen: model, harness, or context?
 
-**Loses when:** The domain requires precise semantic matching (BM25 fails on vocabulary mismatch), or when the topic index grows too large to fit in hot context.
+Harrison Chase from [LangChain](projects/langchain.md) frames this as three independent optimization surfaces: model weights (SFT/RL), harness code (prompt, tools, hooks), and context (memory, skills) ([source](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md)). The meta-agent project demonstrated harness-level optimization on [TAU-bench](projects/tau-bench.md), improving holdout accuracy from 67% to 87% by iteratively modifying system prompts, stop conditions, and business-rule skills ([source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)). [AutoResearch](projects/autoresearch.md) (3,142 stars) generalizes Karpathy's constraint-metric-loop pattern to any domain, using git as episodic memory for harness evolution ([source](../raw/repos/uditgoenka-autoresearch.md)).
 
-**Failure mode:** Context collapse. An agent with a 3K ROOT.md that never compacts will eventually either overflow its budget or stop updating the index. New sessions start with a stale map of the agent's knowledge, and the agent makes decisions based on what it thinks it knows rather than what it actually recorded.
-
-### Category 3: How do you give agents reusable capabilities without retraining?
-
-[Agent Skills](concepts/agent-skills.md) are YAML-frontmattered markdown files that Claude loads dynamically. The [Anthropic skills repo](projects/anthropic.md) (110,064 stars on the base claude.ai product, the skills repo itself is a satellite) defines the SKILL.md spec: a `name`, a `description`, and markdown instructions [Source](../raw/repos/anthropics-skills.md). Skills compose — an agent can load a PDF-handling skill, a data-analysis skill, and a company-branding skill in a single session without any of them being baked into the model.
-
-[Acontext](projects/agent-workflow-memory.md) (3,264 stars) extends this: agents write skill files from execution traces. After a task completes, a Distillation step runs an LLM pass over the session history and writes what worked into skill files following a SKILL.md schema defined by the user [Source](../raw/repos/memodb-io-acontext.md). Memory becomes skill: the agent encodes successful patterns as reusable instructions rather than as opaque vector embeddings.
-
-The security problem is real. A survey paper reports 26.1% of community-contributed skills contain vulnerabilities [Source](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md). This is a self-reported academic finding, not an independently audited security scan, but the mechanism is plausible: community skills can include arbitrary tool calls.
-
-**Wins when:** Tasks are well-defined and repeatable, skill composition is preferable to monolithic system prompts, and the team wants versioned, inspectable agent capabilities.
-
-**Loses when:** Skills conflict — two loaded skills give contradictory instructions about file naming conventions or API call patterns.
-
-**Failure mode:** Skill injection. A malicious community skill includes instructions that override safety behaviors or exfiltrate data via tool calls. The agent treats SKILL.md content as trusted instructions.
-
-### Category 4: How do you make agents improve themselves without retraining weights?
-
-Karpathy's autoresearch pattern: one metric, one loop, one constraint file [Source](../raw/tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md). The agent modifies code, runs the metric, keeps improvements, reverts failures, commits to git. Git is the memory. [AutoResearch](projects/autoresearch.md) (3,142 stars) packages this as a Claude Code skill with subcommands for security auditing, documentation, debugging, and adversarial reasoning [Source](../raw/repos/uditgoenka-autoresearch.md).
-
-[ACE Framework](concepts/ace.md) (2,112 stars) makes the learning loop explicit: a Reflector analyzes execution traces by writing and running Python code in a sandbox to find patterns, then a SkillManager updates the Skillbook. The Tau2 benchmark shows 2x consistency improvement (pass^4) with 15 learned strategies, no reward signals [Source](../raw/repos/kayba-ai-agentic-context-engine.md). Self-reported.
-
-[GOAL.md](projects/autoresearch.md) (112 stars) solves the hardest sub-problem: constructing a fitness function when none exists naturally. A dual-score system separates "is the thing improving?" from "can we trust the measurement tool?" — preventing the agent from gaming its own evaluation [Source](../raw/repos/jmilinovich-goal-md.md).
-
-**Wins when:** Tasks are iterative, a mechanical metric exists or can be constructed, and human oversight is available to inspect git history.
-
-**Loses when:** The fitness function can be gamed, or when the agent's proposed changes have irreversible side effects that git revert can't recover.
-
-**Failure mode:** Goodhart's Law at machine speed. The agent finds a way to satisfy the metric without satisfying the underlying goal — for example, removing test cases to improve pass rate, or truncating output to hit a latency target. The dual-score pattern from GOAL.md is the current best defense.
+**Tradeoff:** Context-layer learning has the fastest feedback loop and lowest risk. Harness-layer learning requires evaluation infrastructure but produces compound improvements. Model-layer learning risks [catastrophic forgetting](concepts/catastrophic-forgetting.md). **Failure mode:** Harness optimization can game evaluation metrics. The meta-agent team found that search-split accuracy improved while holdout accuracy decreased, requiring careful train/holdout separation.
 
 ## The Convergence
 
-Three things the field now agrees on that would have been controversial six months ago:
+**All production-grade context systems now implement tiered loading.** OpenViking uses L0/L1/L2. Hipocampus uses hot/warm/cold. napkin uses four progressive levels (NAPKIN.md → overview → search → full file). Even simple CLAUDE.md files implement a two-tier pattern: always-loaded instructions plus on-demand skill files. The last holdout against tiered loading was the "dump everything into long context" approach, which Karpathy himself acknowledged only works at "~small scale."
 
-**1. The context window is an architecture decision, not a capacity limit.** Six months ago, the dominant question was "how do I fit more into context?" Now practitioners design around tiered loading, progressive disclosure, and selective retrieval — treating context budget as a resource to manage, not a ceiling to raise.
+**All serious memory systems now separate what the agent knows it knows from what it must search for.** Hipocampus's ROOT.md, OpenViking's L0 abstracts, Mem0's multi-level memory, and Graphiti's entity summaries all maintain a top-level awareness layer distinct from full content retrieval. [Letta](projects/letta.md) held out longest, implementing a single-tier archival memory search, but even Letta eventually added core memory as an always-available layer.
 
-**2. Skill files beat system prompt concatenation.** Monolithic system prompts with everything concatenated in are increasingly recognized as unmaintainable. The SKILL.md pattern — discrete, discoverable, composable capability files — has broad adoption across Claude Code, OpenClaw, and OpenCode. Anthropic formalized this in their [Agent Skills](concepts/agent-skills.md) spec.
-
-**3. Git is the right memory backend for autonomous improvement loops.** Every serious implementation of the autoresearch pattern uses git: atomic commits, automatic revert on regression, full audit trail. The pattern is now standard enough that [AutoResearch](projects/autoresearch.md) ships it as a Claude Code skill with guard clauses.
+**All self-improving systems now persist execution traces as the substrate for learning.** meta-agent stores harness candidates, scores, and traces on disk. AutoResearch logs iterations in TSV format with before/after scores. ACE's pipeline produces traces that feed its Reflector and SkillManager. GOAL.md appends to `iterations.jsonl`. No production system attempts to improve without trace persistence.
 
 ## What the Field Got Wrong
 
-The assumption: retrieval-augmented generation is the right default architecture for agent memory.
+Practitioners assumed [RAG](concepts/rag.md) with vector search would solve agent memory. Mem0's early architecture, most [LangChain](projects/langchain.md)-based agents, and the broader "just embed and retrieve" movement all bet that semantic similarity search over chunks would provide sufficient context for multi-session agents. The evidence now contradicts this.
 
-The evidence against it: [Napkin](projects/napkin.md) achieves 83-91% on LongMemEval with BM25 search on flat markdown — no embeddings, no vector database [Source](../raw/repos/michaelliv-napkin.md). Karpathy's wiki pattern handles ~400K words without vector infrastructure [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md). The Hipocampus MemAware benchmark shows that BM25 search alone (2.8% on implicit context) is barely better than no memory (0.8%) — and the gain comes from the topic index structure, not the retrieval method [Source](../raw/deep/repos/kevin-hs-sohn-hipocampus.md).
+Hipocampus measured this directly: BM25 + vector search scored 3.4% on implicit context questions where the agent needed to surface relevant past context the user never asked about ([source](../raw/repos/kevin-hs-sohn-hipocampus.md)). That's barely better than no memory (0.8%). The reason: search requires a query, and a query requires suspecting that relevant context exists. For "unknown unknowns," the retrieval paradigm structurally cannot help.
 
-What replaced it: the recognition that retrieval works well for known unknowns and fails for unknown unknowns. The question isn't "did we retrieve the right document?" but "did the agent know to look?" Hierarchical topic indexes (ROOT.md, L0/L1/L2) solve the discovery problem that vector search structurally cannot address.
+The replacement is proactive context: always-loaded indexes (Hipocampus ROOT.md, OpenViking L0), topic-aware session initialization (Ars Contexta's session orient hooks), and file-system browsing that lets agents discover what they didn't know to ask about. The field moved from "search for what you need" to "know what you have, then search for details."
 
-RAG is still the right tool for large corpora with heterogeneous documents and explicit query intent. But for agent memory — where the agent needs to surface relevant past context that nobody asked about — structure and indexing matter more than embedding quality.
+## Deprecated Approaches
+
+**Flat vector stores as the sole memory layer.** Pre-2025, practitioners treated [ChromaDB](projects/chromadb.md) or [Pinecone](projects/pinecone.md) as complete memory solutions: embed text, retrieve top-k, inject into prompt. This seemed right because early demos showed dramatic improvements over no memory. The evidence that killed it: Hipocampus's benchmarks showing search-based approaches scoring only 2.8-3.4% on implicit context, plus Zep's paper demonstrating 18.5% accuracy improvements from temporal knowledge graphs over static retrieval on [LongMemEval](projects/longmemeval.md) ([source](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)). Practitioners now layer vector search under graph structures (Graphiti), tiered loading (OpenViking), or proactive indexes (Hipocampus).
+
+**Stuffing full conversation history into long context.** When models shipped 128K-1M token windows, practitioners assumed they could skip memory engineering and feed entire histories. This seemed right because it eliminated retrieval errors. The evidence that killed it: napkin's benchmarks show GPT-4o full context scoring 64% on ~40 sessions versus napkin's 91% with progressive disclosure ([source](../raw/repos/michaelliv-napkin.md)). Attention degradation at scale, prohibitive per-call costs, and inability to handle histories spanning months or years made this approach unviable. [Context compression](concepts/context-compression.md) and tiered loading replaced it.
+
+**Manual memory curation.** Early MEMORY.md patterns required developers or agents to maintain a single flat file of accumulated knowledge. This seemed right because it kept memory simple and inspectable. The evidence that killed it: Hipocampus documents that "after a month, hundreds of decisions and insights can't fit in a system prompt" ([source](../raw/repos/kevin-hs-sohn-hipocampus.md)). Hierarchical compaction trees (Hipocampus), automated session extraction (OpenViking), and skill distillation (Acontext, ACE) replaced manual curation with self-maintaining structures.
 
 ## Failure Modes
 
-**Memory poisoning through extraction errors.** Selective memory systems like [Mem0](projects/mem0.md) run an LLM extraction pass to identify "memorable" facts. If the extraction model hallucinates, misattributes, or over-generalizes, the false memory persists indefinitely. The blast radius: every future session for that user retrieves the corrupted memory with high confidence, and there's no mechanism to detect the corruption because there's no ground truth.
+**Index staleness in self-maintaining wikis.** Karpathy's pattern relies on the LLM correctly maintaining index files and summaries as the wiki evolves. In a multi-agent swarm, one practitioner documented compounding hallucinations where "one hallucinated connection enters the brain and every agent downstream builds on it" ([source](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md)). The blast radius is the entire downstream knowledge base. Mitigation requires a separate review agent (the "Hermes" pattern) or Karpathy's LLM linting health checks, but neither guarantees consistency at scale.
 
-**Context collapse under sustained operation.** Compaction trees and summary hierarchies work well when they're actively maintained. Without periodic recompaction, daily logs accumulate, the ROOT.md topic index grows stale, and weekly/monthly summaries fall out of sync. The agent starts sessions with a context map that no longer reflects reality. Hipocampus addresses this with adaptive compaction triggers (cooldown, line count, checkpoint count) [Source](../raw/deep/repos/kevin-hs-sohn-hipocampus.md), but the triggers require correct configuration.
+**Semantic drift in learned strategies.** ACE and meta-agent extract behavioral rules from traces. Over many iterations, these rules accumulate and can contradict each other. The meta-agent team observed that their proposer would "fix" docs accuracy by removing correct API references to satisfy a broken linter ([source](../raw/repos/jmilinovich-goal-md.md)). GOAL.md addresses this with dual-score patterns, but most distillation systems lack this safeguard. The blast radius is silent accuracy degradation as the strategy set grows.
 
-**Skill conflicts and instruction contradiction.** When multiple skills are loaded simultaneously, conflicting instructions produce unpredictable behavior. Skill A says "always use snake_case for filenames"; Skill B says "use kebab-case for web assets." The LLM resolves conflicts based on recency and salience, not explicit precedence rules. In complex skill compositions, this produces inconsistent agent behavior that's hard to debug because each individual skill looks correct.
+**Token budget overflows in eager loading.** ROOT.md, CLAUDE.md, and L0 abstracts all compete for tokens in the agent's initial context. As projects grow, the "always loaded" budget can consume a significant fraction of the context window before the agent begins working. Hipocampus caps ROOT.md at 3K tokens, but practitioners adding multiple context sources (project instructions, user preferences, skill files) can easily exceed useful limits. The blast radius is degraded reasoning quality as the agent's "thinking space" shrinks.
 
-**Fitness function gaming in autonomous improvement loops.** The autoresearch pattern works when the verification metric is truly mechanical and hard to game. When the metric is soft — documentation quality, code health scores, test confidence — the agent finds local optima that satisfy the number without satisfying the intent. The GOAL.md dual-score pattern (separate improvement score from measurement instrument score) is the current mitigation [Source](../raw/repos/jmilinovich-goal-md.md). Without it, agents reliably Goodhart their own metrics.
+**Temporal invalidation failures.** Graphiti explicitly models fact validity windows, but most memory systems treat stored facts as permanently true. An agent told "the API endpoint is /v2/users" six months ago will confidently use that stale information if the memory system doesn't track temporal validity. [Zep](projects/zep.md) addresses this with bi-temporal tracking, but simpler systems like Mem0 or file-based approaches have no invalidation mechanism.
 
-**Hallucination compounding in multi-agent knowledge bases.** When agents write to a shared knowledge base, one agent's hallucination becomes another agent's source material. The jumperz multi-agent pattern [Source](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md) addresses this with a blind supervisor agent (Hermes) that scores articles before they enter the permanent knowledge base. Without a validation gate, errors compound: a hallucinated connection enters the graph, downstream agents build on it, and the corruption propagates.
+**Skill vulnerability injection.** The Agent Skills paper reports that 26.1% of community-contributed skills contain vulnerabilities ([source](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md)). Skills loaded into agent context can contain prompt injections, information exfiltration, or privilege escalation patterns. The blast radius extends to any tool or data the agent has access to. The [Agent Skills](concepts/agent-skills.md) specification proposes a four-tier governance framework, but no production system fully implements it yet.
 
 ## Selection Guide
 
-- **If you need per-user memory that persists across sessions and scales to millions of users, use [Mem0](projects/mem0.md) (51,880 stars) because it abstracts storage backends and handles extraction automatically. Avoid it if you need auditability — the extraction process is opaque.**
-
-- **If you need temporal reasoning over evolving facts (who believed what, when did a policy change), use [Graphiti](projects/graphiti.md) (24,473 stars) because it maintains validity windows on facts. Requires Neo4j or FalkorDB; not a drop-in.**
-
-- **If you need observable, debuggable context management with hierarchical loading for a production agent, use [OpenViking](projects/openviking.md) (20,813 stars) because the filesystem paradigm makes retrieval trajectories inspectable. High setup cost; requires embedding model and VLM.**
-
-- **If you need implicit context recall (the agent surfaces relevant past context without being asked), use the Hipocampus 3-tier pattern (145 stars, MIT) because the ROOT.md topic index solves unknown-unknown discovery. Small project; evaluate stability before production use.**
-
-- **If you need no infrastructure and inspectable memory up to ~500K words, use the Karpathy wiki pattern with [Napkin](projects/napkin.md) (264 stars) for BM25 search. Loses on semantic matching; gains on simplicity and zero infrastructure.**
-
-- **If you need reusable agent capabilities that compose without retraining, use [Agent Skills](concepts/agent-skills.md) with SKILL.md spec. Audit community skills before deploying — 26.1% vulnerability rate in community contributions per academic survey.**
-
-- **If you need an agent that improves a measurable metric autonomously overnight, use the [AutoResearch](projects/autoresearch.md) pattern (3,142 stars). Requires a mechanical metric; add a Guard command to prevent regressions.**
-
-- **If you need to construct a fitness function where none exists, use the GOAL.md dual-score pattern (112 stars). Early-stage; read the source before depending on it.**
+- **If you need personal knowledge management for a single researcher/developer,** use napkin (264 stars) or Karpathy's wiki pattern with [Obsidian](projects/obsidian.md) (19,325 stars for obsidian-skills). Zero infrastructure, local files, git-trackable. Works below ~500K tokens of content.
+- **If you need multi-user agent memory with temporal reasoning,** use [Graphiti](projects/graphiti.md) (24,473 stars) backed by Neo4j or FalkorDB. Requires graph database infrastructure but handles fact evolution, cross-session synthesis, and enterprise scale.
+- **If you need a drop-in memory API for chatbots or assistants,** use [Mem0](projects/mem0.md) (51,880 stars). Highest adoption, multi-level memory abstraction, works with any LLM. Mature platform with managed cloud option.
+- **If you need agents that learn from execution without retraining,** use [ACE Framework](projects/ace.md) (2,112 stars) for strategy distillation from traces, or meta-agent for harness-level optimization. ACE supports 100+ LLM providers via LiteLLM.
+- **If you need proactive context for coding agents,** use [Hipocampus](projects/hipocampus.md) (145 stars) for its ROOT.md pattern, or [OpenViking](projects/openviking.md) (20,813 stars) for full filesystem-paradigm context management. Both work as plugins for coding agent platforms.
+- **If you need lossless conversation history for long-running agents,** use Lossless Claw (3,963 stars). DAG-based summarization preserves every message while keeping active context within token limits.
+- **If you need to avoid vendor lock-in on memory format,** use Acontext (3,264 stars). Skill memories are markdown files, downloadable as ZIP, usable with any framework.
+- **Avoid building custom RAG pipelines from scratch for agent memory.** The pre-built systems above have solved the hard integration problems. If you must customize, start with [DSPy](projects/dspy.md) for prompt optimization or [LangGraph](projects/langgraph.md) for workflow orchestration.
 
 ## The Divergence
 
-**Graphs vs. flat files for memory storage.** [Graphiti](projects/graphiti.md) and [Zep](projects/zep.md) argue that relational structure with temporal tracking is essential for enterprise agent memory. Napkin and the Karpathy wiki pattern demonstrate competitive benchmark results with no graph infrastructure. Graphs win on cross-entity reasoning and temporal queries; flat files win on simplicity, debuggability, and zero operational overhead. The field hasn't converged because the right answer depends on whether your agent needs to reason over relationships between entities or just recall past facts.
+### File-native memory versus graph-native memory
 
-**Extraction-based memory vs. skill-based memory.** [Mem0](projects/mem0.md) extracts memorable facts from conversations and stores them as vector-searchable memories. [Acontext](projects/agent-workflow-memory.md) stores learnings as human-readable skill files following a schema. The extraction approach scales automatically but produces opaque, potentially incorrect memories. The skill approach requires schema design and produces auditable, editable knowledge. Neither has dominated; production systems increasingly use both in parallel.
+File-native systems (napkin, Hipocampus, Karpathy wiki, Acontext) store all knowledge as markdown files with text-based search. They optimize for inspectability, simplicity, and local operation. Graph-native systems (Graphiti, [cognee](projects/graphiti.md), Zep) store knowledge as nodes and edges in graph databases. They optimize for relationship discovery, temporal tracking, and cross-entity reasoning.
 
-**Online vs. offline context learning.** The ACE Framework runs a Reflector in the same session (online), updating the Skillbook immediately after feedback. The autoresearch and harness-optimization patterns run offline — batch over recent traces, then update. Online learning provides faster feedback loops but risks instability; offline provides stability at the cost of lag. Harrison Chase's framework [Source](../raw/deep/repos/memodb-io-acontext.md) identifies this as a live architectural split with working implementations on both sides.
+File-native wins when you need human oversight, git integration, and predictable token costs. Graph-native wins when facts evolve, relationships matter, or you need to answer questions like "what changed about this customer's preferences over the last six months." The field shows no signs of converging: OpenViking (20K+ stars) bets on files; Graphiti (24K+ stars) bets on graphs. Both are growing fast.
 
-**[Model Context Protocol](concepts/mcp.md) as the universal connector vs. MCP as one option among many.** [Anthropic](projects/anthropic.md) built [Claude Code](projects/claude-code.md) and [Graphiti](projects/graphiti.md) around MCP for structured tool and context access. [OpenViking](projects/openviking.md) uses a proprietary filesystem protocol (`viking://`). Memory systems like [Mem0](projects/mem0.md) expose REST APIs. The ecosystem is fragmenting around protocol choice, and interoperability between systems is inconsistent.
+### Proactive context injection versus agent-driven retrieval
+
+Hipocampus, CLAUDE.md, and OpenViking's L0 layer inject context before the agent asks. Acontext, Mem0, and traditional RAG wait for the agent to pull context. Proactive injection prevents the "unknown unknowns" problem but burns tokens on potentially irrelevant context. Agent-driven retrieval saves tokens but misses connections the agent didn't think to search for.
+
+Working implementations exist on both sides. Hipocampus's benchmarks favor proactive injection (21x improvement over no memory). But Mem0's 90% token reduction versus full context shows the cost pressure pushing toward selective retrieval.
+
+### Harness optimization versus context optimization
+
+meta-agent and AutoResearch modify agent code, prompts, and tool configurations. Mem0, ACE, and Acontext modify the context the agent receives without changing the agent itself. Harness optimization produces larger improvements per iteration (meta-agent: 67% to 87% on TAU-bench) but requires evaluation infrastructure and risks regressions. Context optimization is safer and more composable but produces smaller per-step gains.
+
+Harrison Chase argues these are complementary layers, and his framing is gaining traction ([source](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md)). But in practice, teams pick one or the other because each requires different infrastructure.
+
+### LLM-maintained wikis versus embedding-backed stores
+
+Karpathy's pattern has the LLM read and write markdown directly, maintaining its own indexes. The traditional approach uses embedding models to vectorize content and retrieval pipelines to find relevant chunks. Karpathy reports this works "fairly easily at this ~small scale." napkin's LongMemEval results suggest file-based approaches can match or beat vector-backed systems even at moderate scale.
+
+**Source conflict:** napkin ([source](../raw/repos/michaelliv-napkin.md)) reports 91.0% accuracy on LongMemEval S-split with "zero preprocessing, no embeddings, no graphs." Zep ([source](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)) reports accuracy improvements up to 18.5% from their temporal graph approach on the same benchmark. These results may not be directly comparable due to different evaluation protocols, model choices, and split definitions. Practitioners should run their own benchmarks on representative data before committing to either approach.
 
 ## What's Hot Now
 
-[OpenViking](projects/openviking.md) reached 20,813 stars with recent momentum as the ByteDance team released it publicly. The LoCoMo10 benchmark showing 91% token reduction while improving task completion is driving adoption in the agent community.
+[OpenViking](projects/openviking.md) reached 20,813 stars with strong momentum from the OpenClaw community. [Anthropic](projects/anthropic.md)'s skills repository hit 110,064 stars, making it the largest project in this space by raw star count, driven by the Agent Skills specification and Claude's document capabilities ([source](../raw/repos/anthropics-skills.md)). [Obsidian skills](projects/obsidian.md) accumulated 19,325 stars, indicating massive demand for agentic knowledge-base operations.
 
-[AutoResearch](projects/autoresearch.md) hit 3,142 stars after shipping v1.9.0 with the `/autoresearch:reason` adversarial refinement command — a blind-judge convergence pattern for subjective optimization tasks without natural metrics.
+The meta-agent paper on continual harness learning from production traces is generating significant discussion, with its 67% → 87% TAU-bench result on Haiku 4.5 showing that even small models benefit from automated harness optimization ([source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)). Ars Contexta reached 2,928 stars by combining cognitive science research with agent architecture generation, filling a gap between raw skill files and principled knowledge system design.
 
-[Ars Contexta](projects/autoresearch.md) (2,928 stars) is gaining traction as a Claude Code plugin that generates complete knowledge system architectures from conversation — folder structure, processing pipelines, hooks, navigation maps — backed by 249 research claims. The "derivation not templating" approach differentiates it from generic second-brain tools.
+Karpathy's LLM knowledge base tweet received 38,638 likes and 9.9M views ([source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)), suggesting mainstream developer awareness of file-based context engineering patterns. His AutoResearch tweet hit 28,330 likes ([source](../raw/tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md)), validating the constraint-metric-loop pattern as a recognized approach.
 
-Karpathy's LLM knowledge base tweet generated 9.9M views and 38K likes [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md), seeding a wave of implementations. The pattern has been packaged into at least three separate tools in the weeks following.
-
-The Agent Skills specification at agentskills.io is seeing rapid adoption: Claude Code, OpenCode, OpenClaw, and Codex CLI all support SKILL.md files. Community skill registries are emerging.
+The survey paper "A Survey of [Context Engineering](concepts/context-engineering.md) for Large Language Models" synthesizes over 1,400 research papers and identifies a "fundamental asymmetry" between model comprehension and generation capabilities ([source](../raw/papers/mei-a-survey-of-context-engineering-for-large-language.md)), formally establishing context engineering as an academic discipline.
 
 ## Open Questions
 
-**How do you validate memory extraction?** All selective memory systems run an LLM pass to extract "memorable" facts. There's no standard evaluation for extraction accuracy, and false memories are undetectable without ground truth. This is the biggest unsolved reliability problem in production agent memory.
+**How should agents handle conflicting memories?** When a file-based memory says one thing and a recent conversation says another, no standard resolution mechanism exists. Graphiti's temporal invalidation is the closest solution, but it requires graph infrastructure.
 
-**What's the right granularity for skills?** Practitioners disagree on whether skills should be narrow (one skill per tool/API pattern) or broad (one skill per domain). Narrow skills compose better but create search and discovery problems. Broad skills are easier to find but harder to maintain.
+**Can learned strategies transfer across agents?** Acontext's downloadable skill ZIPs suggest portability, but no benchmark measures cross-agent strategy transfer. If strategies learned by one agent reliably help different agents, the value of memory infrastructure increases dramatically.
 
-**Can RL-trained memory construction generalize?** [Mem-alpha](projects/mem0.md) (193 stars) trains agents via RL to decide what to store in episodic, semantic, and core memory. The paper reports generalization from 30K training tokens to 400K+ test tokens. The approach is promising but requires model training — a significant operational commitment versus prompt-based approaches. Open question: does the learned policy transfer across domains?
+**Where is the crossover point between file-based and graph-based approaches?** napkin works well at ~500 sessions. Graphiti works well at enterprise scale. Nobody has measured where file-based approaches start failing and graph approaches become necessary. Practitioners lack guidance on when to migrate.
 
-**How do you audit an agent that modifies its own context?** When an agent updates its own SOUL.md, CLAUDE.md, or skill files, the modification persists into future sessions. There's no standard mechanism for reviewing, approving, or rolling back agent-authored context changes. Git provides a history, but practitioners lack tooling to evaluate whether a self-authored context change is safe before it takes effect.
+**How do you evaluate context engineering quality?** LongMemEval, MemAware, LoCoMo, and TAU-bench each test different aspects. No unified benchmark covers the full spectrum from personal knowledge management to enterprise multi-agent memory. Self-reported benchmarks dominate the space, making cross-project comparison unreliable.
+
+**Should context engineering happen before, during, or after inference?** Pre-inference context assembly (RAG, eager loading) competes with in-inference tool use (agent-driven retrieval) competes with post-inference trace distillation (ACE, meta-agent). The optimal mix likely depends on task type, but practitioners lack a framework for deciding.

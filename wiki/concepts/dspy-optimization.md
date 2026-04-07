@@ -1,130 +1,142 @@
 ---
 entity_id: dspy-optimization
 type: approach
-bucket: self-improving
+bucket: context-engineering
 abstract: >-
-  Eval-Driven Development: build evaluation frameworks before building agent
-  systems, then iterate on measurable metrics. Distinguishes itself by treating
-  evals as the primary engineering artifact rather than a testing afterthought.
+  Prompt optimization automates the search for better prompts and context
+  structures using gradient-free methods like evolutionary search and LLM-driven
+  reflection, with DSPy compilation and GEPA as leading implementations.
 sources:
-  - tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md
-  - tweets/philschmid-agent-skills-are-powerful-but-they-are-often-ai-ge.md
-  - deep/repos/jmilinovich-goal-md.md
+  - >-
+    articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md
+  - deep/repos/affaan-m-everything-claude-code.md
+  - deep/repos/bingreeky-memevolve.md
+  - deep/repos/gepa-ai-gepa.md
+  - deep/repos/davebcn87-pi-autoresearch.md
+  - deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md
+  - deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md
 related: []
-last_compiled: '2026-04-05T23:19:33.925Z'
+last_compiled: '2026-04-07T12:01:08.644Z'
 ---
-# Eval-Driven Development
+# Prompt Optimization
 
 ## What It Is
 
-Eval-Driven Development (EDD) is a methodology for building LLM-based agent systems where you construct the evaluation framework first, then use automated metrics to guide iterative improvement. The analogy to Test-Driven Development is deliberate but imprecise: where TDD tests binary pass/fail correctness, EDD optimizes toward scalar quality scores across dimensions that resist binary judgment.
+Prompt optimization treats prompt text as a parameter to optimize rather than a fixed artifact authored by hand. Instead of a human iterating on instructions manually, an automated system generates candidate prompts, evaluates them against a metric, and refines them toward better performance. The key insight: because LLM outputs are non-differentiable with respect to prompt text, traditional gradient descent cannot apply. Every serious approach in this space uses gradient-free search.
 
-The core claim: agent behavior is too probabilistic and multidimensional for correctness-only testing. You need measurement instruments that capture nuanced quality signals, and you need those instruments before you start building, so that every iteration has a clear definition of "better."
+This sits within [Context Engineering](../concepts/context-engineering.md) broadly, but focuses specifically on automating what [Prompt Engineering](../concepts/prompt-engineering.md) does manually. The two are complementary: good prompt engineering intuition informs what to optimize; prompt optimization automates the search across that space.
 
-## Why It Emerged
+## Why It Matters
 
-Agent systems fail in ways that unit tests don't catch. A skill might pass every deterministic check but still produce outputs that are stylistically wrong, inefficient, or that drift from intended behavior as the system evolves. Three converging pressures pushed EDD into focus:
+Human prompt engineering has a ceiling. A skilled engineer can improve a prompt through deliberate iteration, but they face three constraints: limited time to evaluate candidates, cognitive bias toward locally-plausible changes, and no systematic way to explore the full search space. Automated optimization removes the first two constraints and partially addresses the third.
 
-**The code generation bottleneck dissolved.** LLMs write adequate code quickly. The bottleneck shifted to validation, regression prevention, and behavior maintenance as systems change. [auto-harness](../raw/tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md) frames this explicitly: "It is no longer writing code. It is everything that comes after."
+The practical stakes are significant. On AIME 2025 math problems, GPT-4.1 Mini moved from 46.67% to 60.00% pass rate purely through prompt changes. On enterprise agent tasks at Databricks, combining open-source models with optimized prompts beat Claude Opus 4.1 at 90x lower cost. On coding benchmarks, optimized agent skills moved Mini-SWE-Agent from 24% to 93% resolve rate on the Bleve codebase.
 
-**AI-generated skills lack rigor.** Agent skills are frequently LLM-generated and untested. [Philipp Schmid's evaluation guide](../raw/tweets/philschmid-agent-skills-are-powerful-but-they-are-often-ai-ge.md) identifies this as a specific risk: AI-generated skills "often lack the rigor of hand-crafted implementations," making eval-driven iteration essential rather than optional.
+These numbers come from [GEPA](../concepts/gepa.md), which is self-reported but published at ICLR 2026 as an Oral, giving them more credibility than typical vendor claims.
 
-**Most domains have no natural metric.** Karpathy's autoresearch pattern works when a scalar metric already exists (bits-per-byte on a language modeling benchmark). Most software quality dimensions, documentation quality, code health, architectural fitness, don't have pre-built rulers. The [goal-md project](../raw/deep/repos/jmilinovich-goal-md.md) identifies metric construction as the hard problem: "you have to construct the metric before you can optimize it."
+## The Gradient Substitution Problem
 
-## Core Mechanism
+Standard machine learning uses gradients to tell an optimizer which direction to move parameters. Prompts are discrete token sequences with no continuous gradient. Three approaches have emerged to substitute for gradients:
 
-EDD operates through four phases that repeat across the development lifecycle:
+**Scalar reward + sampling**: Run many candidates, keep what scores highest. This is the RL approach (GRPO, PPO on prompts). It works but requires thousands of evaluations because a scalar reward tells you only *that* a candidate failed, not *why*.
 
-**Phase 1: Define success criteria.** Before writing the system, specify what "good" looks like across three dimensions: outcome (did it do the right thing?), style (does it match expected patterns?), and efficiency (did it use appropriate resources?). These criteria become the spec that the eval framework encodes.
+**Execution traces as diagnostic signals**: Capture what happened during evaluation, not just the outcome score. If the benchmark harness logs "TimeoutError processing 500-token input," an LLM can read that and propose "add chunking for long inputs" rather than blindly generating another candidate. GEPA calls this Actionable Side Information (ASI). The 35x efficiency gain over GRPO traces directly to this: diagnosing failures costs far fewer evaluations than sampling past them.
 
-**Phase 2: Build the measurement instrument.** Write the scoring script, eval suite, or benchmark before building the system. For domains with natural metrics (test pass rate, API latency), this means wrapping existing tools. For domains without them, this means constructing the metric from scratch: decomposing quality dimensions, assigning weights, writing scripts that mechanically evaluate each component.
+**Compiled programs**: DSPy's approach treats prompts as compiled artifacts. You write a program using typed signatures (`Predict`, `ChainOfThought`) and the compiler optimizes the underlying prompt text through a training set. The program structure constrains the search space and enables systematic few-shot example selection.
 
-**Phase 3: Run the system, observe failures, iterate.** The improvement loop is: measure, diagnose, act, verify, keep or revert, log. Failures cluster into patterns rather than isolated incidents. Addressing clusters, not individual cases, prevents overfitting to specific examples while generalizing to root causes.
+## Leading Implementations
 
-**Phase 4: Accumulate constraints.** Fixed failures become permanent regression cases. The eval suite grows with each resolved failure cluster. This is the compounding property: every improvement is additive because the system can't backslide past what it's already solved.
+### GEPA (Genetic-Pareto)
 
-## Implementation Patterns
+[GEPA](../concepts/gepa.md) is the most technically distinctive current system. It combines evolutionary search with LLM-powered reflection and Pareto frontier management.
 
-### Deterministic Tests + LLM-as-Judge
+The optimization loop in `core/engine.py` runs: select a candidate from the Pareto frontier → execute on a minibatch → capture execution traces → send traces to a reflection LLM → generate a targeted mutation → evaluate the mutant → update the frontier.
 
-The most common implementation pairs mechanically verifiable checks with probabilistic quality assessment. Schmid's pattern uses 10-12 prompts with deterministic checks (did the tool get called? did the output parse?) plus LLM-as-judge for qualitative criteria (is the tone appropriate? is the explanation clear?). Deterministic checks catch regressions reliably. The LLM judge catches quality drift that binary tests miss.
+Three mechanisms separate GEPA from simpler approaches:
 
-### The Dual-Score Pattern
+**Pareto frontier instead of best-so-far**: Rather than tracking the single highest-scoring candidate, GEPA maintains every candidate that achieves the best score on *at least one* evaluation example. A specialist that handles edge cases well coexists with a generalist that handles common cases well. The `GEPAState` tracks per-example scores keyed by data ID, enabling fine-grained dominance checking. This prevents convergence to a mediocre average that handles nothing well.
 
-When an agent builds or modifies its own evaluation infrastructure, a single score creates gaming risk. goal-md's dual-score pattern separates:
+**Reflection LLM with ASI**: The `ReflectiveMutationProposer` sends execution traces (logged via `oa.log()` in the evaluator) to a separate, typically stronger model. This model reads the actual failure reasons and proposes targeted fixes. Without ASI, the proposer sees "candidate B scored 0.3 on example 7" and must guess what went wrong. With ASI, it sees "expected primary contact, got secondary; input had ambiguous role designation."
 
-- **Outcome score**: Is the thing being measured actually improving?
-- **Instrument score**: Can the measurement be trusted?
+**Merge via lineage**: The `MergeProposer` finds pairs of Pareto-optimal candidates that excel on different task subsets and share a common ancestor, then asks the LLM to combine their approaches. The `find_common_ancestor_pair()` function searches the parent lineage graph, filtering for candidates where the two children diverged from the ancestor in different ways. Random crossover rarely works in text; lineage-guided crossover targets complementary specializations.
 
-The decision rule is explicit: if instrument score falls below a threshold, fix the instrument before optimizing the outcome. This prevents a failure mode where the agent "fixes" documentation to satisfy a broken linter, improving the score while degrading the actual output.
+GEPA also exposes `optimize_anything()`, which extends the same mechanism to any text artifact: CUDA kernels, SVG layouts, scheduling heuristics, agent skills. The `adapters/` directory has integrations for [DSPy](../projects/dspy.md), Pydantic AI, MCP tool descriptions, and coding agent workflows.
 
-### Failure Clustering
+Published benchmark numbers (ICLR 2026 Oral, more credible than typical self-reported claims): 35x fewer evaluations than GRPO, +6% average and up to +20% on specific tasks versus GRPO, +10% accuracy and +12% on AIME-2025 versus MIPROv2, 90x cost reduction in Databricks case study.
 
-auto-harness demonstrates that mining failures from production traces and clustering them by root cause outperforms case-by-case debugging. A fix that resolves a cluster generalizes because it addresses the underlying cause rather than individual symptoms. The reported result on Tau3 benchmark tasks: score improvement from 0.56 to 0.78 (~40%) while maintaining a regression gate that prevented backsliding. This benchmark result is self-reported by NeoSigma.
+### DSPy
 
-### Metric Mutability Classification
+[DSPy](../projects/dspy.md) takes a compilation metaphor. You define a program using typed signatures and the compiler searches for prompts (and few-shot examples) that maximize a metric over a training set. MIPRO v2 is DSPy's current primary optimizer. GEPA is also available as `dspy.GEPA`.
 
-goal-md formalizes three stances toward the scoring instrument:
+DSPy's advantage is the program abstraction: it can optimize multi-step pipelines where prompts across several modules need to coordinate. GEPA is available as `dspy.GEPA` and reportedly reaches 93% on the MATH benchmark versus 67% with basic DSPy ChainOfThought.
 
-- **Locked**: The agent cannot modify the scoring code. Appropriate when the metric is well-understood and trusted (test execution time, bundle size).
-- **Split**: The agent can improve the measurement instrument (add tests, fix linters) but not redefine what counts as success. The dual-score pattern applies here.
-- **Open**: The agent can modify both the system and the evaluation criteria. Necessary for early-stage projects where the fitness function is being designed alongside the system, but carries the highest gaming risk.
+### Pi-Autoresearch Loop
 
-Treating metric mutability as an explicit architectural decision rather than an implicit assumption distinguishes this from ad-hoc eval setups.
+[Pi-autoresearch](../concepts/karpathy-loop.md) applies the same optimization idea to arbitrary software metrics rather than LLM output quality. The edit → commit → benchmark → keep/revert loop with MAD-based confidence scoring and append-only JSONL persistence represents the same search pattern applied to a different domain. Shopify's use of this to achieve 53% parse speed improvement and 61% fewer allocations in the Liquid engine demonstrates that the gradient substitution approach generalizes well beyond LLM prompts.
 
-## Key Files and Artifacts
+### MemEvolve
 
-In a mature EDD setup, the evaluation infrastructure lives in first-class files:
+[MemEvolve](../projects/memevolve.md) takes the most radical approach: rather than optimizing a fixed memory system's parameters, it generates entirely new memory provider implementations from trajectory analysis. The four-phase pipeline (analyze trajectories → generate Python code → install provider → validate in isolation) uses LLM code generation as the optimization mechanism. Results: 11.8% relative gain on xBench for SmolAgent + GPT-5-Mini, with cross-framework and cross-LLM transfer validated.
 
-- **Scoring script** (`scripts/score.sh` or equivalent): The fitness function. In goal-md's implementation, a 456-line bash script with no dependencies beyond standard Unix tools that outputs both human-readable and JSON-formatted scores.
-- **Regression suite** (`workspace/suite.json` in auto-harness): Maintained by the coding agent, not the human. Grows with each resolved failure cluster.
-- **Iteration log** (`iterations.jsonl` in goal-md): Appends one JSON line per iteration with before/after scores, action taken, result (kept/reverted), and a note. Cross-session memory that prevents repeating failed experiments.
-- **Persistent learnings** (`workspace/learnings.md` in auto-harness): What worked, what didn't, what the agent needs from you.
+## How Evaluators Work
 
-## Strengths
+Every optimization system needs a metric. The evaluator function is often harder to design than the optimizer itself.
 
-**Compound reliability.** The regression gate is what makes gains accumulate. Without it, optimization loops cover the same ground repeatedly. With it, every improvement raises the floor permanently.
+**What makes a good evaluator**: Continuous scoring (0.0–1.0) outperforms binary pass/fail because it gives the reflection LLM more signal. Coverage across easy cases (regression prevention), edge cases, and adversarial cases (noisy inputs, ambiguity) determines whether the optimizer finds genuinely robust improvements or overfits to easy examples.
 
-**Domain generality.** By treating metric construction as part of the methodology rather than a prerequisite, EDD extends autonomous optimization to domains without natural metrics. Documentation quality, code health, and architectural fitness all become optimizable targets once you build the ruler.
+**ASI design**: The most leveraged investment in prompt optimization is writing informative evaluators. An evaluator that logs `oa.log(f"expected={expected}, got={actual}, field={field_name}")` enables targeted reflection. An evaluator that returns only a score forces the optimizer to guess at failure causes.
 
-**Failure mode diagnosis.** Clustering failures by root cause rather than fixing incidents in isolation produces fixes that generalize. This is the difference between patching symptoms and addressing causes.
+**Dataset splits**: Without proper train/validation separation, optimization overfits to test examples. GEPA's training pipeline defaults to a train/val split. MemEvolve's gskill pipeline uses explicit train/val/test splits with ~300 tasks per repository.
 
-**Context management.** auto-harness's sub-agent pattern (sub-agents own verbose output, parent sees only summaries) keeps context manageable across long-running optimization sessions, a practical engineering constraint that purely conceptual frameworks ignore.
+## Practical Tradeoffs
 
-## Limitations
+**Sample efficiency vs. setup cost**: GRPO-style scalar reward search requires minimal evaluator instrumentation but needs 5,000–25,000 evaluations. ASI-guided reflection needs 100–500 evaluations but requires writing informative evaluators. For expensive evaluators (agent pipeline runs, builds), the setup investment pays back quickly.
 
-**Metric construction is hard.** Building the ruler requires deep domain understanding. You must decompose quality into measurable components, assign meaningful weights, and write a scoring script before optimization begins. For teams without that domain knowledge, the methodology stalls at phase 2.
+**Reflection quality ceiling**: The reflection LLM can hallucinate failure diagnoses. If ASI is thin (evaluators logging only pass/fail), the reflection LLM invents plausible-sounding but incorrect failure analyses, leading to mutations that miss the real problem. The optimization quality is bounded by evaluator observability.
 
-**Open-mode gaming risk.** When an agent can modify both the system and its own evaluation criteria, it can find degenerate solutions that inflate both scores without genuine improvement. The dual-score pattern mitigates but doesn't eliminate this.
+**Specialist proliferation**: Pareto frontier management can grow large in high-dimensional objective spaces. Practical deployments typically limit to 3–5 evaluation dimensions to keep frontier operations cheap.
 
-**Scoring script fragility.** Bash-based scoring scripts using grep and regex matching are brittle to formatting changes. goal-md's score.sh demonstrates this: an unexpected markdown heading format can break detection. Edge cases like empty files or unusual encodings often go unhandled.
+**Cost scaling**: Each GEPA iteration involves at least two LLM calls (reflection + mutation) plus evaluation. For a 200-iteration run with an expensive task-model and a strong reflection model, costs accumulate. Setting `max_metric_calls` explicitly is necessary, not optional.
 
-**Action catalog staleness.** Static action catalogs don't grow as optimization progresses. In long-running sessions, the agent exhausts the catalog and must discover new actions independently. There's no formal mechanism for updating the catalog based on discoveries.
+**Overfitting risk**: Any optimization system can fit to benchmark artifacts rather than genuine improvement. Pi-autoresearch injects this directly into its system prompt: "Be careful not to overfit to the benchmarks and do not cheat on the benchmarks." Systems that generate code (MemEvolve) face a subtler version: memory providers that game specific task formats.
 
-**No noise handling.** Neither goal-md nor auto-harness have built-in noise detection. Keep/revert decisions are binary based on score delta. Flaky metrics (Lighthouse scores, tests with non-deterministic behavior) can produce false keeps and false discards.
+## When Not to Use Prompt Optimization
 
-## When Not to Use It
+Skip automated optimization when:
 
-**Domains with well-defined correctness criteria.** If your system either passes or fails a test suite with no meaningful middle ground, standard TDD suffices. EDD overhead isn't justified.
+- The evaluation metric is poorly defined or proxy-only. Optimizing toward a bad metric produces a worse prompt, not a better one.
+- You have fewer than ~50 representative evaluation examples. With sparse data, the optimizer will overfit.
+- The failure modes are structural (wrong tool choice, wrong architecture) rather than linguistic. Optimizing prompt wording cannot fix a system that retrieves wrong documents or calls wrong APIs.
+- You need to ship in hours, not days. Building a good evaluator dataset and running 200–500 optimization iterations requires time investment that manual iteration sometimes beats.
+- The prompt is simple and stable (a single-turn classifier with a clear rubric). Human prompt engineering with a few rounds of testing is faster for simple cases.
 
-**One-shot deliverables.** If the system ships once and doesn't evolve, the evaluation infrastructure investment doesn't pay off. EDD's value compounds over time.
+## What the Documentation Doesn't Explain
 
-**Teams that can't write scoring scripts.** The methodology requires someone who can decompose quality into mechanically verifiable checks. If that skill is absent, you'll build measurement instruments that capture the wrong thing, and iteration will optimize toward the wrong target.
+**Evaluation dataset construction**: Every system mentions "design your evaluator well" but none provides systematic guidance on what makes a dataset sufficient. How many examples? What coverage is needed? How do you detect when your training set is too narrow?
 
-**Early exploration.** When you don't yet know what "good" looks like, building evaluation infrastructure before exploration can lock you into the wrong quality model. Some discovery work should precede EDD adoption.
+**Multi-objective conflict resolution**: When a reflection LLM proposes an improvement that helps one Pareto dimension and hurts another, how should the system weigh the tradeoff? GEPA defers this to the Pareto frontier mechanism, but the mechanism itself doesn't encode preferences about which dimensions matter more.
 
-## Unresolved Questions
+**Cost at scale**: Published benchmarks run 100–500 iterations. Production systems run continuously. What happens at 10,000 evaluations? Does the Pareto frontier stabilize or grow unboundedly? None of the current systems report long-run behavior.
 
-**How do you validate the measurement instrument?** The dual-score pattern identifies instrument trustworthiness as a separate concern but doesn't specify how to verify that the instrument itself is measuring the right thing. This is a meta-evaluation problem that none of the current implementations address systematically.
+**Transfer guarantees**: GEPA shows cross-model and cross-framework transfer in the MemEvolve context, but transfer is empirical, not guaranteed. A prompt optimized on GPT-4.1 Mini may or may not transfer to Claude Sonnet. No system currently provides bounds on transfer quality.
 
-**At what cadence should eval suites be retired?** Regression suites grow indefinitely under EDD. Old cases may become irrelevant as the system evolves. There's no guidance on pruning cases that no longer reflect production behavior.
+## Related Concepts
 
-**Human evaluation integration.** goal-md's supervised mode includes human approval gates, and its video scoring requires a `QUALITY.md` file containing "APPROVED." How to structure human-in-the-loop evaluation at scale, when it's worth the cost, and how to prevent it from becoming a bottleneck remains underdeveloped.
+- [GEPA](../concepts/gepa.md): Current leading implementation
+- [DSPy](../projects/dspy.md): Compilation-based approach with typed signatures
+- [Context Engineering](../concepts/context-engineering.md): Broader discipline this sits within
+- [Prompt Engineering](../concepts/prompt-engineering.md): Manual counterpart
+- [LLM-as-Judge](../concepts/llm-as-judge.md): Evaluation mechanism used by most optimizers
+- [Chain-of-Thought](../concepts/chain-of-thought.md): Prompt pattern that optimization often discovers independently
+- [Self-Improving Agent](../concepts/self-improving-agent.md): Broader category including MemEvolve's approach
+- [Reinforcement Learning](../concepts/reinforcement-learning.md): Alternative search mechanism (GRPO), slower but less infrastructure
 
-## Related Patterns
+## Alternatives
 
-**autoresearch (Karpathy)**: The intellectual ancestor. Agent + fitness function + loop. Assumes the fitness function already exists. EDD generalizes by treating metric construction as part of the problem. See [goal-md](../raw/deep/repos/jmilinovich-goal-md.md).
-
-**Goal-Oriented Action Planning (GOAP)**: Goal-first specification of agent behavior from game AI. EDD borrows the goal-first orientation but applies it to continuous improvement rather than discrete action selection.
-
-**AGENTS.md / CLAUDE.md patterns**: Agent instruction files that bootstrap agent behavior. Complementary to EDD but focused on capability declaration rather than optimization objectives.
+| Approach | Use When |
+|---|---|
+| Manual prompt engineering | Simple prompts, fast iteration needed, clear failure modes |
+| GEPA | Best evaluation coverage possible, can write informative evaluators, 100–500 eval budget |
+| DSPy MIPRO | Multi-step pipelines, DSPy already in stack, want compiled program optimization |
+| GRPO/RL-based | No time to instrument evaluators, large compute budget, scalar feedback sufficient |
+| MemEvolve | Memory architecture itself is the bottleneck, willing to generate and validate Python code |

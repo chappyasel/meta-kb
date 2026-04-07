@@ -4,60 +4,23 @@
 
 ```json
 {
-  "version": 1,
-  "compiled_at": "2026-04-05T00:00:00.000Z",
-  "total": 224,
-  "by_type": {
-    "empirical": 89,
-    "architectural": 67,
-    "comparative": 34,
-    "directional": 34
-  },
-  "by_confidence": {
-    "verified": 45,
-    "reported": 142,
-    "inferred": 37
-  },
+  "version": 2,
+  "compiled_at": "2026-04-07T00:00:00.000Z",
+  "total": 219,
   "claims": [
     {
-      "id": "claim-001",
+      "id": "claim-a1b2c3d4e5f6",
       "content": "Mem0 selective retrieval beats full-context by 26% on LOCOMO",
+      "content_hash": "a1b2c3d4e5f6",
       "type": "empirical",
       "confidence": "reported",
       "source_refs": ["repos/mem0ai-mem0.md"],
       "article_ref": "agent-memory",
       "entity_refs": ["mem0"],
-      "temporal_scope": null
-    },
-    {
-      "id": "claim-002",
-      "content": "Graphiti stores temporal validity as edge properties in Neo4j",
-      "type": "architectural",
-      "confidence": "verified",
-      "source_refs": ["repos/getzep-graphiti.md", "deep/repos/getzep-graphiti.md"],
-      "article_ref": "knowledge-bases",
-      "entity_refs": ["graphiti", "neo4j"],
-      "temporal_scope": null
-    },
-    {
-      "id": "claim-003",
-      "content": "Graph-based retrieval outperforms vector-only by 15-30% on multi-hop questions",
-      "type": "comparative",
-      "confidence": "reported",
-      "source_refs": ["papers/2501-13956.md"],
-      "article_ref": "knowledge-bases",
-      "entity_refs": ["graphiti", "mem0"],
-      "temporal_scope": "as of 2025-06"
-    },
-    {
-      "id": "claim-004",
-      "content": "The field shifted from monolithic context windows to progressive disclosure in 2025",
-      "type": "directional",
-      "confidence": "inferred",
-      "source_refs": [],
-      "article_ref": "context-engineering",
-      "entity_refs": ["progressive-disclosure"],
-      "temporal_scope": "as of 2025-12"
+      "temporal_scope": null,
+      "created_at": "2026-04-06T03:07:10.166Z",
+      "updated_at": "2026-04-07T00:04:03.656Z",
+      "status": "active"
     }
   ]
 }
@@ -67,14 +30,18 @@
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | string | yes | Sequential: `claim-001`, `claim-002`, ... |
+| `id` | string | yes | Content-hash based: `claim-{sha256(content + "\|" + article_ref).slice(0,12)}` |
 | `content` | string | yes | One atomic verifiable statement. No hedging. |
+| `content_hash` | string | yes | First 12 hex chars of SHA-256(content + "\|" + article_ref). Stable across runs. |
 | `type` | enum | yes | `empirical`, `architectural`, `comparative`, `directional` |
 | `confidence` | enum | yes | `verified`, `reported`, `inferred` |
 | `source_refs` | string[] | yes | Paths relative to `raw/`. Empty array if unknown. |
 | `article_ref` | string | yes | Bucket name of the synthesis article this came from. |
 | `entity_refs` | string[] | yes | Entity slugs mentioned in the claim. |
 | `temporal_scope` | string\|null | yes | `"as of YYYY-MM"` for time-sensitive data, `null` otherwise. |
+| `created_at` | string | yes | ISO timestamp of first extraction. Preserved across runs for matching content. |
+| `updated_at` | string | yes | ISO timestamp of last extraction. Refreshed each run. |
+| `status` | enum | yes | `active`, `stale` (deleted source), or `superseded`. |
 
 ## eval-report.json
 

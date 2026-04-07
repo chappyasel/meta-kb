@@ -1,108 +1,180 @@
 ---
 entity_id: memory-evolution
 type: concept
-bucket: self-improving
+bucket: agent-memory
 abstract: >-
-  Memory evolution describes how agent memory systems actively reorganize,
-  update, and relink stored information as new data arrives — distinct from
-  static retrieval by treating memory as a dynamic structure that reshapes
-  itself over time.
+  Memory Evolution: the process by which agent memory improves over time through
+  summarization, merging, decay, and reorganization — distinct from static
+  storage or one-shot RAG retrieval.
 sources:
-  - repos/bingreeky-memevolve.md
+  - repos/vectorspacelab-general-agentic-memory.md
+  - repos/caviraoss-openmemory.md
   - papers/xu-a-mem-agentic-memory-for-llm-agents.md
+  - deep/repos/caviraoss-openmemory.md
   - deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md
-related: []
-last_compiled: '2026-04-05T23:20:16.211Z'
+related:
+  - rag
+  - semantic-memory
+  - openai
+  - episodic-memory
+  - mcp
+  - mem0
+  - vector-database
+last_compiled: '2026-04-07T11:57:20.208Z'
 ---
 # Memory Evolution
 
 ## What It Is
 
-Memory evolution is the process by which an agent's stored knowledge changes in response to new information — not by appending to a fixed store, but by propagating updates backward through existing memories. A new memory can alter the contextual representation of older ones, forge links that didn't previously exist, or correct records that have become stale.
+Memory evolution describes how an agent's stored knowledge changes over time, not just accumulates. Where static memory systems append new information and retrieve it via similarity search, evolving memory systems transform, consolidate, decay, and reorganize existing memories in response to new experience.
 
-The term covers a spectrum. At one end: systems that consolidate and compress older memories to manage context limits. At the other: systems where each new memory triggers cascading rewrites across the semantic neighborhood of related records. A-MEM (Xu et al., 2025) sits firmly at the active end of this spectrum; most RAG-backed agent memory systems sit at the passive end.
+The distinction matters because accumulation without evolution degrades. A memory store that only appends becomes noisy as outdated facts persist alongside current ones, common patterns stay buried in individual records, and retrieval quality drops as the store grows. Evolution adds the mechanisms that keep memory useful at scale: decay removes stale or redundant content, consolidation synthesizes patterns from raw observations, and reorganization updates semantic relationships when new information changes the meaning of what was already stored.
 
-Memory evolution sits in contrast to two simpler approaches: **append-only storage** (new memories added without touching old ones) and **full-context retrieval** (all prior interactions stuffed into the prompt). Both fail at scale — append-only loses coherence as contradictions accumulate, full-context hits token limits. Memory evolution attempts a third path: selective, structure-preserving updates that keep the memory network internally consistent as new information arrives.
-
-## How It Works
-
-### Core Operations
-
-Three operations define memory evolution systems:
-
-**1. Note construction.** When a new memory arrives, the system enriches it before storage. In A-MEM, an LLM generates keywords, categorical tags, and a contextual description explaining what the memory means — not just what it says. The dense embedding is computed over the concatenation of all these components, not the raw content alone. This enrichment is what makes subsequent linking and evolution tractable: a bare text snippet like "pushing the launch to next quarter" becomes a structured note with keywords like "schedule change," "Q2 delay," "product launch" and a semantic interpretation of the decision.
-
-**2. Link generation.** After construction, the system retrieves the top-k most similar existing memories (cosine similarity over the enriched embeddings) and passes pairs to an LLM to determine whether meaningful connections exist. Links are bidirectional and schema-free — the LLM infers relationship type from content rather than selecting from a predefined taxonomy. This Zettelkasten-inspired design means connections can express causal relationships, corrections, dependencies, or any other association the LLM identifies as meaningful.
-
-**3. Memory evolution.** This is the distinguishing operation. Integrating a new memory can trigger updates to the contextual descriptions, keywords, and tags of the existing memories it links to. A new memory about a project cancellation can cause an existing memory about that project's timeline to be rewritten with the cancellation as context. The result is a network where the semantic landscape shifts as knowledge accumulates rather than layering up as independent, potentially contradictory fragments.
-
-### Meta-Evolution
-
-MemEvolve (Bingreeky, 2026) extends the concept one layer further: **dual-evolution** that updates both the memory contents and the memory architecture itself. In standard memory evolution, the memory interface Ω is fixed — the schema for what a memory note contains, how links are typed, how retrieval works. MemEvolve treats Ω as a learnable artifact that adapts through a meta-evolution loop. The agent observes which memory operations help on recent tasks and uses that feedback to rewrite the interface. This shifts the question from "does this memory system organize information well?" to "can this system learn to organize information better?"
+This concept spans several related ideas. [Continual Learning](../concepts/continual-learning.md) addresses the model-weight version of the same problem. Memory evolution addresses the external memory store that agents read and write at runtime, without requiring gradient updates.
 
 ## Why It Matters
 
-The headline result from A-MEM is a 2.5x improvement on multi-hop reasoning (45.85 vs 18.41 F1 on LoCoMo) using 85% fewer tokens than full-context retrieval (2,520 vs 16,910 tokens for GPT-4o-mini). The token reduction comes from retrieval compression; the reasoning improvement comes specifically from memory evolution. A-MEM's ablation study isolates this cleanly: removing link generation and memory evolution drops multi-hop F1 from 45.85 to 24.55; removing memory evolution alone (keeping links) drops it to 31.24. Link generation helps, but memory evolution adds 14.61 F1 points on top.
+LLM agents are stateless by default. Each conversation starts from zero unless the system explicitly provides context. Early solutions for this were either crude (dump everything into the context window) or shallow (retrieve similar chunks via embedding search). Both break for long-horizon tasks: context windows fill up, and similarity search degrades when thousands of documents have similar embeddings.
 
-These numbers come from the LoCoMo benchmark (7,512 QA pairs, conversations averaging 9K tokens over up to 35 sessions). Self-reported by the authors; not independently validated at time of writing.
+Memory evolution addresses this by treating memory as a living structure. Instead of asking "what is most similar to this query?", an evolved memory system can ask "what is most relevant, given what this agent has learned, how recently it was reinforced, and how it connects to related knowledge?" These are different questions, and the second produces better answers for agents operating over days or weeks.
 
-The smaller-model results are particularly informative for practitioners. Qwen2.5-3b improves 787% on multi-hop F1 (3.11 → 27.59) with A-MEM vs. baseline. Qwen2.5-1.5b improves 472%. This suggests structured memory evolution partially compensates for model capability — a signal relevant to anyone running smaller, cheaper inference.
+The practical pressure here comes from two directions. Coding assistants like [Cursor](../projects/cursor.md) and [Claude Code](../projects/claude-code.md) need persistent context about codebases, not just per-session retrieval. Personal assistants and research agents need memory that reflects changing circumstances, where what was true six months ago may conflict with what is true now.
 
-## Failure Modes
+## Core Mechanisms
 
-**Adversarial vulnerability.** A-MEM regresses 28% on adversarial tasks (69.23 → 50.03 F1). Enriched contextual descriptions amplify misleading signals in adversarial queries — the semantic richness that helps with genuine multi-hop reasoning makes the system more susceptible to questions designed to mislead. This is an unresolved structural weakness.
+### Decay
 
-**Temporal reasoning is unaddressed.** Despite storing timestamps, A-MEM shows only 1% improvement on temporal reasoning tasks. Queries like "what changed between session 3 and session 7?" require temporal-specific mechanisms that A-MEM lacks. Zep's bi-temporal indexing is substantially stronger here, showing +48.2% on temporal reasoning.
+Decay removes or attenuates memories over time. The simplest form is TTL expiration: delete records older than N days. More sophisticated systems implement continuous decay that reduces a memory's retrieval weight as a function of time since last access, modulated by salience.
 
-**Destructive updates with no version history.** Memory evolution overwrites existing memories without maintaining a record of prior states. An incorrect evolution update — the LLM misinterprets a relationship and rewrites a memory incorrectly — has no revert path. At scale, incorrect evolutions can cascade: a bad update to memory A, which links to B and C, can corrupt the semantic neighborhood. This is a production reliability concern with no documented solution in A-MEM.
+The psychologically-grounded version uses a dual-phase decay curve, modeling the Ebbinghaus forgetting curve. OpenMemory implements this directly in `src/ops/dynamics.ts`:
 
-**Ingestion-time cost is hidden.** The 85-93% token reduction figure covers retrieval. Every new memory requires: LLM calls for note construction, cosine similarity search over all existing embeddings, LLM calls for link analysis on the top-k candidates, and potential evolution LLM calls for each linked memory that needs updating. The paper reports retrieval efficiency but not total system cost including ingestion.
+```typescript
+const f = Math.exp(-LAMBDA_ONE_FAST_DECAY_RATE * t);      // 0.015
+const s = THETA_CONSOLIDATION * Math.exp(-LAMBDA_TWO * t); // 0.4 * exp(-0.002t)
+return Math.max(0, Math.min(1, f + s));
+```
 
-**Embedding staleness after evolution.** When memory evolution updates keywords and contextual descriptions, those updates should trigger embedding recomputation. The paper doesn't clearly document whether A-MEM recomputes embeddings after evolution updates. If not, retrieval runs against stale representations of evolved memories.
+The fast component (λ=0.015) models initial rapid forgetting. The slow component (THETA=0.4, λ=0.002) represents consolidated residual — knowledge that survived the initial forgetting curve and now persists as long-term memory. The sum gives a retention value between 0 and 1 that affects both retrieval scoring and storage decisions.
 
-**Scale is untested.** All A-MEM experiments involve ~9K token conversations (35 sessions). Production agents may accumulate orders of magnitude more memory. Top-k cosine search degrades, LLM-based link analysis doesn't scale linearly, and the evolution propagation cost grows with network density.
+Different memory types decay at different rates. In OpenMemory's sector model (`src/memory/hsg.ts`), emotional memories decay fastest (λ=0.02), episodic memories moderately (λ=0.015), procedural knowledge more slowly (λ=0.008), and reflective insights slowest of all (λ=0.001). This mirrors what cognitive science observes: specific event memories fade faster than abstract procedural knowledge.
 
-## When Not to Use Memory Evolution
+Decay also drives storage optimization. As memories cool, OpenMemory compresses their vector representations via mean pooling, reducing from 1536 dimensions to as few as 64. Cold memories occupy less storage while remaining retrievable. Regeneration restores full fidelity when a cold memory is accessed again.
 
-**Adversarial or untrusted inputs.** The A-MEM adversarial regression is a direct signal: don't apply memory evolution in settings where inputs may be crafted to manipulate the system. Static retrieval with explicit contradiction detection is safer.
+### Consolidation and Summarization
 
-**Audit-required environments.** Memory evolution's destructive writes mean you cannot reconstruct what the system knew at a given point in time. Any application requiring an auditable knowledge history (compliance, legal, medical) needs append-only storage with explicit versioning, not evolution.
+Raw memories accumulate as individual observations. Consolidation synthesizes patterns from these observations into higher-order knowledge.
 
-**High-frequency, low-memory contexts.** If an agent handles thousands of short, independent sessions with minimal carry-over knowledge, the ingestion overhead of note construction + link generation + evolution outweighs the retrieval benefit.
+The A-MEM paper demonstrates this through memory evolution triggered by new information. When a new memory arrives, the system does not just store it — it retrieves related existing memories and updates their contextual descriptions to reflect the new information. A note about a project deadline gets updated when a new memory records that project's cancellation. This is the crucial step: new information reshapes the semantic landscape of historical context, not just adds to it.
 
-**Primarily temporal queries.** If your use case centers on "what happened when" rather than "what relates to what," A-MEM-style semantic evolution adds cost without addressing the actual need. Use Zep or a bi-temporal store.
+A-MEM's ablation study quantifies consolidation's contribution directly. On multi-hop reasoning (LoCoMo benchmark), the full system scores 45.85 F1. Remove memory evolution but keep link generation: 31.24. Remove both: 24.55. Memory evolution alone contributes +14.61 F1 on multi-hop tasks — the task type that most requires synthesizing across multiple observations. (These results are self-reported in the A-MEM paper, not independently validated.)
 
-## Unresolved Questions
+OpenMemory's reflection system (`src/memory/reflect.ts`) runs a periodic background job that clusters memories by Jaccard similarity, scores them by frequency and recency, and creates new "reflective" memories summarizing the patterns. The implementation is extractive rather than abstractive — it produces `"N sector pattern: content1; content2; ..."` rather than synthesized insights. Reflective memories receive the slowest decay rate (λ=0.001), encoding the system's belief that synthesized patterns should persist longer than raw observations.
 
-**Conflict resolution.** When two new memories present contradictory information, what happens to existing memories linked to both? A-MEM's documentation doesn't specify whether the evolution mechanism detects contradictions or simply applies the most recent update, potentially overwriting correct information with incorrect.
+[RAPTOR](../projects/raptor.md) applies similar logic to documents: build a tree of progressively higher-level summaries, then search at the appropriate level of abstraction. This is consolidation applied to retrieval indexing rather than agent memory specifically.
 
-**Evolution termination.** If memory A evolves memory B, and memory B links to C, does the evolution propagate to C? The paper describes single-hop evolution (new memory updates its direct links) but doesn't address whether updates cascade transitively. Transitive propagation risks runaway rewriting; blocking it limits coherence.
+General Agentic Memory (GAM) handles consolidation for long agent trajectories by chunking the trajectory at semantic boundaries, generating structured summaries (Memory + TLDR) for each chunk, and organizing these into a hierarchical taxonomy. The trajectory is compressed into a navigable structure without discarding the original operations.
 
-**Cost at production scale.** The paper is silent on ingestion-time LLM call counts. At what memory network size does the per-ingestion cost become prohibitive? No cost modeling is provided.
+### Merging and Reorganization
 
-**Meta-evolution stability.** MemEvolve's architecture self-modification via meta-evolution raises a stability question with no documented answer: what prevents the evolved memory interface from drifting into a configuration that degrades performance? The framework presumably relies on the evaluation signal to prevent this, but the guardrails are not described.
+Merging combines related memories into unified representations. When an agent has accumulated ten observations about a user's coding preferences, merging produces one consolidated preference profile. This reduces retrieval noise and context window consumption.
+
+[Mem0](../projects/mem0.md) treats this as a core operation: when new information conflicts with or extends existing memories, the system produces an UPDATE operation rather than an INSERT, maintaining a coherent single representation. The implementation uses an LLM to determine whether new content should create a new memory, update an existing one, or delete a contradiction.
+
+Reorganization updates the relationship structure between memories. A-MEM implements this through bidirectional link generation: when a new memory is integrated, it identifies related existing memories via cosine similarity, then uses an LLM to determine which connections are semantically meaningful and establishes bidirectional links. The links are schema-free — the LLM decides what constitutes a meaningful connection, so the relationship types emerge from content rather than a predefined ontology.
+
+OpenMemory encodes cross-sector relationships in an explicit adjacency matrix:
+
+```typescript
+export const sector_relationships: Record<string, Record<string, number>> = {
+    episodic: { reflective: 0.8, semantic: 0.6, procedural: 0.6, emotional: 0.7 },
+    semantic: { procedural: 0.8, episodic: 0.6, reflective: 0.7, emotional: 0.4 },
+    ...
+};
+```
+
+These weights affect retrieval: a query against episodic memories also surfaces reflective memories with a 0.8 cross-sector boost. The asymmetry is deliberate — the relationship strengths encode assumptions about how memory types relate.
+
+### Temporal Fact Management
+
+Temporal evolution tracks how facts change over time, not just that they changed. A standard key-value memory store would overwrite "CompanyX CEO is Alice" with "CompanyX CEO is Bob" and lose the history. A temporally-aware system records that Alice was CEO from 2021 to 2024 and Bob has been CEO since 2024, enabling point-in-time queries.
+
+OpenMemory's temporal graph (`src/temporal_graph/`) implements bitemporal fact management. When a new contradicting fact arrives for the same subject+predicate pair, the previous fact's `valid_to` is set to just before the new fact's `valid_from`. Historical queries return different answers than present-tense queries, and the full timeline is queryable.
+
+Confidence decay applies to open-ended facts: each day a fact remains unverified, its confidence decays by a small amount, with a floor of 0.1. Facts never disappear from the temporal graph — they just become less certain — which preserves auditability while surfacing uncertainty about stale knowledge.
+
+[Zep](../projects/zep.md) and [Graphiti](../projects/graphiti.md) implement similar temporal graph approaches. Graphiti maintains episode-based temporal edges in a knowledge graph, recording when edges were established and invalidated.
+
+### Reinforcement
+
+Evolution moves in both directions: memories decay when not accessed and strengthen when accessed or explicitly reinforced. Reinforcement increments coactivation counts and boosts salience scores. In OpenMemory's scoring model, memories with coactivations > 5 or salience > 0.7 are classified as "hot" and receive the slowest decay rate (λ=0.005). Frequently accessed memories are implicitly preserved without manual curation.
+
+A-MEM's reflection system also reinforces source memories when it creates a synthesis — the sources receive a 1.1x salience boost — encoding the intuition that memories which generate insights are more valuable than those that do not.
 
 ## Implementations
 
-- **A-MEM evaluation code:** [github.com/WujiangXu/A-mem](https://github.com/WujiangXu/A-mem)
-- **A-MEM memory system:** [github.com/WujiangXu/A-mem-sys](https://github.com/WujiangXu/A-mem-sys)
-- **MemEvolve + EvolveLab:** [github.com/bingreeky/MemEvolve](https://github.com/bingreeky/MemEvolve) — 201 stars, includes 11 reproduced baseline memory systems for comparison
+Several projects implement different subsets of memory evolution:
+
+**[Mem0](../projects/mem0.md)** focuses on semantic memory merging. Its core operation set (ADD, UPDATE, DELETE, NOOP) produces coherent single-memory representations from a stream of interactions. The LLM determines when new information should update versus extend existing memories.
+
+**[Letta](../projects/letta.md)** implements [Core Memory](../concepts/core-memory.md) with explicit editing tools that agents use to maintain their own working knowledge. The agent can call `core_memory_append`, `core_memory_replace` as tools — evolution driven by the agent's own judgment rather than automated background processes.
+
+**[Zep](../projects/zep.md)** and **[Graphiti](../projects/graphiti.md)** handle temporal evolution through knowledge graphs with bi-temporal indexing. Zep reports +48.2% improvement on temporal reasoning tasks on the [LongMemEval](../projects/longmemeval.md) benchmark (self-reported).
+
+**OpenMemory** (caviraoss) implements the most complete evolution model: dual-phase decay, sector-specific decay rates, automatic reflection, vector compression for cold memories, temporal fact management, and reinforcement. The implementation is locally-hosted TypeScript/Python with SQLite storage.
+
+**A-MEM** demonstrates that memory evolution at ingestion time — updating existing memories when new information arrives — produces 149% improvement on multi-hop reasoning (GPT-4o-mini, LoCoMo benchmark) while using 85% fewer tokens than full-context retrieval. These figures are self-reported.
+
+**[Voyager](../projects/voyager.md)** and **[Agent Workflow Memory](../projects/agent-workflow-memory.md)** implement procedural memory evolution: skills that get refined or expanded as the agent succeeds or fails at tasks.
+
+## Failure Modes
+
+**Cascading evolution errors.** When new information triggers updates to existing memories, incorrect updates propagate. A-MEM's memory evolution has no undo mechanism — if the LLM misinterprets a relationship between new and existing content, the existing memory is corrupted without a revert path. Production systems need version history on evolved memories.
+
+**Decay parameter sensitivity.** The lambda values that govern decay rates are typically hand-tuned rather than learned. OpenMemory's parameters (λ_emotional=0.02, λ_reflective=0.001, etc.) appear to be educated guesses informed by cognitive science rather than empirically derived for LLM memory use cases. Small changes to these values can dramatically alter which memories survive long enough to be useful.
+
+**Embedding staleness.** When memory evolution updates contextual descriptions, the embedding should be recomputed to reflect the new content. Systems that skip this step will retrieve memories using stale vector representations that no longer match the updated text. A-MEM does not clearly address this.
+
+**Reflection quality ceiling.** Extractive consolidation (concatenating similar content) produces pattern descriptions, not insights. OpenMemory's reflection produces `"N sector pattern: content1; content2"` rather than synthesized understanding. LLM-based abstractive summarization produces better consolidations but costs more per cycle.
+
+**Scale limits on reflection and decay.** Background jobs that iterate all memories are O(n) and become expensive at scale. OpenMemory's reflection fetches up to 100 memories per run; its decay job iterates all memories with a 60-second cooldown. Neither has the indexing infrastructure for stores with millions of records.
+
+**[Catastrophic Forgetting](../concepts/catastrophic-forgetting.md) analog.** Aggressive decay can remove memories that seem cold but are actually important for rare edge cases. A memory about an unusual security exception that was established a year ago and never accessed since would decay toward zero, potentially removing critical context before it is needed.
+
+## When Not to Use Memory Evolution
+
+Memory evolution adds meaningful complexity. For agents with short interaction horizons (single-session chatbots, bounded task agents), static [Retrieval-Augmented Generation](../concepts/rag.md) with a well-maintained document store performs comparably at lower cost. The overhead of decay calculation, consolidation jobs, and temporal fact management is not justified when the memory store resets between sessions anyway.
+
+For primarily retrieval-heavy workloads where the underlying documents do not change — legal reference, technical documentation, knowledge bases with infrequent updates — evolution mechanisms add churn without benefit. Standard RAG handles these well.
+
+Evolution also requires more infrastructure than simple vector stores. If your deployment environment does not support background jobs, persistent storage, or the LLM call overhead for ingestion-time processing, simpler memory approaches will be more reliable.
 
 ## Relationship to Adjacent Concepts
 
-Memory evolution as implemented in A-MEM is one mechanism within a broader space of agent memory designs. The key distinctions:
+Memory evolution is a mechanism within [Agent Memory](../concepts/agent-memory.md) broadly. It connects specifically to:
 
-| Approach | Organization | Temporal reasoning | Evolution |
-|---|---|---|---|
-| Append-only RAG | Static | None | No |
-| A-MEM | LLM-driven, Zettelkasten | Weak (timestamps stored only) | Yes — semantic updates |
-| Zep/Graphiti | Typed graph, bi-temporal | Strong | Partial — edge updates |
-| MemEvolve | Schema-adaptive | Depends on base system | Yes — architecture + content |
+- [Episodic Memory](../concepts/episodic-memory.md) — the type most subject to time-based decay
+- [Semantic Memory](../concepts/semantic-memory.md) — the type most subject to merging and consolidation
+- [Procedural Memory](../concepts/procedural-memory.md) — evolved through task success/failure feedback
+- [Core Memory](../concepts/core-memory.md) — the structured working memory that agents actively maintain
+- [Context Compression](../concepts/context-compression.md) — related mechanism that reduces token consumption without evolution
+- [Self-Improving Agent](../concepts/self-improving-agent.md) — evolution applied to agent behavior, not just memory content
+- [Continual Learning](../concepts/continual-learning.md) — the model-weight analog of the same problem
 
-The practical synthesis for production systems: use A-MEM-style semantic linking and evolution for multi-hop reasoning capability, layer Zep-style bi-temporal indexing for temporal queries, and add version history (append-on-evolve rather than destructive overwrite) for auditability.
+## Unresolved Questions
 
-## Sources
+The field has not settled on how to evaluate memory evolution quality. Benchmarks like [LongMemEval](../projects/longmemeval.md) and [LoCoMo](../projects/locomo.md) measure retrieval accuracy after memory operations, but they do not measure whether evolution-specific operations (consolidation quality, decay calibration, temporal accuracy) are contributing to observed improvements or just adding noise. Most published results are self-reported.
 
-- [A-MEM paper (deep analysis)](../raw/deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md)
-- [A-MEM paper (summary)](../raw/papers/xu-a-mem-agentic-memory-for-llm-agents.md)
-- [MemEvolve repository](../raw/repos/bingreeky-memevolve.md)
+The cost/benefit calculation for ingestion-time evolution (A-MEM's approach: multiple LLM calls per new memory) versus background evolution (OpenMemory's reflection jobs) has not been rigorously compared. A-MEM reports 85-93% token reduction at retrieval time but does not report total cost including ingestion-time LLM calls.
+
+There is no established approach for governing decay parameters. Most implementations hard-code values derived from cognitive science analogies. Whether these values transfer well to LLM agent contexts, or whether domain-specific tuning is necessary, remains an open question.
+
+
+## Related
+
+- [Retrieval-Augmented Generation](../concepts/rag.md) — part_of (0.4)
+- [Semantic Memory](../concepts/semantic-memory.md) — part_of (0.6)
+- [OpenAI](../projects/openai.md) — part_of (0.3)
+- [Episodic Memory](../concepts/episodic-memory.md) — part_of (0.6)
+- [Model Context Protocol](../concepts/mcp.md) — part_of (0.4)
+- [Mem0](../projects/mem0.md) — implements (0.6)
+- [Vector Database](../concepts/vector-database.md) — part_of (0.4)

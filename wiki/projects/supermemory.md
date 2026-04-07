@@ -3,35 +3,57 @@ entity_id: supermemory
 type: project
 bucket: agent-memory
 abstract: >-
-  Supermemory is a cloud-hosted memory and context engine for AI agents that
-  ranks #1 on LongMemEval, LoCoMo, and ConvoMem benchmarks by treating
-  forgetting as a first-class feature alongside storage.
+  Supermemory is a cloud-hosted memory API for AI agents that separates user
+  profiles (static + dynamic) from query retrieval, and treats forgetting as a
+  deliberate mechanism rather than an edge case.
 sources:
   - repos/supermemoryai-supermemory.md
   - repos/thedotmack-claude-mem.md
-  - repos/caviraoss-openmemory.md
   - deep/repos/supermemoryai-supermemory.md
 related:
   - rag
   - mcp
-last_compiled: '2026-04-06T02:11:28.805Z'
+last_compiled: '2026-04-07T11:52:13.306Z'
 ---
 # Supermemory
 
-**Type:** Project | **Bucket:** Agent Memory | **Language:** TypeScript | **License:** MIT
-**Stars:** ~21K | **GitHub:** supermemoryai/supermemory
+**Type:** Project
+**Bucket:** Agent Memory
+**Language:** TypeScript
+**License:** MIT
+**Stars:** ~21,000 (as of April 2026)
+**Repository:** [supermemoryai/supermemory](https://github.com/supermemoryai/supermemory)
 
-Supermemory is a hosted memory and context engine for AI agents and applications. Its core claim: most agent memory systems are passive accumulators, but Supermemory actively curates what is retained, updated, and forgotten. The architecture separates stable identity (static profile), evolving context (dynamic profile), and query-time retrieval (search results) into three distinct tiers, then combines them in a single API call. The engine handles contradiction resolution, temporal validity, and automatic forgetting server-side; client-side SDKs are thin wrappers.
+---
 
 ## What It Does
 
-Supermemory sits between your AI application and its conversations. When a user says something worth remembering, the engine extracts facts, classifies them into the three-tier ontology, resolves contradictions against existing memories, and persists the result. On the next conversation, a single `/v4/profile` call returns the user's static facts, dynamic context, and semantically relevant memories for the current query — all formatted for injection into a system prompt. The engine also processes documents (PDFs, images, videos, code) and syncs from external connectors (Google Drive, Gmail, Notion, GitHub) on 4-hour cron cycles.
+Supermemory provides persistent, searchable memory storage for AI agents across sessions and applications. Rather than bolting memory onto an existing [RAG](../concepts/rag.md) pipeline, it maintains a structured user profile per `containerTag` (a namespace string) and handles the lifecycle of facts: extraction, contradiction resolution, temporal expiry, and soft-delete forgetting.
+
+The core claim is that [RAG](../concepts/rag.md) retrieves document chunks while memory tracks *facts about users over time*. Supermemory runs both in a single query, returning knowledge-base results alongside personalized user context.
+
+---
+
+## Architecture
+
+Supermemory ships as a Turbo monorepo. The packages that matter for integrators:
+
+- `packages/tools/` — the primary SDK, with adapters for Vercel AI SDK, Mastra, OpenAI, and a Python agent framework
+- `packages/tools/src/shared/` — shared core: API communication, memory deduplication, prompt building, caching
+- `packages/memory-graph/` — WebGL-based graph visualization (force-directed, pan/zoom, node detail panels)
+- `packages/ai-sdk/` — Vercel AI SDK integration
+- `packages/agent-framework-python/` — Python SDK
+- `apps/` — web dashboard, [MCP](../concepts/mcp.md) server, Raycast extension
+
+The memory engine itself runs server-side on Cloudflare Workers with Hyperdrive (database proxy), Cloudflare AI (embeddings), KV storage, and Cloudflare Workflows. The open-source repository contains SDK wrappers and UI; the core extraction and temporal reasoning logic runs on Supermemory's infrastructure.
+
+---
 
 ## Core Mechanism
 
-### Three-Tier Memory Ontology
+### Three-Tier Profile Structure
 
-The `ProfileStructure` returned by `/v4/profile`:
+The central design decision is a fixed memory ontology with three tiers, returned by `POST /v4/profile`:
 
 ```typescript
 interface ProfileStructure {
@@ -45,165 +67,132 @@ interface ProfileStructure {
 }
 ```
 
-**Static profile** holds core identity facts (name, profession, long-term preferences) that rarely change. **Dynamic profile** holds recently updated context (current projects, active interests). **Search results** are fetched on-demand via semantic similarity to the current query. This separation enables different update frequencies and retention policies per tier — a design choice that most flat-store memory systems skip.
+- **Static profile**: stable identity facts (name, profession, persistent preferences). Updated rarely.
+- **Dynamic profile**: current projects, recent interests, active context. Updated frequently.
+- **Search results**: query-relevant memories fetched on-demand via semantic search.
+
+This separation drives different update frequencies and injection strategies per tier. A single call with both `containerTag` and `q` returns all three.
 
 ### Retrieval Modes
 
-The `MemoryMode` type in `packages/tools/src/shared/` defines three strategies:
+`MemoryMode` defines three strategies in `tools-shared.ts`:
 
-- **`"profile"`** — returns static + dynamic profile without semantic search. Used to inject user context at session start.
-- **`"query"`** — semantic search only, no profile. Used for mid-conversation recall when identity context is already loaded.
-- **`"full"`** — profile plus query-relevant search results. The default.
+- `"profile"` — returns static + dynamic profile, no query filtering. Used at conversation start.
+- `"query"` — semantic search only, no profile injection. Used mid-conversation.
+- `"full"` — both combined. The default for most integrations.
 
-The `extractQueryText()` function pulls the last user message from the conversation array, handling string content, multi-part arrays, and nested content objects across provider formats.
+`extractQueryText()` pulls the last user message from the message array, handling string content, multi-part arrays, and nested content objects across provider formats.
 
-### Forgetting as a Feature
+### Memory Deduplication
 
-The `memoryForget` tool soft-deletes memories by ID or content match:
+`deduplicateMemories()` in `tools-shared.ts` resolves overlaps across tiers using a priority system: Static > Dynamic > Search Results. It maintains a `seenMemories` Set and processes tiers in order, dropping duplicates at lower priority levels. The matching is string-exact, not semantic.
 
-```typescript
-TOOL_DESCRIPTIONS.memoryForget = "Forget (soft delete) a specific memory by ID or content match. The memory is marked as forgotten but not permanently deleted."
-```
+### Forgetting as First-Class Feature
 
-When a user updates a fact ("I switched from Python to Rust"), the old preference is marked forgotten rather than left to compete in retrieval. The `reason` parameter creates an audit trail. Soft-delete means forgotten memories are recoverable but stop appearing in recall. Temporary facts ("I have a deadline tomorrow") expire automatically after their validity window passes.
+The `memoryForget` tool soft-deletes memories by ID or content match. The `reason` parameter creates an audit trail. Forgotten memories stop appearing in recall but remain recoverable. This is not cleanup: it is the primary mechanism for handling temporal supersession ("I switched from Python to Rust") and expiring time-bound facts ("I have an exam tomorrow").
 
-### Deduplication
-
-The `deduplicateMemories()` function in `tools-shared.ts` resolves overlap across the three tiers with a priority order: Static > Dynamic > Search Results. It maintains a `seenMemories` Set and processes tiers in sequence, skipping duplicates. Deduplication is string-based exact matching, not semantic.
+Soft-delete means storage grows monotonically. Forgotten entries accumulate but do not surface in results unless explicitly recovered.
 
 ### Prompt Injection
 
-The `prompt-builder.ts` module formats memories into two sections injected into the system prompt: a markdown-formatted profile block with `## Static Profile` and `## Dynamic Profile` subsections, and a search results block. The default `PromptTemplate` is: `User Supermemories: \n{userMemories}\n{generalSearchMemories}`.
+`prompt-builder.ts` formats memories into two sections injected into the system prompt:
 
-### Container Tags
+1. `## Static Profile` and `## Dynamic Profile` as bulleted lists under "User Supermemories"
+2. `Search results for user's recent message: \n- memory1\n...`
 
-Memories are namespaced by `containerTag`. The `sm_project_` prefix enables per-project scoping. Multiple agents sharing a `containerTag` share memory state.
+The `PromptTemplate` function is customizable per integration.
 
-### Persistence Modes
+### Container Scoping
 
-`AddMemoryMode` controls whether conversations are stored:
-- **`"always"`** — auto-save conversations as memories (default).
-- **`"never"`** — retrieval only, no new storage.
+`containerTag` namespaces all memory operations. A `sm_project_` prefix signals project-based scoping. Multiple agents sharing a tag share memory.
 
-## Architecture
+---
 
-Supermemory ships as a Turbo monorepo. Key packages:
+## Key Numbers
 
-- `packages/tools/` — primary SDK with framework integrations (Vercel AI SDK, Mastra, OpenAI, Python)
-- `packages/memory-graph/` — WebGL force-directed visualization of the memory graph (pan/zoom, node detail panels)
-- `packages/ai-sdk/` — Vercel AI SDK wrapper
-- `packages/agent-framework-python/` — Python agent SDK
-- `apps/web/` — dashboard (Remix, Cloudflare Pages)
-- `apps/mcp/` — MCP server
-
-The memory engine runs on Cloudflare Workers with Hyperdrive (database proxy), Cloudflare AI (embeddings), and KV storage. The `IngestContentWorkflow` handles multi-modal ingestion: PDFs, OCR for images, transcription for video, AST-aware chunking for code.
-
-### Framework Integrations
-
-```typescript
-// Vercel AI SDK — wraps wrapLanguageModel
-import { withSupermemory } from "supermemory/vercel"
-const model = withSupermemory(openai("gpt-4o"), { apiKey: "sm_...", containerTag: "user_123" })
-
-// Mastra — beforeGenerate / afterGenerate hooks
-import { withSupermemory } from "supermemory/mastra"
-const agent = withSupermemory(agentConfig, { apiKey: "sm_...", userId: "user_123" })
-
-// OpenAI — fetch-level interception
-import { createSupermemoryMiddleware } from "supermemory/openai"
-```
-
-### MCP Server
-
-```bash
-npx -y install-mcp@latest https://mcp.supermemory.ai/mcp --client claude --oauth=yes
-```
-
-Exposes three tools: `memory` (save/forget), `recall` (search), `context` (full profile injection). Works with Claude Desktop, Cursor, Windsurf, VS Code, Claude Code, OpenClaw.
-
-## Benchmarks
-
-| Benchmark | What It Measures | Result |
+| Metric | Value | Credibility |
 |---|---|---|
-| LongMemEval | Long-term recall with knowledge updates | **81.6% — #1** |
-| LoCoMo | Fact recall across extended conversations | **#1** |
-| ConvoMem (Salesforce) | Personalization and preference learning | **#1** |
+| GitHub stars | ~21,000 | Verified (GitHub) |
+| Profile API latency | ~50ms | Self-reported |
+| LongMemEval | 81.6%, #1 | Self-reported; benchmark is public but results not independently replicated |
+| LoCoMo | #1 | Self-reported |
+| ConvoMem | #1 | Self-reported |
 
-**Credibility note:** These are self-reported. Independent verification is not documented in the repository. The project also ships MemoryBench (`bun run src/index.ts run -p supermemory -b longmemeval`), an open-source benchmarking framework that lets you run these evaluations yourself and compare against Mem0, Zep, and others — which partially addresses the reproducibility concern.
+The benchmark claims cover the three major AI memory evaluation frameworks. Supermemory also ships MemoryBench, an open-source tool for comparing memory providers. The #1 rankings are self-reported; independent reproduction has not been confirmed by third parties.
 
-Profile API latency is reported as ~50ms, enabled by Cloudflare edge deployment and Hyperdrive. Not independently verified.
-
-[Source](../raw/deep/repos/supermemoryai-supermemory.md)
+---
 
 ## Strengths
 
-**Temporal memory management.** The combination of soft-delete forgetting, contradiction resolution, and temporal validity windows means the memory graph degrades gracefully rather than accumulating noise. Most alternatives treat accumulation as the only direction.
+**Active memory curation.** Contradiction handling, temporal expiry, and soft-delete forgetting prevent the fact-store from degrading into noise over time. Most competing approaches accumulate everything.
 
-**Single-call context injection.** The `/v4/profile` endpoint returns profile plus query-relevant search in one request at ~50ms. No multi-step retrieval pipeline to orchestrate.
+**Single-call profile injection.** `client.profile({ containerTag, q })` returns static identity, dynamic context, and query-relevant memories in one ~50ms round-trip. The three-tier separation means the caller does not need to decide what to retrieve.
 
-**Benchmark performance.** #1 across the three major memory benchmarks suggests the three-tier approach with active forgetting produces better recall than passive accumulation.
+**Framework middleware breadth.** Drop-in wrappers for Vercel AI SDK, Mastra, LangChain, LangGraph, OpenAI Agents SDK, Mastra, and n8n. The Vercel wrapper intercepts `wrapLanguageModel`; the OpenAI wrapper intercepts at the fetch level. Integration is one import in most cases.
 
-**Broad framework support.** Drop-in integrations for Vercel AI SDK, Mastra, OpenAI, LangChain, LangGraph, n8n, plus MCP for tool-using agents and Python for non-JS stacks.
+**MCP integration.** Three tools (`memory`, `recall`, `context`) over OAuth, compatible with Claude Desktop, Cursor, Windsurf, Claude Code, OpenCode, and OpenClaw. The `/context` command in Cursor and Claude Code injects the full profile on demand.
 
-**Memory graph visualization.** The WebGL graph in `packages/memory-graph/` makes the otherwise-opaque memory state inspectable. Users can see what exists, how memories connect, and when they were created.
+**Multi-modal ingestion.** `IngestContentWorkflow` handles PDFs, images (OCR), video (transcription), and code (AST-aware chunking). Connectors sync Google Drive, Gmail, Notion, OneDrive, and GitHub on 4-hour cron cycles with real-time webhooks.
 
-## Limitations
+---
 
-**Cloud-only core engine.** The memory engine — fact extraction, contradiction handling, temporal reasoning, forgetting logic — runs entirely on Supermemory's infrastructure. The open-source repository contains SDK wrappers and UI components, not the memory processing logic. If the API goes down, all memory operations fail. The SDK includes session-level caching but no durable local fallback.
+## Critical Limitations
 
-**No local or self-hosted option.** Unlike [Mem0](../projects/mem0.md), [Zep](../projects/zep.md), or [Letta](../projects/letta.md), there is no documented path to running the full engine locally. The Cloudflare Workers + Hyperdrive infrastructure is tightly coupled to the hosted service.
+**Cloud dependency as single point of failure.** The memory engine, embedding pipeline, and temporal reasoning all run on Supermemory's Cloudflare infrastructure. The SDK is a thin client. If the API is unavailable, memory operations fail with no local fallback. The `cache.ts` module handles session-level request caching, not durability.
 
-**String-based deduplication.** The `deduplicateMemories()` function matches exact strings. "User likes TypeScript" and "User prefers TypeScript for all projects" are not deduplicated, leading to redundant profile entries over time.
+**Unspoken infrastructure assumption: you trust a third-party service with all user context.** Every fact extracted from every conversation leaves your infrastructure. For applications with data residency requirements, regulated industries, or sensitivity around user data, this is not a minor caveat — it is a blocker. There is no documented self-hosting path for the core engine.
 
-**Storage growth.** Soft-deleted memories accumulate. There is no documented automatic purge mechanism for the soft-delete backlog, which could affect search performance at scale.
-
-**Metadata opacity.** Memory items carry `metadata?: Record<string, unknown>` but the SDK provides no filtering or querying by metadata fields. Metadata passes through but does not improve retrieval precision.
-
-**Fact-level storage loses conversational context.** The engine stores extracted facts, not conversations. You can recall "user prefers functional programming" but not the exchange where that preference was discussed or why. For use cases requiring conversation replay or audit, this is a gap.
+---
 
 ## When NOT to Use It
 
-**Air-gapped or regulated environments.** All data transits to Cloudflare infrastructure. If your compliance requirements prohibit external data processing or require data residency controls, Supermemory has no self-hosted path.
+- **Data residency or compliance requirements.** All memory processing happens on Supermemory's infrastructure. HIPAA, GDPR data-sovereignty clauses, or internal policies requiring on-premise processing rule this out.
+- **You need transparent, auditable memory logic.** The extraction, contradiction resolution, and forgetting algorithms are proprietary. You cannot inspect or modify them.
+- **You need custom memory schemas.** The three-tier structure is fixed. If your application requires entity-attribution models, hierarchical memory, or domain-specific ontologies, the rigid structure fights you.
+- **High-frequency memory updates at scale.** Soft-deletes accumulate without documented purge mechanisms. Costs at scale are undocumented.
 
-**High-volume, cost-sensitive pipelines.** Pricing at scale is not documented in the repository. For batch processing or high-frequency agent loops where every memory operation adds latency and cost, evaluate whether the managed service pricing fits your model.
-
-**When you need full control over the memory algorithm.** The forgetting logic, contradiction resolution, and temporal reasoning are black boxes. If your application requires auditable, deterministic memory behavior (e.g., compliance, legal, clinical contexts), you cannot inspect or override the core engine.
-
-**When conversation replay matters.** If agents need to reconstruct "what happened in session 47," fact-level storage loses that context. Consider [Zep](../projects/zep.md) or [Letta](../projects/letta.md) for session-aware memory.
+---
 
 ## Unresolved Questions
 
-**Contradiction resolution mechanics.** The documentation states that contradictions are "resolved automatically," but the repository does not expose the algorithm. When two facts conflict (e.g., user says they work at Company A, then Company B), which wins? Is recency the only signal? Can users inspect or override resolution decisions?
+**Cost at scale.** Pricing documentation is not surfaced in the repository. For applications with many users or high conversation volume, total API cost is opaque until you hit the dashboard.
 
-**Cost at scale.** No public pricing documentation in the repository. The cost per memory operation, per profile fetch, and per connector sync is unspecified. For applications with thousands of users or high message frequency, this is a planning risk.
+**Conflict resolution algorithm.** The documentation states that contradictions are "resolved automatically," but the mechanism is not specified. When two facts contradict, which wins? Recency? Confidence score? LLM judgment? Unknown.
 
-**Soft-delete accumulation.** Forgotten memories are soft-deleted, not purged. The repository does not document any TTL or cleanup policy for the soft-delete backlog. At what volume does this affect retrieval latency?
+**Soft-delete accumulation.** No documented mechanism for purging soft-deleted memories. For long-running applications, the effect on search latency over time is unclear.
 
-**Profile size management.** For long-running users, the static and dynamic profile arrays could grow large enough to consume significant context window space. There is no documented profile pruning or summarization mechanism.
+**Governance and data deletion.** What happens to stored memories if you cancel an account? What is the data retention policy? Not documented in the open-source repository.
 
-**Benchmark methodology.** The self-reported LongMemEval score (81.6%) and LoCoMo rankings are not accompanied by evaluation code or reproducibility instructions in the main repository. The MemoryBench tool helps but requires running evaluations yourself.
+**Deduplication quality.** String-exact deduplication means "User likes TypeScript" and "User prefers TypeScript for all projects" both persist. Semantic deduplication is not implemented in the SDK layer.
+
+---
 
 ## Alternatives
 
-| Alternative | When to Choose It |
+| Project | When to prefer it |
 |---|---|
-| [Mem0](../projects/mem0.md) | Need self-hosted option or lower operational dependency on a third-party service |
-| [Zep](../projects/zep.md) | Need session-aware memory with conversation replay, or temporal knowledge graph with fact versioning |
-| [Letta](../projects/letta.md) | Building agents that need in-context memory management with full visibility into the memory state |
-| [Graphiti](../projects/graphiti.md) | Need a graph-structured memory with explicit entity and relationship extraction |
-| Direct [RAG](../concepts/rag.md) with [Vector Database](../concepts/vector-database.md) | Need full control over chunking, embedding, and retrieval; acceptable to manage the pipeline yourself |
-| [HippoRAG](../projects/hipporag.md) | Research context requiring graph-based retrieval with multi-hop reasoning over stored knowledge |
+| [Mem0](../projects/mem0.md) | Comparable feature set; evaluate on benchmark reproducibility and pricing for your volume |
+| [Zep](../projects/zep.md) | Temporal knowledge graph with self-hostable option; better for compliance-sensitive applications |
+| [Graphiti](../projects/graphiti.md) | Open-source temporal knowledge graph; full control over data and logic |
+| [Letta](../projects/letta.md) | Stateful agents with explicit memory types and open-source server; more transparency into memory operations |
+| [LangChain](../projects/langchain.md) + [ChromaDB](../projects/chromadb.md) | You need self-hosted vector search with no third-party dependency and are willing to manage chunking and embedding yourself |
 
-Choose Supermemory when you want the fastest path to production-quality agent memory, benchmark-leading recall, and are comfortable with a managed service dependency.
+Use Supermemory when you need a managed, zero-config memory layer with fast time-to-integration and you can accept cloud data residency. Use Zep, Graphiti, or Letta when you need self-hostability or transparent memory logic.
+
+---
 
 ## Related Concepts
 
-- [Agent Memory](../concepts/agent-memory.md) — the broader category this project implements
-- [Retrieval-Augmented Generation](../concepts/rag.md) — what Supermemory combines with profile-based memory
-- [Model Context Protocol](../concepts/mcp.md) — the integration protocol Supermemory exposes for tool-using agents
-- [Semantic Memory](../concepts/semantic-memory.md) — the memory type most analogous to Supermemory's static profile
-- [Episodic Memory](../concepts/episodic-memory.md) — the memory type most analogous to the dynamic profile
-- [Memory Consolidation](../concepts/memory-consolidation.md) — the process Supermemory automates for fact extraction and contradiction resolution
-- [Hybrid Retrieval](../concepts/hybrid-retrieval.md) — the search strategy combining RAG and profile-based recall
-- [LongMemEval](../projects/longmemeval.md) — the benchmark where Supermemory claims #1 ranking
-- [LoCoMo](../projects/locomo.md) — the long-conversation memory benchmark
+- [Retrieval-Augmented Generation](../concepts/rag.md) — Supermemory combines document RAG with profile memory in a single query
+- [Model Context Protocol](../concepts/mcp.md) — Supermemory ships an MCP server for tool-based memory access
+- [Agent Memory](../concepts/agent-memory.md) — The broader category this project addresses
+- [Hybrid Search](../concepts/hybrid-search.md) — Used internally for the `searchMode: "hybrid"` retrieval path
+- [Semantic Memory](../concepts/semantic-memory.md) — The static and dynamic profile tiers implement semantic memory concepts
+- [Episodic Memory](../concepts/episodic-memory.md) — Search results and session context correspond to episodic recall
+- [Context Engineering](../concepts/context-engineering.md) — Supermemory's prompt injection is a form of automated context engineering
+- [Vector Database](../concepts/vector-database.md) — The underlying retrieval mechanism for semantic search
+
+---
+
+[Source: deep/repos/supermemoryai-supermemory.md](../raw/deep/repos/supermemoryai-supermemory.md)
+[Source: repos/supermemoryai-supermemory.md](../raw/repos/supermemoryai-supermemory.md)

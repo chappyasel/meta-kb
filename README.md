@@ -2,7 +2,7 @@
 
 A self-improving LLM knowledge base about self-improving LLM knowledge systems.
 
-[![License: MIT](https://img.shields.io/badge/code-MIT-blue)](LICENSE) [![License: CC BY-SA 4.0](https://img.shields.io/badge/wiki-CC--BY--SA--4.0-lightgrey)](LICENSE) [![Runtime: Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1)](https://bun.sh) [![Sources](https://img.shields.io/badge/sources-121-orange)](#stats) [![Wiki Articles](https://img.shields.io/badge/wiki_articles-95-green)](#stats)
+[![License: MIT](https://img.shields.io/badge/code-MIT-blue)](LICENSE) [![License: CC BY-SA 4.0](https://img.shields.io/badge/wiki-CC--BY--SA--4.0-lightgrey)](LICENSE) [![Runtime: Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1)](https://bun.sh) [![Sources](https://img.shields.io/badge/sources-126-orange)](#stats) [![Wiki Articles](https://img.shields.io/badge/wiki_articles-149-green)](#stats)
 
 ![meta-kb](wiki/images/og-image.png)
 
@@ -31,7 +31,8 @@ A self-improving LLM knowledge base about self-improving LLM knowledge systems.
 
 Inspired by [Andrej Karpathy's tweet](https://x.com/karpathy/status/2039805659525644595) about using LLMs to compile and maintain markdown wikis from raw sources. This repo applies that pattern to the topic of LLM knowledge systems itself, then adds a self-improvement loop. The repo IS the demo.
 
-- **Self-improving** — the compiler extracts atomic claims, verifies each against its cited source, and auto-fixes source attribution errors without human intervention.
+- **Self-improving** — the compiler extracts atomic claims, verifies each against its cited source, and auto-fixes source attribution errors. The Karpathy loop (eval → analyze failures → update prompts → recompile) improved accuracy from 63.9% → 78.6% → 80.0% across three iterations.
+- **Incremental** — `bun run compile --incremental` detects source changes via content hashing, recompiles only affected buckets and entities. `--status` shows pending changes without compiling.
 - **Deep research** — the pipeline clones repos, reads 15-25 source files, fetches docs, and synthesizes architecture-level analysis.
 - **Dual compilation** — both a deterministic script pipeline and an agent-native skill graph produce the same output.
 - **Neutral** — all projects (including the author's own) receive the same depth and the same criticism.
@@ -91,6 +92,8 @@ Ask any AI coding agent: **"Compile the wiki from raw sources."**
 
 The [compile-wiki skill](.claude/skills/compile-wiki/SKILL.md) orchestrates a 6-phase pipeline using subagents — each phase has its own skill with focused context. Synthesis articles and reference cards compile in parallel via subagents. Works with Claude Code, Codex, Cursor, or any agent that can read `.claude/skills/`.
 
+For incremental updates after ingesting new sources, use the [incremental-compile skill](.claude/skills/incremental-compile/SKILL.md) — it detects what changed and only regenerates affected articles.
+
 ### Path B: Script pipeline (deterministic)
 
 ```bash
@@ -104,22 +107,23 @@ Both paths produce the same output structure. Run both for a comparison diff bet
 <!-- stats:start (auto-updated by bun run compile) -->
 ## Stats
 
-- **Sources:** 121 curated (24 tweets, 63 repos, 13 papers, 21 articles) + 51 deep research files
-- **Wiki:** 89 articles (5 synthesis, 45 project cards, 38 concept explainers, field map, indexes)
-- **Deep research:** 134K words of source-code-level analysis
-- **Self-eval:** 0 atomic claims extracted, sampled and verified against sources each compilation
-- **Compiled by:** 3 independent systems (script pipeline, Claude Code skill graph, Codex skill graph), best-of-three merged
+- **Sources:** 126 curated (24 tweets, 66 repos, 13 papers, 23 articles) + 52 deep research files
+- **Wiki:** 149 articles (5 synthesis, 77 project cards, 66 concept explainers, field map, indexes)
+- **Deep research:** 144K words of source-code-level analysis
+- **Self-eval:** 206 atomic claims extracted, 80% accuracy (30 sampled, 24 passed per compilation)
+- **Compiled by:** Script pipeline with Opus for synthesis articles, Sonnet for reference cards
 <!-- stats:end -->
 
 ## Roadmap
 
-- [ ] **Incremental recompilation** — track source→claim→article dependencies, recompile only what changed
-- [ ] **GitHub Actions auto-compile** — recompile wiki on PR merge, enabling community contributions
-- [ ] **Eval-driven prompt evolution** — feed self-eval failure reasons back into compilation prompts (the Karpathy loop applied to itself)
+- [x] **Incremental recompilation** — `bun run compile --incremental` skips unchanged sources, regenerates only dirty buckets/entities
+- [x] **Prompt surgery + Opus synthesis** — randomized opening instructions, hardened "takes" prompts, banned-words enforcement, Opus for synthesis articles, restored 15 entity cards, link validation fixing 53 broken links
+- [ ] **Source acquisition** — fill coverage gaps in Knowledge Bases (33 sources) and Agent Systems (23 sources), add historical retrospectives and production case studies
+- [ ] **Cross-article synthesis** — sequential compilation with evidence registry to eliminate cross-article repetition, question-routing ROOT.md layer
+- [ ] **Claims-first migration** — invert pipeline to raw → claims → articles for better attribution accuracy and reliable incremental recompilation
 - [ ] **Temporal claim decay** — auto-expire time-sensitive claims (star counts, benchmarks) and flag articles for refresh
-- [ ] **Source acquisition loop** — detect coverage gaps, generate search queries, discover and ingest new sources semi-autonomously
 
-See [DESIGN.md](DESIGN.md) for the full architectural vision.
+See [DESIGN.md](DESIGN.md) for the full architectural vision and evaluation findings.
 
 ## License
 

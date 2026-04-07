@@ -3,13 +3,11 @@ title: The State of LLM Knowledge Bases
 type: synthesis
 bucket: knowledge-bases
 abstract: >-
-  The core question shifted from "how do we retrieve relevant documents?" to
-  "how do we build knowledge that agents can maintain, evolve, and reason over
-  at arbitrary scales?" — driven by practitioners discovering that
-  LLM-maintained wikis often outperform vector pipelines at moderate scales
-  while enabling self-improvement loops that RAG cannot.
-source_date_range: 2024-04-24 to 2026-04-04
-newest_source: '2026-04-04'
+  LLM-maintained markdown wikis with auto-indexing now outperform traditional
+  RAG at small-to-medium scale, shifting the knowledge base bottleneck from
+  retrieval architecture to wiki evolution and self-healing maintenance loops.
+source_date_range: 2024-04-24 to 2026-04-06
+newest_source: '2026-04-06'
 staleness_risk: low
 sources:
   - tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md
@@ -31,177 +29,185 @@ sources:
   - papers/xu-a-mem-agentic-memory-for-llm-agents.md
   - repos/microsoft-llmlingua.md
   - papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md
+  - repos/memvid-memvid.md
   - articles/agent-skills-overview.md
+  - repos/gustycube-membrane.md
   - repos/laurian-context-compression-experiments-2508.md
   - tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md
   - repos/orchestra-research-ai-research-skills.md
-  - repos/natebjones-projects-ob1.md
-  - repos/yusufkaraaslan-skill-seekers.md
 entities:
   - rag
-  - graphrag
   - obsidian
+  - graphrag
   - bm25
   - knowledge-graph
-  - graphiti
-  - hotpotqa
-  - agentic-rag
-  - hybrid-retrieval
   - vector-database
+  - graphiti
+  - postgresql
+  - agentic-rag
+  - neo4j
+  - hotpotqa
   - chromadb
   - qdrant
-  - llamaindex
+  - redis
+  - hybrid-search
   - hipporag
   - raptor
-  - neo4j
-  - lightrag
-  - leiden-algorithm
-  - pgvector
-  - weaviate
-  - pinecone
-  - lancedb
-  - organizational-memory
-  - zettelkasten
+  - llamaindex
+  - embedding-model
   - faiss
-  - elasticsearch
-  - knowledge-base
-  - directory-recursive-retrieval
+  - pinecone
+  - weaviate
+  - milvus
+  - lancedb
+  - cognee
+  - zettelkasten
+  - hnsw
+  - reciprocal-rank-fusion
+  - lightrag
+  - entity-extraction
   - ragflow
   - personalized-pagerank
-  - milvus
-  - falkordb
-last_compiled: '2026-04-06T01:47:22.415Z'
+  - docling
+  - sqlite
+  - elasticsearch
+  - knowledge-base
+last_compiled: '2026-04-07T11:31:12.520Z'
 ---
 # The State of LLM Knowledge Bases
 
-Six months ago, the default question was which vector database to pick. Now practitioners are asking whether they need one at all. The Karpathy wiki pattern — raw sources compiled into LLM-maintained markdown, queried by agents that also update the index — demonstrated that at small-to-medium scale (100 articles, ~400K words), BM25 search on markdown files can match RAG while producing a knowledge base that compounds in quality with every query. That shift changed the design space [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md).
+[Andrej Karpathy](concepts/andrej-karpathy.md) reported that an LLM-maintained markdown wiki of ~100 articles and ~400K words handles complex Q&A without any vector database, embedding pipeline, or [RAG](concepts/rag.md) infrastructure. The LLM auto-maintains index files and brief summaries, reads related data on demand, and answers multi-hop questions over the full corpus. This caught practitioners off guard because the entire RAG industry spent three years building embedding pipelines, vector stores, and retrieval orchestration for exactly this use case. Karpathy's approach replaced all of it with `raw/` directories, markdown files, and an LLM that maintains its own indexes. The tweet drew 38,638 likes and nearly 10 million views, signaling that a large audience recognized this pattern from their own frustrated experience with RAG complexity. [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
 
 ## Approach Categories
 
-### 1. What storage primitive should knowledge live in?
+### How should you structure and store knowledge for LLM consumption?
 
-The oldest assumption in this space was "vector database." It's still the right answer for many production workloads, but three distinct alternatives have now accumulated serious adoption signals.
+Two competing storage paradigms dominate. The first treats knowledge as **flat files in a filesystem**, where markdown documents with backlinks, index files, and directory structure provide the retrieval surface. [Obsidian](projects/obsidian.md) serves as the viewing layer. Karpathy's pattern, [napkin](projects/napkin.md) (264 stars), and Ars Contexta (2,928 stars) all follow this approach. napkin implements [progressive disclosure](concepts/progressive-disclosure.md) with four levels: a ~200-token project context note (Level 0), a vault map with TF-IDF keywords (Level 1), ranked [BM25](concepts/bm25.md) search results with snippets (Level 2), and full file content (Level 3). It reports 92% accuracy on the [LongMemEval](projects/longmemeval.md) Oracle benchmark with zero preprocessing, no embeddings, and no graph structures. [Source](../raw/repos/michaelliv-napkin.md)
 
-**Flat-file wikis with LLM-maintained indexes** emerged from [Andrej Karpathy](concepts/andrej-karpathy.md)'s public description of his research workflow: raw sources in `raw/`, LLM-compiled wiki in structured `.md` files, index files auto-maintained by the LLM, and BM25 search for Q&A. [napkin](projects/napkin.md) (264 stars) implements this directly: four progressive disclosure levels from `NAPKIN.md` (~200 tokens) through `napkin overview` (~1-2K tokens) to full file reads, using BM25 on markdown. Their [LongMemEval](projects/longmemeval.md) benchmarks show 91% accuracy on the S dataset (40 sessions) vs. 86% for the prior best system — with zero embeddings, no graphs, no summaries. Benchmark credibility note: self-reported by the napkin team; methodology described in `bench/README.md` but not peer-reviewed [Source](../raw/deep/repos/michaelliv-napkin.md).
+The second paradigm uses **graph-backed knowledge stores** where entities, relationships, and facts get extracted into a queryable graph. [Graphiti](projects/graphiti.md) (24,473 stars) builds temporal context graphs with validity windows on facts, episode provenance, and hybrid retrieval combining semantic embeddings, keyword search, and graph traversal. Cognee (14,899 stars) combines [vector databases](concepts/vector-database.md) with [knowledge graphs](concepts/knowledge-graph.md) and continuous learning. [HippoRAG](projects/hipporag.md) (3,332 stars) uses knowledge graphs with [Personalized PageRank](concepts/personalized-pagerank.md) to mimic hippocampal memory indexing for multi-hop retrieval.
 
-**Wins when:** knowledge base fits in a few hundred files, human inspectability matters, infrastructure budget is near zero. **Loses when:** corpus grows beyond ~1M words or requires sub-second semantic search over millions of records.
+**Tradeoff:** File-based systems win when your corpus fits in ~1M tokens, you need human-readable inspectability, and you want zero infrastructure. Graph-based systems win when you need temporal reasoning ("what was true last month?"), multi-hop queries across hundreds of thousands of entities, or enterprise-scale multi-user deployments. **Failure mode for file-based:** once the wiki exceeds context window capacity, the LLM cannot maintain accurate indexes and retrieval degrades silently. You get wrong answers without error signals.
 
-**Specific failure mode:** LLM-maintained index files drift from the actual corpus content. An agent writing a new article doesn't always update the index, backlinks accumulate errors, and queries start missing relevant documents with no error signal. The "self-healing linting loop" [Karpathy describes](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) addresses this but requires deliberate scheduling.
+### How should you manage retrieval at query time?
 
-**Temporal knowledge graphs** are the most architecturally distinct approach. [Graphiti](projects/graphiti.md) (24,473 stars) maintains entities and facts as graph nodes/edges with explicit validity windows — "Kendra loves Adidas shoes (as of March 2026)" becomes a fact with a start timestamp and an optional invalidation timestamp. When new information contradicts an existing fact, the old fact is invalidated rather than overwritten, preserving full history. The backing store requires Neo4j, FalkorDB, Kuzu, or Amazon Neptune. [Zep](projects/zep.md) wraps Graphiti in a managed memory service: their paper reports 94.8% on the Deep Memory Retrieval benchmark vs. 93.4% for MemGPT, and up to 18.5% accuracy improvement on [LongMemEval](projects/longmemeval.md) with 90% latency reduction vs. baseline. Benchmark credibility: self-reported in the Zep paper ([rasmussen-zep](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)); the DMR comparison uses MemGPT's own evaluation setup, which is a reasonable methodological choice.
+Three retrieval strategies compete. **Direct file reading** (Karpathy pattern) relies on the LLM reading index files and navigating to relevant documents. **[Hybrid search](concepts/hybrid-search.md)** combines dense vector similarity with sparse keyword search ([BM25](concepts/bm25.md)) and uses [Reciprocal Rank Fusion](concepts/reciprocal-rank-fusion.md) to merge results. [Graphiti](projects/graphiti.md) and [OpenViking](projects/openviking.md) (20,813 stars) both implement this. **Hierarchical tiered loading** treats context like a filesystem with L0/L1/L2 abstraction layers. OpenViking generates L0 abstracts (~100 tokens), L1 overviews (~2K tokens), and L2 full content loaded on demand, then uses directory-recursive retrieval that locks on high-scoring directories before drilling into content. [Source](../raw/repos/volcengine-openviking.md)
 
-**Wins when:** data changes over time and agents need "what was true when" queries; enterprise CRM/customer data contexts; multi-session agents that must track evolving facts. **Loses when:** data is static documents, graph construction costs (LLM calls per ingested episode) are prohibitive, or you need pure semantic similarity retrieval.
+OpenViking reports concrete benchmarks against OpenClaw's native memory on the [LoCoMo](projects/locomo.md) benchmark: 52.08% task completion rate (vs 35.65% baseline) while reducing input token cost by 83-96%. These numbers come from a test dataset of 1,540 cases. [Source](../raw/repos/volcengine-openviking.md) **Source conflict:** napkin reports 92% on LongMemEval Oracle with pure BM25 search [Source](../raw/repos/michaelliv-napkin.md), while Zep/Graphiti reports 94.8% on the Deep Memory Retrieval benchmark using temporal knowledge graphs [Source](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md). The benchmarks measure different things (conversational memory vs. document retrieval), making direct comparison unreliable.
 
-**Specific failure mode:** Graphiti ingestion pipelines make multiple LLM calls per episode for entity extraction and relationship inference. At high ingestion rates, the default `SEMAPHORE_LIMIT=10` hits provider rate limits silently — writes fail without surfacing errors to the calling application. The fix (lower concurrency or upgrade provider tier) is documented but easy to miss [Source](../raw/repos/getzep-graphiti.md).
+**Failure mode:** Hybrid search with rank fusion produces false confidence. You merge two retrieval signals, each returning plausible but wrong results, and the fusion gives you a high-ranked answer that looks authoritative but draws from the wrong document.
 
-**Filesystem-paradigm context databases** represent a third model. [OpenViking](projects/openclaw.md) (20,813 stars) stores memories, resources, and skills under a `viking://` URI scheme with three-tier loading: L0 abstracts (~100 tokens per directory), L1 overviews (~2K tokens), L2 full content on demand. Directory recursive retrieval combines semantic search with filesystem traversal — find the high-scoring directory first, then search within it. Their LoCoMo10 benchmark comparison (1,540 cases) shows OpenViking Plugin at 52.08% task completion vs. OpenClaw+LanceDB at 44.55%, with 96% fewer input tokens vs. LanceDB. Benchmark credibility: self-reported, single evaluation dataset, no independent verification [Source](../raw/deep/repos/volcengine-openviking.md).
+### How should knowledge evolve over time?
 
-**Wins when:** agents need unified management of heterogeneous context types (skills, memories, documents), token cost is a primary constraint, or context lineage/observability matters. **Loses when:** you need millisecond semantic search at scale or standard RAG toolchain compatibility.
+The static snapshot problem drives the most active area of innovation. Traditional RAG indexes a corpus once and re-indexes on a schedule. Three projects address this differently. [Graphiti](projects/graphiti.md) maintains temporal validity windows on every fact: when a fact changes, the old version gets invalidated but preserved for historical queries. The Zep paper shows 18.5% accuracy improvements on [LongMemEval](projects/longmemeval.md) temporal reasoning tasks compared to baselines. [Source](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md) Membrane (72 stars) implements typed, revisable memory with explicit supersede, fork, retract, merge, and contest operations, each producing an audit trail. Records have salience decay curves that reduce their relevance over time unless reinforced by success. [Source](../raw/repos/gustycube-membrane.md) Karpathy's pattern uses LLM "health checks" that find inconsistent data, impute missing data via web searches, and suggest new article candidates, creating a self-healing maintenance loop. [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
 
-### 2. How should retrieval be structured?
+**Failure mode for temporal systems:** Stale facts that never get invalidated poison downstream queries. Membrane's lifecycle eval shows RAG scoring 0/4 on retraction, supersession, reinforcement, and decay scenarios, while structured memory scores 4/4. [Source](../raw/repos/gustycube-membrane.md) The blast radius is large: one outdated fact in a knowledge graph propagates through every multi-hop query that touches it.
 
-Classical [RAG](concepts/rag.md) with dense vector search is the baseline, but two structural extensions have demonstrated measurable gains.
+### How should you specialize memory by type?
 
-[GraphRAG](projects/graphrag.md) (Microsoft's approach) builds entity knowledge graphs from documents, then precomputes community summaries at multiple hierarchy levels using the Leiden algorithm for community detection. At query time, partial responses from relevant community summaries are aggregated into a final answer. This solves RAG's fundamental failure on global sensemaking queries ("what are the main themes in this dataset?") — the kind of query that requires reading the whole corpus, not retrieving a few chunks. [Source](../raw/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md)
+MIRIX (3,508 stars) splits agent memory into six specialized stores: Core (identity), Episodic (raw experience), Semantic (stable facts), Procedural (how-to knowledge), Resource (reference materials), and Knowledge Vault (deep domain knowledge). Each store has its own retrieval logic. [Source](../raw/repos/mirix-ai-mirix.md) Membrane takes a similar approach with five types: Episodic (immutable raw events), Working (current task state), Semantic (stable facts), Competence (learned procedures with success rates), and Plan Graph (reusable solution structures). [Source](../raw/repos/gustycube-membrane.md)
 
-[HippoRAG](projects/hipporag.md) (3,332 stars) takes a different graph approach inspired by hippocampal memory: build a knowledge graph from documents, then use Personalized PageRank seeded from query-relevant nodes to traverse it. HippoRAG 2 claims improvements on multi-hop (MuSiQue, 2Wiki, HotpotQA) and sense-making (NarrativeQA) benchmarks vs. standard RAG and GraphRAG, while claiming lower indexing cost than GraphRAG/RAPTOR. Benchmark credibility: published at ICML '25 for HippoRAG 2, peer-reviewed, though comparison methodology details matter [Source](../raw/deep/repos/osu-nlp-group-hipporag.md).
-
-[Hybrid Retrieval](concepts/hybrid-retrieval.md) combining BM25 with dense vectors is now standard. What's changed is where it's applied: systems like Mirix use PostgreSQL-native BM25 (`pg_tsvector`/GIN indexes) alongside Qdrant vector search, avoiding a second retrieval service [Source](../raw/repos/mirix-ai-mirix.md).
-
-**Specific failure mode for graph-based RAG:** Index rebuild cost. GraphRAG's community summary precomputation requires batch LLM calls across the entire corpus. When source documents update frequently, this becomes a blocking operation. Graphiti's incremental update design explicitly addresses this; GraphRAG's static batch model does not.
-
-### 3. How should knowledge be typed by memory function?
-
-The cognitive science framing — episodic, semantic, procedural, core memory — has moved from academic concept to production architecture choice.
-
-[Letta](projects/letta.md)'s architecture and MIRIX (3,508 stars) both implement typed memory stores. MIRIX runs six specialized agents: Core Memory (in-context identity), Episodic Memory (events with timestamps), Semantic Memory (facts and concepts), Procedural Memory (workflows), Resource Memory (files and links), and Knowledge Vault (curated information). Queries route to the appropriate store rather than searching a flat vector index. The architectural bet: routing precision beats raw similarity search precision when memory types have genuinely different access patterns [Source](../raw/repos/mirix-ai-mirix.md).
-
-Nemori (187 stars) focuses specifically on episodic boundary detection — using LLMs to segment conversation streams at topic transitions rather than arbitrary time windows, then converting segments to rich episode narratives with temporal anchors. Their LongMemEval results show competitive performance with simpler infrastructure than full graph approaches [Source](../raw/repos/nemori-ai-nemori.md).
-
-**Wins when:** the agent's domain cleanly maps to distinct memory types; you need strong per-session isolation; debugging retrieval requires knowing which store was hit. **Loses when:** domain knowledge is highly interconnected (the right memory type for a given fact is ambiguous) or routing overhead dominates at scale.
-
-### 4. How should agents acquire and store procedural knowledge?
-
-[Agent Skills](concepts/agent-skills.md) as a portable format have moved from Anthropic-internal to an open standard with broad adoption. A `SKILL.md` file in a directory provides the agent with procedural knowledge for a specific domain. [obsidian-skills](projects/obsidian.md) (19,325 stars) demonstrates the pattern: modular skill files for Obsidian markdown operations, Bases, JSON Canvas, and CLI interactions that any skills-compatible agent can discover and use [Source](../raw/deep/repos/kepano-obsidian-skills.md).
-
-[Skill Seekers](../raw/repos/yusufkaraaslan-skill-seekers.md) (12,269 stars) automates skill creation from documentation: scrape a docs site or GitHub repo, run LLM enhancement, package into a skills-format ZIP. It outputs to 16 targets including LangChain Documents, LlamaIndex TextNodes, Cursor `.cursorrules`, and Pinecone-ready chunks from the same scraping pass [Source](../raw/repos/yusufkaraaslan-skill-seekers.md).
-
-[AI-Research-SKILLs](../raw/repos/orchestra-research-ai-research-skills.md) (6,111 stars) packages 87 domain-specific skills (vLLM, TRL, GRPO, Megatron-Core, etc.) as a library. The autoresearch skill orchestrates a two-loop architecture: inner optimization loop for experiments, outer synthesis loop for findings — routing to domain skills as needed [Source](../raw/repos/orchestra-research-ai-research-skills.md).
-
-**Specific failure mode:** Skill file bloat. As skill libraries grow, agents load irrelevant skill context that crowds out task-relevant information. Progressive disclosure (load SKILL.md summary first, full references only when needed) is the documented mitigation but requires disciplined skill authorship.
+**Tradeoff:** Type-specialized memory routes queries to the right store, improving precision. It loses when the query spans types and the routing logic misclassifies, sending a temporal question to the semantic store instead of the episodic store. Single-store systems avoid this routing problem but sacrifice retrieval precision.
 
 ## The Convergence
 
-Three things the field now agrees on that were contested 12 months ago:
+**All production systems now use some form of LLM-maintained indexing rather than relying solely on embedding-based retrieval.** Every system in this analysis, from napkin's TF-IDF keyword extraction to OpenViking's L0/L1/L2 summaries to Graphiti's entity extraction, uses an LLM to generate structured metadata about content. Pure vector similarity search without LLM-generated indexes is absent from any system shipping production features in 2025-2026. The last holdout was standard RAG pipelines using only embedding similarity, which the Zep paper demonstrated underperformed temporal knowledge graphs by up to 18.5% on enterprise tasks. [Source](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)
 
-**Self-maintaining indexes beat manual curation at scale.** The [Karpathy pattern](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) made this concrete: LLMs writing and updating index files, backlinks, and article summaries outperforms humans doing the same work for corpora above a few dozen documents. The multi-agent extension — supervisor agent reviewing swarm output before it enters the permanent knowledge base, as described in the [jumperz thread](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md) — is now a recognized pattern for production multi-agent systems.
+**All serious knowledge base systems now preserve provenance from derived facts back to source material.** Graphiti traces every entity and relationship to its source episodes. [Source](../raw/repos/getzep-graphiti.md) Membrane tracks audit trails for every revision. [Source](../raw/repos/gustycube-membrane.md) OpenViking maintains the full retrieval trajectory. Even Karpathy's wiki pattern keeps raw source documents alongside compiled articles. The approach that held out longest was flat vector stores like [ChromaDB](projects/chromadb.md) and [Pinecone](projects/pinecone.md), which store embeddings without source-to-derivation lineage.
 
-**Token cost is a retrieval quality metric.** OpenViking's 96% token reduction vs. LanceDB while achieving higher task completion forced this into the conversation. L0/L1/L2 tiered loading, [Prompt Compression](concepts/prompt-compression.md) (LLMLingua achieves up to 20x compression with minimal accuracy loss per EMNLP/ACL papers), and progressive disclosure are now evaluated alongside retrieval precision, not separately [Source](../raw/deep/repos/volcengine-openviking.md) [Source](../raw/repos/microsoft-llmlingua.md).
-
-**Temporal awareness is a first-class requirement for enterprise memory.** Static RAG returning document chunks without validity information produces incorrect answers when facts change — a company's CEO, a policy, a price. Graphiti's explicit bi-temporal model (fact validity windows + episode provenance) is now the reference architecture for agentic CRM and business data contexts [Source](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md).
+**All systems now implement hybrid retrieval combining at least two retrieval signals.** Graphiti uses semantic + keyword + graph traversal. OpenViking combines directory positioning with semantic search. napkin uses BM25 with progressive disclosure levels. Memvid uses BM25 + HNSW vectors. No production system relies on a single retrieval method. Memvid (14,493 stars) held out the longest with its initial focus on pure vector search before adding BM25 via the `lex` feature flag. [Source](../raw/repos/memvid-memvid.md)
 
 ## What the Field Got Wrong
 
-The original assumption: more retrieval infrastructure means better retrieval quality. Teams added vector databases, then hybrid search, then re-rankers, then graph indexes — treating complexity as a proxy for correctness.
+The assumption: **you need a vector database and embedding pipeline to give LLMs access to external knowledge.** The entire RAG industry, led by [LlamaIndex](projects/llamaindex.md), [LangChain](projects/langchain.md), and vector database vendors like [Pinecone](projects/pinecone.md), [Qdrant](projects/qdrant.md), and [ChromaDB](projects/chromadb.md), built their value proposition around this claim.
 
-The evidence against it: napkin's BM25-on-markdown achieves 91% on LongMemEval-S vs. 86% for systems with much more infrastructure. The [context compression experiments](../raw/repos/laurian-context-compression-experiments-2508.md) show that DSPy GEPA + TextGrad prompt optimization on a simple extraction prompt gets gpt-4o-mini from 0% to 100% success rate on previously-failing compressions — without any retrieval architecture changes.
+The evidence that disproved it: napkin's [LongMemEval](projects/longmemeval.md) benchmarks show BM25 search on markdown files achieving 91% accuracy on the S benchmark (~40 sessions) and 83% on the M benchmark (~500 sessions), outperforming the best prior system at 86% and 72% respectively. Zero embeddings. Zero graph structures. Zero vector databases. [Source](../raw/repos/michaelliv-napkin.md) Karpathy independently confirmed the pattern works at ~400K words using only LLM-maintained index files. [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
 
-What replaced it: the bottleneck is usually context assembly quality (chunking strategy, index freshness, temporal validity) and query-document representation alignment, not the retrieval mechanism itself. The [context engineering survey](../raw/papers/mei-a-survey-of-context-engineering-for-large-language.md) formalizes this: context engineering encompasses retrieval, processing, and management as a unified discipline. Retrieval mechanism selection is one input parameter, not the primary lever.
+The replacement: at small-to-medium scale (under ~1M tokens of source material), file-based knowledge systems with BM25 search and LLM-maintained indexes match or exceed vector-database-backed RAG. Vector databases remain the right choice for large-scale corpora, multi-modal data, and cases requiring sub-millisecond latency on millions of documents. But the default starting point for practitioners shifted from "set up a vector database" to "try markdown files with BM25 first."
+
+**Caveat on napkin's benchmarks:** these are self-reported numbers from the project's README, run against a specific benchmark dataset. No independent reproduction exists in the sources. Treat them as indicative, not definitive.
+
+## Deprecated Approaches
+
+**Static batch-indexed RAG without temporal awareness.** Before 2025, practitioners chunked documents, embedded them, stored vectors, and queried by similarity. This seemed right because it worked for simple Q&A over unchanging corpora. The Zep paper killed it by showing that enterprise tasks require tracking when facts became true and when they changed. Systems without temporal tracking returned outdated information and could not answer "what changed since last quarter?" queries. Membrane's lifecycle eval quantified the damage: pure RAG scores 0/4 on scenarios testing retraction, supersession, reinforcement, and decay. [Source](../raw/repos/gustycube-membrane.md) Graphiti's temporal context graphs, with fact validity windows and episode provenance, replaced this pattern. [Source](../raw/repos/getzep-graphiti.md)
+
+**Monolithic memory stores with uniform retrieval.** Pre-2025, most agent memory systems dumped everything into a single vector collection and ran the same similarity search regardless of query type. MIRIX's six-agent memory architecture and Membrane's five typed memory stores demonstrated that routing queries to type-specific stores (episodic vs. semantic vs. procedural) produces better retrieval than searching a flat index. [Source](../raw/repos/mirix-ai-mirix.md) [Source](../raw/repos/gustycube-membrane.md) The specific evidence: Membrane's competence records track success rates for procedures, allowing the system to prefer proven solutions over similar but untested ones, something impossible in a flat store.
+
+**Append-only knowledge bases without revision or decay.** Early agent memory systems treated memory as a log: append new facts, never modify old ones. This seemed right because immutability simplifies implementation. Membrane's lifecycle eval shows the failure: when a wrong fact enters an append-only store, RAG keeps returning it because vector similarity doesn't distinguish retracted facts from current ones. Membrane's supersede/retract/decay operations let agents correct mistakes and let stale knowledge fade. [Source](../raw/repos/gustycube-membrane.md)
 
 ## Failure Modes
 
-**Hallucination compounding in multi-agent systems.** One agent writes an incorrect connection into the knowledge base; subsequent agents retrieve it and build on it. At 100 articles, this is recoverable. At 10,000, corrupted nodes are nearly unfindable. The [jumperz architecture](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md) addresses this with a supervisor agent scoring articles before promotion to permanent storage — the supervisor has no context about how the article was produced, eliminating confirmation bias. Without this gate, hallucination compounds with every write cycle.
+**Hallucination compounding in self-maintaining wikis.** When an LLM writes wiki articles and then uses those articles to answer questions and write more articles, one hallucinated connection propagates through the entire knowledge base. @jumperz documented this after scaling Karpathy's pattern to a 10-agent swarm: "one hallucinated connection enters the brain and every agent downstream builds on it." The fix requires a separate review agent that scores articles before they enter the permanent knowledge base, with no context about how the work was produced to avoid confirmation bias. [Source](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md)
 
-**Embedding drift after model updates.** Vector databases store embeddings tied to a specific model version. When the embedding model changes (or you switch providers), all stored vectors become stale — semantically similar queries no longer retrieve the right documents. The blast radius is the entire knowledge base. Mitigation: version-stamp embeddings, run periodic reindexing jobs, or use BM25 as a fallback. Most teams discover this at the worst moment: after a model deprecation notice.
+**Silent index staleness at scale.** LLM-maintained indexes work when the corpus is small enough for the LLM to read and verify. Beyond a threshold (roughly when the total index exceeds one context window), the LLM cannot validate consistency across all index entries. Broken backlinks, outdated summaries, and orphaned articles accumulate. The LLM reports confident answers based on stale indexes. No system in the sources has solved automatic detection of this failure mode.
 
-**Temporal knowledge graph construction costs at ingestion scale.** Graphiti makes multiple LLM calls per episode (entity extraction, relationship inference, fact invalidation checks). At 1,000 episodes/hour with SEMAPHORE_LIMIT=10, you'll hit provider rate limits. Failures are often silent — the write appears to succeed but entities aren't extracted. The workaround (lower concurrency, upgrade tier) is documented; the detection (checking for missing entity nodes after bulk ingestion) is not standard practice [Source](../raw/repos/getzep-graphiti.md).
+**Temporal fact invalidation cascades in knowledge graphs.** When Graphiti invalidates a fact, every derived fact and relationship that depended on it may also need invalidation. The current approach handles direct supersession but does not trace transitive dependencies. If fact A depends on fact B, and fact B gets invalidated, fact A remains in the graph with full validity. Multi-hop queries that traverse the stale path return incorrect results with high confidence.
 
-**Context window overflow in naive agentic RAG.** Agentic RAG systems that retrieve multiple documents and pass all of them to an LLM in one context fail when the total token count exceeds the model's window. The failure mode isn't an error — the model silently ignores later documents ("lost in the middle"). LongLLMLingua's dynamic compression, OpenViking's L0/L1/L2 tiering, and prompt compression preprocessing all address this; vanilla retrieval pipelines do not.
+**Context compression quality collapse on weaker models.** Production RAG systems frequently fall back to cheaper models (e.g., gpt-4o-mini) due to rate limits. One practitioner filtered 1,000+ traces where gpt-4o-mini failed context compression entirely (returning NO_OUTPUT), compared to gpt-4o succeeding on 296 of those cases. Prompt optimization via DSPy GEPA and TextGrad recovered extraction capability to 62% and 79% respectively, with a hybrid approach reaching 100%. [Source](../raw/repos/laurian-context-compression-experiments-2508.md) The failure triggers silently: the system returns empty results rather than erroring, so downstream agents proceed without the context they need.
 
-**Stale skill files breaking agent workflows.** A skill file documenting an API that changed in v2.0 produces confident but wrong agent actions. Unlike hallucination, this failure is systematic — every agent using the skill makes the same wrong call. Skill Seekers' documentation sync detection and re-scraping workflow addresses this, but requires periodic scheduling. Teams with monorepos need internal doc scraping pipelines; external dependency skills need version pinning.
+**Memory type misrouting in specialized stores.** Systems like MIRIX and Membrane that split memory by type depend on correct classification of incoming data and correct routing of queries. A debugging observation classified as "semantic" rather than "episodic" loses its temporal context. A procedural query routed to the semantic store returns facts instead of procedures. Neither system reports classification accuracy metrics in the sources.
 
 ## Selection Guide
 
-- **If you need personal research knowledge base under ~500 documents**, use [napkin](projects/napkin.md) (264 stars) or the Karpathy pattern with [Obsidian](projects/obsidian.md) (19,325 stars). BM25 on markdown, no vector infrastructure, no ongoing cost.
+- **If you need a personal knowledge base under 1M tokens**, use the Karpathy pattern with [Obsidian](projects/obsidian.md) and your preferred coding agent. Zero infrastructure, human-readable, inspectable. [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
 
-- **If you need agents that track how business facts change over time**, use [Graphiti](projects/graphiti.md) (24,473 stars) or [Zep](projects/zep.md)'s managed service — temporal validity windows, bi-temporal querying, automatic fact invalidation. Requires Neo4j or FalkorDB.
+- **If you need agent-ready progressive disclosure without infrastructure**, use [napkin](projects/napkin.md) (264 stars). BM25 on markdown, four disclosure levels, MIT license, TypeScript SDK. Reports strong LongMemEval numbers. Maturity: early. [Source](../raw/repos/michaelliv-napkin.md)
 
-- **If you need unified context management across memories, resources, and skills with token efficiency**, evaluate [OpenViking](projects/openclaw.md) (20,813 stars) — L0/L1/L2 tiered loading, `viking://` filesystem abstraction, 91-96% token reduction in their benchmarks vs. flat vector retrieval.
+- **If you need temporal knowledge tracking with fact validity windows**, use [Graphiti](projects/graphiti.md) (24,473 stars). Requires [Neo4j](projects/neo4j.md) or FalkorDB. Apache-2.0. Production-tested at Zep. Best for enterprise use cases requiring "what changed when" queries. [Source](../raw/repos/getzep-graphiti.md)
 
-- **If you need multi-hop question answering over a large static corpus**, use [HippoRAG](projects/hipporag.md) (3,332 stars) for lower indexing cost or [GraphRAG](projects/graphrag.md) for global sensemaking queries — both beat vanilla RAG on HotpotQA-class benchmarks.
+- **If you need a unified context database for coding agents (OpenClaw, OpenCode)**, use [OpenViking](projects/openviking.md) (20,813 stars). Filesystem paradigm, L0/L1/L2 tiered loading, reports 83-96% token cost reduction on LoCoMo. AGPL-3.0. [Source](../raw/repos/volcengine-openviking.md)
 
-- **If you need portable, domain-specific procedural knowledge for agents**, use the [Agent Skills](concepts/agent-skills.md) format — [AI-Research-SKILLs](../raw/repos/orchestra-research-ai-research-skills.md) (6,111 stars) for ML domain, [obsidian-skills](projects/obsidian.md) (19,325 stars) for knowledge management.
+- **If you need portable, serverless memory with no database**, use Memvid (14,493 stars). Single `.mv2` file, Rust core, BM25 + HNSW vectors, sub-5ms latency. Reports +35% SOTA on LoCoMo (self-reported). Apache-2.0. [Source](../raw/repos/memvid-memvid.md)
 
-- **If you need to convert documentation into skills/RAG chunks across multiple targets**, use [Skill Seekers](../raw/repos/yusufkaraaslan-skill-seekers.md) (12,269 stars) — 17 source types, 16 output targets, conflict detection between docs and code.
+- **If you need knowledge graphs from unstructured data**, use Cognee (14,899 stars). Combines vector search with graph databases, supports continuous learning. Apache-2.0. [Source](../raw/repos/topoteretes-cognee.md)
 
-- **If you need cross-provider AI memory without middleware**, evaluate [OB1/Open Brain](../raw/repos/natebjones-projects-ob1.md) (1,151 stars) — single Supabase+pgvector backend, MCP server, any AI plugs in.
+- **If you need typed, revisable agent memory with decay and audit trails**, use Membrane (72 stars). Go gRPC service, TypeScript + Python clients. MIT license. Maturity: early, small community. [Source](../raw/repos/gustycube-membrane.md)
 
-- **Avoid** building custom chunking pipelines on top of raw vector databases for conversational memory — Letta, Zep, and Graphiti have solved this with temporal awareness and session management that generic vector stores lack.
+- **If you need personalized knowledge system architecture derived from your cognitive patterns**, use Ars Contexta (2,928 stars). Claude Code plugin, generates custom folder structures and processing pipelines from conversation. MIT. [Source](../raw/repos/agenticnotetaking-arscontexta.md)
+
+- **If you need to compress retrieved context to reduce token costs**, use LLMLingua (5,985 stars). Achieves up to 20x compression. Integrates with [LangChain](projects/langchain.md) and [LlamaIndex](projects/llamaindex.md). MIT. [Source](../raw/repos/microsoft-llmlingua.md)
+
+- **If you need multi-hop retrieval mimicking human memory**, use [HippoRAG](projects/hipporag.md) (3,332 stars). Knowledge graphs + Personalized PageRank. MIT. [Source](../raw/repos/osu-nlp-group-hipporag.md)
+
+- **Avoid building custom vector database infrastructure** if your corpus is under 1M tokens. Start with file-based approaches and add vector search only when file-based retrieval measurably fails.
 
 ## The Divergence
 
-**Static batch indexing vs. incremental live graph construction.** GraphRAG batch-processes entire corpora to precompute community summaries — excellent for static document collections, prohibitive for data that changes daily. Graphiti updates incrementally per episode, making it suitable for real-time agent interactions. Neither team shows the other's workload performed well on their architecture. The choice depends entirely on data velocity.
+### Files vs. Graphs for knowledge representation
 
-**Vector similarity as primary retrieval vs. graph traversal as primary retrieval.** [LlamaIndex](projects/llamaindex.md) and [LangChain](projects/langchain.md) treat dense vector search as the retrieval primitive with graphs as an optional enhancement. Graphiti and HippoRAG treat graph traversal as primary with vector search for initial seeding. Under multi-hop queries, graph-primary systems win; under single-fact lookup, vector-primary systems have lower latency and simpler operational requirements.
+File-based systems (Karpathy pattern, napkin, Ars Contexta) optimize for inspectability, simplicity, and zero infrastructure. Graph-based systems (Graphiti, Cognee, HippoRAG) optimize for multi-hop reasoning, temporal tracking, and relationship-aware retrieval. Files win for individual practitioners and small teams working on bounded research domains. Graphs win for enterprise deployments with evolving multi-user data and compliance requirements. Both camps have working production implementations. Neither shows signs of yielding.
 
-**LLM-maintained knowledge vs. human-curated knowledge.** [Ars Contexta](../raw/repos/agenticnotetaking-arscontexta.md) (2,928 stars) generates personalized knowledge system architectures through conversation, then hands structure to the human for curation. The Karpathy pattern gives the LLM full write access. The first optimizes for knowledge quality and trust; the second for scalability and self-improvement loops. Practitioners building personal systems trend toward Karpathy-style; enterprises with compliance requirements trend toward human-in-the-loop gating.
+### LLM-maintained indexes vs. precomputed embeddings for retrieval
 
-**Typed memory stores vs. flat unified retrieval.** MIRIX and Letta route queries to specialized memory agents by type (episodic, semantic, procedural). Mem0 and most RAG systems search a unified store. The typed approach wins when query intent cleanly maps to memory types; it adds routing overhead and fails when a query spans types (e.g., "what's our standard procedure for handling the issue that happened last Tuesday?").
+Karpathy and napkin let the LLM maintain and query its own indexes at query time. Graphiti, OpenViking, and Memvid precompute embeddings and indexes ahead of time. LLM-maintained indexes win when the corpus changes frequently and the LLM can read the full index in one pass. Precomputed embeddings win when the corpus exceeds context window size or when you need sub-second latency at scale. The boundary between these approaches sits at roughly 500K-1M tokens of source material.
+
+### Single-store vs. type-specialized memory
+
+Systems like napkin and Memvid use a single retrieval surface. MIRIX and Membrane split memory by cognitive type. Single-store systems are simpler to build and debug. Type-specialized systems produce better retrieval precision when the routing works. The split correlates with use case: personal knowledge bases trend single-store, multi-agent enterprise systems trend type-specialized.
+
+### Self-healing wikis vs. review-gated knowledge bases
+
+Karpathy's pattern lets the LLM freely modify the wiki. @jumperz's multi-agent pattern interposes a separate review agent between raw output and the permanent knowledge base. Self-healing wins for speed of iteration on personal projects. Review-gating wins for multi-agent systems where compounding hallucinations threaten downstream reliability. The tension maps to the classic speed-vs-safety tradeoff. [Source](../raw/tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md)
 
 ## What's Hot Now
 
-[OpenViking](projects/openclaw.md) reached 20,813 stars with recent velocity from the OpenClaw/coding agent ecosystem — the filesystem paradigm for context resonates with practitioners building IDE-native agents. [Graphiti](projects/graphiti.md) crossed 24,473 stars on the back of the Zep paper and MCP server integration for Claude/Cursor. [Skill Seekers](../raw/repos/yusufkaraaslan-skill-seekers.md) hit 12,269 stars driven by the agent skills ecosystem growth.
+[OpenViking](projects/openviking.md) reached 20,813 stars with its filesystem paradigm for agent context management. [Graphiti](projects/graphiti.md) hit 24,473 stars. Obsidian Skills (19,325 stars) from Obsidian creator Steph Ango gives agents the ability to create and edit Obsidian content via the Agent Skills specification, turning Obsidian vaults into agent-writable knowledge bases. [Source](../raw/repos/kepano-obsidian-skills.md)
 
-The [Karpathy tweet](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) (38,638 likes, ~10M views) created a measurable wave: napkin, arscontexta, and several Obsidian plugin projects cite it as direct inspiration. The CORAL multi-agent research framework (120 stars, very new) applies the self-improving pattern to autonomous research with shared `.coral/public/` knowledge stores [Source](../raw/deep/repos/human-agent-society-coral.md).
+Memvid grew to 14,493 stars with its single-file memory approach, now rewritten in Rust with multi-modal support (CLIP, Whisper). Cognee reached 14,899 stars.
 
-Prompt optimization for RAG (the [context-compression-experiments](../raw/repos/laurian-context-compression-experiments-2508.md) pattern using DSPy GEPA + TextGrad) is gaining attention among practitioners who hit rate limits on expensive models — recovering failed compressions via prompt optimization rather than model upgrades is a legitimate cost-reduction strategy.
+CORAL (120 stars) from the Human-Agent-Society group introduced multi-agent self-evolution infrastructure where agents share knowledge through a `.coral/public/` directory with attempts, notes, and skills symlinked into every agent's worktree. [Source](../raw/repos/human-agent-society-coral.md)
+
+AI Research Skills (6,111 stars) packages 87 production-ready skills for autonomous AI research, including an autoresearch orchestration layer that routes to domain-specific skills across the full research lifecycle. [Source](../raw/repos/orchestra-research-ai-research-skills.md)
+
+The context compression research from DSPy GEPA and TextGrad optimization shows that prompt engineering can recover 62-100% of failed context compressions on cheaper models, directly reducing production RAG costs. [Source](../raw/repos/laurian-context-compression-experiments-2508.md)
 
 ## Open Questions
 
-**When does graph overhead pay off?** Graph construction requires LLM calls per document chunk. The break-even point — where graph retrieval quality gains exceed construction cost — is unclear. HippoRAG claims lower cost than GraphRAG but both cost more than vanilla RAG. No independent benchmark has measured this across controlled corpus sizes and query types.
+**When does file-based retrieval break?** napkin and Karpathy's pattern work at ~400K words. No one has published failure thresholds. Practitioners need to know: at what corpus size does BM25 on markdown files degrade below vector-database-backed RAG?
 
-**How do you detect knowledge base corruption in production?** Self-maintaining systems that allow LLMs to write to the knowledge base have no standard health monitoring. LLM linting loops catch some inconsistencies; they miss systematic errors caused by a bad model update. The field has no agreed-upon corruption detection protocol.
+**How do you detect stale indexes in self-maintaining wikis?** LLM health checks catch some inconsistencies, but no system reliably detects when its own index has diverged from the underlying data. Automated index integrity verification remains unsolved.
 
-**Can synthetic data generation from knowledge bases reduce context dependency?** Karpathy's closing note — "synthetic data generation + finetuning to have your LLM know the data in its weights instead of just context windows" — describes the natural endpoint of the wiki pattern. No team has demonstrated this loop working reliably at knowledge base scale. This is the unsolved problem that turns a retrieval system into a genuinely learning agent.
+**Can typed memory routing be made reliable?** MIRIX and Membrane split memory by type, but neither reports classification accuracy for incoming data or routing accuracy for queries. If routing fails 10% of the time, the precision gains from type specialization may not offset the misrouting losses.
 
-**What is the right granularity for episodic memory segmentation?** Nemori uses LLM-powered boundary detection aligned with topic transitions. Graphiti segments by API call (each `add_episode` call is one episode). Neither approach is clearly superior across domains. The right granularity for a customer support transcript differs from a research conversation.
+**How should knowledge bases handle multi-agent writes?** CORAL uses symlinked shared state. @jumperz uses a review gate. Graphiti supports concurrent updates. No one has benchmarked which approach produces the most reliable knowledge base when 5+ agents write simultaneously.
+
+**Will [synthetic data generation](concepts/synthetic-data-generation.md) and finetuning replace context-window-based knowledge bases?** Karpathy flagged this as a natural next step: having the LLM "know" the data in its weights instead of reading it at query time. No public results exist on finetuning vs. wiki-based retrieval for personal knowledge domains.

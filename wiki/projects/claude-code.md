@@ -3,227 +3,213 @@ entity_id: claude-code
 type: project
 bucket: agent-systems
 abstract: >-
-  Claude Code is Anthropic's terminal-based agentic coding tool that reads
-  codebases, writes/executes code, and manages files, distinguished by its
-  CLAUDE.md instruction system, Model Context Protocol integration, and a rich
-  ecosystem of composable skills and hooks.
+  Claude Code is Anthropic's terminal-based AI coding agent that executes
+  multi-file edits, runs shell commands, and orchestrates subagents —
+  differentiated by native CLAUDE.md project memory, Model Context Protocol
+  support, and a permission system for autonomous agentic loops.
 sources:
-  - tweets/hwchase17-continual-learning-for-ai-agents.md
   - tweets/pawelhuryn-your-claude-md-is-doing-jobs-that-rules-hooks-an.md
   - tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md
   - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
-  - repos/orchestra-research-ai-research-skills.md
+  - tweets/hwchase17-continual-learning-for-ai-agents.md
   - repos/affaan-m-everything-claude-code.md
+  - repos/memorilabs-memori.md
   - repos/snarktank-compound-product.md
-  - repos/natebjones-projects-ob1.md
-  - repos/agenticnotetaking-arscontexta.md
-  - repos/ayanami1314-swe-pruner.md
+  - repos/orchestra-research-ai-research-skills.md
   - repos/human-agent-society-coral.md
-  - repos/kevin-hs-sohn-hipocampus.md
+  - repos/agenticnotetaking-arscontexta.md
   - repos/anthropics-skills.md
-  - repos/greyhaven-ai-autocontext.md
-  - repos/thedotmack-claude-mem.md
+  - repos/kevin-hs-sohn-hipocampus.md
   - repos/alirezarezvani-claude-skills.md
-  - repos/garrytan-gstack.md
   - repos/uditgoenka-autoresearch.md
-  - repos/tirth8205-code-review-graph.md
+  - repos/thedotmack-claude-mem.md
+  - repos/garrytan-gstack.md
   - repos/kepano-obsidian-skills.md
+  - repos/tirth8205-code-review-graph.md
   - papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
   - >-
     articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md
-  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
   - articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md
   - articles/martinfowler-com-context-engineering-for-coding-agents.md
-  - deep/repos/affaan-m-everything-claude-code.md
-  - deep/repos/snarktank-compound-product.md
+  - articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md
   - deep/repos/human-agent-society-coral.md
-  - deep/repos/kevin-hs-sohn-hipocampus.md
   - deep/repos/karpathy-autoresearch.md
+  - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
+  - deep/repos/affaan-m-everything-claude-code.md
+  - deep/repos/martian-engineering-lossless-claw.md
   - deep/repos/garrytan-gstack.md
+  - deep/repos/kevin-hs-sohn-hipocampus.md
   - deep/repos/thedotmack-claude-mem.md
   - deep/repos/uditgoenka-autoresearch.md
-  - deep/repos/othmanadi-planning-with-files.md
-  - deep/repos/tirth8205-code-review-graph.md
   - deep/repos/kepano-obsidian-skills.md
+  - deep/repos/tirth8205-code-review-graph.md
   - deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
+  - deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
 related:
+  - codex
   - cursor
-  - openai-codex
-  - anthropic
-  - mcp
-  - andrej-karpathy
-  - gemini
-  - agent-skills
+  - opencode
   - openclaw
+  - andrej-karpathy
   - autoresearch
-  - context-engineering
+  - rag
+  - mcp
+  - agent-skills
   - windsurf
   - claude-md
-  - rag
-  - claude
-  - self-improving-agents
-  - skill-md
-  - openai
-  - obsidian
-  - agent-memory
-  - progressive-disclosure
-  - knowledge-graph
-  - vllm
-  - prompt-engineering
-  - ollama
-  - vector-database
-  - chromadb
-  - karpathy-loop
-  - task-decomposition
-  - zettelkasten
+  - gemini
   - github-copilot
-  - hipocampus
-  - compaction-tree
-  - dspy-optimization
-last_compiled: '2026-04-06T01:57:11.113Z'
+  - anthropic
+  - antigravity
+  - claude
+  - obsidian
+  - bm25
+  - mem0
+  - grpo
+  - agent-memory
+  - self-improving-agent
+  - sqlite
+  - tree-sitter
+  - knowledge-base
+  - openai
+  - episodic-memory
+  - context-engineering
+  - knowledge-graph
+  - progressive-disclosure
+  - vector-database
+  - continual-learning
+  - gpt-4
+  - prompt-engineering
+  - chromadb
+  - context-window
+  - meta-agent
+  - decision-traces
+  - zettelkasten
+  - context-management
+  - muon-optimizer
+  - unknown-unknowns
+last_compiled: '2026-04-07T11:35:25.498Z'
 ---
 # Claude Code
 
-**Type:** Agentic Coding Tool
+**Type:** Project — Agent System
 **Created by:** [Anthropic](../projects/anthropic.md)
-**Competes with:** [Cursor](../projects/cursor.md), [Windsurf](../projects/windsurf.md), [GitHub Copilot](https://github.com/features/copilot), [OpenAI Codex](../projects/openai-codex.md), [Gemini](../projects/gemini.md)
-**Implements:** [Model Context Protocol](../concepts/mcp.md), [Agent Skills](../concepts/agent-skills.md), [claude.md](../concepts/claude-md.md), [skill.md](../concepts/skill-md.md), [Context Engineering](../concepts/context-engineering.md), [Task Decomposition](../concepts/task-decomposition.md), [Agent Memory](../concepts/agent-memory.md), [Self-Improving Agents](../concepts/self-improving-agents.md), [Karpathy Loop](../concepts/karpathy-loop.md), [Compaction Tree](../concepts/compaction-tree.md)
-
----
+**Extends:** [Claude](../projects/claude.md)
 
 ## What It Does
 
-Claude Code runs in the terminal as an autonomous coding agent. Given a task, it reads the existing codebase, plans an approach, writes code, executes it, interprets results, and iterates until the task is complete or it gets stuck. Unlike IDE-embedded tools (Cursor, Windsurf), Claude Code has no GUI — it operates entirely through the CLI, making it composable with scripts, CI pipelines, and agent orchestration systems.
+Claude Code is a command-line coding agent that gives Claude direct access to a developer's filesystem, shell, and browser. Unlike chat-based coding assistants, it operates in the terminal and can read, write, and execute code without copy-paste intermediaries. A developer runs `claude` in a project directory, and the agent can grep files, run tests, edit multiple files atomically, and loop on failures until tests pass.
 
-The core differentiator is the surrounding ecosystem: a permission model with fine-grained tool controls, a hook system that fires on lifecycle events, and CLAUDE.md as a persistent instruction layer that shapes agent behavior across sessions. This makes Claude Code the most programmable of the major agentic coding tools. You can tell it to always run tests before committing, never touch certain files, and call specialized subagents for security review — and it will follow those rules mechanically across every session.
-
----
+The architectural differentiator is autonomy depth. Claude Code is not a code-completion tool or an IDE plugin that suggests lines — it is a full agent loop that can be left running. Anthropic designed it to handle tasks like "fix all failing tests," "refactor this module to match this interface," or "set up CI/CD from scratch," with the agent planning, executing, and self-correcting without step-by-step human guidance.
 
 ## Architecture
 
-### CLAUDE.md: The Instruction Layer
+### Permission Model
 
-[claude.md](../concepts/claude-md.md) files sit at the project root (and optionally in subdirectories) and load automatically into every session. They function as persistent system prompts: defining project conventions, declaring which tools are allowed, specifying coding standards, and pointing to skill files. Because CLAUDE.md is version-controlled alongside the code, the entire team shares the same agent behavior.
+Claude Code's permission system is the mechanism that makes autonomous operation safe enough to be practical. Before each potentially destructive action (file edits, shell commands, network requests), the agent evaluates whether the action is covered by the session's allowed rules. In interactive mode, it prompts for confirmation on first use of a new action class. In headless mode (`--dangerously-skip-permissions`), it operates fully autonomously — a flag designed for CI pipelines and containerized environments where human confirmation is unavailable.
 
-The agent reads CLAUDE.md first and treats its contents as standing orders. A well-crafted CLAUDE.md can turn a generic coding agent into one that understands your specific stack, follows your PR conventions, and knows not to modify generated files.
+Permissions are configured via `.claude/settings.json` in the project root or `~/.claude/settings.json` globally. The schema supports fine-grained allow/deny rules:
 
-### Skills: Composable Knowledge Modules
+```json
+{
+  "allowedTools": ["Bash", "Edit", "Read"],
+  "deniedTools": ["Bash(git *)"],
+  "allowedDirectories": ["/workspace/src/**"]
+}
+```
 
-Skills ([skill.md](../concepts/skill-md.md)) are markdown files with a defined structure: `When to Use`, `How It Works`, `Examples`. Claude Code loads them based on context signals — a task involving TypeScript triggers TypeScript-specific skills, a security-sensitive file triggers the security review skill. Skills enable [progressive disclosure](../concepts/progressive-disclosure.md): the agent loads detailed domain knowledge only when relevant, conserving the context window.
+CORAL, a multi-agent orchestration system built on Claude Code, demonstrates this permission model at scale: it configures per-agent `.claude/settings.json` files that allow agents to read other agents' worktrees but only write to their own, and deny `Bash(git *)` entirely — delegating all version control to CORAL's orchestration layer. This shows the permission system is expressive enough to implement complex multi-agent isolation without modifying Claude Code itself.
 
-The community ecosystem for Claude Code skills is substantial. The Everything Claude Code collection ([OpenClaw](../projects/openclaw.md)) maintains 156 skills across 12 language ecosystems, 38 agent definitions, and 72 legacy commands. This scale revealed that skill governance — conflict detection, install profiles, cross-platform parity — matters as much as individual skill quality.
+### CLAUDE.md: Project Memory
 
-### Hooks: Deterministic Automation
+[CLAUDE.md](../concepts/claude-md.md) is Claude Code's mechanism for persistent project context. The agent reads this file at the start of every session, making it the primary way to encode project-specific knowledge: build commands, code style, architecture decisions, team conventions. Unlike `.cursorrules` or similar IDE config files, CLAUDE.md is a markdown file the agent reads as natural language — it can contain prose explanations, examples, and conditional instructions.
 
-Hooks fire on lifecycle events: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `PreCompact`, `Notification`. They enable deterministic quality gates that run regardless of what the agent decides to do. A `PreToolUse` hook on Bash can block dangerous git flags. A `PostToolUse` hook on Edit can trigger typechecking. A `Stop` hook can extract reusable patterns from the session into the skill library.
+The file resolves the cold-start problem for long-running projects. Without it, every session requires the developer to re-explain project structure. With it, the agent knows on day 100 what it learned on day 1. CORAL's multi-agent system takes this further: it generates a `CORAL.md` file (analogous to CLAUDE.md) for each agent worktree, customized per agent with task description, workflow instructions, and shared state conventions.
 
-Hooks exit with code 0 on non-critical errors to avoid blocking tool execution. Environment variables (`ECC_HOOK_PROFILE`, `ECC_DISABLED_HOOKS`) control which hooks fire without requiring modification of the hooks.json file itself.
+### Multi-File Editing and Agentic Loops
+
+Claude Code operates on a tool-use loop: read state, plan actions, execute tools, observe results, plan next actions. The tools available include `Read`, `Edit`, `Write`, `Bash`, `WebSearch`, and `WebFetch`. The agent can chain these across multiple files and multiple tool calls before returning control to the user.
+
+The `--resume` flag is architecturally significant: it restores a previous session's conversation history, allowing long-running tasks to survive interruption. CORAL uses this for agent lifecycle management — when an agent hits its max-turns limit, the orchestrator restarts it with `--resume {session_id}` plus a context prompt summarizing recent eval results.
 
 ### Model Context Protocol
 
-Claude Code implements [MCP](../concepts/mcp.md) as its extension mechanism for external tools. Each MCP tool definition consumes 2-5K tokens from the context window. Practitioners cap MCP connections at 10 per project to preserve roughly 70K tokens out of the 200K total for actual work content.
+Claude Code implements [MCP](../concepts/mcp.md), Anthropic's protocol for tool interoperability. MCP servers registered in Claude Code's config appear as additional tools the agent can call during its loop. This extends the tool surface without modifying Claude Code: a Postgres MCP server enables the agent to query live databases; a GitHub MCP server enables PR management. Any MCP server configured in Claude Code is available during autonomous operation, including during CORAL optimization loops.
 
-### Context Window Economics
+### Session Management
 
-With ~200K tokens total, the practical budget breaks down as: ~10K for system prompts, ~5-8K for resident rules, ~2-5K per MCP tool, and the remainder for code and conversation. The agent avoids writing in the final 20% of the context window during large refactors to prevent truncation failures. Context compaction ([Compaction Tree](../concepts/compaction-tree.md)) summarizes conversation history when approaching limits.
+Claude Code stores sessions as `.jsonl` files on disk. Each session is a sequence of messages and tool calls. The agent can list, resume, and branch sessions. This filesystem-based storage makes sessions durable across machine restarts and portable across machines — with the caveat that session resumption validates that the `.jsonl` file exists locally. Sessions started on machine A cannot be resumed on machine B, a limitation that affects distributed multi-agent systems like CORAL.
 
-### Subagent Delegation
+### Headless and Programmatic Use
 
-Claude Code supports spawning subagents with restricted tool permissions. A `code-reviewer` agent can execute Bash (to run tests) but not Edit. A `doc-updater` agent gets read-only access and routes through Claude Haiku for cost efficiency. An `architect` agent gets broad access for system design. The orchestrating agent delegates to these specialists proactively — feature requests trigger the planner, code modifications trigger the reviewer — rather than waiting for explicit user direction.
+The `-p` flag runs Claude Code non-interactively, accepting a prompt from stdin or as an argument and outputting results to stdout. Combined with `--output-format json` or `--output-format stream-json`, this makes Claude Code scriptable. The NDJSON streaming output format enables programmatic consumption of tool calls, results, and model responses in real time.
 
----
-
-## Core Mechanisms
-
-**The permission model** defines allowed and denied tools per agent: `Allow: Bash, Read(/src/), Edit(/src/)` and `Deny: Bash(git --no-verify), Read(/private/)`. This prevents privilege escalation while giving agents enough freedom to work autonomously.
-
-**Session persistence** via JSONL session files enables `--resume` to continue a previous session with full conversation history. The [Hipocampus](../projects/hipporag.md) memory system extends this further: a compressed topic index (ROOT.md, ~3K tokens) loads into every session, providing O(1) lookup across months of conversation history without search queries. Benchmark results show this approach achieves 21x better implicit recall than no memory and 5x better than search alone.
-
-**The self-improvement loop** ([Karpathy Loop](../concepts/karpathy-loop.md)) applied to Claude Code: the agent modifies code, verifies with a defined metric, keeps the change if improved or reverts if not, and loops. Projects like [AutoResearch](../projects/autoresearch.md) encode this as a Claude Code skill system — 10 commands and ~5,000 lines of markdown protocols that make Claude Code an autonomous improvement agent for any domain with a scalar metric and fast verification.
-
-**Continuous learning** from the Everything Claude Code ecosystem extracts reusable patterns at session end via Stop hooks, storing them as skills in `~/.claude/skills/learned/`. Version 2 of this system uses `PreToolUse`/`PostToolUse` hooks to capture every tool call (100% coverage vs. ~60% probabilistic), generating atomic "instincts" with confidence scores that decay when unused and strengthen when patterns repeat.
-
----
+gstack uses this for its Tier 2 testing: full end-to-end tests via `claude -p` with NDJSON streaming, validating skill behavior programmatically rather than through manual testing.
 
 ## Key Numbers
 
-- **SWE-Bench Verified**: Claude 3.5 Sonnet scored 49% on [SWE-Bench](../projects/swe-bench.md) (the standard software engineering benchmark for autonomous bug fixing). This is self-reported by Anthropic.
-- **Context window**: 200K tokens (Claude 3.5/3.7 models)
-- **Community ecosystem (Everything Claude Code)**: 156 skills, 38 agents, 72 commands, 1,723 tests, 136K+ GitHub stars — star count likely overstates active usage given the gap between stars and community discussion volume.
-- **Typical experiment throughput**: 12/hour with 5-minute verification cycles (GPU training), up to 360/hour with 10-second cycles (unit tests)
-
-SWE-Bench numbers across the field are self-reported under controlled conditions. Real-world performance on your specific codebase will differ based on codebase structure, test coverage, and task complexity.
-
----
+- **SWE-bench Verified**: Claude 3.7 Sonnet (powering Claude Code) scores 70.3% on [SWE-bench](../projects/swe-bench.md) Verified (Anthropic-reported). For comparison, Volt (Martian Engineering's agent using LCM) scores 74.8% on the OOLONG long-context benchmark using the same base model — Volt's DAG-based context management outperforms Claude Code's sliding-window compaction at extended context lengths (+10.0 at 256K tokens, +12.6 at 512K tokens). These are self-reported figures from each respective party; no independent replication is confirmed.
+- Tobi Lutke (Shopify CEO) ran the Karpathy autoresearch loop on internal data using Claude Code as the agent runtime, reporting 37 experiments and a 19% performance gain overnight. Self-reported.
+- Garry Tan reports 10,000+ lines of code and 100 pull requests per week using a Claude Code skill system (gstack), sustained over 50 days. Self-reported.
+- CORAL, a multi-agent system built on Claude Code, reports running 700 experiments in 2 days on ML optimization tasks. This figure originates from the Karpathy autoresearch project that CORAL generalizes.
 
 ## Strengths
 
-**Programmability**: CLAUDE.md, skills, hooks, and the permission model give teams direct control over agent behavior. You can encode your entire development workflow — PR conventions, test requirements, security checks, style rules — and the agent follows it consistently.
+**Autonomous loop execution.** Claude Code handles tasks that require dozens of sequential actions — run tests, read failure output, locate the bug, edit the file, run tests again — without requiring human confirmation at each step. Most coding assistants hand control back after each action.
 
-**Composability**: Claude Code operates from the terminal, making it scriptable. You can run it in CI, chain it with other tools, invoke it from orchestration systems, and spawn parallel instances working on separate git worktrees.
+**Project memory via CLAUDE.md.** The agent reads project-specific context on every session start, making it genuinely useful on day 100 of a project, not just day 1.
 
-**Ecosystem depth**: The skill/hook ecosystem is the most developed in the agentic coding space. Community projects (Everything Claude Code, Hipocampus, AutoResearch) have pushed the architecture significantly beyond what Anthropic ships by default.
+**Ecosystem composability.** The permission model, MCP support, session resumption, and headless mode make Claude Code programmable infrastructure. CORAL, gstack, autoresearch, and lossless-claw are all built on Claude Code without modifying it. The `AgentRuntime` protocol in CORAL abstracts Claude Code alongside OpenAI Codex and OpenCode — the agent is treated as a swappable component, not a dependency.
 
-**Autonomous loop support**: The `--dangerously-skip-permissions` flag enables fully autonomous operation for overnight runs. Systems like compound-product use this to build a report-reading, priority-selecting, PR-generating autonomous improvement pipeline that runs nightly.
-
----
+**Skill and agent composition.** The CLAUDE.md format, combined with skills systems like gstack's SKILL.md conventions, enables developers to encode complex multi-step workflows as reusable instructions. [Agent Skills](../concepts/agent-skills.md) loaded at session start give the agent domain knowledge without burning context on repeated explanation.
 
 ## Critical Limitations
 
-**Concrete failure mode — context collapse on large codebases**: When a task touches many files, context fills with code diffs, tool outputs, and conversation history. The agent loses track of earlier decisions, starts making contradictory changes, and may require restarts. Skills and subagent delegation mitigate this but don't solve it. On a 200K context window, a large refactor spanning dozens of files can exhaust the budget before completion, requiring manual intervention to resume.
+**Context window compression degrades at scale.** Claude Code uses sliding-window compaction: when the context window fills, older messages are summarized and dropped. Martian Engineering's lossless-claw plugin replaced this with a DAG-based summarization system precisely because sliding-window compaction loses information that the agent needs to remain coherent in long sessions. For tasks exceeding ~100K tokens of interaction, Claude Code's built-in context management will lose details that affect code correctness. The OOLONG benchmark data shows this concretely: Claude Code's performance degrades relative to DAG-based alternatives at 256K and 512K token contexts.
 
-**Unspoken infrastructure assumption**: Claude Code assumes a fast, reliable shell environment with git initialized. The permission model, hook system, and session persistence all depend on the local filesystem. In containerized CI environments, Docker builds, or remote development setups, hooks may not fire correctly, session files may not persist, and MCP connections may time out. The documentation does not address these edge cases.
+**Unspoken infrastructure assumption: local session state.** Claude Code's `--resume` flag requires the session `.jsonl` file to exist on the local machine. This assumption breaks distributed workflows. CORAL documents this explicitly: sessions started on one machine cannot be resumed on another, and fresh-started agents must re-bootstrap from shared knowledge files. Any team deploying Claude Code across multiple machines or in cloud environments needs to plan around this constraint.
 
----
+## When Not to Use It
 
-## When NOT to Use It
+**Multi-developer team workflows without additional infrastructure.** Claude Code's memory (CLAUDE.md, session files) is per-machine and per-developer. On a team, each developer's agent operates from different context, producing inconsistent behavior. Epsilla's analysis of gstack, which is built on Claude Code, identifies this as "agent drift" — isolated virtual teams that diverge without a shared semantic memory layer. Teams need additional infrastructure (shared CLAUDE.md in version control, MCP servers with shared state) to use Claude Code effectively at team scale.
 
-**Don't use Claude Code when**:
+**Tasks requiring lossless long-context recall.** If the task requires the agent to accurately recall specific values — commit SHAs, exact config keys, precise error messages — from hours-old interactions in a long session, Claude Code's sliding-window compaction will likely produce hallucinations or omissions. Use lossless-claw or a similar DAG-based context extension, or structure the task to keep sessions short with explicit checkpoints.
 
-- You need a GUI integration (inline completions, diff views, chat panels): Cursor or Windsurf serve this better.
-- Your team isn't comfortable with terminal tooling: the setup cost is real.
-- Tasks require continuous human micro-feedback: Claude Code is optimized for autonomous operation over extended tasks, not rapid back-and-forth on small edits.
-- Your verification loop is slow (>30 minutes per iteration): the self-improvement loop becomes impractical. Autoresearch-style iteration requires fast verification to be useful.
-- You're working in a codebase with no tests and no clear quality metric: the autonomous loop needs a verifiable success condition. Without one, the agent optimizes toward the wrong thing.
-
----
+**Environments where billing attribution matters.** Claude Code does not currently provide per-agent or per-project cost attribution in its standard output. CORAL addresses this by running a LiteLLM gateway with per-agent API keys, tracking cost by agent. If you need cost attribution by project, team member, or task, you need external infrastructure.
 
 ## Unresolved Questions
 
-**Cost at scale with parallel agents**: Running multiple Claude Code instances simultaneously (3+ agents on separate branches, overnight) consumes significant API budget. Anthropic does not publish pricing guidance for this usage pattern, and the community has sparse data on actual costs.
+**Conflict resolution in multi-agent writes.** When multiple Claude Code agents write to shared files simultaneously (as in CORAL's shared `.coral/public/` directory), the filesystem provides no transactional guarantees. CORAL uses `fcntl.flock()` on checkpoint operations but acknowledges that individual file writes have no concurrency protection. It is not documented how Claude Code behaves when two concurrent agents attempt to edit the same file.
 
-**Skill conflict resolution**: At 156 skills, overlap is inevitable. When two skills give contradictory advice about the same domain, there is no defined priority order. The agent resolves conflicts through its own judgment, which is not transparent.
+**Session file format stability.** The `.jsonl` session format is undocumented. Tools like CORAL parse session files to extract session IDs; lossless-claw reconciles JSONL files with its SQLite database on bootstrap. If Anthropic changes the format, both break silently. There is no versioning or migration path documented.
 
-**Hook reliability across Claude Code versions**: Community issues (ECC #29, #52, #103) document duplicate hook detection problems with Claude Code v2.1+ auto-loading hooks.json from plugins. The interaction between plugin-installed hooks and manually configured hooks creates unpredictable behavior that Anthropic has not formally addressed.
+**Cost at scale.** The Karpathy autoresearch loop running 700 experiments through Claude Code would generate substantial API costs. None of the ecosystem projects document their per-experiment or per-run costs. For teams evaluating multi-agent systems built on Claude Code, cost modeling is opaque.
 
-**Long-term skill quality at scale**: The continuous learning system extracts patterns automatically, but there is no automated quality gate. Skills generated from bad sessions propagate into the library. The community relies on manual audits ("one-by-one audit of overlapping or low-signal skill content") — this does not scale.
-
-**Governance for large skill registries**: Who decides when a skill is obsolete? How are naming conflicts resolved across contributors? The Everything Claude Code project has 113+ contributors and no formal governance model.
-
----
+**Governance of CLAUDE.md in large repos.** CLAUDE.md gives any developer with repo write access the ability to modify the instructions every agent reads. In large organizations, this is an unguarded attack surface — a CLAUDE.md change could instruct agents to exfiltrate data, skip tests, or commit insecure code. There is no documented access control or auditing mechanism for CLAUDE.md changes.
 
 ## Alternatives
 
-| Scenario | Tool |
-|---|---|
-| Need inline completions and GUI diff views | [Cursor](../projects/cursor.md) or [Windsurf](../projects/windsurf.md) |
-| Need autonomous multi-agent parallel exploration with graded evaluation | [CORAL](../projects/openclaw.md) (multi-agent worktree system) |
-| Want zero-infrastructure persistent memory across sessions | [Hipocampus](../projects/hipporag.md) (file-based compaction tree) |
-| Running self-improving optimization loops against a scalar metric | [AutoResearch](../projects/autoresearch.md) (Karpathy loop as skill system) |
-| Prefer open-weight models, local inference | [Ollama](../projects/ollama.md) with a compatible coding front-end |
-| Already using VS Code heavily | GitHub Copilot (tighter IDE integration) |
-
-Use Claude Code when you want to encode your full development workflow as programmable rules and run the agent autonomously on multi-step tasks. Use Cursor when you want assisted editing with a GUI. Use the self-improvement loop pattern ([AutoResearch](../projects/autoresearch.md)) when you have a scalar metric and want overnight autonomous iteration.
-
----
+- **[Cursor](../projects/cursor.md)**: Use when developers prefer an IDE-integrated experience over a terminal workflow, or when the team needs in-editor context like file tree awareness and cursor position.
+- **[GitHub Copilot](../projects/github-copilot.md)**: Use when the primary use case is inline code completion within existing IDE workflows, not autonomous multi-step task execution.
+- **[OpenCode](../projects/opencode.md)**: Use when you need an open-source Claude Code alternative with equivalent CLI behavior and no API cost dependency on Anthropic.
+- **[OpenAI Codex](../projects/codex.md)**: Use when the task benefits from OpenAI's models specifically, or when OpenAI's tool ecosystem (function calling conventions, structured outputs) is the integration target.
+- **[Windsurf](../projects/windsurf.md)**: Use when developers want persistent cross-session memory managed by the IDE rather than manual CLAUDE.md maintenance.
+- **[Antigravity](../projects/antigravity.md)**: Use when the workload is browser-automation-heavy and native browser control is the primary requirement.
 
 ## Related Concepts
 
-- [Context Engineering](../concepts/context-engineering.md) — Managing what goes into the agent's context window
-- [Agent Memory](../concepts/agent-memory.md) — How agents persist knowledge across sessions
-- [Task Decomposition](../concepts/task-decomposition.md) — Breaking tasks into machine-verifiable subtasks
-- [Karpathy Loop](../concepts/karpathy-loop.md) — The modify-verify-keep/revert pattern
-- [Progressive Disclosure](../concepts/progressive-disclosure.md) — Loading context only when relevant
-- [Self-Improving Agents](../concepts/self-improving-agents.md) — Agents that improve their own behavior over time
-- [Prompt Engineering](../concepts/prompt-engineering.md) — Structuring instructions for reliable agent behavior
-- [Knowledge Graph](../concepts/knowledge-graph.md) — Structured knowledge representation for agent retrieval
+- [CLAUDE.md](../concepts/claude-md.md) — Project memory mechanism
+- [Agent Skills](../concepts/agent-skills.md) — Skill composition pattern
+- [Model Context Protocol](../concepts/mcp.md) — Tool interoperability layer
+- [Context Management](../concepts/context-management.md) — How Claude Code handles context window limits
+- [Context Window](../concepts/context-window.md) — The hard constraint shaping Claude Code's architecture
+- [Context Engineering](../concepts/context-engineering.md) — Techniques for managing what goes into the context
+- [Agent Memory](../concepts/agent-memory.md) — Memory patterns relevant to session persistence
+- [Episodic Memory](../concepts/episodic-memory.md) — What session `.jsonl` files approximate
+- [Meta-Agent](../concepts/meta-agent.md) — Orchestration patterns (CORAL, gstack Conductor) built on Claude Code
+- [Decision Traces](../concepts/decision-traces.md) — The session file as an audit trail
+- [Self-Improving Agent](../concepts/self-improving-agent.md) — Autoresearch and CORAL patterns running on Claude Code
+- [Continual Learning](../concepts/continual-learning.md) — gstack's learnings system built on Claude Code sessions
+- [Progressive Disclosure](../concepts/progressive-disclosure.md) — Skill loading patterns that avoid context bloat
+- [Tree-sitter](../projects/tree-sitter.md) — Used by Claude Code for syntax-aware code parsing
+- [SQLite](../projects/sqlite.md) — Used by lossless-claw and CORAL for persistent state alongside Claude Code sessions

@@ -3,124 +3,154 @@ entity_id: windsurf
 type: project
 bucket: agent-systems
 abstract: >-
-  Windsurf is Codeium's AI-integrated code editor combining agentic coding
-  (multi-file edits, terminal access, codebase search) with inline LLM
-  assistance, differentiated from Cursor by its "Cascade" agentic mode and
-  deeper IDE integration rather than a plugin layer.
+  Windsurf is an AI-powered IDE by Codeium built around agentic "flow" coding,
+  differentiating itself from Cursor with deeper agent autonomy and native
+  cascade-style multi-step task execution.
 sources:
   - tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md
   - repos/alirezarezvani-claude-skills.md
   - repos/jmilinovich-goal-md.md
-  - repos/caviraoss-openmemory.md
-  - repos/tirth8205-code-review-graph.md
   - repos/yusufkaraaslan-skill-seekers.md
+  - repos/tirth8205-code-review-graph.md
   - >-
     articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md
+  - articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md
   - deep/repos/jmilinovich-goal-md.md
   - deep/repos/tirth8205-code-review-graph.md
 related:
   - cursor
   - claude-code
   - mcp
+  - github-copilot
   - andrej-karpathy
-  - claude
   - autoresearch
-  - openai-codex
-  - gemini
-  - rag
-last_compiled: '2026-04-06T02:00:21.254Z'
+  - codex
+  - tree-sitter
+  - openclaw
+  - claude
+  - agent-skills
+last_compiled: '2026-04-07T11:38:15.669Z'
 ---
 # Windsurf
 
-## What It Is
+## What It Does
 
-Windsurf is a standalone code editor from [Codeium](https://codeium.com) — the AI coding infrastructure company — that embeds LLM-powered assistance at the IDE level rather than as an extension on top of VS Code. Released in late 2024, it competes directly with [Cursor](../projects/cursor.md) and [Claude Code](../projects/claude-code.md) for the "AI-native development environment" market.
+Windsurf is a standalone IDE built by Codeium, positioned as an agentic coding environment rather than a copilot overlay on an existing editor. Where [GitHub Copilot](../projects/github-copilot.md) autocompletes and [Cursor](../projects/cursor.md) offers chat-plus-edit, Windsurf's core bet is that the AI should sustain multi-step coding tasks autonomously — reading files, running terminals, making edits, iterating on errors — without the user directing each step.
 
-The central product bet is that the IDE itself should be the agent loop, not a plugin mediating between VS Code and an LLM. This means Windsurf controls the full editing surface: it can read and write files, run terminal commands, search the codebase, and chain multi-step operations without relying on an extension API.
+Codeium rebranded this product line around a "flow" metaphor: the idea that productive coding involves uninterrupted state, and that AI assistance should extend that state rather than interrupt it. The agent component is called **Cascade**, and it is the primary differentiator. Cascade can hold context across an entire task, chain tool calls (file edits, shell commands, web search), and surface progress without requiring constant prompting.
 
-Codeium was acquired by OpenAI in May 2025 for a reported $3 billion. As of the card's writing date, Windsurf continued operating as its own product line under that umbrella.
+In May 2025, OpenAI acquired Codeium for a reported $3 billion. As of this writing, Windsurf continues to operate as a product under that acquisition, with its roadmap and model access now tied to OpenAI's infrastructure. The acquisition raised immediate questions about model partnerships (Windsurf had been model-agnostic, supporting Claude, GPT-4, and others) that remain partially unresolved.
 
-## Core Mechanism: Cascade
+## Architecture and Core Mechanisms
 
-The distinguishing feature is **Cascade**, Windsurf's agentic mode. Where Cursor's Composer and Claude Code operate as conversation threads that issue edits, Cascade models the entire coding session as a stateful workflow:
+### Cascade: The Agentic Layer
 
-- **Context awareness**: Cascade indexes the active codebase and maintains a running representation of what files are relevant to the current task. This uses a combination of [RAG](../concepts/rag.md)-style retrieval over the repo and explicit tool calls to read specific files.
-- **Action sequencing**: Cascade can chain terminal commands (run tests, build, lint), file edits, and search operations without requiring user confirmation at each step. The user sets an autonomy level — from "ask before each action" to "run until done."
-- **Write-ahead context**: Before executing edits, Cascade builds an explicit plan shown to the user, allowing intervention before any file is touched.
+Cascade is Windsurf's agentic execution engine. Unlike Cursor's Composer (which executes a planned set of edits on user confirmation), Cascade operates in a more continuous loop: it can observe tool outputs, decide next steps, and proceed without a human checkpoint at each action.
 
-The underlying model is configurable. Windsurf supports [Claude](../projects/claude.md) (Anthropic's family), [Gemini](../projects/gemini.md), and its own Codeium-tuned models. Post-acquisition, [OpenAI](../projects/openai.md) models are increasingly prominent. The model selector is explicit in the UI.
+The mechanism follows a [ReAct](../concepts/react.md)-style loop: reason about the current state, select a tool, execute, observe the result, repeat. Tools available to Cascade include:
 
-Windsurf implements [Model Context Protocol](../concepts/mcp.md), meaning it can connect to MCP servers for external context — documentation, databases, APIs — using the same interface as Claude Code and Cursor. Tools like Skill_Seekers explicitly document `.windsurfrules` file support, showing the ecosystem treating Windsurf as a first-class MCP client.
+- File read/write/create
+- Terminal command execution
+- Browser/web search
+- Codebase search (semantic and exact)
+- [MCP](../concepts/mcp.md) tool calls (external integrations)
 
-## Context Management
+Cascade tracks its own action history within a session, which gives it rudimentary short-term [episodic memory](../concepts/episodic-memory.md) — it knows what it tried, what failed, and can adjust. This history does not persist across sessions by default.
 
-Windsurf uses `.windsurfrules` files (per-project) and a global rules configuration for persistent agent instructions — the same conceptual role as [claude.md](../concepts/claude-md.md) files in Claude Code. These files tell Cascade how to behave in a given codebase: coding standards, testing requirements, which directories to avoid.
+### Context Management
 
-Codebase indexing runs on first open and incrementally thereafter. The indexer builds a vector store of the project's code for semantic search, plus a symbol graph for precise navigation. The combination resembles what code-review-graph builds explicitly — Windsurf does this automatically as part of IDE initialization, though with less configurability.
+Windsurf uses [Tree-sitter](../projects/tree-sitter.md) for structural code parsing, enabling AST-aware context construction. Rather than feeding raw file contents, the system can extract relevant functions, class definitions, and dependency chains to populate the model's context window more efficiently.
 
-Context window management follows a flow-state model: Cascade tracks which files it has touched in a session and keeps recent context in a sliding window, compressing older context to preserve space for active work. This is configurable but not fully transparent to the user.
+This is similar to what [code-review-graph](../projects/tree-sitter.md) does for blast-radius analysis: structural awareness reduces token waste. Windsurf applies this at the context-filling stage — when Cascade needs to understand a codebase, it selects structurally relevant nodes rather than concatenating entire files.
+
+Context also draws on a persistent `.windsurfrules` file (analogous to [CLAUDE.md](../concepts/claude-md.md)), which project teams use to encode conventions, file structure guidance, and agent behavior constraints. Third-party tools like [Skill Seekers](../projects/autoresearch.md) generate `.windsurfrules` content automatically from documentation sources.
+
+### Memory System
+
+Windsurf introduced a **Memories** feature that extracts facts from conversations and stores them for use across sessions. This addresses the statelessness problem that affects most coding agents: the agent forgets project context between sessions.
+
+The memory system operates as a form of [semantic memory](../concepts/semantic-memory.md) — it stores extracted preferences, project facts, and user patterns. The extraction happens automatically, not through explicit user tagging. What gets remembered, and how it influences future context, is not publicly documented in detail. This is one of the significant unresolved questions about the system.
+
+### Model Access
+
+Windsurf is model-agnostic at the API level. Users can direct Cascade at Claude (Anthropic), GPT-4o, and Windsurf's own "SWE-1" model family, which Codeium trained specifically for software engineering tasks. SWE-1 is claimed to outperform Claude Sonnet and GPT-4o on agentic coding benchmarks, though these benchmarks are self-reported. Post-OpenAI acquisition, the trajectory of Claude and non-OpenAI model support is unclear.
+
+### Flow State and Editor Design
+
+The IDE base is a Visual Studio Code fork, giving it access to the VS Code extension ecosystem. Windsurf's additions sit on top: the Cascade panel, the Memories UI, and modified keybindings and UX aimed at minimizing context-switching. The "flow" framing is partly marketing, partly a genuine UX principle — the default configuration tries to surface Cascade's progress inline rather than in a separate chat panel.
 
 ## Key Numbers
 
-- Codeium reported over 900,000 developer users before the Windsurf rebrand (self-reported, 2024)
-- Windsurf-specific adoption numbers are not publicly disclosed
-- The OpenAI acquisition valued the combined entity at approximately $3 billion (reported by Bloomberg, May 2025)
-- [SWE-Bench](../projects/swe-bench.md) scores for Windsurf's agentic mode are not independently published; Codeium has cited internal benchmarks showing competitive performance with Cursor on coding tasks but these are self-reported
+- **Acquisition price**: ~$3 billion (OpenAI, May 2025) — reported by multiple outlets, unconfirmed by either party officially
+- **User base**: Codeium claimed millions of developers before the acquisition; Windsurf-specific MAU figures are not public
+- **SWE-bench performance**: Windsurf's SWE-1 model was reported at competitive performance with Claude Sonnet on SWE-bench Verified — self-reported, not independently validated at time of writing
+- **MCP tools**: Supports the full [MCP](../concepts/mcp.md) protocol, enabling integration with external tool servers
+
+These numbers require skepticism. SWE-bench scores from vendors consistently outpace third-party reproductions, and Codeium had financial incentive to publish favorable benchmarks ahead of acquisition.
 
 ## Strengths
 
-**Flow-state agent loop**: Cascade handles multi-step tasks without constant interruptions. For tasks like "add authentication to this API, write tests, and update the README," it chains the operations rather than requiring a new prompt per step.
+**Autonomous multi-step execution**: Cascade handles longer task chains than most comparable tools without requiring human re-prompting at each step. For tasks like "refactor this module to use the new API and fix any resulting test failures," this reduces back-and-forth significantly.
 
-**MCP ecosystem participation**: Full MCP client means Windsurf benefits from the growing ecosystem of context servers. Any MCP server built for Claude Code works in Windsurf.
+**Structural code understanding**: Tree-sitter integration means Cascade reasons about code structure, not just text. This improves its ability to find relevant context without reading entire codebases.
 
-**Model flexibility**: Unlike Claude Code (which is tied to Claude) or GitHub Copilot (GPT-based), Windsurf lets users switch models mid-session. Teams with enterprise agreements to specific providers can point Windsurf at those models.
+**MCP ecosystem**: Full MCP support means Windsurf agents can call external tools (databases, APIs, custom servers) using the same protocol as [Claude Code](../projects/claude-code.md), enabling integration into broader agent workflows.
 
-**Per-project rules**: `.windsurfrules` files checked into source control mean the whole team shares the same agent context. This is a practical solution to the problem of each developer having different agent behavior.
-
-**Offline and enterprise deployment**: Codeium has enterprise features for air-gapped environments and self-hosted model endpoints — relevant for organizations that cannot send code to external APIs.
+**VS Code compatibility**: The VS Code fork base means existing extensions, themes, and keybindings transfer with minimal friction for developers already in that ecosystem.
 
 ## Critical Limitations
 
-**Concrete failure mode — context collapse on large refactors**: Cascade can lose coherence when a task touches more files than its context window can hold. On large refactors (20+ files), it may complete edits in early files correctly but then apply contradictory changes to later files, having implicitly dropped context from the start of the session. Users report needing to break large tasks into smaller Cascade sessions manually. This is [Context Collapse](../concepts/context-collapse.md) in practice.
+**Failure mode — agent drift on long tasks**: Cascade's autonomy is also its main failure mode. On tasks that require more than 10-15 tool calls, the agent can drift from the original intent — making decisions that locally seem reasonable but globally accumulate into the wrong outcome. Unlike Claude Code (which surfaces tool calls for approval by default), Cascade's default is to proceed. Users who don't monitor the terminal output may return to a codebase significantly altered in unintended ways. There is no built-in "dry run" or "plan first, execute second" mode that surfaces the full intended action sequence before any changes are made.
 
-**Unspoken infrastructure assumption**: The vector index Windsurf builds assumes the codebase lives on the local machine. For developers working against remote development environments (GitHub Codespaces, cloud VMs, Docker containers via SSH), the indexing either doesn't work or degrades significantly. Windsurf's architecture assumes local file access in a way that Claude Code (which runs in the terminal and works natively in remote environments) does not.
+**Infrastructure assumption**: Windsurf assumes a local development environment with shell access. The terminal execution tools require a machine where the agent can run arbitrary commands. Teams using cloud-based or containerized dev environments (Codespaces, Gitpod) hit friction — the agent's terminal context may not match the actual execution environment, causing tool calls to silently fail or produce misleading output.
 
-## When NOT to Use It
+## When NOT to Use Windsurf
 
-**Remote development environments**: If your workflow is primarily SSH into a remote machine, Codespaces, or containers, Windsurf's indexing and agent capabilities are unreliable. Claude Code or a terminal-based approach fits better.
+**Regulated or audited codebases**: Cascade's default autonomy means it may make changes without explicit user confirmation. In environments requiring change traceability (SOC2-audited systems, medical software, financial infrastructure), the lack of an approvals-before-execution model is a structural problem.
 
-**Strict model governance requirements**: Organizations that must use a single approved LLM endpoint with audit logging will find Windsurf's multi-model flexibility becomes a governance liability rather than a feature. Claude Code through Anthropic's enterprise API provides more controlled provenance.
+**Teams with strong IDE diversity**: If your team splits across Vim, JetBrains, and VS Code, Windsurf's standalone IDE model fragments tooling. Copilot or Cline (as an extension) may be better fits for heterogeneous environments.
 
-**Teams already standardized on VS Code extensions**: Windsurf requires switching editors. If a team has significant investment in VS Code extensions, workflows, and keybindings, the migration cost is real. Cursor is a closer drop-in since it's also VS Code-based; Windsurf is a different binary.
+**Tasks requiring precise context control**: When you need to be exact about what the model sees — no more, no less — Windsurf's automatic context construction works against you. Claude Code's more explicit `--include`/`--exclude` patterns give more control over what enters the context window.
 
-**Pure agentic / headless workloads**: For automated coding tasks in CI/CD pipelines or scripted environments with no human in the loop, Windsurf's GUI-centered design is the wrong abstraction. Claude Code or OpenAI Codex are built for terminal/API usage.
+**Post-acquisition model-lock concerns**: Organizations with existing Anthropic contracts or Claude-specific compliance requirements should evaluate whether OpenAI's acquisition will restrict Claude access in Windsurf. This is unresolved as of this writing.
 
 ## Unresolved Questions
 
-**Post-acquisition trajectory**: With OpenAI owning Codeium, it's unclear whether Windsurf will remain model-agnostic (its current differentiator) or gradually align with OpenAI models as the preferred backend. The competitive position against Claude Code shifts depending on this.
+**Memory governance**: What data does the Memories system send to Codeium/OpenAI servers? How long is it retained? Can it be audited or deleted? The feature is useful enough that many teams will use it without clear answers to these questions.
 
-**Cost at scale**: Windsurf's pricing is credit-based for Cascade interactions. On large codebases with complex agentic tasks consuming many context tokens, costs are not predictable from published pricing. Teams running Cascade continuously have reported billing surprises, but Codeium has not published average cost-per-task data.
+**Model access post-acquisition**: OpenAI's acquisition creates an obvious incentive to favor GPT-family models. Whether Claude and other third-party models remain first-class options, or become gradually degraded, is an open question with significant implications for teams that have chosen Windsurf partly because of Claude's coding capabilities.
 
-**Conflict resolution in team settings**: When multiple developers use Cascade on the same codebase simultaneously — each with their own `.windsurfrules` overrides — there's no documented policy for which rules take precedence or how conflicting agent actions (one dev's Cascade undoes another's edits) are surfaced.
+**SWE-1 training data**: Codeium trained SWE-1 on software engineering data but has not disclosed the composition of that dataset or the evaluation methodology in detail. Independent [SWE-bench](../projects/swe-bench.md) validation has not been published.
 
-**Indexing quality on polyglot repos**: The codebase indexer's quality varies by language. The retrieval accuracy on Python and TypeScript is demonstrably better than on Rust, Go, or C++ based on community reports. Codeium has not published per-language retrieval benchmarks.
+**Cascade's context window management at scale**: On large monorepos (100k+ files), how Cascade selects and prioritizes context is not documented. The Tree-sitter-based approach helps, but the decision logic for what gets included versus excluded in the model's window is a black box.
 
-## Relationship to Adjacent Concepts
-
-Windsurf implements several patterns from this knowledge base in practice:
-
-- **[Agentic RAG](../concepts/agentic-rag.md)**: Cascade's codebase search follows an agentic retrieval pattern — it issues multiple search queries, reads retrieved files, and decides whether to search again based on what it finds.
-- **[Procedural Memory](../concepts/procedural-memory.md)**: `.windsurfrules` files serve as externalized procedural memory — the agent's learned preferences for how to operate in a given codebase, persisted across sessions.
-- **[Task Decomposition](../concepts/task-decomposition.md)**: Cascade's write-ahead plan is a visible decomposition of the user's goal into atomic operations before execution begins.
-- **[Context Engineering](../concepts/context-engineering.md)**: The model selector and rules configuration are user-facing [context engineering](../concepts/context-engineering.md) controls — explicit choices about what the model knows and how it should behave.
+**Cost at scale**: Windsurf's pricing tiers are usage-based for Pro features. At team scale, the per-seat costs for heavy Cascade usage (which consumes significant tokens per session) are not benchmarked publicly. Teams scaling from individual to 50-person usage should model costs before committing.
 
 ## Alternatives and Selection Guidance
 
-| Tool | Use when |
-|------|----------|
-| [Cursor](../projects/cursor.md) | You want VS Code compatibility and don't want to switch editors; team is already on VS Code |
-| [Claude Code](../projects/claude-code.md) | You need terminal-native, remote environment support, or strict Anthropic model provenance; headless/CI use cases |
-| [OpenAI Codex](../projects/openai-codex.md) | OpenAI API integration is a hard requirement; scripted/API-driven workflows |
-| Windsurf | You want an opinionated agentic loop with model flexibility and are willing to switch editors; local development on your own machine |
+**Use [Cursor](../projects/cursor.md) when** you want more control over the agent's execution — Cursor's Composer requires explicit confirmation for larger changes, which reduces drift risk. Cursor also has a longer track record and a more established third-party extension ecosystem.
 
-The core selection question between Windsurf and Cursor comes down to editor familiarity versus agent design philosophy. Cursor is more conservative — it stays closer to VS Code behavior and makes the AI assistance feel like an extension. Windsurf is more aggressive about letting Cascade run autonomously. Teams that want the agent to do more with less intervention will find Windsurf's defaults match their intent; teams that want to stay in control of each step will find Cursor less frustrating.
+**Use [Claude Code](../projects/claude-code.md) when** you want CLI-first agentic coding with explicit tool approval, strong context control, and Anthropic's model quality without IDE lock-in. Claude Code's `--dangerously-skip-permissions` flag gives Windsurf-style autonomy when you want it, while the default is more conservative.
+
+**Use [GitHub Copilot](../projects/github-copilot.md) when** your team is standardized on VS Code or JetBrains and you need an enterprise-grade tool with Microsoft/GitHub's compliance story. Copilot's agentic features (Copilot Workspace) are less capable than Cascade but more auditable.
+
+**Use [OpenAI Codex](../projects/codex.md) when** you want a cloud-based agentic coding environment that doesn't require a local IDE. Codex runs tasks asynchronously in isolated containers, which is structurally different from Windsurf's local execution model.
+
+---
+
+*Related: [Agent Skills](../concepts/agent-skills.md) | [Model Context Protocol](../concepts/mcp.md) | [CLAUDE.md](../concepts/claude-md.md) | [Context Engineering](../concepts/context-engineering.md) | [Tree-sitter](../projects/tree-sitter.md)*
+
+
+## Related
+
+- [Cursor](../projects/cursor.md) — competes_with (0.8)
+- [Claude Code](../projects/claude-code.md) — competes_with (0.7)
+- [Model Context Protocol](../concepts/mcp.md) — implements (0.6)
+- [GitHub Copilot](../projects/github-copilot.md) — competes_with (0.7)
+- [Andrej Karpathy](../concepts/andrej-karpathy.md) — part_of (0.3)
+- [AutoResearch](../projects/autoresearch.md) — part_of (0.3)
+- [OpenAI Codex](../projects/codex.md) — competes_with (0.6)
+- [Tree-sitter](../projects/tree-sitter.md) — part_of (0.4)
+- [OpenClaw](../projects/openclaw.md) — competes_with (0.4)
+- [Claude](../projects/claude.md) — competes_with (0.4)
+- [Agent Skills](../concepts/agent-skills.md) — part_of (0.4)

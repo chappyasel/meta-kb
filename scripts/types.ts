@@ -138,14 +138,18 @@ export type ClaimType = "empirical" | "architectural" | "comparative" | "directi
 export type ClaimConfidence = "verified" | "reported" | "inferred";
 
 export interface Claim {
-  id: string; // "claim-001"
+  id: string; // "claim-a1b2c3d4e5f6" (content-hash based)
   content: string; // atomic verifiable statement
+  content_hash: string; // SHA-256(content + "|" + article_ref), first 12 hex chars
   type: ClaimType;
   confidence: ClaimConfidence;
   source_refs: string[]; // raw/ paths cited in support
   article_ref: string; // wiki bucket name, e.g. "agent-memory"
   entity_refs: string[]; // entity IDs mentioned
   temporal_scope: string | null; // "as of 2026-04" or null for timeless
+  created_at: string; // ISO timestamp of first extraction
+  updated_at: string; // ISO timestamp of last extraction
+  status: "active" | "stale" | "superseded"; // lifecycle status
 }
 
 export interface ClaimsFile {

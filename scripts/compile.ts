@@ -7,7 +7,7 @@
  *   Pass 1a: Entity extraction (per-source, Haiku, parallel)
  *   Pass 1b: Entity resolution (single Sonnet call, merge/dedup)
  *   Pass 2:  Graph construction (co-occurring pairs, Sonnet)
- *   Pass 3a: Synthesis articles (one per bucket, Sonnet, sequential)
+ *   Pass 3a: Synthesis articles (one per bucket, Opus, sequential)
  *   Pass 3b: Reference cards (per-entity, Sonnet, parallel)
  *   Pass 3c: Claim extraction (per-synthesis, Sonnet, sequential)
  *   Pass 4:  Field map + ROOT.md + indexes + landscape table
@@ -18,13 +18,16 @@
  *
  * Usage:
  *   bun run compile                    # Full compilation
+ *   bun run compile --incremental      # Only recompile what changed since last run
+ *   bun run compile --status           # Show pending changes without compiling
  *   bun run compile --from-pass=3a     # Resume from synthesis articles
  *   bun run compile --dry-run          # Show what would happen
  */
 
-import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { readdir, readFile, writeFile, mkdir, unlink } from "node:fs/promises";
+import { join, relative, dirname } from "node:path";
 import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { generateObject, generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
@@ -52,6 +55,16 @@ import {
   BUCKET_COLORS,
   BUCKET_DESCRIPTIONS,
 } from "../config/domain.js";
+import {
+  type IncrementalState,
+  type ChangeSet,
+  hashFile,
+  computeConfigHash,
+  computeEntityInputHash,
+  loadState,
+  saveState,
+  diffSources,
+} from "./incremental.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────
 
@@ -63,8 +76,10 @@ const WIKI_DIR = join(ROOT, process.argv.find((a) => a.startsWith("--wiki-dir=")
 const FROM_PASS = process.argv.find((a) => a.startsWith("--from-pass="))?.split("=")[1];
 const TO_PASS = process.argv.find((a) => a.startsWith("--to-pass="))?.split("=")[1];
 const DRY_RUN = process.argv.includes("--dry-run");
+const INCREMENTAL = process.argv.includes("--incremental");
+const STATUS_ONLY = process.argv.includes("--status");
 
-const HAIKU_CONCURRENCY = 10;
+const HAIKU_CONCURRENCY = 20;
 const SONNET_CONCURRENCY = 5;
 const FULL_ARTICLE_THRESHOLD_REFS = 3;        // raised: need 3+ source refs for full article (was 2)
 const FULL_ARTICLE_THRESHOLD_RELEVANCE = 7.0; // raised: need 7.0+ relevance for full article (was 6.0)
@@ -153,6 +168,31 @@ interface RawEntity {
   source_ref: string; // which raw file mentioned this
 }
 
+/** Map a source's tags to all matching taxonomy buckets. */
+function tagsToBuckets(tags: string[]): Set<string> {
+  const assigned = new Set<string>();
+  for (const tag of tags) {
+    for (const bucket of BUCKET_IDS) {
+      if (!assigned.has(bucket)) {
+        if (tag === bucket || tag.startsWith(bucket.split("-")[0])) {
+          assigned.add(bucket);
+        }
+      }
+    }
+  }
+  // Also check tag substrings for buckets not yet matched
+  const tagStr = tags.join(" ");
+  for (const bucket of BUCKET_IDS) {
+    if (!assigned.has(bucket)) {
+      const keywords = bucket.split("-");
+      if (keywords.some((k) => tagStr.includes(k))) {
+        assigned.add(bucket);
+      }
+    }
+  }
+  return assigned;
+}
+
 // ─── Pass 0: Load & Index ───────────────────────────────────────────────
 
 async function loadSources(): Promise<SourceIndex> {
@@ -206,27 +246,8 @@ async function loadSources(): Promise<SourceIndex> {
     (byType[type] ??= []).push(src);
 
     // Map tags to ALL matching buckets (a source can belong to multiple buckets)
-    const assignedBuckets = new Set<string>();
-    for (const tag of src.frontmatter.tags ?? []) {
-      for (const bucket of bucketNames) {
-        if (!assignedBuckets.has(bucket)) {
-          if (tag === bucket || tag.startsWith(bucket.split("-")[0])) {
-            (byBucket[bucket] ??= []).push(src);
-            assignedBuckets.add(bucket);
-          }
-        }
-      }
-    }
-    // Also check tag substrings for buckets not yet matched
-    const tagStr = (src.frontmatter.tags ?? []).join(" ");
-    for (const bucket of bucketNames) {
-      if (!assignedBuckets.has(bucket)) {
-        const keywords = bucket.split("-");
-        if (keywords.some((k) => tagStr.includes(k))) {
-          (byBucket[bucket] ??= []).push(src);
-          assignedBuckets.add(bucket);
-        }
-      }
+    for (const bucket of tagsToBuckets(src.frontmatter.tags ?? [])) {
+      (byBucket[bucket] ??= []).push(src);
     }
   }
 
@@ -352,8 +373,9 @@ const resolvedEntitiesSchema = z.object({
 async function resolveEntities(
   rawEntities: RawEntity[],
   index: SourceIndex,
+  anchorEntities?: Entity[],
 ): Promise<Entity[]> {
-  passHeader("1b", "Entity Resolution", "Sonnet × 1");
+  passHeader("1b", "Entity Resolution", `Sonnet × 1${anchorEntities ? ` (${anchorEntities.length} anchors)` : ""}`);
 
   // Build a summary of all raw mentions grouped by approximate name
   const mentionsByName = new Map<string, { count: number; sources: string[]; types: string[] }>();
@@ -373,6 +395,23 @@ async function resolveEntities(
     .map(([name, info]) => `  "${name}" (${info.count}x, types: ${info.types.join("/")}, sources: ${info.sources.length})`)
     .join("\n");
 
+  // Build anchor section: tell Sonnet which entities already exist and should keep their IDs
+  let anchorSection = "";
+  if (anchorEntities && anchorEntities.length > 0) {
+    const rawNames = new Set(rawEntities.map((e) => e.name.toLowerCase().trim()));
+    // Only anchor entities that still appear in raw mentions
+    const viableAnchors = anchorEntities.filter((e) => {
+      const names = [e.name, ...e.aliases].map((n) => n.toLowerCase().trim());
+      return names.some((n) => rawNames.has(n));
+    });
+    if (viableAnchors.length > 0) {
+      anchorSection = `\n\n## Existing Entities (preserve these IDs)\n\nThese entities exist from a previous compilation. When a mention matches one of these, reuse its EXACT id. Only generate new IDs for entities not in this list.\n\n${viableAnchors
+        .map((e) => `- id: "${e.id}", name: "${e.name}", type: ${e.type}, bucket: ${e.bucket}, aliases: [${e.aliases.join(", ")}]`)
+        .join("\n")}`;
+      console.log(`  Anchoring ${viableAnchors.length} of ${anchorEntities.length} previous entities`);
+    }
+  }
+
   const { object } = await generateObject({
     model: getProvider()("claude-sonnet-4-6"),
     schema: resolvedEntitiesSchema,
@@ -383,8 +422,10 @@ Taxonomy buckets: ${BUCKET_IDS.join(", ")}.
 Merge duplicates: "Mem0" and "mem0" and "mem0ai/mem0" become one entity.
 Assign the best bucket for each entity.
 Include entities that are meaningful to the domain. Skip trivial mentions (generic terms like "AI", "LLM" unless they're a specific concept article).
-Aim for 60-100 canonical entities total.`,
-    prompt: `Here are all entity mentions extracted from ${index.sources.length} sources:\n\n${mentionList}`,
+Aim for 60-100 canonical entities total.
+
+CRITICAL: When an entity from the "Existing Entities" section matches a mention, you MUST reuse its exact id field. Do not generate a new slug. You may update its description, bucket, or aliases if warranted by new evidence, but the id must stay the same.`,
+    prompt: `Here are all entity mentions extracted from ${index.sources.length} sources:\n\n${mentionList}${anchorSection}`,
   });
 
   // Enrich with source_refs from raw entities
@@ -576,16 +617,29 @@ WRITING RULES (non-negotiable):
 
 // ─── Pass 3a: Synthesis Articles ────────────────────────────────────────
 
-const SYNTHESIS_SYSTEM = `You are writing a landscape analysis for ${domain.audience}. This is NOT a catalog of projects. It's a synthesis that changes how practitioners THINK about this space.
+// Opening variants assigned deterministically per bucket to avoid formulaic repetition
+const OPENING_VARIANTS: Record<string, string> = {
+  "knowledge-bases": "Open with the single most surprising finding from the sources. One specific fact a practitioner would not have predicted 6 months ago. State it as fact in one sentence, then two sentences on why it surprised people.",
+  "agent-memory": "Open with a concrete failure. Name the system, the failure mode, and the consequence. Then zoom out: what does this failure reveal about the current state of agent memory?",
+  "context-engineering": "Open with the strongest disagreement in the sources. Two specific projects that made opposite architectural bets. State both positions in one sentence each. Do not resolve it here.",
+  "agent-systems": "Open with the single most surprising finding from the sources. One specific fact a practitioner would not have predicted 6 months ago. State it as fact in one sentence, then two sentences on why it surprised people.",
+  "self-improving": "Open with a concrete failure. Name the system, the failure mode, and the consequence. Then zoom out: what does this failure reveal about the current state of self-improving systems?",
+};
 
-FIRST: Output a 1-2 sentence abstract inside <abstract></abstract> tags. The abstract states the main insight or shift this article documents — not "this article covers X" but the actual finding, e.g. "X has shifted from A to B because C." Maximum 300 characters. Then write the full article.
+const SYNTHESIS_SYSTEM = (bucket: string) => `You are writing a landscape analysis for ${domain.audience}. This is NOT a catalog of projects. It's a synthesis that changes how practitioners THINK about this space.
 
-Many sources have paths starting with "deep/" — these are deep research files containing source-code analysis, architecture details, design tradeoffs, failure modes, and verified benchmarks. When you draw implementation details from a source, cite its ACTUAL path (including "deep/" prefix if applicable). These deep sources are your primary material for specificity.
+BANNED WORDS (never use, this is a compilation failure): ecosystem, robust, not just, game-changer, fundamentally, inherently, at its core, holistic, comprehensive, cutting-edge, it's worth noting, notably, importantly, rapidly evolving, crucial, pivotal.
+No em dashes. No passive voice. No three-item list closers ("X, Y, and Z" as a paragraph-ending flourish).
+
+FIRST: Output a 1-2 sentence abstract inside <abstract></abstract> tags. The abstract states the main insight this article documents. Not "this article covers X" but the actual finding. Maximum 300 characters. Then write the full article.
+
+Many sources have paths starting with "deep/" -- these are deep research files containing source-code analysis, architecture details, design tradeoffs, failure modes, and verified benchmarks. When you draw implementation details from a source, cite its ACTUAL path (including "deep/" prefix if applicable). These deep sources are your primary material for specificity.
 
 Structure (use these exact ## headings):
 
-## [Opening — no heading, just start with 2-3 sentences]
-What has fundamentally changed in how practitioners think about this problem? NOT "the field is growing" — rather "the core question changed from A to B."
+## [Opening -- no heading, just start with 2-3 sentences]
+${OPENING_VARIANTS[bucket] ?? "Open with the single most surprising finding from the sources."}
+Do NOT use the formula "X shifted from A to B" or "The question changed from A to B." Every article in this wiki uses that opener and it has become repetitive.
 
 ## Approach Categories
 3-5 categories, each framed as an ARCHITECTURAL question. For each:
@@ -593,13 +647,16 @@ What has fundamentally changed in how practitioners think about this problem? NO
 - Cite 2-3 flagship projects with star counts as adoption signals (e.g., "Mem0 (51,880 stars)")
 - Include implementation details from deep sources: name files, algorithms, data structures
 - Give the concrete tradeoff: "wins when X, loses when Y"
-- Name one specific failure mode — what actually BREAKS in production
+- Name one specific failure mode -- what actually BREAKS in production
 
 ## The Convergence
-THREE things all serious systems now agree on that would have been controversial 6 months ago.
+THREE specific technical decisions all serious systems now share. Each MUST be stated as a falsifiable claim ("All production systems now do X") -- not "there is a trend toward X." For each: name the specific project or approach that held out longest against this consensus. If you cannot find three, state two. Do not pad with weaker claims.
 
 ## What the Field Got Wrong
-One major assumption that turned out to be false. Provide evidence. Explain what replaced it.
+One assumption practitioners held that the evidence now contradicts. Name the assumption. Name who held it (a specific project, paper, or practitioner). Cite the evidence that disproved it (a benchmark, a production failure, a competing approach's success). State what replaced it. Do NOT hedge with "while X had merits" or "the picture is nuanced." Pick a side.
+
+## Deprecated Approaches
+2-3 approaches practitioners adopted pre-2025 and have since abandoned or discouraged. For each: name the approach, why it seemed right at the time, what specific evidence killed it, and what replaced it. Name specific projects if applicable.
 
 ## Failure Modes
 Consolidated section: 3-5 concrete failure modes practitioners will hit. Not generic limitations — specific mechanisms. How does it break? What triggers it? What's the blast radius?
@@ -628,6 +685,12 @@ Rules:
 - When sources disagree on a fact, approach, or result, flag the disagreement explicitly. Format: "**Source conflict:** [Source A](../raw/...) claims X, while [Source B](../raw/...) claims Y." Do not silently pick one side. Let the reader see the contradiction and the evidence for each position.
 - Write as a practitioner talking to practitioners. No academic hedging.
 - Output 3000-5000 words of markdown.
+
+CRITICAL — SOURCE FIDELITY:
+- NEVER invent component names, directory paths, algorithm names, or mechanism details that are not explicitly stated in the source material. If a source says "the system uses a feedback loop" do NOT embellish it as "the Recursive Reflector feedback loop" unless that exact name appears in the source.
+- NEVER cite specific benchmark numbers (percentages, scores, star counts) unless the EXACT number appears in the provided source text. If you cannot find the number in the source material, say "the project reports improved accuracy" instead of inventing a percentage.
+- When a detail feels specific enough to be verifiable (a number, a component name, a file path, a benchmark result), double-check it appears verbatim in the source before writing it. If it doesn't, generalize.
+- Prefer "the project claims X" (reported) over stating X as fact (verified) when the evidence is from a README or blog post rather than a deep source-code analysis.
 ${WRITING_STYLE}`;
 
 // BUCKET_TITLES imported from config/domain.ts
@@ -636,8 +699,11 @@ async function generateSynthesisArticles(
   entities: Entity[],
   graph: KnowledgeGraph,
   index: SourceIndex,
+  onlyBuckets?: Set<string>,
+  changedSources?: Set<string>,
 ): Promise<void> {
-  passHeader("3a", "Synthesis Articles", "Sonnet × " + Object.keys(BUCKET_TITLES).length + ", sequential");
+  const bucketCount = onlyBuckets ? onlyBuckets.size : Object.keys(BUCKET_TITLES).length;
+  passHeader("3a", "Synthesis Articles", `Opus × ${bucketCount}, sequential`);
   await mkdir(WIKI_DIR, { recursive: true });
 
   // Build entity link reference for LLM prompts — maps names to correct file paths
@@ -649,58 +715,73 @@ async function generateSynthesisArticles(
     })
     .join("\n");
 
-  for (const [bucket, title] of Object.entries(BUCKET_TITLES)) {
-    console.log(`\n  Writing: ${title}...`);
+  const synthesisLimit = pLimit(3); // 3 parallel synthesis articles (rate-limit safe)
+  const synthesisTasks = Object.entries(BUCKET_TITLES).map(([bucket, title]) =>
+    synthesisLimit(async () => {
+      // Skip clean buckets in incremental mode
+      if (onlyBuckets && !onlyBuckets.has(bucket)) {
+        console.log(`  ${cl.dim(`Skipping: ${title} (unchanged)`)}`);
+        return;
+      }
+      console.log(`  Writing: ${title}...`);
 
-    // Collect sources for this bucket
-    const bucketSources = (index.byBucket[bucket] ?? [])
-      .sort((a, b) => b.relevance - a.relevance)
-      .slice(0, 25); // Top 25 by relevance
+      // Collect sources for this bucket, boosting new/changed and deep sources
+      const bucketSources = (index.byBucket[bucket] ?? [])
+        .sort((a, b) => {
+          // Boost new/changed sources by +1.5 to guarantee prompt inclusion
+          const aBoost = changedSources?.has(a.path) ? 1.5 : 0;
+          const bBoost = changedSources?.has(b.path) ? 1.5 : 0;
+          // Boost deep sources by +1.0 to prioritize architectural detail
+          const aDeep = a.path.includes("/deep/") ? 1.0 : 0;
+          const bDeep = b.path.includes("/deep/") ? 1.0 : 0;
+          return (b.relevance + bBoost + bDeep) - (a.relevance + aBoost + aDeep);
+        })
+        .slice(0, 25); // Top 25 by relevance (with boost)
 
-    // Compute staleness markers from source dates
-    const sourceDates = bucketSources
-      .map((s) => s.frontmatter.date)
-      .filter((d): d is string => !!d && d !== "unknown")
-      .sort();
-    const oldestDate = sourceDates[0] ?? "unknown";
-    const newestDate = sourceDates[sourceDates.length - 1] ?? "unknown";
-    const source_date_range = `${oldestDate} to ${newestDate}`;
-    const staleness_risk = computeStalenessRisk(newestDate);
+      // Compute staleness markers from source dates
+      const sourceDates = bucketSources
+        .map((s) => s.frontmatter.date)
+        .filter((d): d is string => !!d && d !== "unknown")
+        .sort();
+      const oldestDate = sourceDates[0] ?? "unknown";
+      const newestDate = sourceDates[sourceDates.length - 1] ?? "unknown";
+      const source_date_range = `${oldestDate} to ${newestDate}`;
+      const staleness_risk = computeStalenessRisk(newestDate);
 
-    // Collect entities in this bucket
-    const bucketEntities = entities.filter((e) => e.bucket === bucket);
+      // Collect entities in this bucket
+      const bucketEntities = entities.filter((e) => e.bucket === bucket);
 
-    // Collect graph edges involving these entities
-    const entityIds = new Set(bucketEntities.map((e) => e.id));
-    const relevantEdges = graph.edges.filter(
-      (e) => entityIds.has(e.source) || entityIds.has(e.target),
-    );
+      // Collect graph edges involving these entities
+      const entityIds = new Set(bucketEntities.map((e) => e.id));
+      const relevantEdges = graph.edges.filter(
+        (e) => entityIds.has(e.source) || entityIds.has(e.target),
+      );
 
-    // Build source content (cap at ~25K tokens)
-    const sourceContent = bucketSources
-      .map(
-        (s) =>
-          `### Source: ${s.path}\nKey insight: ${s.frontmatter.key_insight}\n${s.frontmatter.stars ? `Stars: ${s.frontmatter.stars}` : ""}\n\n${s.body}`,
-      )
-      .join("\n\n---\n\n");
+      // Build source content (cap at ~25K tokens)
+      const sourceContent = bucketSources
+        .map(
+          (s) =>
+            `### Source: ${s.path}\nKey insight: ${s.frontmatter.key_insight}\n${s.frontmatter.stars ? `Stars: ${s.frontmatter.stars}` : ""}\n\n${s.body}`,
+        )
+        .join("\n\n---\n\n");
 
-    const entitySummary = bucketEntities
-      .map((e) => `- ${e.name} (${e.type}): ${e.description}`)
-      .join("\n");
+      const entitySummary = bucketEntities
+        .map((e) => `- ${e.name} (${e.type}): ${e.description}`)
+        .join("\n");
 
-    const edgeSummary = relevantEdges
-      .slice(0, 30)
-      .map(
-        (e) =>
-          `  ${entities.find((n) => n.id === e.source)?.name} → ${entities.find((n) => n.id === e.target)?.name}: ${e.type} (${e.weight})`,
-      )
-      .join("\n");
+      const edgeSummary = relevantEdges
+        .slice(0, 30)
+        .map(
+          (e) =>
+            `  ${entities.find((n) => n.id === e.source)?.name} → ${entities.find((n) => n.id === e.target)?.name}: ${e.type} (${e.weight})`,
+        )
+        .join("\n");
 
-    try {
-      const { text } = await generateText({
-        model: getProvider()("claude-sonnet-4-6"),
-        system: SYNTHESIS_SYSTEM,
-        prompt: `Write "# ${title}" for the ${domain.name} wiki.
+      try {
+        const { text } = await generateText({
+          model: getProvider()("claude-opus-4-6"),
+          system: SYNTHESIS_SYSTEM(bucket),
+          prompt: `Write "# ${title}" for the ${domain.name} wiki.
 
 ## Entity link reference (use these exact paths when linking to projects and concepts):
 ${entityLinkRef}
@@ -713,32 +794,34 @@ ${edgeSummary}
 
 ## Source material (${bucketSources.length} sources, sorted by relevance):
 ${sourceContent}`,
-      });
+        });
 
-      // Extract abstract from LLM output
-      const { abstract, body } = extractAbstract(text);
+        // Extract abstract from LLM output
+        const { abstract, body } = extractAbstract(text);
 
-      // Add frontmatter
-      const frontmatter: Record<string, unknown> = {
-        title,
-        type: "synthesis",
-        bucket,
-        ...(abstract && { abstract }),
-        source_date_range,
-        newest_source: newestDate,
-        staleness_risk,
-        sources: bucketSources.map((s) => s.path),
-        entities: bucketEntities.map((e) => e.id),
-        last_compiled: new Date().toISOString(),
-      };
+        // Add frontmatter
+        const frontmatter: Record<string, unknown> = {
+          title,
+          type: "synthesis",
+          bucket,
+          ...(abstract && { abstract }),
+          source_date_range,
+          newest_source: newestDate,
+          staleness_risk,
+          sources: bucketSources.map((s) => s.path),
+          entities: bucketEntities.map((e) => e.id),
+          last_compiled: new Date().toISOString(),
+        };
 
-      const output = matter.stringify(body, frontmatter);
-      await writeFile(join(WIKI_DIR, `${bucket}.md`), output);
-      console.log(`  ${cl.green("✓")} ${title} (${body.split("\n").length} lines)`);
-    } catch (err) {
-      console.error(`  ✗ Failed to generate ${title}: ${err}`);
-    }
-  }
+        const output = matter.stringify(body, frontmatter);
+        await writeFile(join(WIKI_DIR, `${bucket}.md`), output);
+        console.log(`  ${cl.green("✓")} ${title} (${body.split("\n").length} lines)`);
+      } catch (err) {
+        console.error(`  ✗ Failed to generate ${title}: ${err}`);
+      }
+    }),
+  );
+  await Promise.all(synthesisTasks);
 }
 
 // ─── Pass 3b: Reference Cards ───────────────────────────────────────────
@@ -774,8 +857,12 @@ async function generateReferenceCards(
   entities: Entity[],
   graph: KnowledgeGraph,
   index: SourceIndex,
+  onlyEntityIds?: Set<string>,
 ): Promise<void> {
-  const fullEntities = entities.filter((e) => e.article_level === "full");
+  let fullEntities = entities.filter((e) => e.article_level === "full");
+  if (onlyEntityIds) {
+    fullEntities = fullEntities.filter((e) => onlyEntityIds.has(e.id));
+  }
   passHeader("3b", "Reference Cards", `Sonnet × ${fullEntities.length}, parallel`);
   const passStart = Date.now();
 
@@ -912,7 +999,7 @@ Rules:
 2. If a claim contains a number (benchmark score, star count, percentage), it is "empirical" or "comparative".
 3. If a claim describes how something is built (architecture, algorithm, data structure), it is "architectural".
 4. If a claim compares two things with evidence, it is "comparative".
-5. If a claim describes a field-level trend, convergence, or consensus synthesized from multiple sources, it is "directional". IMPORTANT: Extract at least 5-8 directional claims per article — these capture the synthesis-level insights (e.g. "The field has shifted from X to Y") that are the article's unique contribution.
+5. If a claim describes a field-level trend, convergence, or consensus synthesized from multiple sources, it is "directional". Extract 3-5 directional claims per article — these capture synthesis-level insights (e.g. "The field has shifted from X to Y"). Only extract directional claims that are well-supported by multiple cited sources, not speculative observations.
 6. For confidence:
    - "verified": you can see the specific evidence in the cited source text (a benchmark table, a code snippet, a direct quote). Use this when the article includes inline details clearly drawn from a deep/ source.
    - "reported": the article cites a result but you cannot confirm the evidence exists in the source text (e.g., star counts, README-stated benchmarks). This is the DEFAULT for most project-level claims.
@@ -920,53 +1007,97 @@ Rules:
 7. For source_refs: extract the ACTUAL raw/ paths cited near this claim in the article. Look for [Source](../raw/...) links within the same paragraph or section. Extract the path after "raw/", e.g. "repos/mem0ai-mem0.md" or "deep/repos/getzep-graphiti.md". CRITICAL: Match each claim to the source that ACTUALLY contains its evidence, not just the nearest citation. If the claim mentions architectural details from a deep source, cite the deep/ path. If no source link is nearby, leave source_refs empty rather than guessing.
 8. For entity_refs: use the entity IDs (URL-safe slugs) of projects/concepts mentioned in the claim.
 9. For temporal_scope: set to "as of YYYY-MM" if the claim contains data that changes over time (star counts, benchmark rankings, adoption metrics). Set to null for architectural or definitional claims.
-10. Extract 25-40 claims per article. Aim for a mix: ~40% empirical, ~30% architectural, ~15% directional, ~15% comparative.`;
+10. Extract 25-40 claims per article. Aim for a mix: ~40% empirical, ~30% architectural, ~15% comparative, ~15% directional.
+11. SOURCE FIDELITY CHECK: Before finalizing each claim, verify the specific details (numbers, component names, file paths) actually appear in the cited source. If the article says "X uses a Recursive Reflector" but you cannot confirm "Recursive Reflector" appears in any [Source] link nearby, either omit the claim or generalize it (e.g., "X uses a reflection mechanism"). Do not extract claims containing details that may have been hallucinated by the synthesis step.`;
 
-async function extractClaims(index: SourceIndex): Promise<Claim[]> {
-  passHeader("3c", "Claim Extraction", "Sonnet × " + Object.keys(BUCKET_TITLES).length + ", sequential");
+/** Compute stable content-hash for a claim (deterministic across runs). */
+function claimContentHash(content: string, articleRef: string): string {
+  return createHash("sha256").update(content + "|" + articleRef).digest("hex").slice(0, 12);
+}
 
-  const allClaims: Claim[] = [];
-  let claimCounter = 0;
+async function extractClaims(index: SourceIndex, onlyBuckets?: Set<string>): Promise<Claim[]> {
+  const bucketCount = onlyBuckets ? onlyBuckets.size : Object.keys(BUCKET_TITLES).length;
+  passHeader("3c", "Claim Extraction", `Sonnet × ${bucketCount}, sequential`);
 
-  for (const bucket of Object.keys(BUCKET_TITLES)) {
-    const articlePath = join(WIKI_DIR, `${bucket}.md`);
-    if (!existsSync(articlePath)) {
-      console.warn(`  ${cl.yellow("⚠")} Synthesis article not found: ${bucket}.md`);
-      continue;
+  // Load previous claims to preserve created_at timestamps and for incremental merge
+  const previousClaims = new Map<string, Claim>();
+  const previousClaimsByBucket = new Map<string, Claim[]>();
+  try {
+    const prev = await loadBuildArtifact<ClaimsFile>("claims.json");
+    for (const c of prev.claims) {
+      // Index by content_hash if available, otherwise compute it
+      const hash = c.content_hash ?? claimContentHash(c.content, c.article_ref);
+      previousClaims.set(hash, c);
+      const bucketClaims = previousClaimsByBucket.get(c.article_ref) ?? [];
+      bucketClaims.push(c);
+      previousClaimsByBucket.set(c.article_ref, bucketClaims);
     }
-
-    const raw = await readFile(articlePath, "utf-8");
-    const { content } = matter(raw);
-
-    try {
-      const { object } = await generateObject({
-        model: getProvider()("claude-sonnet-4-6"),
-        schema: claimExtractionSchema,
-        system: CLAIM_EXTRACTION_SYSTEM,
-        prompt: `Extract claims from this synthesis article.\n\nArticle: ${bucket}.md\nBucket: ${bucket}\n\n${content.slice(0, 30000)}`,
-      });
-
-      for (const claim of object.claims) {
-        claimCounter++;
-        allClaims.push({
-          id: `claim-${String(claimCounter).padStart(3, "0")}`,
-          content: claim.content,
-          type: claim.type,
-          confidence: claim.confidence,
-          source_refs: claim.source_refs,
-          article_ref: bucket,
-          entity_refs: claim.entity_refs,
-          temporal_scope: claim.temporal_scope,
-        });
-      }
-      console.log(`  ${cl.green("✓")} ${bucket}: ${object.claims.length} claims extracted`);
-    } catch (err) {
-      console.warn(`  ${cl.yellow("⚠")} Failed to extract claims from ${bucket}: ${err}`);
-    }
+  } catch {
+    // No previous claims — first run
   }
 
+  const claimResults: Claim[][] = [];
+
+  const claimLimit = pLimit(3); // 3 parallel claim extractions (rate-limit safe)
+  const claimTasks = Object.keys(BUCKET_TITLES).map((bucket) =>
+    claimLimit(async (): Promise<Claim[]> => {
+      // In incremental mode, keep existing claims for clean buckets
+      if (onlyBuckets && !onlyBuckets.has(bucket)) {
+        const kept = previousClaimsByBucket.get(bucket) ?? [];
+        if (kept.length > 0) console.log(`  ${cl.dim(`${bucket}: kept ${kept.length} existing claims`)}`);
+        return kept;
+      }
+
+      const articlePath = join(WIKI_DIR, `${bucket}.md`);
+      if (!existsSync(articlePath)) {
+        console.warn(`  ${cl.yellow("⚠")} Synthesis article not found: ${bucket}.md`);
+        return [];
+      }
+
+      const raw = await readFile(articlePath, "utf-8");
+      const { content } = matter(raw);
+
+      try {
+        const { object } = await generateObject({
+          model: getProvider()("claude-sonnet-4-6"),
+          schema: claimExtractionSchema,
+          system: CLAIM_EXTRACTION_SYSTEM,
+          prompt: `Extract claims from this synthesis article.\n\nArticle: ${bucket}.md\nBucket: ${bucket}\n\n${content.slice(0, 30000)}`,
+        });
+
+        const now = new Date().toISOString();
+        const bucketClaims: Claim[] = [];
+        for (const claim of object.claims) {
+          const hash = claimContentHash(claim.content, bucket);
+          const existing = previousClaims.get(hash);
+          bucketClaims.push({
+            id: `claim-${hash}`,
+            content: claim.content,
+            content_hash: hash,
+            type: claim.type,
+            confidence: claim.confidence,
+            source_refs: claim.source_refs,
+            article_ref: bucket,
+            entity_refs: claim.entity_refs,
+            temporal_scope: claim.temporal_scope,
+            created_at: existing?.created_at ?? now,
+            updated_at: now,
+            status: "active",
+          });
+        }
+        console.log(`  ${cl.green("✓")} ${bucket}: ${object.claims.length} claims extracted`);
+        return bucketClaims;
+      } catch (err) {
+        console.warn(`  ${cl.yellow("⚠")} Failed to extract claims from ${bucket}: ${err}`);
+        return [];
+      }
+    }),
+  );
+  claimResults.push(...(await Promise.all(claimTasks)));
+  const allClaims = claimResults.flat();
+
   const claimsFile: ClaimsFile = {
-    version: 1,
+    version: 2,
     compiled_at: new Date().toISOString(),
     total: allClaims.length,
     claims: allClaims,
@@ -983,6 +1114,7 @@ async function generateFieldMapAndIndexes(
   entities: Entity[],
   graph: KnowledgeGraph,
   index: SourceIndex,
+  skipFieldMap?: boolean,
 ): Promise<void> {
   passHeader("4", "Field Map + Indexes");
 
@@ -997,8 +1129,13 @@ async function generateFieldMapAndIndexes(
     }
   }
 
-  // Generate field-map.md (THE overview article)
-  console.log("  Generating field-map.md...");
+  // Generate field-map.md (THE overview article) — skip if no synthesis changed
+  if (skipFieldMap) {
+    console.log(`  ${cl.dim("Skipping field-map.md (no synthesis articles changed)")}`);
+  } else {
+    console.log("  Generating field-map.md...");
+  }
+  if (!skipFieldMap) {
   try {
     const { text } = await generateText({
       model: getProvider()("claude-sonnet-4-6"),
@@ -1054,6 +1191,7 @@ ${Object.entries(graph.clusters).map(([k, v]) => `- ${v.label}: ${v.node_count} 
   } catch (err) {
     console.error(`  ✗ Failed to generate field-map: ${err}`);
   }
+  } // end if (!skipFieldMap)
 
   // Generate ROOT.md (agent-optimized topic index, no LLM call)
   {
@@ -1283,6 +1421,56 @@ async function addMermaidAndBacklinks(
     }
   }
   console.log(`  ${cl.green("✓")} Backlinks added to ${backlinksAdded} articles`);
+
+  // LINK VALIDATION: fix broken internal links across all wiki files
+  let brokenFixed = 0;
+  const linkPattern = /\[([^\]]+)\]\(((?:\.\.\/)?(?:projects|concepts|comparisons|indexes)\/[^)]+\.md)\)/g;
+
+  // Scan synthesis articles and field-map (root-level wiki files)
+  const rootFiles = (await readdir(WIKI_DIR)).filter((f) => f.endsWith(".md"));
+  for (const fileName of rootFiles) {
+    const filePath = join(WIKI_DIR, fileName);
+    let content = await readFile(filePath, "utf-8");
+    let modified = false;
+    content = content.replace(linkPattern, (match, text, relPath) => {
+      const absPath = join(WIKI_DIR, relPath);
+      if (!existsSync(absPath)) {
+        brokenFixed++;
+        modified = true;
+        return text;
+      }
+      return match;
+    });
+    if (modified) await writeFile(filePath, content);
+  }
+
+  // Scan project and concept cards (which use ../ relative paths)
+  for (const subdir of ["projects", "concepts"]) {
+    const dirPath = join(WIKI_DIR, subdir);
+    if (!existsSync(dirPath)) continue;
+    const files = (await readdir(dirPath)).filter((f) => f.endsWith(".md"));
+    for (const fileName of files) {
+      const filePath = join(dirPath, fileName);
+      let content = await readFile(filePath, "utf-8");
+      let modified = false;
+      content = content.replace(linkPattern, (match, text, relPath) => {
+        const absPath = join(dirPath, relPath);
+        if (!existsSync(absPath)) {
+          brokenFixed++;
+          modified = true;
+          return text;
+        }
+        return match;
+      });
+      if (modified) await writeFile(filePath, content);
+    }
+  }
+
+  if (brokenFixed > 0) {
+    console.log(`  ${cl.green("✓")} Fixed ${brokenFixed} broken internal links`);
+  } else {
+    console.log(`  ${cl.dim("  No broken internal links found")}`);
+  }
 }
 
 // ─── Pass 6: Changelog ─────────────────────────────────────────────────
@@ -1528,56 +1716,72 @@ async function autoFixClaims(claims: Claim[], index: SourceIndex): Promise<void>
   let fixed = 0;
   let unfixable = 0;
 
-  for (const failure of evalReport.failures) {
-    const claim = claims.find((c) => c.id === failure.claim_id);
+  // Phase 1: Find better sources in parallel (LLM calls, no file writes)
+  const fixLimit = pLimit(SONNET_CONCURRENCY);
+  const fixResults = await Promise.all(
+    evalReport.failures.map((failure) =>
+      fixLimit(async (): Promise<{ failure: typeof failure; claim: Claim | undefined; newRef: string | null }> => {
+        const claim = claims.find((c) => c.id === failure.claim_id);
+        if (!claim || claim.source_refs.length === 0) {
+          return { failure, claim, newRef: null };
+        }
+
+        const originalRef = failure.source_ref;
+        let newRef: string | null = null;
+
+        // Tier 1: Try deep/ variant of the cited source
+        if (!originalRef.startsWith("deep/")) {
+          const deepVariant = `deep/${originalRef}`;
+          const deepSource = index.sources.find((s) => s.path === deepVariant);
+          if (deepSource) {
+            const pass = await verifyClaim(claim, deepSource);
+            if (pass) newRef = deepVariant;
+          }
+        }
+
+        // Tier 2: Search sources by entity refs
+        if (!newRef && claim.entity_refs.length > 0) {
+          const candidates = index.sources
+            .filter((s) => s.path !== originalRef)
+            .filter((s) =>
+              claim.entity_refs.some(
+                (entity) =>
+                  s.path.toLowerCase().includes(entity) ||
+                  (s.frontmatter.key_insight ?? "").toLowerCase().includes(entity),
+              ),
+            )
+            .sort((a, b) => {
+              const aDeep = a.path.startsWith("deep/") ? 1 : 0;
+              const bDeep = b.path.startsWith("deep/") ? 1 : 0;
+              if (aDeep !== bDeep) return bDeep - aDeep;
+              return b.relevance - a.relevance;
+            })
+            .slice(0, 5);
+
+          for (const candidate of candidates) {
+            const pass = await verifyClaim(claim, candidate);
+            if (pass) {
+              newRef = candidate.path;
+              break;
+            }
+          }
+        }
+
+        return { failure, claim, newRef };
+      }),
+    ),
+  );
+
+  // Phase 2: Apply fixes sequentially (file writes, avoids race conditions)
+  for (const { failure, claim, newRef } of fixResults) {
     if (!claim || claim.source_refs.length === 0) {
       unfixable++;
       console.log(`  ${cl.red("✗")} ${failure.claim_id}: no source refs to fix`);
       continue;
     }
 
-    const originalRef = failure.source_ref;
-    let newRef: string | null = null;
-
-    // Tier 1: Try deep/ variant of the cited source
-    if (!originalRef.startsWith("deep/")) {
-      const deepVariant = `deep/${originalRef}`;
-      const deepSource = index.sources.find((s) => s.path === deepVariant);
-      if (deepSource) {
-        const pass = await verifyClaim(claim, deepSource);
-        if (pass) newRef = deepVariant;
-      }
-    }
-
-    // Tier 2: Search sources by entity refs
-    if (!newRef && claim.entity_refs.length > 0) {
-      const candidates = index.sources
-        .filter((s) => s.path !== originalRef)
-        .filter((s) =>
-          claim.entity_refs.some(
-            (entity) =>
-              s.path.toLowerCase().includes(entity) ||
-              (s.frontmatter.key_insight ?? "").toLowerCase().includes(entity),
-          ),
-        )
-        .sort((a, b) => {
-          const aDeep = a.path.startsWith("deep/") ? 1 : 0;
-          const bDeep = b.path.startsWith("deep/") ? 1 : 0;
-          if (aDeep !== bDeep) return bDeep - aDeep;
-          return b.relevance - a.relevance;
-        })
-        .slice(0, 5);
-
-      for (const candidate of candidates) {
-        const pass = await verifyClaim(claim, candidate);
-        if (pass) {
-          newRef = candidate.path;
-          break;
-        }
-      }
-    }
-
     if (newRef) {
+      const originalRef = failure.source_ref;
       // Fix the citation in the wiki article
       const articlePath = join(WIKI_DIR, `${claim.article_ref}.md`);
       if (existsSync(articlePath)) {
@@ -1598,7 +1802,7 @@ async function autoFixClaims(claims: Claim[], index: SourceIndex): Promise<void>
 
   // Save updated claims
   const claimsFile: ClaimsFile = {
-    version: 1,
+    version: 2,
     compiled_at: new Date().toISOString(),
     total: claims.length,
     claims,
@@ -1752,13 +1956,113 @@ async function patchReadmeStats(
   console.log("  ✓ README.md stats auto-patched");
 }
 
+// ─── Status ─────────────────────────────────────────────────────────────
+
+async function showStatus(): Promise<void> {
+  // Load current sources
+  const index = await loadSources();
+  const prevState = await loadState(BUILD_DIR);
+
+  if (!prevState) {
+    console.log(`\n  ${cl.yellow("No previous compilation state found.")}`);
+    console.log(`  Run ${cl.bold("bun run compile")} to establish baseline.\n`);
+    console.log(`  ${cl.bold(String(index.sources.length))} sources on disk, 0 compiled.`);
+    return;
+  }
+
+  // Compute current hashes and diff
+  const currentHashes: Record<string, string> = {};
+  for (const src of index.sources) {
+    currentHashes[src.path] = await hashFile(join(ROOT, "raw", src.path));
+  }
+  const cs = diffSources(currentHashes, prevState.source_hashes);
+
+  // Config check
+  const configHash = await computeConfigHash(
+    ROOT,
+    { refs: FULL_ARTICLE_THRESHOLD_REFS, relevance: FULL_ARTICLE_THRESHOLD_RELEVANCE },
+    ["claude-haiku-4-5", "claude-sonnet-4-6"],
+  );
+  const configChanged = configHash !== prevState.config_hash;
+
+  // Display
+  console.log(`\n  Last compiled: ${cl.dim(prevState.last_compiled)}`);
+  console.log(`  Sources: ${cl.bold(String(index.sources.length))} on disk, ${cl.bold(String(Object.keys(prevState.source_hashes).length))} compiled`);
+
+  if (configChanged) {
+    console.log(`  Config: ${cl.yellow("CHANGED")} (full recompilation required)`);
+  } else {
+    console.log(`  Config: ${cl.green("unchanged")}`);
+  }
+
+  if (cs.isClean && !configChanged) {
+    console.log(`\n  ${cl.green("✓ Wiki is current — nothing to recompile.")}\n`);
+    return;
+  }
+
+  if (cs.added.size > 0) {
+    console.log(`\n  ${cl.green("Added")} (${cs.added.size}):`);
+    for (const p of [...cs.added].sort()) {
+      // Read relevance from frontmatter
+      const fullPath = join(ROOT, "raw", p);
+      try {
+        const raw = await readFile(fullPath, "utf-8");
+        const { data } = matter(raw);
+        const rel = (data as any).relevance_scores?.composite ?? "?";
+        const tags = ((data as any).tags ?? []).slice(0, 4).join(", ");
+        console.log(`    ${cl.green("+")} ${p} ${cl.dim(`[${rel}] ${tags}`)}`);
+      } catch {
+        console.log(`    ${cl.green("+")} ${p}`);
+      }
+    }
+  }
+
+  if (cs.modified.size > 0) {
+    console.log(`\n  ${cl.yellow("Modified")} (${cs.modified.size}):`);
+    for (const p of [...cs.modified].sort()) {
+      console.log(`    ${cl.yellow("~")} ${p}`);
+    }
+  }
+
+  if (cs.deleted.size > 0) {
+    console.log(`\n  ${cl.red("Deleted")} (${cs.deleted.size}):`);
+    for (const p of [...cs.deleted].sort()) {
+      console.log(`    ${cl.red("-")} ${p}`);
+    }
+  }
+
+  // Dirty buckets
+  const dirtyBuckets = new Set<string>();
+  for (const srcPath of [...cs.changed, ...cs.deleted]) {
+    const src = index.sources.find((s) => s.path === srcPath);
+    const tags = src?.frontmatter.tags ?? [];
+    for (const bucket of tagsToBuckets(tags)) {
+      dirtyBuckets.add(bucket);
+    }
+  }
+  const cleanBuckets = BUCKET_IDS.filter((b: string) => !dirtyBuckets.has(b));
+
+  console.log(`\n  Dirty buckets: ${[...dirtyBuckets].map((b) => cl.yellow(b)).join(", ") || cl.green("none")}`);
+  if (cleanBuckets.length > 0) {
+    console.log(`  Clean buckets: ${cleanBuckets.map((b: string) => cl.green(b)).join(", ")}`);
+  }
+
+  console.log(`\n  Run ${cl.bold("bun run compile --incremental")} to recompile only what changed.\n`);
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────
 
 async function main() {
   console.log(cl.cyan("╔══════════════════════════════════════════════╗"));
   console.log(cl.cyan(`║  `) + cl.bold(`${domain.name} compiler`) + cl.dim(` v0.2.0`) + cl.cyan(`               ║`));
   console.log(cl.cyan("╚══════════════════════════════════════════════╝"));
+  if (STATUS_ONLY) {
+    console.log(cl.dim("  [STATUS — showing pending changes]"));
+    await showStatus();
+    return;
+  }
   if (DRY_RUN) console.log(cl.yellow("  [DRY RUN — no files will be written]"));
+  if (INCREMENTAL) console.log(cl.cyan("  [INCREMENTAL — skipping unchanged sources]"));
   if (FROM_PASS) console.log(cl.dim(`  [Resuming from pass ${FROM_PASS}]`));
   if (TO_PASS) console.log(cl.dim(`  [Stopping after pass ${TO_PASS}]`));
 
@@ -1769,6 +2073,11 @@ async function main() {
   let graph: KnowledgeGraph;
   let claims: Claim[];
 
+  // Incremental state
+  let prevState: IncrementalState | null = null;
+  let changeSet: ChangeSet | null = null;
+  let forceFullRun = false;
+
   // Pass 0
   if (shouldRunPass("0")) {
     index = await loadSources();
@@ -1778,9 +2087,71 @@ async function main() {
     index = await loadSources();
   }
 
+  // Incremental change detection (after Pass 0)
+  if (INCREMENTAL && !FROM_PASS) {
+    prevState = await loadState(BUILD_DIR);
+    if (!prevState) {
+      console.log(cl.yellow("  [Incremental: no previous state — running full compilation]"));
+      forceFullRun = true;
+    } else {
+      // Check config hash
+      const configHash = await computeConfigHash(
+        ROOT,
+        { refs: FULL_ARTICLE_THRESHOLD_REFS, relevance: FULL_ARTICLE_THRESHOLD_RELEVANCE },
+        ["claude-haiku-4-5", "claude-sonnet-4-6"],
+      );
+      if (configHash !== prevState.config_hash) {
+        console.log(cl.yellow("  [Incremental: config/thresholds changed — forcing full compilation]"));
+        forceFullRun = true;
+      } else {
+        // Compute current source hashes
+        const currentHashes: Record<string, string> = {};
+        for (const src of index.sources) {
+          const fullPath = join(ROOT, "raw", src.path);
+          currentHashes[src.path] = await hashFile(fullPath);
+        }
+        changeSet = diffSources(currentHashes, prevState.source_hashes);
+
+        if (changeSet.isClean) {
+          console.log(cl.green("  [Incremental: no source changes — wiki is current]"));
+          // Still run cheap passes (4-6) for index freshness, but skip LLM passes
+        } else {
+          console.log(`  [Incremental: ${changeSet.added.size} added, ${changeSet.modified.size} modified, ${changeSet.deleted.size} deleted]`);
+          for (const p of changeSet.added) console.log(`    ${cl.green("+")} ${p}`);
+          for (const p of changeSet.modified) console.log(`    ${cl.yellow("~")} ${p}`);
+          for (const p of changeSet.deleted) console.log(`    ${cl.red("-")} ${p}`);
+        }
+      }
+    }
+  }
+  const isIncremental = INCREMENTAL && !FROM_PASS && !forceFullRun && changeSet !== null;
+
   // Pass 1a
   if (shouldRunPass("1a")) {
-    rawEntities = await extractEntitiesPerSource(index);
+    if (isIncremental && !changeSet!.isClean) {
+      // Incremental: only extract entities from changed/new sources
+      console.log(`\n  ${cl.dim("─── Pass 1a: Incremental Entity Extraction ───")}`);
+      const prevRawEntities: RawEntity[] = await loadBuildArtifact("raw-entities.json");
+
+      // Keep entities from unchanged sources, remove from deleted/modified
+      const changedOrDeleted = new Set([...changeSet!.changed, ...changeSet!.deleted]);
+      const kept = prevRawEntities.filter((e) => !changedOrDeleted.has(e.source_ref));
+
+      // Extract entities from changed/new sources only
+      const changedSources = index.sources.filter((s) => changeSet!.changed.has(s.path));
+      const partialIndex: SourceIndex = { sources: changedSources, byBucket: {}, byType: {} };
+      const newEntities = await extractEntitiesPerSource(partialIndex);
+
+      // Merge
+      rawEntities = [...kept, ...newEntities];
+      await writeFile(join(BUILD_DIR, "raw-entities.json"), JSON.stringify(rawEntities, null, 2));
+      console.log(`  ${cl.green("✓")} Merged: ${kept.length} cached + ${newEntities.length} new = ${rawEntities.length} total`);
+    } else if (isIncremental && changeSet!.isClean) {
+      rawEntities = await loadBuildArtifact("raw-entities.json");
+      console.log(`\n  [Skipped Pass 1a — no sources changed, loaded ${rawEntities.length} raw entities]`);
+    } else {
+      rawEntities = await extractEntitiesPerSource(index);
+    }
   } else {
     rawEntities = await loadBuildArtifact("raw-entities.json");
     console.log(`\n  [Skipped Pass 1a — loaded ${rawEntities.length} raw entities from disk]`);
@@ -1788,7 +2159,17 @@ async function main() {
 
   // Pass 1b
   if (shouldRunPass("1b")) {
-    entities = await resolveEntities(rawEntities, index);
+    // In incremental mode, anchor previous entity IDs to prevent volatility
+    let anchorEntities: Entity[] | undefined;
+    if (isIncremental && prevState) {
+      try {
+        anchorEntities = await loadBuildArtifact<Entity[]>("entities.json");
+        console.log(`  Loading ${anchorEntities.length} previous entities as anchors`);
+      } catch {
+        // No previous entities — resolve from scratch
+      }
+    }
+    entities = await resolveEntities(rawEntities, index, anchorEntities);
   } else {
     entities = await loadBuildArtifact("entities.json");
     console.log(`\n  [Skipped Pass 1b — loaded ${entities.length} entities from disk]`);
@@ -1802,33 +2183,144 @@ async function main() {
     console.log(`\n  [Skipped Pass 2 — loaded graph with ${graph.nodes.length} nodes, ${graph.edges.length} edges]`);
   }
 
-  // Pass 3a
-  if (shouldRunPass("3a")) {
-    await generateSynthesisArticles(entities, graph, index);
-  }
+  // Cleanup: remove wiki pages for entities that were in the previous state
+  // but are now removed or demoted. Only checks state-tracked entities —
+  // does NOT scan for arbitrary orphans (which would delete pages from
+  // skill-graph compilations or manual additions).
+  if (isIncremental && prevState) {
+    const currentFullIds = new Set(entities.filter((e) => e.article_level === "full").map((e) => e.id));
+    let cleaned = 0;
 
-  // Pass 3b
-  if (shouldRunPass("3b")) {
-    await generateReferenceCards(entities, graph, index);
-  }
+    for (const prevId of prevState.previous_entity_ids) {
+      // Entity was removed entirely or demoted from full to stub
+      if (!currentFullIds.has(prevId)) {
+        for (const dir of ["projects", "concepts"]) {
+          const pagePath = join(WIKI_DIR, dir, `${prevId}.md`);
+          if (existsSync(pagePath)) {
+            if (!DRY_RUN) await unlink(pagePath);
+            console.log(`  ${cl.red("✗")} Removed stale: wiki/${dir}/${prevId}.md`);
+            cleaned++;
+          }
+        }
+      }
+    }
 
-  // Pass 3c
-  if (shouldRunPass("3c")) {
-    claims = await extractClaims(index);
-  } else {
-    try {
-      const claimsFile = await loadBuildArtifact<ClaimsFile>("claims.json");
-      claims = claimsFile.claims;
-      console.log(`\n  [Skipped Pass 3c — loaded ${claims.length} claims from disk]`);
-    } catch {
-      claims = [];
-      console.log(`\n  [Skipped Pass 3c — no claims.json found, using empty set]`);
+    if (cleaned > 0) {
+      console.log(`  ${cl.green("✓")} Cleaned ${cleaned} stale wiki pages`);
+    } else {
+      console.log(`  ${cl.dim("  No stale wiki pages to clean")}`);
     }
   }
 
-  // Pass 4
+  // Compute dirty buckets and entities for incremental mode
+  let dirtyBuckets: Set<string> | null = null;
+  let dirtyEntityIds: Set<string> | null = null;
+
+  if (isIncremental && changeSet && !changeSet.isClean) {
+    // Dirty buckets: buckets containing any changed/new/deleted source
+    dirtyBuckets = new Set<string>();
+    for (const srcPath of [...changeSet.changed, ...changeSet.deleted]) {
+      const src = index.sources.find((s) => s.path === srcPath);
+      const tags = src?.frontmatter.tags ?? [];
+      for (const bucket of tagsToBuckets(tags)) {
+        dirtyBuckets.add(bucket);
+      }
+    }
+    // Also dirty if entities in that bucket changed
+    if (prevState) {
+      const prevEntitySet = new Set(prevState.previous_entity_ids);
+      for (const e of entities) {
+        if (!prevEntitySet.has(e.id)) {
+          dirtyBuckets.add(e.bucket); // New entity -> dirty bucket
+        }
+      }
+    }
+    console.log(`  [Incremental: dirty buckets: ${[...dirtyBuckets].join(", ") || "none"}]`);
+
+    // Dirty entities: entities whose input hash changed
+    dirtyEntityIds = new Set<string>();
+    for (const e of entities) {
+      if (e.article_level !== "full") continue;
+      const neighborIds = graph.edges
+        .filter((edge) => edge.source === e.id || edge.target === e.id)
+        .map((edge) => (edge.source === e.id ? edge.target : edge.source));
+      const hash = computeEntityInputHash({
+        id: e.id,
+        description: e.description,
+        bucket: e.bucket,
+        aliases: e.aliases,
+        source_refs: e.source_refs,
+        neighborIds,
+      });
+      const prevHash = prevState?.entity_input_hashes[e.id];
+      if (!prevHash || prevHash !== hash) {
+        dirtyEntityIds.add(e.id);
+      }
+    }
+    console.log(`  [Incremental: ${dirtyEntityIds.size} dirty entities of ${entities.filter((e) => e.article_level === "full").length} full]`);
+  }
+
+  // Pass 3a
+  if (shouldRunPass("3a")) {
+    if (isIncremental && dirtyBuckets && dirtyBuckets.size === 0) {
+      console.log(`\n  [Skipped Pass 3a — no dirty buckets]`);
+    } else {
+      await generateSynthesisArticles(entities, graph, index, dirtyBuckets ?? undefined, changeSet?.changed);
+    }
+  }
+
+  // Passes 3b, 3c run concurrently (both depend on 3a, not on each other)
+  {
+    const parallel: Promise<void>[] = [];
+
+    // Pass 3b
+    if (shouldRunPass("3b")) {
+      if (isIncremental && dirtyEntityIds && dirtyEntityIds.size === 0) {
+        console.log(`\n  [Skipped Pass 3b — no dirty entities]`);
+      } else {
+        parallel.push(generateReferenceCards(entities, graph, index, dirtyEntityIds ?? undefined));
+      }
+    }
+
+    // Pass 3c
+    if (shouldRunPass("3c")) {
+      parallel.push(
+        extractClaims(index, dirtyBuckets ?? undefined).then((result) => {
+          claims = result;
+        }),
+      );
+    } else {
+      try {
+        const claimsFile = await loadBuildArtifact<ClaimsFile>("claims.json");
+        claims = claimsFile.claims;
+        console.log(`\n  [Skipped Pass 3c — loaded ${claims.length} claims from disk]`);
+      } catch {
+        claims = [];
+        console.log(`\n  [Skipped Pass 3c — no claims.json found, using empty set]`);
+      }
+    }
+
+    await Promise.all(parallel);
+  }
+
+  // Pass 4 runs after 3b/3c (indexes link to reference cards which must exist on disk)
   if (shouldRunPass("4")) {
-    await generateFieldMapAndIndexes(entities, graph, index);
+    const skipFieldMap = isIncremental && dirtyBuckets !== null && dirtyBuckets.size === 0;
+    await generateFieldMapAndIndexes(entities, graph, index, skipFieldMap);
+  }
+
+  // Mark claims with deleted source_refs as stale
+  if (isIncremental && changeSet && changeSet.deleted.size > 0) {
+    let staleCount = 0;
+    for (const claim of claims) {
+      if (claim.source_refs.some((ref) => changeSet!.deleted.has(ref))) {
+        claim.status = "stale";
+        staleCount++;
+      }
+    }
+    if (staleCount > 0) {
+      console.log(`  ${cl.yellow("⚠")} Marked ${staleCount} claims as stale (deleted sources)`);
+    }
   }
 
   // Pass 5
@@ -1853,6 +2345,56 @@ async function main() {
 
   // Auto-patch README.md stats
   await patchReadmeStats(index, entities, graph, claims);
+
+  // Save incremental state for next run
+  if (!DRY_RUN) {
+    const sourceHashes: Record<string, string> = {};
+    for (const src of index.sources) {
+      const fullPath = join(ROOT, "raw", src.path);
+      sourceHashes[src.path] = await hashFile(fullPath);
+    }
+
+    // Compute entity input hashes (for Phase 3 dirty entity tracking)
+    const entityInputHashes: Record<string, string> = {};
+    for (const e of entities) {
+      const neighborIds = graph.edges
+        .filter((edge) => edge.source === e.id || edge.target === e.id)
+        .map((edge) => (edge.source === e.id ? edge.target : edge.source));
+      entityInputHashes[e.id] = computeEntityInputHash({
+        id: e.id,
+        description: e.description,
+        bucket: e.bucket,
+        aliases: e.aliases,
+        source_refs: e.source_refs,
+        neighborIds,
+      });
+    }
+
+    // Compute synthesis article hashes (for Phase 5 field-map skipping)
+    const synthesisHashes: Record<string, string> = {};
+    for (const bucket of Object.keys(BUCKET_TITLES)) {
+      const articlePath = join(WIKI_DIR, `${bucket}.md`);
+      if (existsSync(articlePath)) {
+        synthesisHashes[bucket] = await hashFile(articlePath);
+      }
+    }
+
+    const state: IncrementalState = {
+      version: 1,
+      config_hash: await computeConfigHash(
+        ROOT,
+        { refs: FULL_ARTICLE_THRESHOLD_REFS, relevance: FULL_ARTICLE_THRESHOLD_RELEVANCE },
+        ["claude-haiku-4-5", "claude-sonnet-4-6"],
+      ),
+      source_hashes: sourceHashes,
+      entity_input_hashes: entityInputHashes,
+      previous_entity_ids: entities.map((e) => e.id),
+      synthesis_hashes: synthesisHashes,
+      last_compiled: new Date().toISOString(),
+    };
+    await saveState(BUILD_DIR, state);
+    console.log(`  ${cl.green("✓")} Saved incremental state (${Object.keys(sourceHashes).length} source hashes)`);
+  }
 
   const full = entities.filter((e) => e.article_level === "full").length;
   const stub = entities.filter((e) => e.article_level === "stub").length;

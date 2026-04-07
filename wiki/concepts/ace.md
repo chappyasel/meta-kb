@@ -114,7 +114,7 @@ The paper does not address:
 
 ACE's incremental delta pattern is the inverse of typical [Memory Consolidation](../concepts/memory-consolidation.md) approaches. Most consolidation systems compress old memories; ACE's system prompt stays intact and grows. This is a different bet about what matters: ACE bets that preserving detail outweighs managing size.
 
-[Self-Improving Agents](../concepts/self-improving-agents.md) like the Darwin Gödel Machine ([Darwin Gödel Machine](../projects/darwin-godel-machine.md)) operate at the weight level; ACE operates at the context level. Both enable agents to improve without human intervention, but ACE requires no training infrastructure.
+Self-Improving Agents like the Darwin Gödel Machine ([Darwin Gödel Machine](../projects/darwin-godel-machine.md)) operate at the weight level; ACE operates at the context level. Both enable agents to improve without human intervention, but ACE requires no training infrastructure.
 
 [ReAct](../concepts/react.md)-style agents interleave reasoning and action but do not persist lessons across episodes. ACE can wrap a ReAct agent, capturing what the ReAct loop learns and making it available in future episodes.
 

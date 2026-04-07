@@ -77,7 +77,7 @@ At query time, an agent or human asks questions that require reasoning across th
 
 **[Agentic RAG](../concepts/agentic-rag.md)**: Standard [Retrieval-Augmented Generation](../concepts/rag.md) retrieves documents. Agentic RAG adds multi-hop and iterative retrieval. Context graph retrieval adds organizational decision provenance—not just "here's a relevant document" but "here's the precedent, who approved it, and under what conditions."
 
-**[Context Engineering](../concepts/context-engineering.md)**: Context graphs represent one end of the context engineering spectrum. Rather than compressing information to fit a context window ([Prompt Compression](../concepts/prompt-compression.md)) or selecting relevant chunks ([Progressive Disclosure](../concepts/progressive-disclosure.md)), a context graph maintains a persistent external structure that agents query at decision time, keeping the relevant organizational judgment outside the model and close to the action.
+**[Context Engineering](../concepts/context-engineering.md)**: Context graphs represent one end of the context engineering spectrum. Rather than compressing information to fit a context window (Prompt Compression) or selecting relevant chunks ([Progressive Disclosure](../concepts/progressive-disclosure.md)), a context graph maintains a persistent external structure that agents query at decision time, keeping the relevant organizational judgment outside the model and close to the action.
 
 ## Implementation Challenges
 

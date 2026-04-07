@@ -3,111 +3,110 @@ entity_id: seagent
 type: project
 bucket: self-improving
 abstract: >-
-  SEAgent autonomously discovers and encodes procedural skills for previously
-  unseen software environments, achieving 34.5% success on OSWorld vs. 11.3%
-  baseline through world-state modeling and curriculum-driven
-  specialist-to-generalist training.
+  SEAgent autonomously discovers and codifies reusable agent skills for
+  previously unseen software environments, achieving 34.5% success on OSWorld
+  versus 11.3% baseline by combining a world state model, curriculum generator,
+  and specialist-to-generalist training pipeline.
 sources:
   - papers/xu-agent-skills-for-large-language-models-architectu.md
   - deep/papers/xu-agent-skills-for-large-language-models-architectu.md
   - deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md
-related: []
-last_compiled: '2026-04-06T02:16:38.188Z'
+related:
+  - mcp
+last_compiled: '2026-04-07T11:58:23.077Z'
 ---
 # SEAgent
 
 ## What It Does
 
-SEAgent is an autonomous skill discovery system for computer-use agents. Given software environments the agent has never encountered, it generates, tests, and encodes procedural skills without human demonstration. The core result: 34.5% task success on 5 novel OSWorld environments versus 11.3% for a baseline agent, a 23.2 percentage point improvement.
+SEAgent is a self-evolving agent framework that discovers skills autonomously when encountering software environments it has never seen before. Rather than relying on human-authored procedural knowledge or skills baked into model weights during training, SEAgent observes an unfamiliar environment, builds a model of how that environment responds to actions, generates a curriculum of increasingly complex tasks, and encodes what it learns as reusable skills.
 
-The distinguishing factor is the discovery pipeline rather than skill execution. Most skill-based agent systems assume skills are human-authored or learned through RL on known tasks. SEAgent targets the prior step: how does an agent acquire skills for software it has never seen?
+The name captures the core claim: the agent improves its own capabilities through structured exploration, without a human defining what it should learn.
 
-## Core Mechanism
+## Architectural Components
 
-SEAgent's pipeline has three components working in sequence:
+SEAgent operates through three coupled components:
 
-**World State Model:** Before attempting any task, SEAgent builds a model of the target software's state space. It explores the application systematically, observing UI elements, available actions, and state transitions. This produces a structured representation of what the software can do and how its state changes in response to actions. The world state model is the foundation for curriculum generation -- without it, the curriculum generator has no basis for sequencing skill difficulty.
+**World State Model.** Before attempting complex tasks, SEAgent builds a predictive model of the target environment. This model tracks which actions in which states produce which outcomes. It is how SEAgent avoids random flailing — the world state model gives the agent a basis for generating tasks that are achievable with its current capabilities.
 
-**Curriculum Generator:** Using the world state model, SEAgent constructs a curriculum of progressively complex objectives. It starts with atomic operations (open a menu, click a specific button) and sequences toward compound tasks (configure a setting that requires navigating three dialog layers). This mirrors Voyager's automatic curriculum but applies it to GUI environments rather than open-world games. The curriculum ensures the agent builds foundational skills before attempting ones that depend on them.
+**Curriculum Generator.** Rather than sampling tasks uniformly, SEAgent generates tasks in difficulty order, starting from what the world state model indicates is achievable and progressively extending toward harder objectives. This is the same insight as [Voyager](../projects/voyager.md)'s automatic curriculum: knowing *what to try next* matters as much as knowing *how to try it*. The curriculum generator bootstraps skill acquisition by ensuring early tasks are completable, producing skills that become building blocks for later tasks.
 
-**Specialist-to-Generalist Training Pipeline:** SEAgent trains specialist agents on individual applications, then distills their knowledge into a generalist agent. A specialist for LibreOffice Writer develops deep skills for that application. The distillation step transfers those skills to a generalist that can handle multiple applications. This avoids the failure mode of specialists that cannot transfer: the generalist has explicit training signal from successful specialist behavior, not just task completion labels.
+**Specialist-to-Generalist Training Pipeline.** SEAgent first trains specialist skills on individual environment types, then synthesizes those specialists into a generalist capable of handling novel environments. This two-stage approach sidesteps the tension between depth (a specialist is better at one environment) and breadth (a generalist handles new environments): develop depth first, then generalize.
 
-Skills are encoded as executable artifacts (code or structured action sequences) rather than weights, making them inspectable and composable with other skills. Discovered skills feed into a library indexed by text embeddings, following the pattern from [Voyager](../projects/voyager.md).
+The pipeline outputs skills as inspectable, reusable artifacts consistent with the [SKILL.md](../concepts/skill-md.md) specification described in the Agent Skills survey. Each skill encodes procedural knowledge — instructions, scripts, and context — that an agent loads on demand rather than holding in its context window permanently.
+
+## How It Fits Into the Broader Skill Ecosystem
+
+SEAgent addresses one specific acquisition problem: *how does an agent learn skills for environments that no human has yet documented?*
+
+This complements human-authored skills (explicit procedural knowledge) and RL-based skill learning like SAGE (which learns through task chains in known environments). SEAgent's niche is the cold-start case: novel software, unfamiliar APIs, applications with no existing skill corpus. The [Agent Skills](../concepts/agent-skills.md) survey positions SEAgent alongside SAGE and CUA-Skill as parallel acquisition methods, each suited to different conditions.
+
+SEAgent integrates with [Model Context Protocol](../concepts/mcp.md) in the standard complementary pattern: MCP provides connectivity to tools and servers, SEAgent-generated skills provide the procedural knowledge for using those tools correctly.
+
+Discovered skills feed into a skill library with [vector database](../concepts/vector-database.md)-style retrieval: skills are indexed by text embeddings of their descriptions, and the agent retrieves relevant skills by embedding similarity when tackling new tasks. This is the same retrieval pattern Voyager uses. The critical architectural difference is that Voyager stores skills as executable JavaScript tied to a single environment (Minecraft), while SEAgent targets general-purpose GUI and software environments.
 
 ## Key Numbers
 
-| Metric | SEAgent | Baseline | Delta |
-|--------|---------|----------|-------|
-| OSWorld (5 novel envs) | 34.5% | 11.3% | +23.2pp |
+**OSWorld benchmark, 5 novel environments:** 34.5% success rate vs. 11.3% baseline (+23.2 percentage points).
 
-These numbers are self-reported in the Agent Skills survey paper. No independent replication is cited. The baseline is described as a standard prompted agent without skill augmentation, but the specific model and configuration are not specified in the survey source. The 5-environment scope is narrow -- generalization to the full OSWorld benchmark (broader application coverage) is not reported.
+This is the primary reported result. Source: the Agent Skills survey [Source](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md), which cites SEAgent as a primary example of autonomous skill discovery. The number is self-reported in the original SEAgent work as cited by the survey — not independently validated on a third-party leaderboard as of the survey's publication date.
 
-## Architectural Position
-
-SEAgent sits within the broader [Agent Skills](../concepts/agent-skills.md) ecosystem described in the Xu & Yan survey. Its relationship to adjacent systems:
-
-- **SAGE** handles RL-based skill learning on known task distributions. SEAgent handles discovery on novel software, so they address different phases of the skill acquisition problem.
-- **CUA-Skill** encodes human expertise as parameterized execution graphs. SEAgent automates what CUA-Skill does manually.
-- **[Voyager](../projects/voyager.md)** is the closest architectural ancestor: curriculum + skill library + verification. SEAgent adapts this to GUI environments and adds the specialist-to-generalist distillation step that Voyager lacks.
-- **[SKILL.md](../concepts/skill-md.md)** provides the specification format for the skills SEAgent produces. SEAgent's output artifacts are portable SKILL.md-compatible packages in principle, though the survey does not confirm this explicitly.
-
-The world state model is SEAgent's differentiating component. Voyager's curriculum relies on game state (inventory, biome, tech tree progress). SEAgent must model an arbitrary application's state space from scratch, which is harder and less structured. A GUI application does not expose a clean inventory API -- the agent must infer state from visual observations.
+For context: CoAct-1 achieves 59.9% on OSWorld overall, and human baseline is 72.4%. SEAgent's 34.5% on *novel* environments (the cold-start case) is not directly comparable to overall OSWorld results, which include environments with prior training coverage.
 
 ## Strengths
 
-**Novel environment coverage:** The primary use case is acquiring skills for software that no human has previously written skills for. A 3x improvement over baseline on completely unseen applications is meaningful for enterprise deployments where organizations use niche internal tools with no community skill ecosystem.
+**Cold-start capability acquisition.** SEAgent's primary strength is acquiring skills where no prior skill corpus exists. Systems like CUA-Skill require domain experts to encode knowledge upfront; SEAgent does not. This matters for organizations deploying agents across diverse internal tools and applications.
 
-**Executable skill output:** Skills discovered by SEAgent are code, not opaque weights. This means they are auditable, composable, and transferable to other agents or skill registries. Contrast with SAGE, which produces skills embedded in model weights that cannot be inspected or shared.
+**Inspectable output.** Discovered skills are externalized as auditable artifacts rather than weight changes. A human can read, audit, and modify what SEAgent learned. This separates SEAgent from approaches like SAGE, where learned skills exist only in model weights.
 
-**Curriculum-driven quality:** By sequencing objectives from simple to complex, SEAgent reduces the probability of a discovered skill depending on an undiscovered prerequisite. This matters for skill composability -- a skill that calls a skill that doesn't exist in the library is useless.
+**Compounding reuse.** Like Voyager, SEAgent's skill library grows cumulatively. Skills from earlier exploration become building blocks for later tasks. The curriculum generator exploits this: it proposes tasks that require composing existing skills, generating more complex skills in turn.
 
 ## Critical Limitations
 
-**Failure mode -- world state model accuracy:** SEAgent's curriculum and skills are only as good as its world state model. For applications with dynamic or contextual state (a UI that changes based on document content, or an app where menus are context-sensitive), the world state model may be incomplete or wrong. Skills generated from an inaccurate state model will fail in edge cases the model did not capture. The survey provides no analysis of world state model accuracy or how errors propagate into skill quality.
+**Concrete failure mode — world state model brittleness on stochastic environments.** The world state model assumes that environment responses to actions are sufficiently predictable to generate a useful curriculum. Real software environments have non-deterministic behavior: network latency, concurrent state changes, modal dialogs appearing unpredictably, background processes modifying application state. When the world state model's predictions diverge from reality, the curriculum generator proposes tasks that appear achievable but are not. The agent then fails repeatedly on tasks it believes it can do, and the skill library fills with low-quality or incorrect skills. There is no described mechanism for detecting and correcting a miscalibrated world state model.
 
-**Infrastructure assumption:** SEAgent requires a sandboxed environment where the agent can freely explore an application and observe state transitions without consequences. In production, many applications have irreversible actions (send email, submit form, delete file). Safe exploration requires either a fully sandboxed replica of the target application or action filtering that prevents irreversible operations during the discovery phase. Most enterprise software does not ship with sandbox modes. Setting up this infrastructure is non-trivial and the survey does not discuss it.
+**Unspoken infrastructure assumption — access to a sandboxed execution environment.** SEAgent's exploration phase requires repeatedly attempting actions in the target environment, observing results, and sometimes failing destructively. This presupposes a sandboxed environment where failures are safe and reversible. Production deployments often cannot provide this: attempting and failing to automate a financial transaction or modify a production database has real consequences. The framework implicitly requires that all skill discovery happen in a staging or sandbox environment before skills are deployed, but this constraint is not stated and the gap between sandbox and production behavior can invalidate learned skills.
 
-## When NOT to Use SEAgent
+## When NOT to Use It
 
-**Well-supported applications:** If community skills already exist for your target software (major productivity suites, common developer tools), SEAgent's discovery overhead is unnecessary. Retrieve and adapt existing skills rather than rediscovering from scratch.
+**High-stakes environments with no safe exploration sandbox.** If you cannot give SEAgent a safe environment to fail in, its discovery mechanism does not work. Do not deploy SEAgent for direct exploration of production systems.
 
-**Latency-sensitive onboarding:** The discovery pipeline -- world state modeling, curriculum generation, specialist training, distillation -- takes substantial time before any skills are usable. If you need skills available immediately, SEAgent is the wrong approach.
+**Environments with existing high-quality skill libraries.** If your target environment already has well-authored skills (e.g., established productivity software with detailed SKILL.md files, documented MCP servers), SEAgent's autonomous discovery adds cost and complexity with minimal benefit. Use curated skills directly.
 
-**Highly stateful or irreversible applications:** Financial systems, CRM platforms, or any software where exploration creates real records or transactions are poor candidates unless you can provision full sandbox replicas.
+**Latency-sensitive applications.** The specialist-to-generalist pipeline is a training process, not a runtime capability. Skill discovery is a batch operation that precedes deployment. If your application requires immediate capability in a new environment with no time for an exploration phase, SEAgent cannot help.
 
-**Small model budgets:** The specialist-to-generalist pipeline implies multiple training rounds. If you are running on smaller models or tight compute budgets, the distillation step may not produce sufficient quality transfer.
+**Narrow, well-defined tasks.** SEAgent's strength is broad, open-ended skill acquisition. For a single well-specified task with no need for skill reuse, the overhead of world state modeling and curriculum generation is not justified.
 
 ## Unresolved Questions
 
-**Governance of discovered skills:** Skills discovered by SEAgent are machine-generated and not human-reviewed. The Xu & Yan survey's security analysis found 26.1% vulnerability rates in community skills -- machine-generated skills introduce different but potentially worse risks (the agent may encode flawed state models as reusable procedures). There is no discussion of how SEAgent's output should be audited before entering a production skill registry.
+**Skill library scaling.** The Agent Skills survey identifies a phase transition: beyond some critical skill library size, routing accuracy degrades sharply. SEAgent's continuous discovery will eventually hit this wall. There is no described mechanism for hierarchical skill organization, deduplication, or pruning as the library grows. What happens at 1,000 discovered skills? 10,000?
 
-**Scale of curriculum:** The survey reports results on 5 novel OSWorld environments. Whether the curriculum generator degrades on applications with much larger state spaces (enterprise ERP systems, complex IDEs) is unknown.
+**Security governance for machine-generated skills.** The Agent Skills survey reports 26.1% vulnerability rate in human-authored community skills. Machine-generated skills have different failure modes: they may encode correct-but-fragile procedures, discover and encode unintended exploitation paths, or generate skills that work in the sandbox but behave incorrectly in production. The proposed four-tier governance framework in the survey applies to community skills; whether and how it applies to SEAgent-generated skills is not addressed.
 
-**Skill maintenance:** Applications update. A skill discovered for version N of an application may break on version N+1. SEAgent's discovery pipeline would need to re-run periodically, but the frequency and trigger conditions for re-discovery are not addressed.
+**Generalization boundaries.** The 34.5% result covers 5 novel OSWorld environments. Whether the specialist-to-generalist pipeline generalizes to arbitrarily novel environments — or whether it degrades when new environments share few structural properties with the training distribution — is not tested.
 
-**Distillation fidelity:** How much does the specialist-to-generalist step lose? The 34.5% result reflects the generalist's performance, but if the specialists achieve 60% and the generalist retains only 34.5%, the distillation is lossy in ways worth understanding.
+**Cost at scale.** Each exploration episode requires multiple LLM calls for world state modeling, curriculum generation, skill attempt, and verification. For organizations with hundreds of internal applications, the total API cost of running SEAgent across all of them is not reported or estimated.
+
+**Conflict resolution between discovered skills.** If SEAgent discovers two skills that accomplish the same task differently, or skills whose preconditions overlap with conflicting effects, there is no described arbitration mechanism.
 
 ## Alternatives
 
-| System | Choose when |
-|--------|-------------|
-| CUA-Skill | You have human experts who can author skills and need maximum accuracy on known applications (57.5% on WindowsAgentArena) |
-| SAGE | You have a known task distribution and want RL-based skill learning with fewer tokens per task (26% fewer steps) |
-| Community SKILL.md skills | Your target application has an existing skill ecosystem and you want zero discovery overhead |
-| SEAgent | Target applications have no existing skills and you can provision sandbox environments for safe exploration |
+- **[Voyager](../projects/voyager.md):** Use when operating in a single well-defined environment (game-like or otherwise structured) where JavaScript code is a valid skill representation. Voyager's skill library pattern is more mature and its ablations are more thorough.
+
+- **CUA-Skill (structured knowledge engineering):** Use when domain experts are available and you want maximum reliability. Human-authored parameterized execution graphs with typed preconditions achieve 57.5% on WindowsAgentArena — higher than SEAgent's 34.5% on novel environments — at the cost of expert labor.
+
+- **SAGE:** Use when you have a defined task distribution and want RL-based skill learning in known environments. SAGE achieves 72.0% task completion on AppWorld with 59% fewer tokens, but requires a training environment, not discovery in novel settings.
+
+- **[Agent Workflow Memory](../projects/agent-workflow-memory.md):** Use when you want to distill successful task execution traces into reusable workflows, without the full exploration machinery SEAgent requires.
+
+- **[EvoAgentX](../projects/evoagentx.md):** Use when the goal is evolving agent *workflows and architectures* rather than accumulating environment-specific procedural skills.
 
 ## Related Concepts
 
-- [Agent Skills](../concepts/agent-skills.md) -- The broader framework SEAgent operates within
-- [Self-Improving Agents](../concepts/self-improving-agents.md) -- The category SEAgent falls under
-- [Skill.md](../concepts/skill-md.md) -- The specification format for skill artifacts
-- [Voyager](../projects/voyager.md) -- Architectural ancestor with curriculum + skill library + verification
-- [Procedural Memory](../concepts/procedural-memory.md) -- What SEAgent's skills represent
-- [Iterative Self-Verification](../concepts/iterative-self-verification.md) -- Quality gating mechanism used in skill validation
-- [Reflexion](../concepts/reflexion.md) -- Related self-improvement pattern through feedback loops
-
-## Sources
-
-- [Agent Skills Survey (deep)](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md)
-- [Agent Skills Survey (summary)](../raw/papers/xu-agent-skills-for-large-language-models-architectu.md)
-- [Voyager deep analysis](../raw/deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md)
+- [Self-Improving Agent](../concepts/self-improving-agent.md) — the broader category SEAgent instantiates
+- [Agent Skills](../concepts/agent-skills.md) — the skill abstraction SEAgent produces
+- [Procedural Memory](../concepts/procedural-memory.md) — the memory type that skill libraries implement
+- [Automatic Curriculum](../concepts/automatic-curriculum.md) — the learning strategy SEAgent's curriculum generator implements
+- [Skill Files](../concepts/skill-md.md) — the artifact format for discovered skills
+- [Continual Learning](../concepts/continual-learning.md) — the learning paradigm SEAgent participates in
+- [Model Context Protocol](../concepts/mcp.md) — the connectivity layer skills operate alongside

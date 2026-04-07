@@ -52,7 +52,7 @@ Deterministic pipeline using the Anthropic API, resumable via `--from-pass`:
 | 1a | Haiku (parallel) | Entity extraction per source |
 | 1b | Sonnet (×1) | Entity resolution & dedup |
 | 2 | Sonnet (×1) | Graph construction from co-occurrences |
-| 3a | Sonnet (sequential) | Synthesis articles with abstracts + staleness markers |
+| 3a | Opus (sequential) | Synthesis articles with abstracts + staleness markers |
 | 3b | Sonnet (parallel) | Reference cards with abstracts |
 | 3c | Sonnet (sequential) | Claim extraction from synthesis articles |
 | 4 | — | Field map, ROOT.md, indexes, README |
@@ -101,53 +101,36 @@ Every synthesis article includes:
 
 ## How this wiki was compiled
 
-The current wiki was built through a three-way compilation followed by a manual merge.
+### V5 (current): Script pipeline with Opus synthesis
 
-### Three independent compilations
+The current wiki was compiled by the script pipeline (`bun run compile`) with Opus for synthesis articles and Sonnet for reference cards. Key improvements over prior versions:
 
-Each system read the same 172 sources and produced a complete wiki independently.
+- **Opus for synthesis** (Pass 3a): Produces more varied prose, fewer AI patterns, stronger analytical commitments. Added $3.30 incremental cost over Sonnet.
+- **Prompt surgery**: Three randomized opening variants per article (no more "the field shifted from X to Y" formula), hardened Convergence sections requiring falsifiable claims, hardened "What the Field Got Wrong" requiring named projects and evidence, new "Deprecated Approaches" section, banned-words list at prompt top.
+- **Entity restoration**: 15 reference cards restored from V3 compilation (8 concepts, 7 projects) that serve as cross-domain connective tissue.
+- **Link validation**: Post-processing sweep in Pass 5 replaces broken internal links with plain text. Fixed 53 broken links to zero.
+- **Deep source boost**: Sort priority +1.0 for deep research files, ensuring architectural detail appears first in prompt context.
 
-| Metric | Script pipeline | Claude Code (skill graph) | Codex (skill graph) |
-|--------|----------------|--------------------------|---------------------|
-| Total files | 120 | 56 | 105 |
-| Total words | 195,806 | 72,371 | 170,516 |
-| Synthesis articles | 5 × ~3,200w | 5 × ~4,000w | 5 × ~3,300w |
-| Project cards | 60 | 38 | 52 |
-| Concept cards | 48 | 5 | 40 |
-| Claims extracted | 237 | 152 | 236 |
-| Self-eval accuracy | 82.8% (Haiku) | 86.7% | 70.0% |
-| All 8 sections present | 5/5 articles | 5/5 articles | 2/5 articles |
+| Metric | Value |
+|--------|-------|
+| Sources | 178 (126 raw + 52 deep research) |
+| Wiki files | 156 markdown files, 267K words |
+| Project cards | 77 |
+| Concept cards | 66 |
+| Entities | 139 (111 full articles, 28 stubs) |
+| Claims extracted | 206 |
+| Self-eval accuracy | 80.0% (24/30 sampled) |
+| Broken internal links | 0 |
+| Em dashes in synthesis | 1 (down from 1600+) |
 
-**What each did best:**
-- **Script pipeline**: Coverage breadth (120 files, 48 concepts), deep source citations, consistent section structure, highest claim count
-- **Claude Code**: Synthesis quality (longest, most opinionated articles), best eval accuracy, best ROOT.md curation
-- **Codex**: Unique concept cards (compaction-tree, improvement-loop, skill-book), good reference card depth
+### V3 (historical): Three-way merge
 
-**What each did worst:**
-- **Script pipeline**: Star count data corruption in ROOT.md, broken concept links (entity names vs IDs)
-- **Claude Code**: Only 56 files — reference card generation didn't batch enough concepts
-- **Codex**: 3/5 synthesis articles missing key sections, lowest eval accuracy
+The V3 wiki was built through a three-way compilation. Each system (script pipeline, Claude Code skill graph, Codex skill graph) read 172 sources independently and produced a complete wiki. The script pipeline served as the base (most complete coverage), with Claude Code's synthesis articles (stronger openings, better failure modes) and Codex's unique concept cards merged in.
 
-### Merge strategy
+V3 full eval: 63.9% accuracy (138/216 claims passed). The Karpathy loop improved this to 78.6% (V4) and then 80.0% (V5) through prompt iteration.
 
-The script pipeline served as the base (most complete coverage), then merged at the sentence level:
-
-- **From Claude Code**: All 5 synthesis articles (stronger openings, better failure modes, more scannable selection guides), ROOT.md, README
-- **From Codex**: 9 unique cards not in the script output
-
-### Self-eval results
-
-Full eval (all 216 verifiable claims): 63.9% accuracy (138/216 passed).
-
-| Bucket | Accuracy |
-|--------|----------|
-| Self-improving | 80% (36/45) |
-| Agent memory | 65% (28/43) |
-| Agent systems | 65% (28/43) |
-| Knowledge bases | 61% (23/38) |
-| Context engineering | 49% (23/47) |
-
-**Lessons learned:**
-- 30-sample eval is too noisy (±17pp confidence interval). Use `--full-eval` for reliable measurement.
-- Separate claim extraction from evaluation — re-extracting claims produces different sets due to LLM non-determinism.
-- Most failures are source attribution errors (shallow source cited for a detail that lives in the deep/ source), not factual errors.
+**Key learnings across versions:**
+- Three-way compilation produced better coverage (176 entities) but lower accuracy (63.9%). Single-pipeline with prompt surgery produced fewer entities (139) but higher accuracy (80.0%).
+- Source attribution is the quality bottleneck, not factual accuracy. Most eval failures cite the wrong source file, not wrong facts.
+- Claim extraction is non-deterministic. Re-extracting from the same articles produces different sets. Pin claim sets and iterate.
+- Prompt surgery (varied openings, banned words, hardened takes) eliminated formulaic AI patterns without reducing accuracy.

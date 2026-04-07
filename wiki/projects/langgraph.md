@@ -3,129 +3,139 @@ entity_id: langgraph
 type: project
 bucket: agent-systems
 abstract: >-
-  LangGraph is a graph-based agent orchestration library from LangChain for
-  building stateful, cyclical multi-agent workflows with persistent state and
-  human-in-the-loop controls.
+  LangGraph is a graph-based framework for building stateful, multi-actor LLM
+  agent workflows with built-in support for cycles, conditional logic, and
+  human-in-the-loop interrupts — differentiated by treating agent state as an
+  explicit, persistent graph rather than a linear chain.
 sources:
   - tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md
   - repos/memodb-io-acontext.md
+  - repos/caviraoss-openmemory.md
   - repos/langchain-ai-langgraph-reflection.md
   - repos/mem0ai-mem0.md
-  - articles/turing-post-9-open-agents-that-improve-themselves.md
   - >-
     articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md
+  - articles/turing-post-9-open-agents-that-improve-themselves.md
   - deep/repos/caviraoss-openmemory.md
 related:
   - rag
+  - openai
   - episodic-memory
-  - self-improving-agents
-last_compiled: '2026-04-06T02:06:01.144Z'
+  - semantic-memory
+  - langchain
+  - mem0
+  - claude
+  - mcp
+  - vector-database
+  - letta
+  - letta
+last_compiled: '2026-04-07T11:42:24.224Z'
 ---
 # LangGraph
 
 ## What It Does
 
-LangGraph lets you build stateful agent workflows as directed graphs where nodes are Python or JavaScript functions (tools, LLM calls, decision logic) and edges are conditional transitions between them. The critical capability: it supports **cycles**, meaning an agent can call a tool, evaluate the result, and loop back to the same node. Most linear pipeline frameworks cannot express this without hacks. LangGraph is built on [LangChain](../projects/langchain.md) but is architecturally distinct from it, providing low-level graph primitives rather than high-level chains.
+LangGraph is a Python and JavaScript library from [LangChain](../projects/langchain.md) for building agent applications as directed graphs. Each node in the graph is a function or LLM call; edges encode transitions between nodes, including conditional branches and cycles. State passes between nodes through a typed schema that persists across the graph's execution.
 
-The framework has become the dominant choice for production multi-agent systems where you need durable execution, human review checkpoints, or parallel subagent coordination. [LangGraph Reflection](https://github.com/langchain-ai/langgraph-reflection) — the reference implementation for iterative self-critique loops — ships as an official pattern, and LangChain's own documentation routes users toward LangGraph for anything beyond single-pass inference.
+The core architectural bet: agent workflows are fundamentally stateful graphs with cycles, not chains. Where LangChain's LCEL treats execution as a DAG, LangGraph allows loops, which matters for agents that retry, reflect, or wait for human input. This design handles patterns that break pipeline-style frameworks: a retriever that re-queries when evidence is insufficient, a code generator that loops on test failures, or a multi-agent system where a supervisor routes work back to a subagent.
 
 ## Core Mechanism
 
-The fundamental abstraction is a `StateGraph`. You define a typed state schema (a Python `TypedDict` or Pydantic model), add nodes that read and write to that state, and wire them with edges.
+### State as a Typed Schema
+
+Every graph defines a state object, typically a `TypedDict`, that all nodes read from and write to. Nodes return partial updates, not full state replacements. The framework merges updates using a reducer function per field — the default reducer overwrites, but list fields can append. This means the full conversation history, tool call results, and any intermediate data all live in one inspectable object at every step.
 
 ```python
-from langgraph.graph import StateGraph, END
-from typing import TypedDict
+from langgraph.graph import StateGraph, MessagesState
 
-class AgentState(TypedDict):
-    messages: list
-    iteration_count: int
+def call_llm(state: MessagesState):
+    response = model.invoke(state["messages"])
+    return {"messages": [response]}
 
-graph = StateGraph(AgentState)
-graph.add_node("agent", call_llm)
-graph.add_node("tools", execute_tools)
-graph.add_conditional_edges(
-    "agent",
-    should_continue,  # function returns "tools" or END
-    {"tools": "tools", "end": END}
-)
-graph.add_edge("tools", "agent")  # the cycle
+graph = StateGraph(MessagesState)
+graph.add_node("llm", call_llm)
+graph.add_edge(START, "llm")
+graph.add_edge("llm", END)
+app = graph.compile()
 ```
 
-State updates use a reducer pattern: each node returns a partial dict, and reducers (by default, overwrite; with `Annotated[list, operator.add]`, append) merge updates into the shared state. This design lets multiple nodes modify overlapping state keys without race conditions in parallel subgraphs.
+### Conditional Edges and Cycles
 
-**Persistence** is implemented via checkpointers. At every node transition, LangGraph serializes the full state to a store (in-memory, SQLite, PostgreSQL via `langgraph-checkpoint-postgres`, or Redis). This enables:
+Cycles come from `add_conditional_edges`, where a router function inspects state and returns the name of the next node. The [agentic RAG article](../articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md) notes that LangGraph's own official agentic RAG tutorial shipped with an infinite retrieval loop bug that required adding a `rewrite_count` cap. That failure mode is inherent to the architecture: cycles only stop when an edge routes to `END`, so every conditional loop needs an explicit stopping condition.
 
-- Resume after failure: if a node crashes, re-run from the last checkpoint
-- Human-in-the-loop: interrupt execution, let a human modify state, resume
-- Time-travel: replay from any prior checkpoint for debugging
+### Checkpointing and Persistence
 
-The checkpointer interface is `get_tuple(config)` / `put(config, checkpoint, metadata)`, stored against a `thread_id` and `checkpoint_id`. The `thread_id` is how you associate a stateful conversation with a persistent user session.
+LangGraph's persistence model uses a `Checkpointer` that serializes graph state after every node execution. The default checkpointer is in-memory; production deployments use `SqliteSaver` or `PostgresSaver`. Each checkpoint carries a `thread_id` and a `checkpoint_id`, enabling time-travel debugging (resume from any prior checkpoint) and human-in-the-loop interrupts (pause before a node, wait for approval, then resume).
 
-**Subgraphs** compile separately and can be embedded as nodes in parent graphs. A parent graph does not see the subgraph's internal state unless explicitly passed. This is the mechanism for multi-agent hierarchies: an orchestrator graph delegates to specialist subgraphs, each with their own state schemas.
+The checkpoint store is also the integration point for external memory systems. [Mem0](../projects/mem0.md) documents a LangGraph integration; the [OpenMemory deep dive](../raw/deep/repos/caviraoss-openmemory.md) shows `src/server/routes/langgraph.ts` exposing store/retrieve/context/reflection endpoints specifically for LangGraph agents.
 
-**Streaming** is first-class. `graph.stream(input, config)` yields `{"node_name": state_delta}` dicts after each node completes. `astream_events()` yields finer-grained events (LLM tokens, tool start/end) for latency-sensitive UIs.
+### Multi-Actor Patterns
 
-The `langgraph-reflection` pattern wires a `Reflector` node that evaluates another node's output and routes back for revision if it finds issues, implementing the critique-loop described in [Reflexion](../concepts/reflexion.md).
+LangGraph supports multiple actors through subgraphs. A supervisor node calls worker subgraphs as tools, routes their outputs, and decides whether to call another worker or return to the user. Each subgraph is itself a compiled graph with its own state schema. Shared state lives in the parent graph; private state lives in each subgraph. This mirrors how a human team works: shared project state, but each person has their own working memory.
+
+[Model Context Protocol](../concepts/mcp.md) tools plug in as standard LangGraph tools — any MCP server becomes a callable node, which means LangGraph agents can invoke file systems, external APIs, and other agents through a uniform interface.
+
+### LangGraph Platform (LangSmith Integration)
+
+Beyond the open-source library, LangChain offers LangGraph Platform: a hosted runtime for deploying LangGraph agents with built-in streaming, background task execution, and a Studio UI for visual graph inspection. LangSmith traces every node execution with inputs, outputs, and latency. This observability layer matters because agentic graphs fail in ways that pipeline logs don't expose — a node that runs 12 times instead of 3 is invisible without per-node traces.
 
 ## Key Numbers
 
-**Stars**: ~12,000+ on GitHub (growing rapidly through 2025). LangChain reports LangGraph is deployed in hundreds of enterprise teams, though independent usage data is unavailable. Self-reported claim.
-
-**Benchmarks**: LangGraph itself does not publish task benchmarks. The underlying patterns (ReAct loops, reflection) have been validated externally. The Agentic RAG failure mode analysis (from source material) notes that LangGraph's official agentic RAG tutorial had an infinite retrieval loop that required a `rewrite_count` cap — a concrete example of how the framework's cycle support can create production bugs if stopping rules are absent.
-
-**Mem0 integration**: Mem0 reports a +26% accuracy gain over OpenAI Memory on the LoCoMo benchmark and 90% token reduction vs. full context when used as a LangGraph memory backend, though this is Mem0's self-reported result, not an independent evaluation of LangGraph itself.
+- **GitHub stars:** ~14,000 (as of early 2025, self-reported via repository) — not independently audited
+- **LOCOMO benchmark:** Mem0's research paper reports +26% accuracy over OpenAI Memory for agents using their memory layer on top of LangGraph-style agent loops — this is Mem0's own benchmark, not independently reproduced
+- **Agentic RAG latency:** The [agentic RAG failure modes article](../articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md) cites production teams reporting 40% cost reduction and 35% latency improvement from intent-based routing that routes simple queries away from full agentic loops — self-reported by unnamed teams
 
 ## Strengths
 
-**Explicit state over implicit context.** Every piece of state is named, typed, and inspectable. Contrast with raw LLM loops where intermediate reasoning lives only in the context window. When something breaks, you can inspect the checkpoint at the failing node.
+**Cycles and conditional logic** are the primary reason to pick LangGraph over simpler orchestrators. Workflows where an agent needs to retry, self-critique, or wait for external input require a graph with cycles. The [LangGraph Reflection pattern](../articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md) — a critique agent that evaluates output and loops back if issues are found — is a native pattern here, whereas it requires awkward workarounds in chain-based frameworks.
 
-**Cycles with conditional branching.** The `add_conditional_edges` call with a routing function is the right abstraction for agent decision-making. You can implement [ReAct](../concepts/react.md), reflection loops, and retry logic without abusing prompt engineering or manually managing recursion.
+**Stateful persistence** across sessions is handled at the infrastructure level. The checkpointer means you don't build session management — you get it. For agents that need to resume after a human approval step, this is significant engineering removed from the application layer.
 
-**Durable execution.** The checkpointer system means long-running workflows survive process restarts. This matters for multi-hour research agents or workflows with human review steps. Competitors like [CrewAI](../projects/crewai.md) did not have equivalent persistence primitives as of early 2025.
+**Debugging surface** is wider than most alternatives. State is inspectable at every node boundary. Time-travel debugging via checkpoint IDs lets developers replay executions with modified state. LangSmith traces show exactly which node ran how many times and what it returned.
 
-**Human-in-the-loop is a first-class concept.** `interrupt_before` and `interrupt_after` on node names pause execution at designated points, allowing a human to modify the state dict before resuming. This is not bolted on.
-
-**Strong [Agent Orchestration](../concepts/agent-orchestration.md) primitives.** Parallel node execution (via `Send`), subgraph composition, and dynamic graph construction at runtime address real multi-agent coordination problems.
+**Ecosystem depth** matters for practical integration. LangChain's 600+ integrations (LLM providers, vector stores, tools) are available as LangGraph nodes without adaptation. If your stack already uses LangChain components, the migration surface is small.
 
 ## Critical Limitations
 
-**Cycle support requires explicit stopping rules, and the reference implementation got this wrong.** The LangGraph agentic RAG tutorial shipped with an infinite retrieval loop that only worked because test inputs happened to converge. In production, without a `max_iterations` guard or a "sufficient evidence" gate, the agent loops until token budget exhaustion. The framework gives you the rope; it does not stop you from hanging with it. For [Agentic RAG](../concepts/agentic-rag.md) patterns, you must budget retrieval iterations explicitly.
+**Concrete failure mode — retrieval thrash in cycles:** LangGraph's own reference implementation for agentic RAG shipped with an infinite loop bug. The conditional edge that routes between "retrieve more" and "answer" fired a loop without a hard exit condition. The fix required adding a `rewrite_count` variable to state and checking it at the routing function. This is not a one-off bug — it reflects the fundamental challenge of conditional cycles: the stopping condition is always the developer's responsibility, and there is no framework-level default that prevents infinite loops. Every cycle in a LangGraph application is a potential runaway without explicit budgets.
 
-**Unspoken infrastructure assumption: you need a persistent checkpointer for anything stateful.** The default in-memory checkpointer loses all state on process restart. If you deploy on serverless infrastructure (Lambda, Cloud Run), you need `langgraph-checkpoint-postgres` or Redis, which adds operational overhead. Tutorials omit this. Teams that prototype locally and deploy serverless hit this wall at launch.
+**Unspoken infrastructure assumption:** The checkpointer is not optional for stateful agents in practice. In-memory checkpoints vanish on process restart, which means any agent designed for multi-session persistence requires a database. `PostgresSaver` needs a PostgreSQL instance; `SqliteSaver` works locally but doesn't scale horizontally. Teams deploying LangGraph at scale inherit a database infrastructure requirement that the quickstart docs don't emphasize. The LangGraph Platform hosted offering sidesteps this, but adds vendor dependency.
 
-## When NOT to Use It
+## When NOT to Use LangGraph
 
-**Skip LangGraph when your workflow is a linear pipeline.** If you retrieve documents once, generate an answer, and return it, LangGraph's state machinery is overhead. Use [LangChain](../projects/langchain.md) LCEL, [LlamaIndex](../projects/llamaindex.md) workflows, or even a plain Python function.
+**Simple RAG pipelines** don't need a graph. If your workflow is retrieve-once, generate-once, the overhead of defining a state schema, compiling a graph, and managing checkpoints adds complexity with no benefit. LangChain's LCEL or direct LLM API calls are simpler and faster to iterate on.
 
-**Skip it when your team cannot maintain graph topology.** LangGraph graphs are code. There is no visual editor for production use (LangSmith has a trace viewer, not a graph editor). Non-engineers cannot modify agent behavior without modifying Python. If your use case needs business-user-configurable workflows, a higher-level framework or a no-code platform is a better fit.
+**High-throughput stateless inference** is a poor fit. LangGraph's checkpointing writes to a database after every node. For applications serving thousands of short, stateless requests per minute, this adds latency and database load. Use it for complex, long-running agent sessions — not as a general LLM request handler.
 
-**Skip it when you need fast iteration on prompts without touching graph structure.** [DSPy](../projects/dspy.md) optimizes prompts systematically; LangGraph does not. If your primary iteration loop is "tune the LLM behavior," DSPy's compilation model is more productive.
+**Teams new to agent orchestration** who need a working system quickly may find the graph abstraction steep. Defining state schemas, wiring edges, handling conditional routing, and setting up checkpointing all require understanding the framework's mental model before writing application logic. [CrewAI](../projects/crewai.md) and similar frameworks trade flexibility for faster initial setup.
 
-**Skip it if you do not need cycles or persistent state.** The framework's value proposition collapses for single-pass tasks. The added complexity of state schemas, reducers, and checkpointers is not free.
+**Latency-sensitive applications** should route simple queries away from agentic loops entirely. The [failure modes article](../articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md) documents that intent-based routing — classifying query complexity before entering the agent loop — produces 35% latency improvements. If most of your queries are simple, wrapping them in LangGraph's graph execution overhead is unnecessary.
 
 ## Unresolved Questions
 
-**Conflict resolution in concurrent state writes.** When two parallel subgraph nodes write to the same state key, the reducer function merges them. For lists (append reducer), this works. For scalar values (last-write-wins), the behavior depends on execution order, which varies with async scheduling. The documentation does not specify what happens when two nodes simultaneously update a scalar with conflicting values in a parallel fan-out.
+**Cost at scale for multi-agent graphs** is underspecified. Multi-actor graphs with supervisor/worker patterns can generate dozens of LLM calls per user request. The framework provides no built-in token budget enforcement — that logic lives in application code. Teams hitting the $50-200 single-run cost spikes documented by production users built their own caps after the fact.
 
-**Cost at scale with PostgreSQL checkpointing.** Every node transition writes a full state snapshot. For long-running agents with large state (accumulated tool outputs, message histories), this means large, frequent writes. There is no built-in state compression or incremental checkpointing. Teams with memory-heavy agents face either expensive storage or manual state pruning logic.
+**Conflict resolution in shared state** across concurrent subgraphs is not clearly specified in the core documentation. When two worker agents update the same state field simultaneously, the reducer function determines which value wins. For list fields with append reducers, both values persist; for scalar fields with overwrite reducers, the last write wins. In parallel subgraph execution, "last write" is nondeterministic. The documentation doesn't address this concurrency hazard directly.
 
-**Governance of the LangChain ecosystem dependency.** LangGraph ships inside the LangChain organization's release cycle. Breaking changes in `langchain-core` can cascade. The degree to which LangGraph's versioning is independent of LangChain's is unclear from the public roadmap.
+**Long-term memory integration** is left to the developer. LangGraph provides short-term state (within a session via state schema) and medium-term persistence (across sessions via checkpointing), but no native long-term memory system. Teams that need agents to remember across hundreds of sessions must integrate external systems like [Mem0](../projects/mem0.md), [Zep](../projects/zep.md), or [Letta](../projects/letta.md) manually. The checkpointer is not a substitute for a memory system — it stores full state snapshots, not distilled knowledge.
 
-**Multi-tenant isolation.** `thread_id` scopes state, but the checkpointer's database isolation between tenants is the caller's responsibility. There is no built-in access control on checkpoint retrieval. A misconfigured `thread_id` can expose another user's conversation state.
+**Governance of the LangGraph Platform** vs. the open-source library is blurring. Some features (Studio UI, deployment infrastructure, certain streaming capabilities) are only available in the hosted platform. The boundary between what's free/open and what requires a LangChain commercial agreement is not clearly documented in the library's own README.
 
-## Alternatives
+## Alternatives with Selection Guidance
 
-**[CrewAI](../projects/crewai.md)** — Use when you want a role-based multi-agent abstraction with less boilerplate. CrewAI hides the graph topology behind "agents" and "tasks." You trade visibility for speed of setup. Better for teams that think in organizational metaphors rather than graph topology. Weaker persistence story.
+**Use [Letta](../projects/letta.md) when** your agents need built-in persistent memory across sessions, structured memory types (core, archival, recall), and don't want to build memory integration from scratch. Letta's memory-first architecture handles what LangGraph leaves to the developer. Tradeoff: less flexibility in graph topology.
 
-**[Letta](../projects/letta.md)** — Use when persistent [Agent Memory](../concepts/agent-memory.md) is the primary concern and [Episodic Memory](../concepts/episodic-memory.md) across sessions matters more than workflow topology. Letta's MemGPT-style memory paging solves a different problem than LangGraph's stateful execution.
+**Use [CrewAI](../projects/crewai.md) when** you need multi-agent role assignment and a team-based mental model (researcher, writer, reviewer) rather than graph topology. Faster to get a working multi-agent system; harder to customize control flow. LangGraph gives more control; CrewAI gives faster scaffolding.
 
-**[DSPy](../projects/dspy.md)** — Use when you need to optimize LLM behavior through automated prompt tuning rather than control flow. DSPy compiles programs; LangGraph orchestrates them.
+**Use [DSPy](../projects/dspy.md) when** the problem is optimizing prompts and reasoning chains, not orchestrating complex multi-step workflows. DSPy compiles and optimizes LLM programs; LangGraph orchestrates them. They address different layers of the stack.
 
-**Raw Python with an LLM SDK** — Use for simple agents where the overhead of a framework is not justified. A `while` loop with a tool-call parser and a `max_iterations` counter handles most single-agent patterns without dependencies.
-
-**[AutoResearch](../projects/autoresearch.md) / domain-specific frameworks** — Use when your domain has a specialized framework. LangGraph is general-purpose; for specific verticals (coding agents, research synthesis), vertical-specific tools often have better defaults.
+**Use direct LLM APIs or LangChain LCEL when** the workflow is a DAG (no cycles needed) and the team values simplicity over features. Every abstraction layer added to LLM applications is a debugging surface. If you don't need cycles or stateful persistence, don't pay for them.
 
 ## Related Concepts
 
-LangGraph implements [Retrieval-Augmented Generation](../concepts/rag.md) workflows through its agentic RAG patterns, where retrieval nodes can loop based on sufficiency evaluation. Its persistence layer enables [Episodic Memory](../concepts/episodic-memory.md) across sessions via thread-scoped checkpoints. The reflection loop pattern (critique agent → revision → re-evaluation) is a direct implementation of [Self-Improving Agents](../concepts/self-improving-agents.md) within a bounded execution context. The conditional edge routing implements [ReAct](../concepts/react.md)-style plan-act-observe cycles, and the subgraph composition model addresses [Agent Orchestration](../concepts/agent-orchestration.md) for multi-agent hierarchies. The [Task Decomposition](../concepts/task-decomposition.md) problem maps directly to how LangGraph users split complex tasks across subgraphs.
+- [Retrieval-Augmented Generation](../concepts/rag.md) — The retrieval pattern that LangGraph's agentic loops extend and complicate
+- [Agentic RAG](../concepts/agentic-rag.md) — The specific pattern where LangGraph's cycle support enables retrieval loops
+- [Agent Memory](../concepts/agent-memory.md) — What LangGraph's checkpointer provides at the session level, but not the long-term layer
+- [Task Decomposition](../concepts/task-decomposition.md) — The supervisor/worker subgraph pattern in LangGraph
+- [Model Context Protocol](../concepts/mcp.md) — Tool protocol that plugs into LangGraph as standard callable nodes
+- [Episodic Memory](../concepts/episodic-memory.md) and [Semantic Memory](../concepts/semantic-memory.md) — Memory types that external systems like Mem0 add on top of LangGraph's base persistence

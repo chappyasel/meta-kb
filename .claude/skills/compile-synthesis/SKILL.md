@@ -29,9 +29,16 @@ Prefer deep sources for implementation details, architecture descriptions, and b
 
 Every article starts with `<abstract></abstract>` tags before any headings. 1-2 sentences, max 300 chars. State the key insight directly. Not "this article covers X" -- instead "Memory shifted from a storage decision to a policy decision when [specific event]."
 
+### Banned Words
+
+Never use (this is a compilation failure): ecosystem, robust, not just, game-changer, fundamentally, inherently, at its core, holistic, comprehensive, cutting-edge, it's worth noting, notably, importantly, rapidly evolving, crucial, pivotal. No em dashes. No passive voice. No three-item list closers.
+
 ### Required Sections (in order)
 
-1. **Opening insight** -- 2-3 sentences on what fundamentally changed about how practitioners think about this problem. No throat-clearing.
+1. **Opening insight** -- 2-3 sentences. Do NOT use the formula "X shifted from A to B" or "The question changed from A to B." Instead, vary the opening per article:
+   - Option A: Lead with the single most surprising finding from the sources.
+   - Option B: Lead with a concrete failure (name the system, the failure mode, the consequence).
+   - Option C: Lead with the strongest disagreement (two projects, opposite bets).
 
 2. **Approach Categories** -- 3-5 categories. Each framed as an architectural question ("How do you decide what deserves long-term memory?"), not a noun phrase ("Memory storage options"). Each category includes:
    - 2-3 flagship projects with star counts on first mention: "Mem0 (51,880 stars)"
@@ -39,22 +46,24 @@ Every article starts with `<abstract></abstract>` tags before any headings. 1-2 
    - One concrete tradeoff: "wins when X, loses when Y"
    - One specific failure mode: what actually breaks in production
 
-3. **The Convergence** -- Exactly 3 things all serious systems agree on that would have been controversial 6 months ago.
+3. **The Convergence** -- THREE specific technical decisions all serious systems now share. Each MUST be stated as a falsifiable claim ("All production systems now do X") -- not "there is a trend toward X." For each: name the specific project that held out longest against this consensus. If you cannot find three, state two.
 
-4. **What the Field Got Wrong** -- One major false assumption. Provide evidence. Explain what replaced it.
+4. **What the Field Got Wrong** -- One assumption practitioners held that the evidence now contradicts. Name the assumption. Name who held it (project, paper, or practitioner). Cite the evidence that disproved it. State what replaced it. Do NOT hedge.
 
-5. **Failure Modes** -- 3-5 concrete failure modes. Specific mechanisms, not generic limitations. What triggers it? How does it break?
+5. **Deprecated Approaches** -- 2-3 approaches practitioners adopted pre-2025 and have since abandoned. For each: name the approach, why it seemed right, what evidence killed it, and what replaced it.
 
-6. **Selection Guide** -- Scannable format:
+6. **Failure Modes** -- 3-5 concrete failure modes. Specific mechanisms, not generic limitations. What triggers it? How does it break?
+
+7. **Selection Guide** -- Scannable format:
    - If you need X, use Y because Z
    - If you need A, avoid B because C -- use D instead
    - Include star counts and maturity signals. A practitioner scans this in 30 seconds.
 
-7. **The Divergence** -- 3-4 active architectural splits where the field has NOT converged. Name both sides, what each optimizes for, which wins under what conditions. Active disagreements with implementations on both sides.
+8. **The Divergence** -- 3-4 active architectural splits where the field has NOT converged. Name both sides, what each optimizes for, which wins under what conditions. Active disagreements with implementations on both sides.
 
-8. **What's Hot Now** -- Momentum signals: recent launches, star velocity, viral discussions. Cite numbers.
+9. **What's Hot Now** -- Momentum signals: recent launches, star velocity, viral discussions. Cite numbers.
 
-9. **Open Questions** -- Genuinely unsolved problems practitioners disagree about.
+10. **Open Questions** -- Genuinely unsolved problems practitioners disagree about.
 
 ## Citation Rules
 
@@ -65,6 +74,13 @@ Every article starts with `<abstract></abstract>` tags before any headings. 1-2 
 - Assess benchmark credibility: self-reported, peer-reviewed, or verified in code
 - When sources disagree, flag explicitly: "**Source conflict:** [Source A] claims X, while [Source B] claims Y."
 - If `build/lessons.md` exists, read it for known source attribution patterns from previous compilations.
+
+## Source Fidelity (Critical)
+
+- NEVER invent component names, directory paths, algorithm names, or mechanism details not in the source material. If a source says "the system uses a feedback loop" do NOT call it "the Recursive Reflector feedback loop" unless that exact name appears in the source.
+- NEVER cite specific benchmark numbers unless the EXACT number appears in the source text. Say "the project reports improved accuracy" instead of inventing a percentage.
+- When a detail is specific enough to verify (a number, a component name, a file path), confirm it appears in the source before writing it. If not, generalize.
+- Prefer "the project claims X" over stating X as fact when evidence is from a README rather than deep source-code analysis.
 
 ## Frontmatter
 

@@ -1,141 +1,185 @@
 ---
 entity_id: progressive-disclosure
-type: concept
+type: approach
 bucket: context-engineering
 abstract: >-
-  Progressive Disclosure loads context into an agent's context window in stages
-  (metadata → instructions → resources) based on demonstrated need, preventing
-  context bloat without sacrificing depth. Differentiator: it shifts retrieval
-  decisions from embedding similarity to agent reasoning.
+  Progressive disclosure is a context management technique that feeds an agent
+  information in ordered tiers — summary first, full content on demand — so that
+  context window space is spent only on what the current task requires, rather
+  than preloading everything upfront.
 sources:
   - repos/memodb-io-acontext.md
   - repos/thedotmack-claude-mem.md
   - repos/michaelliv-napkin.md
-  - papers/xu-agent-skills-for-large-language-models-architectu.md
   - >-
     articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md
   - deep/repos/memodb-io-acontext.md
   - deep/repos/kepano-obsidian-skills.md
   - deep/repos/michaelliv-napkin.md
-  - deep/papers/xu-agent-skills-for-large-language-models-architectu.md
 related:
-  - anthropic
-  - mcp
   - agent-skills
   - obsidian
   - claude-code
-  - rag
-last_compiled: '2026-04-06T02:02:25.842Z'
+  - openclaw
+  - openai
+  - anthropic
+  - claude
+  - bm25
+  - embedding-model
+  - gemini
+  - synthetic-data-generation
+last_compiled: '2026-04-07T11:41:07.957Z'
 ---
 # Progressive Disclosure
 
-Progressive Disclosure is a context management strategy where information enters an agent's context window in stages, each triggered by demonstrated need. An agent starts with minimal orientation (a few dozen tokens), requests more detail when relevant, and loads deep reference material only when a task demands it. The goal is keeping context windows uncluttered without hiding information the agent might need.
+## What It Is
 
-This pattern appears throughout LLM systems engineering under different names: layered context loading, tiered context, on-demand context injection. The Agent Skills specification formalizes it as a three-level architecture. Napkin implements it through BM25 search over a structured vault. Acontext implements it through tool-call-driven skill file navigation. The same idea recurs because it solves the same tension: LLMs perform better with focused context, but you cannot know in advance what an agent will need.
+Progressive disclosure is a context management strategy where information is revealed to an agent in ordered tiers based on demonstrated need, rather than loaded entirely at session start. The agent receives a compressed summary first (a map), calls tools to retrieve more detail when relevant (navigation), and loads full content only for the specific items it needs (read). Each tier costs more tokens than the previous, so the agent pays only for the depth it actually uses.
+
+The term originates in user interface design, where complex controls are hidden behind simpler ones until a user explicitly requests them. In agent systems, the same principle applies to context: expose structure first, details second, raw content last.
 
 ## Why It Matters
 
-Context windows are finite and expensive. More critically, attention quality degrades when irrelevant content crowds relevant content — the model's focus scatters. Front-loading every potentially relevant document is wasteful at best and actively harmful at worst.
+Context windows are finite and expensive. The naive approach — concatenating all available documents into a system prompt — fails in three ways: it fills the window before the agent starts working, it dilutes signal with irrelevant content, and it provides no mechanism for the agent to navigate to new information during a task.
 
-Traditional retrieval-augmented generation ([RAG](../concepts/rag.md)) attempts to solve this through embedding-based pre-filtering: a smaller model scores document chunks by semantic similarity, then passes the top-K to the LLM. This has a structural problem — retrieval decisions get made by a weaker model before the capable model ever sees the query in context. The embedding model cannot reason about the task; it can only approximate semantic distance.
+The alternative, semantic search via embedding models, introduces its own problems: a smaller, less capable model makes retrieval decisions (what to show the main model) before the main model has any visibility into what exists. The main model then reasons over whatever the retrieval step returned, with no ability to correct a bad retrieval decision.
 
-Progressive Disclosure inverts the decision hierarchy. The capable model (the agent) examines a cheap summary layer, reasons about what it needs, and requests more detail through tool calls or structured navigation. Retrieval becomes a first-class reasoning task rather than a preprocessing step.
-
-Napkin's benchmarks on LongMemEval make this concrete. BM25 retrieval with progressive disclosure (overview → search → read) achieved 91% accuracy on the S-dataset, beating embedding-based RAG systems at 86% and GPT-4o with full context stuffing at 64% — using no embedding infrastructure at all. [(Source)](../raw/deep/repos/michaelliv-napkin.md)
+Progressive disclosure avoids both failure modes. The agent sees a cheap summary of what exists, uses its full reasoning capability to decide what to fetch, and retrieves only relevant content. Retrieval becomes a reasoning task, not a preprocessing step.
 
 ## How It Works
 
-### The Three-Level Architecture
+### The Four-Level Pattern
 
-The [Agent Skills](../concepts/agent-skills.md) specification formalizes Progressive Disclosure into three levels:
+[Napkin](../projects/napkin.md) formalizes this as four discrete levels, each with a characteristic token budget:
 
-**Level 1 — Metadata (~dozen tokens):** Always loaded. Contains the skill name and a one-line description. Enough for routing decisions: does this skill apply to the current task?
+| Level | Mechanism | Tokens | Purpose |
+|-------|-----------|--------|---------|
+| 0 | Pinned note (NAPKIN.md / CLAUDE.md) | ~200 | Project conventions, always loaded |
+| 1 | Overview (TF-IDF keyword map) | ~1–2K | Directory-level topic summary, navigation |
+| 2 | Search results with snippets | ~2–5K | Ranked matches for a specific query |
+| 3 | Full file content | ~5–20K | Complete document when needed |
 
-**Level 2 — Instructions (hundreds to thousands of tokens):** Loaded when the agent determines a skill is relevant. Contains the complete procedural knowledge: how to do the thing, what to watch for, common pitfalls. Injected into conversation context as hidden messages.
+Level 0 loads automatically. The agent invokes Levels 1–3 through explicit tool calls, paying incrementally as it needs more depth.
 
-**Level 3 — Resources (thousands of tokens):** Loaded on-demand within active skill execution. Technical reference material, API documentation, complete examples, executable scripts. Loaded only when the task specifically requires that depth.
+### The Overview as a Map
 
-The Obsidian Skills repository demonstrates this in practice. The `obsidian-bases` skill keeps its primary `SKILL.md` at 497 lines (roughly 4,000 tokens), with `FUNCTIONS_REFERENCE.md` as a separate 174-line document loaded only when formula-heavy tasks require it. An agent doing basic Obsidian note creation pays ~4K tokens; an agent building complex database views with custom formulas pays ~6K. The system never pays the full 20K token cost unless every skill and every reference file is active simultaneously. [(Source)](../raw/deep/repos/kepano-obsidian-skills.md)
+Level 1 is the most important layer. Rather than requiring the agent to guess what files exist, the overview provides a topical fingerprint of the entire knowledge base without exposing full content.
 
-### Implementation Patterns
+Napkin's `getOverview()` (in `src/core/overview.ts`) computes this using weighted TF-IDF across directories: headings get 3x weight, filenames and frontmatter titles 2x, body text 1x. Unigrams and bigrams are extracted with bigram suppression (if a bigram is selected, its constituent unigrams are suppressed to avoid redundancy). The output looks like:
 
-Three distinct implementations demonstrate the range of approaches:
+```
+architecture/
+  keywords: overview, dependencies, design
+  notes: 9
+```
 
-**Structured vault navigation (Napkin):** Napkin's four-level model — NAPKIN.md (always loaded), Overview (TF-IDF keyword map by folder), Search (BM25 + backlink count + recency), Read (full file) — lets the agent navigate a knowledge base without any LLM preprocessing. The overview layer generates a compressed topic map from all `.md` files using weighted TF-IDF: headings get 3x weight, filenames and frontmatter titles 2x, body text 1x. The agent reads this map, decides which folders are relevant, then runs a BM25 search within that scope, then reads specific files. Each step is a deliberate agent choice, not an automated retrieval pipeline. [(Source)](../raw/deep/repos/michaelliv-napkin.md)
+This costs roughly 1–2K tokens regardless of vault size. An agent reading this output knows whether `architecture/` is worth searching before spending tokens on a search call.
 
-**Tool-call-driven skill navigation (Acontext):** Acontext rejects embedding search and makes retrieval fully explicit. Agents call `list_skills` to see available skills, `get_skill` to list files within a skill, and `get_skill_file` to read specific content. Navigation is deterministic: if the agent reads the wrong files, you can trace exactly which tool calls led there. The `SKILL.md` within each skill acts as a manifest that guides the agent to the right data files — progressive disclosure enforced by information architecture rather than by automated retrieval. [(Source)](../raw/deep/repos/memodb-io-acontext.md)
+### BM25 Search as Level 2
 
-**Declarative skill files (Agent Skills specification):** The [SKILL.md](../concepts/skill-md.md) format structures progressive disclosure at the ecosystem level. Skill repositories publish dozens of skills; agents load all Level 1 metadata at startup (a few hundred tokens total), then pull Level 2 instructions only when a skill matches the current task. [Claude Code](../projects/claude-code.md), Cursor, GitHub Copilot, and Gemini CLI all implement this pattern against the same specification, enabling skills authored once to work across runtimes. [(Source)](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md)
+When the overview suggests a directory is relevant, the agent calls a search function. Napkin's `searchVault()` (in `src/core/search.ts`) uses MiniSearch, a JavaScript BM25 implementation, with a composite three-signal ranking:
 
-### Contrast with RAG
+```
+composite = BM25_score + backlink_count × 0.5 + recency_normalized × 1.0
+```
 
-[Retrieval-Augmented Generation](../concepts/rag.md) and Progressive Disclosure are not mutually exclusive, but they reflect different assumptions about where intelligence should live.
+BM25 handles term frequency matching. The backlink count adds a graph signal — files that many other files link to are likely central concepts. Recency (normalized mtime) acts as a tiebreaker for equally relevant documents.
 
-RAG pre-filters before the agent acts. An embedding model scores chunks, the top-K enter context, the agent reasons over whatever the retrieval step selected. The agent cannot request more chunks if the initial selection was insufficient, cannot decide that a different document is more relevant, and cannot navigate hierarchically from overview to detail.
+Search results include contextual snippets around matching lines rather than the full document. Scores are hidden from output intentionally: if an agent sees numerical confidence values, it anchors on the numbers rather than evaluating snippet content. The ordering expresses the score; the agent makes relevance judgments from text.
 
-Progressive Disclosure post-filters through agent reasoning. The agent examines cheap summary layers, decides what is relevant, and requests specific content. This costs more in latency (multiple tool calls) and requires the agent to reason well about its own information needs. The payoff is that the capable model makes retrieval decisions rather than delegating them to a weaker embedding model.
+### Tool-Driven Disclosure in Acontext
 
-These approaches are also composable. [Agentic RAG](../concepts/agentic-rag.md) systems use embedding retrieval to populate an initial context layer, then give agents tools to request additional content from that initial retrieval set. Progressive Disclosure becomes the outer loop; vector similarity becomes one possible mechanism for individual lookup steps.
+[Acontext](../projects/openclaw.md) implements progressive disclosure differently. Rather than keyword search, it gives agents three explicit tool calls:
 
-## Who Implements It
+1. `list_skills` — what skill categories exist
+2. `get_skill` — list files within a skill
+3. `get_skill_file` — read specific file content
 
-**[Anthropic](../projects/anthropic.md)** built the Agent Skills specification formalizing the three-level model and ships it through [Claude Code](../projects/claude-code.md)'s plugin system. The specification is implemented by multiple competing platforms, which signals it as an emerging standard rather than proprietary design.
+The design philosophy is explicit: "The agent decides what context it needs through reasoning, not through semantic similarity scoring." The `SKILL.md` file at the root of each skill directory acts as a manifest that guides the agent to relevant data files. This is deterministic and requires no embedding infrastructure, but it requires the agent to reason well about which skills might be relevant to a given task.
 
-**[Obsidian](../projects/obsidian.md)** (the note-taking application) ships the `obsidian-skills` repository, authored by CEO Steph Ango, as a reference implementation of documentation-as-capability. The repository contains zero executable code — five `SKILL.md` files teach agents Obsidian's proprietary file formats purely through structured markdown documentation with progressive disclosure built into the directory structure.
+### The Agent Skills Specification
 
-**[Model Context Protocol](../concepts/mcp.md)** is complementary infrastructure. MCP provides the transport layer (how tools connect); Progressive Disclosure provides the knowledge layer (what knowledge loads when). A skill file might instruct an agent to use a particular MCP server, specify how to interpret its outputs, and define fallback strategies.
+[Anthropic](../projects/anthropic.md)'s Agent Skills specification (agentskills.io, adopted by [Claude Code](../projects/claude-code.md), [OpenClaw](../projects/openclaw.md), Codex, Copilot, and Gemini CLI) formalizes progressive disclosure as a three-layer standard:
 
-**Napkin** (by Michael Livshits) implements Progressive Disclosure as agent memory for software projects, with a TypeScript CLI and SDK, BM25 search, backlink-weighted ranking, and auto-distillation that writes knowledge back to the vault at session end.
+1. **Metadata** (~100 tokens): `name` and `description` fields from YAML frontmatter, loaded at startup for all skills
+2. **Instructions** (&lt;5000 tokens recommended): Full SKILL.md body, loaded when a skill activates
+3. **Resources** (as needed): Files in `scripts/`, `references/`, `assets/`, loaded only when the agent requests them
 
-**Acontext** implements Progressive Disclosure as a learned memory system, transforming agent execution traces into structured skill files through a three-stage pipeline: task extraction, LLM-as-judge distillation, and skill authoring.
+The description field serves as the activation trigger — the agent runtime matches user intent against descriptions to decide which skills to load. [Obsidian](../projects/obsidian.md)'s official skills package demonstrates this: the obsidian-bases skill's SKILL.md (~6K tokens) is only loaded when the agent is working with `.base` files, and the `FUNCTIONS_REFERENCE.md` (~3K additional tokens) is only loaded when formula detail is needed.
+
+### Caching and Latency
+
+Napkin's `src/utils/search-cache.ts` maintains a fingerprint-based cache: it computes an MD5 hash of all file paths concatenated with their modification timestamps. If the fingerprint matches the cached version, the serialized MiniSearch index loads from disk. The first search in a session pays the full indexing cost (O(N) in file count); subsequent searches in the same session are near-instant.
+
+Acontext's tool-call approach has different latency characteristics: 2–3 tool calls per retrieval sequence, each involving a database query plus optional S3 read, typically under 100ms per call. Total retrieval latency runs 200–500ms to load a relevant skill.
+
+## Where It's Implemented
+
+**Napkin** uses the four-level model directly, with BM25 + backlinks + recency for Level 2 retrieval. No vector database required. Benchmark results on LongMemEval-S: 91% accuracy vs 86% for the best prior embedding-based system (self-reported by the napkin project, not independently validated).
+
+**Acontext** uses tool-call-based disclosure with the skill directory hierarchy as the navigation structure. Three tool calls replace search entirely. The LLM-as-judge distillation pipeline writes structured markdown skills that the agent later navigates using `list_skills` → `get_skill` → `get_skill_file`.
+
+**Obsidian skills** (via the Agent Skills spec) implement the metadata → instructions → resources progression. The obsidian-bases skill demonstrates the tradeoff: basic Bases operations need only the SKILL.md; complex formula work additionally loads FUNCTIONS_REFERENCE.md. Total cost for all five Obsidian skills loaded simultaneously: ~20K tokens.
+
+**[Claude Code](../projects/claude-code.md)** uses [CLAUDE.md](../concepts/claude-md.md) as its Level 0 pinned context and tool calls for deeper retrieval. The [Model Context Protocol](../concepts/mcp.md) provides a standardized interface for Level 2–3 tool calls across different data sources.
 
 ## Practical Implications
 
-**Information architecture determines disclosure quality.** Progressive Disclosure works when the summary layer accurately predicts what the detail layer contains. Napkin's TF-IDF overview works because markdown files with strong heading discipline surface the right keywords. Acontext's skill manifests work because the `SKILL.md` within each skill accurately describes the data files alongside it. If your summary layer is inaccurate or generic, agents will navigate to wrong detail layers — and progressive disclosure becomes progressive misdirection.
+**Token budget allocation**: For a 200K context window, Level 0 + 1 costs ~2–3K tokens, leaving 197K for actual work. Loading all content from a medium knowledge base (500 files, 1K tokens average) would cost 500K tokens — impossible in a single context. Progressive disclosure makes large knowledge bases tractable.
 
-**Smaller, focused documents outperform large aggregated ones.** Napkin's benchmark uses per-round notes (~2,500 characters each) rather than per-session logs (~15,000 characters). BM25 term concentration is higher in smaller documents — one note about authentication outranks a session log that briefly mentions authentication among thirty other topics. This has direct architectural implications: memory systems should write many small files rather than appending to large session logs.
+**Note granularity matters**: Napkin's benchmark analysis shows that per-round notes (~2.5K chars each) outperform session-level notes (~15K chars) for BM25 retrieval. Smaller, more focused documents give the ranking function better signal. This has direct implications for memory system design: write many small files rather than appending to large session logs.
 
-**Score visibility harms agent reasoning.** Napkin hides BM25 scores from agents deliberately. When agents see numerical confidence scores, they anchor on the numbers instead of evaluating content quality from the actual text. Scores drive ordering invisibly; agents evaluate relevance from snippets. Any system providing retrieval results to an LLM should consider whether exposing confidence scores helps or hinders relevance judgment.
+**The vocabulary gap problem**: BM25 cannot match across vocabulary gaps. "Authentication" won't retrieve a document that only contains "login." Embeddings handle synonymy naturally; BM25 requires term overlap. The backlink signal partially compensates — if both terms appear in linked notes, graph connectivity can surface them — but this is weaker than cosine similarity over dense representations.
 
-**Phase transitions bound flat skill registries.** Research on skill-based agent systems documents a critical threshold beyond which skill selection accuracy collapses as library size grows. The agent cannot route correctly among hundreds of skills with only Level 1 metadata. Hierarchical organization — skill categories, meta-skill routing, sub-categories — is not optional at scale; it is a prerequisite. [(Source)](../raw/deep/papers/xu-agent-skills-for-large-knowledge-models-architectu.md)
+**Agent reasoning quality is the bottleneck**: When disclosure is agent-driven (the agent decides what to fetch), retrieval quality depends on the agent's ability to formulate good queries and select relevant results. A poorly reasoning agent might fail to discover relevant skills, or load too many irrelevant files. This is a different failure mode than embedding-based RAG, which can miss relevant content due to vocabulary mismatch regardless of agent reasoning quality.
 
 ## Failure Modes
 
-**Vocabulary mismatch breaks BM25-based disclosure.** BM25 requires term overlap between the query and the document. "Authentication" will not surface files about "authn" unless both terms appear together. Embedding-based retrieval handles synonyms better. Progressive Disclosure with BM25 is more reliable when documents use consistent terminology — which is not always under the agent's control.
+**Abstention calibration**: BM25 always returns ranked results; there is no calibrated confidence threshold for "I don't have relevant information." Napkin reports 50% accuracy on abstention tasks in LongMemEval, vs 90%+ on information extraction. An agent that cannot determine when to say "I don't know" will confidently produce wrong answers.
 
-**Agent reasoning quality gates retrieval quality.** Progressive Disclosure requires the agent to correctly identify which summary layer signals warrant deeper investigation. A poorly reasoning agent skips relevant skills, loads irrelevant ones, or fails to recognize when to go deeper. This is not a retrieval algorithm failure — it is an agent capability dependency. The system performs only as well as the agent's ability to reason about its own information needs.
+**Large skill libraries**: As a skill library grows, `list_skills` becomes less useful — the agent must scan many options to determine relevance. This does not affect embedding-based systems (which rank by cosine similarity), but it creates cognitive load for tool-call-based progressive disclosure. Acontext mitigates this with the SKILL.md manifest pattern, but there is no automatic pruning of stale skills.
 
-**Abstention is unsolved.** BM25 always returns ranked results, with no calibrated confidence threshold to signal "I don't know." Napkin's benchmark shows 50% accuracy on abstention tasks — the model cannot reliably determine when no relevant information exists. For production memory systems where false confidence is worse than admitting ignorance, this is a significant gap.
+**Version drift in skill documentation**: Skills encode syntax details that can become outdated as tools evolve. The Obsidian skills package encodes specific function APIs and callout types that Obsidian can change. Unlike code, there is no test suite to detect when documentation becomes incorrect.
 
-**No conflict resolution across skill files.** When multiple skill files contain contradictory information about the same domain, agents have no principled mechanism for resolving conflicts. Progressive Disclosure surfaces the contradiction but provides no framework for adjudicating it. Acontext mitigates this through sequential skill learning (one writer at a time per learning space), but the underlying problem remains for any multi-source disclosure system.
-
-**Security gates are prerequisite, not optional.** In community skill ecosystems, 26.1% of analyzed skills contain at least one vulnerability; 5.2% show patterns suggesting malicious intent. Skills with executable scripts are 2.12× more vulnerable than instruction-only skills. Progressive Disclosure's trust model — loaded instructions are treated as authoritative context — makes it exploitable via long `SKILL.md` files designed to override agent behavior through trust escalation. [(Source)](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md)
+**Trigger mismatch**: The Agent Skills spec uses natural-language description matching to activate skills. A skill described as "working with .md files in Obsidian" might activate unnecessarily for generic markdown tasks, consuming tokens. More precise triggering would require file extension detection plus content analysis, which the current spec does not support.
 
 ## When Not to Use It
 
-**One-shot retrieval with stable, well-structured documents.** If the task requires extracting specific information from a document corpus with stable content and high-quality metadata, vector similarity retrieval with a single round-trip is faster and sufficient. Progressive Disclosure adds latency through multiple tool calls; for tasks where a single well-formed embedding query suffices, that overhead buys nothing.
+Progressive disclosure is the wrong choice when:
 
-**Agents with weak tool-calling discipline.** Progressive Disclosure requires agents to reason about what they need and request it explicitly. Agents that call tools inconsistently, skip navigation steps, or fail to recognize information gaps will underperform compared to front-loading all relevant context.
+- The agent needs cross-document synthesis on first contact (e.g., comparative analysis across many sources) and cannot afford multiple retrieval rounds
+- Latency matters more than token efficiency — each disclosure tier adds round-trip time for tool calls
+- The knowledge base is small enough to fit entirely in context (under ~50K tokens), in which case loading everything upfront is simpler and avoids retrieval errors
+- The task requires semantic matching across vocabulary gaps and the infrastructure cost of embeddings is acceptable
 
-**Rapidly changing information without freshness signals.** BM25 indexes stale as content changes; embedding indexes stale too. Progressive Disclosure with neither staleness detection nor temporal ranking will surface outdated content with the same confidence as current content. Real-time or frequently updated knowledge bases need explicit freshness mechanisms before Progressive Disclosure is reliable.
+For synonym-heavy retrieval, [Hybrid Search](../concepts/hybrid-search.md) combining BM25 with [Embedding Model](../concepts/embedding-model.md) similarity and [Reciprocal Rank Fusion](../concepts/reciprocal-rank-fusion.md) reranking outperforms BM25 alone.
 
-## Alternatives and Selection Guidance
+## Unresolved Questions
 
-**Use [RAG](../concepts/rag.md)** when vocabulary is heterogeneous, synonym matching matters, and you have infrastructure to maintain an embedding pipeline. RAG handles the vocabulary gap that BM25 cannot bridge.
+**Optimal tier boundaries**: Neither napkin nor Acontext provides principled guidance on where to cut between tiers. The napkin 5000-token SKILL.md recommendation is a rule of thumb, not derived from experiments on how context size affects downstream task performance.
 
-**Use [Hybrid Retrieval](../concepts/hybrid-retrieval.md)** when you want Progressive Disclosure's multi-step navigation with semantic fallback for vocabulary mismatches. Combine BM25 with vector similarity using Reciprocal Rank Fusion; use Progressive Disclosure as the outer navigation loop.
+**Conflict resolution across sources**: When two skill files or two retrieved documents contradict each other, progressive disclosure provides no mechanism to detect or resolve the conflict. The agent sees whichever content it retrieved and has no way to know whether contradicting content exists elsewhere.
 
-**Use [Agentic RAG](../concepts/agentic-rag.md)** when you need Progressive Disclosure's multi-round retrieval but your corpus requires semantic similarity rather than keyword matching. Agentic RAG gives agents tools to re-query, refine, and navigate retrieval results iteratively.
+**Cost at scale for distillation-based systems**: Acontext's pipeline requires 30–55 LLM calls per session learning cycle for GPT-4.1. At high session volumes, this cost compounds significantly. No public analysis of the economics at scale exists.
 
-**Use [Context Graphs](../concepts/context-graphs.md)** when information has rich relational structure and graph traversal better represents the navigation semantics than hierarchical disclosure. Graph-based disclosure and document-hierarchical disclosure suit different knowledge topologies.
+**Interaction with [Context Compression](../concepts/context-compression.md)**: Progressive disclosure and context compression are complementary techniques, but the interaction between them is underspecified. If Level 3 content (full files) is compressed before loading, does the compressed representation preserve enough signal for the agent to reason effectively?
+
+## Alternatives
+
+**[Retrieval-Augmented Generation](../concepts/rag.md)**: Use when vocabulary gaps would cause BM25 to miss relevant content, when the knowledge base is large and static, and when infrastructure cost is acceptable. RAG delegates retrieval decisions to an embedding model before the main model sees anything.
+
+**[Agentic RAG](../concepts/agentic-rag.md)**: Use when the agent should iteratively query the knowledge base across multiple reasoning steps. Combines progressive disclosure (iterative retrieval) with embedding-based search (semantic matching).
+
+**Full-context loading**: Use when the entire knowledge base fits in the context window and synthesis across all documents is required on first contact. The right choice for small, dense knowledge bases where completeness matters more than efficiency.
+
+**[Hybrid Search](../concepts/hybrid-search.md)**: Use when semantic recall matters but you still want progressive disclosure mechanics. Run BM25 and vector search in parallel, fuse with RRF, then apply the same tier structure for depth. This is what napkin's benchmark successor (agentmemory at 96.2% on LongMemEval) uses.
 
 ## Related Concepts
 
-- [Context Engineering](../concepts/context-engineering.md) — The broader discipline of which Progressive Disclosure is one technique
-- [Agent Skills](../concepts/agent-skills.md) — The specification that formalizes the three-level disclosure architecture
-- [skill.md](../concepts/skill-md.md) — The file format implementing Progressive Disclosure for skill packages
-- [Retrieval-Augmented Generation](../concepts/rag.md) — The alternative approach Progressive Disclosure most directly contrasts with
-- [Prompt Compression](../concepts/prompt-compression.md) — A complementary technique for reducing context cost at individual layers
-- [Context Collapse](../concepts/context-collapse.md) — The failure mode Progressive Disclosure is designed to prevent
-- [Agent Memory](../concepts/agent-memory.md) — The broader problem space; Progressive Disclosure is one strategy for memory access
-- [Procedural Memory](../concepts/procedural-memory.md) — Skill files as procedural memory implement Progressive Disclosure at the knowledge encoding level
+- [Context Engineering](../concepts/context-engineering.md): The broader discipline of which progressive disclosure is one technique
+- [Context Window](../concepts/context-window.md): The finite resource that progressive disclosure manages
+- [Context Management](../concepts/context-management.md): The operational layer that progressive disclosure implements
+- [Agent Memory](../concepts/agent-memory.md): Progressive disclosure is a retrieval strategy for memory systems
+- [Agent Skills](../concepts/agent-skills.md): The primary carrier format for progressively disclosed knowledge
+- [BM25](../concepts/bm25.md): The retrieval algorithm underlying napkin's Level 2 search
+- [CLAUDE.md](../concepts/claude-md.md): The standard Level 0 pinned context file in Claude-based agents

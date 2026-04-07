@@ -3,133 +3,145 @@ entity_id: ace
 type: project
 bucket: agent-systems
 abstract: >-
-  ACE (Agentic Context Engineering) treats LLM contexts as evolving playbooks
-  using incremental delta updates to prevent context collapse, achieving +10.6%
-  on agent benchmarks with 82-92% cost reduction vs. alternatives.
+  ACE (Agentic Context Engineering) treats LLM context as an evolving playbook
+  that accumulates strategies via incremental delta updates, preventing the
+  context collapse that plagues iterative LLM rewriting while improving agent
+  performance without weight updates.
 sources:
-  - papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
+  - repos/kayba-ai-agentic-context-engine.md
   - papers/zhang-agentic-context-engineering-evolving-contexts-for.md
   - deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md
   - deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
 related: []
-last_compiled: '2026-04-05T23:10:34.714Z'
+last_compiled: '2026-04-07T11:47:32.041Z'
 ---
-# ACE: Agentic Context Engineering
+# ACE Framework
 
 ## What It Does
 
-ACE is a framework for evolving LLM contexts over time without retraining model weights. Rather than rewriting system prompts or summarizing prior context each round, ACE appends structured "delta bullets" to an existing context and updates them in place. The core claim: iterative LLM-driven rewriting causes context collapse, where repeated summarization erodes domain-specific detail into generic instructions. ACE prevents this through a deterministic merge operation that no LLM touches.
+ACE (Agentic Context Engineering) addresses a specific failure mode in adaptive LLM systems: when you repeatedly ask an LLM to summarize or rewrite its own context to incorporate new knowledge, the context degrades. Over 5-10 iterations, specific domain insights compress into generic platitudes. ACE prevents this by treating context as an append-only playbook managed through deterministic merge logic rather than LLM rewriting.
 
-The framework targets two failure modes that appear in prior context adaptation work:
+The name "ACE" refers to two related but distinct things: the original Stanford/SambaNova research paper (Zhang et al., 2025) and `kayba-ai/agentic-context-engine`, an open-source Python library that implements the paper's concepts with added tooling. This reference card covers both.
 
-**Brevity bias:** When an LLM summarizes context, it compresses "When parsing financial XBRL filings, always check the decimals attribute before the scale attribute because European filings use different decimal conventions" down to "Parse financial filings carefully." The actionable detail disappears.
+## Architecture: How It Works
 
-**Context collapse:** After 5-10 rounds of iterative LLM rewriting, accumulated context converges to generic instructions. Each summarization is lossy compression applied to already-compressed output.
+ACE uses three specialized components:
 
-## Architecture
+**Generator** runs the agent on tasks, producing execution traces that surface both effective strategies and failure modes. This is the raw material for learning.
 
-ACE uses three components:
+**Reflector** analyzes execution traces to extract concrete lessons. It operates over multiple refinement iterations before distillation, which the paper calls "multi-epoch adaptation." The ablation shows this adds +2.6% over single-pass reflection.
 
-**Generator** runs the agent on tasks, producing reasoning trajectories and surfacing both effective strategies and failure modes.
+**Curator** synthesizes extracted lessons into "candidate bullets" -- small, structured knowledge units -- then merges them into the existing context using deterministic (non-LLM) logic. This is the core architectural choice. Each bullet carries a unique identifier, helpful/harmful counters tracking association with successful vs failed executions, and the knowledge content itself.
 
-**Reflector** critiques execution traces to extract concrete lessons. It can run multiple refinement iterations before passing extracted insights downstream.
+New bullets append to the context. Existing bullets update in-place (counter increments). Semantic embedding-based deduplication prunes redundant entries, either proactively after each delta or lazily when context window limits approach.
 
-**Curator** synthesizes lessons into candidate bullets and merges them into the existing context using deterministic (non-LLM) logic. This is the architectural load-bearing choice: the merge cannot rewrite, only append or increment.
+The `kayba-ai/agentic-context-engine` implementation calls this the **Skillbook**. Its "Recursive Reflector" writes and executes Python in a sandboxed environment to search traces for patterns programmatically rather than relying on a single LLM pass. The composable pipeline runs: `AgentStep -> EvaluateStep -> ReflectStep -> UpdateStep -> ApplyStep -> DeduplicateStep`.
 
-Each bullet carries:
-- A unique identifier for tracking
-- Helpful/harmful counters that increment based on execution outcomes
-- Content (strategies, domain concepts, failure patterns, environment-specific knowledge)
+### Why Deterministic Merging Matters
 
-Semantic embedding-based deduplication runs either proactively after each delta or lazily when context window limits approach. Bullets expressing the same insight in different words get caught and merged.
+When an LLM rewrites the full context to incorporate new information, it applies brevity bias: "When parsing financial XBRL filings, always check the decimals attribute before the scale attribute because European filings use different decimal conventions" becomes "Parse financial filings carefully." The merge step is where this loss occurs. A deterministic append-and-update operation has no such bias -- it cannot compress what it never reads.
 
-ACE operates in two modes:
+### Operating Modes
 
-**Offline (system prompt optimization):** Processes a batch of training examples, extracts lessons, curates an optimized system prompt before deployment.
+**Offline (system prompt optimization):** ACE processes a training batch, extracts lessons, and curates an optimized system prompt before deployment. No labeled data required -- execution feedback (code compiling, API success/failure) serves as the learning signal.
 
-**Online (agent memory):** After each task, the reflector extracts lessons from the execution trace and the curator adds them to evolving context. The agent improves across interactions without weight updates.
-
-The label-free mode treats execution outcomes as supervision: code compilation, API success/failure, and environment responses provide a learning signal without labeled training data.
+**Online (agent memory):** After each task, the reflector extracts lessons from the execution trace and the curator adds them to the agent's evolving context. The agent improves across sessions without weight updates.
 
 ## Key Numbers
 
-All figures are self-reported from the [ACE paper](../raw/deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md) (Qizheng Zhang et al., 2025, updated March 2026) and have not been independently validated.
+From the paper (self-reported by Stanford/SambaNova researchers, not independently validated):
 
-**AppWorld benchmark (offline, DeepSeek-V3.1):**
-- Task Goal Completion (TGC): 76.2% (+12.5% vs. ReAct baseline of 63.7%)
-- Label-free mode: +14.8% improvement without ground-truth labels
+- **+10.6%** on agent benchmarks (AppWorld)
+- **+8.6%** on finance benchmarks (FiNER + Formula)
+- **-82.3%** adaptation latency vs GEPA (offline)
+- **-91.5%** adaptation latency vs Dynamic Cheatsheet (online)
+- **-83.6%** token cost vs Dynamic Cheatsheet (online)
+- AppWorld leaderboard: ACE with DeepSeek-V3.1 (open-source) matches IBM-CUGA (GPT-4.1-based) on overall average, exceeds it by +8.4% on the harder test-challenge split
 
-**AppWorld benchmark (online):**
-- +5.9% TGC over baseline
-- +7.6% average over Dynamic Cheatsheet
+From the `kayba-ai` implementation benchmarks (self-reported):
 
-**AppWorld leaderboard:** ACE with DeepSeek-V3.1 matches IBM-CUGA (GPT-4.1-based) on overall average and exceeds it by +8.4% TGC on the harder test-challenge split.
+- **2x** pass^4 consistency on TAU-bench airline domain (15 learned strategies, no reward signals)
+- **49%** token reduction on browser automation over a 10-run learning curve
+- **$1.50** learning cost for translating ~14,000 lines of Python to TypeScript with Claude Code (zero build errors)
 
-**Financial domain (average across FiNER + Formula):**
-- Offline: +12.8%
-- Online: +7.5%
+The efficiency gains are credible given the mechanism -- processing small deltas rather than full contexts each round is inherently cheaper. The accuracy numbers are harder to assess independently.
 
-**Efficiency vs. alternatives:**
-- Adaptation latency vs. GEPA: -82.3%
-- Adaptation latency vs. Dynamic Cheatsheet: -91.5%
-- Token cost vs. Dynamic Cheatsheet: -83.6%
-- Rollout cost vs. GEPA: -75.1%
+## Core Files and Implementation
 
-The efficiency gains come from processing only deltas rather than full contexts each round.
+In `kayba-ai/agentic-context-engine`:
 
-**Ablation (AppWorld):** The reflector contributes +1.7% and multi-epoch adaptation +2.6%. The core incremental delta mechanism provides the bulk of the total +17.0% gain over a 42.4% baseline.
+- `pipeline/` -- pipeline engine with `requires`/`provides` contracts per step
+- `ace/core.py` -- `ACE` class (full learning loop with batch epochs)
+- `ace/lite_llm.py` -- `ACELiteLLM` class with `.ask()`, `.learn()`, `.save()` interface
+- `ace/reflector.py` -- Recursive Reflector with sandboxed Python execution
+- `ace/skill_manager.py` -- SkillManager handling Skillbook curation and deduplication
+
+Runners include `BrowserUse`, `LangChain`, and `ClaudeCode` integrations. Optional installs:
+
+```bash
+uv add ace-framework[deduplication]  # embedding-based skill deduplication
+uv add ace-framework[mcp]            # MCP server for IDE integration
+```
+
+All roles use PydanticAI with structured output validation, routing to 100+ LLM providers through LiteLLM.
 
 ## Strengths
 
-**Context collapse prevention is the central, transferable insight.** Treating the merge operation as deterministic arithmetic on bullets rather than LLM synthesis prevents the compounding information loss that plagues iterative prompt optimization systems.
+**Prevents context collapse without complexity.** The append-only delta pattern with deterministic merging is conceptually simple and directly solves iterative context degradation. Teams experiencing prompt drift in long-running agent systems can apply this pattern without adopting the full framework.
 
-**Execution feedback as a free supervision signal.** Most production agent deployments have execution outcomes (API success/failure, code compilation results) but lack labeled training data. ACE's +14.8% improvement in label-free mode approaches the +17.0% supervised result, making self-improvement viable without annotation.
+**Label-free operation.** The paper demonstrates +14.8% improvement on agent benchmarks using execution feedback alone. Production agent systems typically have execution signals (code runs/fails, API calls succeed/fail) but lack labeled training data, making this practically valuable.
 
-**The helpful/harmful counter pattern is simple to implement.** Tracking per-bullet success associations is straightforward data structure work. High-harmful/low-helpful bullets can be pruned; high-helpful bullets survive.
+**Efficiency at scale.** The 82-92% cost reduction relative to alternatives comes from the mechanism itself -- O(delta) processing instead of O(full context) each round. This compounds favorably as contexts grow.
 
-**Cost reduction is real and large.** 82-92% reduction in adaptation latency and 75-84% in token cost relative to GEPA and Dynamic Cheatsheet makes the approach viable in production contexts where those alternatives are prohibitively expensive.
+**Composable integration.** The `kayba-ai` implementation's pipeline architecture lets teams wrap existing LangChain chains, Claude Code tasks, or browser-use agents with minimal code changes.
 
 ## Critical Limitations
 
-**Concrete failure mode:** Without reliable execution feedback, ACE cannot distinguish helpful from harmful strategies. The paper notes significant performance degradation on tasks with noisy or unavailable feedback signals. For subjective outputs (writing quality, design judgment), the system needs labeled data or human feedback. The label-free mode is not universally applicable.
+**Flat structure doesn't scale.** The Skillbook is a list of bullets. At hundreds of entries, there is no hierarchy, no semantic clustering, no organization. Retrieval coherence will degrade as the list grows. Systems like [Letta](../projects/letta.md) (Core Memory), [Graphiti](../projects/graphiti.md) (temporal graph), and [Zep](../projects/zep.md) (community detection) address this organizational problem directly -- ACE does not.
 
-**Unspoken infrastructure assumption:** ACE assumes the context grows within a single window across rounds. The append-only growth mechanism eventually hits context window limits. The lazy deduplication strategy delays but does not solve this. Production deployments need explicit context budget policies and pruning strategies (e.g., discard bullets below a helpful/harmful threshold). The paper does not specify what those policies should be or how they affect performance at scale.
+**Feedback quality is load-bearing.** The system cannot distinguish good strategies from bad without reliable execution signals. On subjective tasks (design decisions, writing quality) or tasks with noisy feedback, the helpful/harmful counters become unreliable and the Curator produces degraded bullets. The paper notes significant performance drops in these conditions but does not specify quantitatively.
 
-**Flat bullet list does not scale structurally.** Hundreds of unorganized bullets degrade coherence and retrieval. ACE has no mechanism for hierarchical organization, clustering, or linking related bullets. Systems like A-MEM (Zettelkasten linking) or Zep (community detection) address this problem; ACE does not.
+**Deduplication is itself lossy.** Semantic embedding-based deduplication merges similar bullets. Two bullets expressing related insights with different specific conditions can collapse into one less-specific bullet -- a slower version of the brevity bias problem the system was designed to prevent.
 
-## When NOT to Use ACE
+## When NOT to Use It
 
-**Simple or short-horizon tasks.** The paper notes HotPotQA "often benefits more from concise instructions than lengthy contexts." Growing playbooks add overhead that straightforward tasks do not justify. ACE is designed for complex, multi-step tasks with rich domain knowledge where accumulated strategies compound.
+**Simple, well-specified tasks.** ACE's growing playbooks add overhead that is not justified when the task is already handled well by a concise system prompt. The paper explicitly notes that "simpler tasks often benefit more from concise instructions than lengthy contexts."
 
-**Subjective or unverifiable output domains.** Without clear execution feedback, the helpful/harmful counters cannot be reliably populated. ACE degrades to an append-only system with no quality filtering.
+**Tasks without execution feedback.** If your agent tasks lack clear success/failure signals -- creative work, preference elicitation, open-ended research -- the unsupervised mode degrades into random strategy accumulation. You need either labeled data or reliable automated evaluation.
 
-**Systems requiring structural knowledge organization at scale.** If your agent needs to manage thousands of knowledge items with cross-linking and retrieval, ACE's flat list is the wrong data structure. Start with a system that has structural organization built in.
+**Low-latency production inference.** The Reflector and Curator run asynchronously in offline/batch modes, but online mode adds per-task overhead. Systems with strict latency budgets should consider running ACE offline to bake learned strategies into a static system prompt rather than using the live update loop.
 
-**When you need to optimize the harness code itself, not just context content.** ACE evolves what knowledge lives in context. [Meta-Harness](../raw/deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md) evolves the code that constructs and retrieves context. These are orthogonal; for systems where retrieval logic and prompt construction are the bottleneck, Meta-Harness is the right tool.
+**Short-lived agents.** A single-session chatbot or a pipeline that runs once gains nothing from accumulated context. ACE earns its value across many runs against a persistent Skillbook.
 
 ## Unresolved Questions
 
-The paper does not address:
+**Skillbook size limits.** The documentation does not specify what happens when the Skillbook exceeds context window limits. The lazy deduplication approach delays the problem but the paper provides no guidance on long-term management strategies, pruning heuristics, or maximum effective Skillbook sizes.
 
-**Knowledge deprecation at scale.** The helpful/harmful ratio provides a pruning signal, but there is no specification of what ratio triggers removal, how many rounds of feedback are needed for the counters to stabilize, or how the system behaves when the task distribution shifts after the context has been heavily optimized.
+**Multi-agent Skillbook sharing.** If multiple agent instances run concurrently and update the same Skillbook, the paper provides no conflict resolution mechanism. Whether this is safe (merge is commutative) or problematic (contradictory strategies from different task domains) is unaddressed.
 
-**Reflector quality degradation.** Weak base models produce noisy reflections that propagate as low-quality bullets. The helpful/harmful counters only become reliable after multiple rounds, meaning early rounds inject noise with no correction mechanism. The paper does not characterize how much this matters for weaker models.
+**Strategy deprecation.** The helpful/harmful counters track associations with outcomes, but there is no mechanism for strategies to become stale and be removed based on age or drift. A strategy learned for one version of an API that later changes will remain in the Skillbook indefinitely unless it eventually accumulates harmful counts.
 
-**Bullet granularity guidance.** Too fine-grained creates many small bullets that are hard to use together; too coarse-grained reduces deduplication effectiveness. There is no principled guidance on how to calibrate this.
-
-**Governance for multi-agent or multi-tenant contexts.** The framework assumes a single agent evolving a single context. How ACE handles shared contexts across multiple agents, or contexts that need to be partitioned by user or task type, is not addressed.
+**Governance of the hosted offering.** Kayba.ai offers a hosted solution that uploads traces and fetches insights. The privacy model, data retention policies, and trace storage practices are not documented in the open-source repository.
 
 ## Alternatives
 
-| System | Choose when |
-|--------|-------------|
-| **[Meta-Harness](../raw/deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md)** | You need to optimize retrieval logic, routing, and prompt construction code, not just context content. Achieves +7.7 over ACE on text classification with 4x fewer tokens, but requires Opus-4.6-class proposer and ~10M tokens per optimization iteration. |
-| **Dynamic Cheatsheet** | Lighter-weight online memory with lower setup complexity, but ACE outperforms it by +7.6% on AppWorld at 83.6% lower token cost. |
-| **GEPA** | Offline prompt optimization for simpler tasks; ACE beats it while reducing adaptation latency by 82.3% and rollout cost by 75.1%. |
-| **A-MEM / Zep** | When structural knowledge organization (linking, community detection) matters more than collapse prevention. Neither addresses context collapse as directly as ACE. |
+**Use [Letta](../projects/letta.md)** when you need structured memory organization with typed memory blocks (Core Memory, Archival Memory) and built-in memory editing tools. Better for conversational agents where memory organization matters more than strategy accumulation.
 
-The ACE and Meta-Harness approaches are complementary: ACE manages evolving content, Meta-Harness optimizes the code that manages content. Systems that need both can combine them.
+**Use [Graphiti](../projects/graphiti.md)** when your agent needs to reason over relationships and temporal sequences, not just retrieve relevant strategies. Graphiti's episodic and semantic graph provides richer structure than a flat Skillbook.
 
----
+**Use [LangGraph](../projects/langgraph.md)** when you need fine-grained control over the agent execution graph itself rather than the content of the context. LangGraph handles orchestration; ACE handles what goes into the context that orchestration uses.
 
-**Source:** [ACE paper](../raw/deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md) | [Meta-Harness paper](../raw/deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md)
+**Use ACE when** your agent runs many tasks in the same domain and execution feedback is reliable. The pattern particularly suits coding agents (clear compilation/test signals), tool-using agents with structured API responses, and any domain where you have a stable task distribution and want improvement without fine-tuning.
+
+## Related Concepts
+
+The delta update pattern connects to [Agent Memory](../concepts/agent-memory.md) architecture broadly and to [Procedural Memory](../concepts/procedural-memory.md) specifically -- the Skillbook is closer to a procedure library than episodic recall. The offline system prompt optimization mode overlaps with [Prompt Optimization](../concepts/dspy-optimization.md) approaches. The self-improving agent loop relates to [Self-Improving Agent](../concepts/self-improving-agent.md) patterns and [Reflexion](../concepts/reflexion.md), though ACE uses deterministic merging where Reflexion uses verbal reflection stored in episodic buffers.
+
+Meta-Harness (a related paper) offers a complementary lens: ACE evolves *what* context to include; Meta-Harness evolves *how* to retrieve and construct that context through code-level harness optimization. Meta-Harness demonstrates +7.7% over ACE on text classification tasks at 4x fewer context tokens, with full execution trace access (not compressed summaries) being essential to that improvement.
+
+## Sources
+
+- [ACE Paper (Zhang et al., 2025)](../raw/papers/zhang-agentic-context-engineering-evolving-contexts-for.md)
+- [ACE Deep Analysis](../raw/deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md)
+- [Meta-Harness Deep Analysis](../raw/deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md)
+- [kayba-ai/agentic-context-engine Repository](../raw/repos/kayba-ai-agentic-context-engine.md)

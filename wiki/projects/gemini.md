@@ -3,166 +3,135 @@ entity_id: gemini
 type: project
 bucket: agent-systems
 abstract: >-
-  Google's family of LLMs (Gemini Pro, Ultra, Flash, Nano) with best-in-class
-  context windows (1M tokens) and native multimodality; also available as a CLI
-  agent tool and via API. Primary differentiator: context length.
+  Google's multimodal LLM family powering Gemini CLI, a terminal coding agent
+  competing with Claude Code; differentiator is 1M+ token context window and
+  native Google ecosystem integration.
 sources:
   - repos/orchestra-research-ai-research-skills.md
+  - repos/natebjones-projects-ob1.md
   - repos/alirezarezvani-claude-skills.md
+  - repos/caviraoss-openmemory.md
   - repos/garrytan-gstack.md
   - repos/letta-ai-letta-code.md
-  - repos/caviraoss-openmemory.md
   - repos/yusufkaraaslan-skill-seekers.md
   - >-
     articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md
   - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
   - deep/repos/getzep-graphiti.md
   - deep/repos/affaan-m-everything-claude-code.md
-  - deep/repos/volcengine-openviking.md
-  - deep/repos/maximerobeyns-self-improving-coding-agent.md
-  - deep/repos/othmanadi-planning-with-files.md
   - deep/repos/kepano-obsidian-skills.md
   - deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
 related:
   - claude-code
-  - openai
   - cursor
-  - openai-codex
-  - anthropic
-  - agent-skills
-  - rag
+  - codex
+  - openai
   - claude
-  - openclaw
-  - mcp
-  - windsurf
+  - opencode
+  - agent-skills
   - github-copilot
-last_compiled: '2026-04-06T02:01:24.825Z'
+  - rag
+  - anthropic
+  - mcp
+  - semantic-memory
+  - antigravity
+  - andrej-karpathy
+  - openclaw
+  - episodic-memory
+  - progressive-disclosure
+  - mem0
+  - vector-database
+  - langchain
+last_compiled: '2026-04-07T11:55:46.712Z'
 ---
 # Gemini
 
 ## What It Is
 
-Gemini is Google DeepMind's family of large language models, spanning from Nano (on-device) to Flash (speed-optimized) to Pro and Ultra (full capability). The model family underpins Google's AI products (Workspace, Search, Android) and is available externally via the Gemini API and Google AI Studio. A standalone CLI tool, Gemini CLI, provides terminal-based agentic workflows similar to [Claude Code](../projects/claude-code.md).
+Gemini is Google's family of multimodal large language models, spanning from Gemini Nano (on-device) to Gemini Ultra (frontier). For agent and knowledge base builders, the most relevant product is **Gemini CLI**, a terminal-based AI coding agent analogous to [Claude Code](../projects/claude-code.md) and [OpenAI Codex](../projects/codex.md). The CLI provides agentic code editing, file manipulation, and tool use directly from the command line, underpinned by Gemini 2.5 Pro with a 1M+ token context window.
 
-The primary architectural differentiator is context length: Gemini 1.5 Pro and subsequent versions support up to 1 million tokens natively, with experimental 2 million token versions available. This dwarfs most competing models and changes what retrieval-augmented approaches are even necessary.
+Gemini occupies a distinct position in the model family landscape: Google-native integration (Search grounding, Workspace, Cloud APIs), natively multimodal from day one (text, image, audio, video, code), and the largest generally available context window of any frontier model as of mid-2025.
 
-## Model Variants
+## Architecturally Unique Properties
 
-**Gemini Ultra** — The highest-capability tier, positioned against GPT-4 and Claude Opus. Used internally at Google and available via Gemini Advanced subscription.
+**Context window size.** Gemini 2.5 Pro ships with a 1,048,576 token context window (1M tokens), dwarfing the 200K context of Claude 3.5 Sonnet or the 128K of GPT-4o. For [agent memory](../concepts/agent-memory.md) and knowledge base work, this changes the tradeoff calculus: many retrieval pipelines that exist to work around small context windows become optional when the entire codebase fits in context. The practical question shifts from "how do I retrieve the right chunk?" to "how do I avoid paying to stuff 1M tokens per call?"
 
-**Gemini Pro** — The general-purpose API tier. Gemini 1.5 Pro is the version most developers interact with; it supports the 1M token context window and multimodal inputs (text, images, audio, video, code).
+**Native multimodality.** Gemini was trained natively on text, image, audio, and video rather than retrofitting vision onto a text model. For agent systems that process screenshots, diagrams, or recorded sessions as part of their knowledge pipelines, this matters architecturally.
 
-**Gemini Flash** — Speed and cost optimized. Gemini 1.5 Flash offers significantly reduced latency and lower cost at some capability tradeoff. Gemini 2.0 Flash introduced agentic features including real-time API access and tool use.
+**Google Search grounding.** Gemini models can ground responses in live Google Search results via an API parameter. For knowledge base builders, this provides a built-in mechanism for combining static KB content with fresh web data, though it adds latency and cost.
 
-**Gemini Nano** — On-device model for Android and Pixel devices, running locally without network calls.
+**Gemini CLI tool stack.** The CLI implements the standard agentic coding toolkit: file read/write/edit, bash execution, web search, and [Model Context Protocol](../concepts/mcp.md) server integration. The MCP implementation means Gemini CLI participates in the same tool ecosystem as Claude Code and other MCP-compatible agents. Multiple agent frameworks use Gemini as a supported LLM backend, including [Graphiti](../projects/graphiti.md) (which lists Gemini as one of seven LLM client implementations) and [LangChain](../projects/langchain.md).
 
-**Gemini CLI** — A separate open-source agentic tool released June 2025 that wraps Gemini models into a terminal agent. Supports file system access, code execution, web search, and [Model Context Protocol](../concepts/mcp.md) integration. Architecturally similar to Claude Code but built around Gemini models.
+## Core Mechanism: How Gemini CLI Works
 
-## Core Architecture
+The CLI wraps the Gemini API with a REPL loop, tool dispatcher, and file context manager. At the architectural level it mirrors Claude Code:
 
-### Context Window as Primary Mechanism
+- **Context assembly:** On each turn, the CLI assembles context from open files, conversation history, and any loaded skill/configuration files (`.gemini/` directory, analogous to `.claude/` for Claude Code or `.opencode/` for OpenCode).
+- **Tool dispatch:** Tool calls (file edits, bash commands, web search) are extracted from model output and executed locally. Results feed back into the next context assembly step.
+- **MCP integration:** Gemini CLI connects to MCP servers via stdio or HTTP, enabling the same tool extensions as other MCP-compatible agents.
+- **Skill loading:** The `everything-claude-code` repo (source: deep/repos/affaan-m-everything-claude-code.md) maintains a `.gemini/` integration directory, confirming the CLI supports external skill/configuration files in the Agent Skills format, though with less native tooling than the Claude Code integration.
 
-The 1M token context window is not just a scaling metric — it changes the architecture of applications built on Gemini. Where GPT-4 or earlier Claude versions required chunking documents and building [RAG](../concepts/rag.md) pipelines to handle large inputs, Gemini 1.5 Pro can ingest entire codebases, hour-long video transcripts, or multi-hundred-page documents in a single call.
+The 1M token context window means Gemini CLI can load entire repositories into context rather than relying on [Retrieval-Augmented Generation](../concepts/rag.md) to select relevant files. This is the primary architectural differentiator versus competitors.
 
-Google's research on this capability (the "needle in a haystack" evaluations) showed Gemini 1.5 Pro maintaining 99%+ recall at 100K tokens with graceful degradation through 1M. This claim is Google-reported, not independently validated at scale in production deployments. Real-world retrieval quality with very large contexts depends heavily on where the relevant information sits relative to the context start.
+## Key Numbers
 
-### Multimodal Architecture
+| Metric | Value | Source |
+|--------|-------|--------|
+| Gemini 2.5 Pro context window | 1,048,576 tokens | Google, self-reported |
+| SWE-bench Verified (2.5 Pro) | ~63% | Google, self-reported; unverified by independent parties as of mid-2025 |
+| Gemini CLI GitHub stars | ~60K+ | GitHub, observed |
+| API rate limit (free tier) | 15 RPM / 1M TPM (varies by model) | Google AI Studio |
 
-Gemini was designed multimodal from training rather than bolted on post-hoc. It processes text, images, audio, and video within the same model rather than routing to separate specialized models. The practical consequence: you can send a video with audio and text prompt in a single API call and get reasoning that references all three modalities. This differs from OpenAI's approach, which maintains separate vision and audio models stitched together at the application layer.
-
-### Gemini CLI Agent Architecture
-
-The CLI tool runs as a node-based process with a ReAct-style loop ([ReAct](../concepts/react.md)): reasoning about what to do, selecting a tool, executing it, observing results. Tools include shell execution, file read/write, web search, and MCP server connections. The free tier provides 1,000 API requests per day against Gemini 1.5 Pro, which makes it accessible for experimentation.
-
-MCP support means Gemini CLI can connect to the same tool servers as Claude Code, enabling skill and workflow reuse across agent runtimes. The CLI also supports GEMINI.md files — a workspace configuration format analogous to CLAUDE.md that persists instructions across sessions.
-
-### API and Integration Layer
-
-The Gemini API (via `google-generativeai` Python SDK or REST) supports:
-- Structured output via JSON Schema
-- Function calling with parallel tool execution
-- Grounding with Google Search (real-time web access)
-- Context caching for repeated long-context calls (significant cost reduction for stable prefixes)
-- File API for uploading large documents, images, and video
-
-Context caching deserves specific attention: cached tokens cost ~4x less than input tokens on repeated calls. For applications that prepend large documents or codebases to every request, this is a meaningful cost lever — comparable to the KV-cache economics Manus documented (see the planning-with-files reference material on cache design).
-
-## Benchmarks
-
-**MMLU**: Gemini Ultra reported 90.0% (5-shot), matching GPT-4 and Claude 3 Opus. Self-reported by Google.
-
-**HumanEval**: Gemini Pro scores around 67-71% depending on configuration. Gemini Ultra reported 74.4%. Self-reported.
-
-**SWE-Bench**: Gemini 2.0 Pro with agentic setup has been benchmarked in the 35-45% range on SWE-Bench Verified. These figures come from Google research reports and third-party evaluations but vary by setup. See [SWE-Bench](../projects/swe-bench.md) for context on what these numbers mean in practice.
-
-**GPQA**: Gemini 1.5 Pro reached ~59% (Diamond), which is competitive but trails frontier Claude and GPT-4o variants.
-
-**Multimodal benchmarks**: Gemini leads on video understanding benchmarks (Video-MME, EgoSchema) due to native video token processing, where competing models cannot process raw video frames.
-
-All headline benchmarks are Google-reported. Independent evaluations on LMSYS Chatbot Arena show Gemini models competitive but not consistently top-ranked for general instruction following as of late 2024.
+SWE-bench numbers are self-reported by Google and have not been independently replicated under controlled conditions. Treat with the standard caution applied to all self-reported coding benchmarks.
 
 ## Strengths
 
-**Long-context reasoning**: 1M tokens is the largest production context window of any major API. For tasks involving full codebase analysis, long document processing, or extended conversations without summarization, Gemini has a structural advantage.
+**Long-context advantage is real.** For tasks where relevant context is spread across many files, 1M tokens eliminates the retrieval problem. A knowledge base ingestion pipeline that would require [vector database](../concepts/vector-database.md) infrastructure with GPT-4o can sometimes run as a direct context-stuffing operation with Gemini 2.5 Pro. The cost math changes, but the infrastructure complexity drops.
 
-**Native multimodality**: Video and audio processing without separate model calls simplifies application architecture and preserves cross-modal reasoning. A single Gemini call can transcribe, summarize, and answer questions about an hour of video.
+**Multimodal knowledge pipelines.** If your knowledge acquisition involves processing screenshots, architecture diagrams, or video walkthroughs, Gemini handles these natively without a separate vision model.
 
-**Cost and speed via Flash**: Gemini 1.5 Flash offers competitive pricing against GPT-3.5-class models with meaningfully better capability. For high-volume inference, Flash is a serious option.
+**Agent framework ecosystem coverage.** Graphiti, [LangChain](../projects/langchain.md), [LiteLLM](../projects/litellm.md), and others list Gemini as a supported backend. The cross-framework support means Gemini can slot into existing agent infrastructure without custom integration work.
 
-**Free tier**: The Google AI Studio free tier and Gemini CLI's 1,000 daily free requests provide genuine experimentation access without a payment commitment.
+**Free tier for development.** Google AI Studio provides a free Gemini API tier with substantial limits, enabling development and testing without upfront commitment. This lowers the barrier to experimenting with Gemini-based agent architectures.
 
-**MCP and tool ecosystem**: The Gemini CLI's MCP support means it can access the growing ecosystem of MCP servers built primarily for Claude Code. Cross-runtime skill portability is real, as evidenced by projects like Everything Claude Code shipping a `.gemini/` configuration directory.
+**MCP ecosystem participation.** The CLI's MCP support means Gemini participates in the growing ecosystem of standardized agent tools. Skills built for Claude Code can often be adapted for Gemini CLI with minimal changes, as demonstrated by the `everything-claude-code` repo's `.gemini/` integration.
 
-## Limitations
+## Critical Limitations
 
-**Concrete failure mode — context window reliability at scale**: While Google reports 99%+ needle-in-haystack recall at 100K tokens, production users report degradation patterns in complex multi-document reasoning tasks. When many relevant facts are distributed across a 500K+ token context, models can fail to synthesize across widely separated passages even when each is individually retrievable. The context window being large does not mean attention is uniform across it.
+**Concrete failure mode: cost at 1M token context.** The 1M context window is genuinely useful, but pricing scales with tokens consumed. At $7/M input tokens (Gemini 2.5 Pro pricing as of mid-2025), a single 1M-token call costs $7. An agentic coding session that makes 50 calls with large context loaded costs $350 before any output tokens. Teams that default to "stuff everything in context" without building efficient context management can face bills that dwarf Claude Code equivalents using [context compression](../concepts/context-compression.md). The context window is a tool, not a substitute for context engineering.
 
-**Unspoken infrastructure assumption — Google Cloud dependency**: The Gemini API and Gemini CLI route through Google's infrastructure. Enterprises with data residency requirements, organizations in regions with limited Google Cloud availability, or applications requiring on-premise deployment face real constraints. The on-device Nano model addresses edge cases but lacks the capability of Pro or Ultra.
-
-**Safety filtering**: Gemini's content filters are more conservative than competitors in some domains, particularly around code that touches security, medical, or legal topics. Applications in these domains frequently hit refusals that require prompt engineering to route around.
-
-**Function calling reliability**: Multi-step tool use with complex schemas can produce malformed JSON or incorrect parameter binding more frequently than Claude or GPT-4o in production agentic workflows. For [agent orchestration](../concepts/agent-orchestration.md) tasks requiring reliable tool composition, this is a meaningful concern.
-
-**Gemini CLI maturity**: Released June 2025, the CLI is significantly less mature than Claude Code (released 2024) or Cursor. Plugin ecosystems, community skill libraries, and edge case handling lag the more established tools.
+**Unspoken infrastructure assumption: Google Cloud dependency.** Gemini's Search grounding, Workspace integration, and production-grade deployment assume Google Cloud infrastructure. Teams not already on GCP face a vendor lock-in tradeoff that is not prominently surfaced in the documentation. The Vertex AI API (production deployment path) requires GCP billing, project setup, and IAM configuration that adds operational overhead for teams running on AWS or Azure.
 
 ## When NOT to Use Gemini
 
-**Complex multi-step code editing workflows**: Claude Code with opus-class models or GPT-4o consistently outperforms Gemini on [SWE-Bench](../projects/swe-bench.md)-style tasks requiring extended, multi-file edits. For production software engineering agents, Gemini is not the strongest choice as of mid-2025.
+**When you need reliable structured output at scale.** Gemini's structured output support exists but has historically been less reliable than OpenAI's for complex nested schemas. If your knowledge extraction pipeline depends on Pydantic-validated LLM output (as Graphiti's pipeline does), test carefully before committing; some teams report higher error rates than with GPT-4o or Claude.
 
-**Strict data sovereignty requirements**: Any application where data cannot leave a specific jurisdiction or must not touch Google infrastructure is incompatible with the Gemini API.
+**When your context is manageable and you're cost-sensitive.** The 1M context window solves a real problem, but if your actual use case fits within 32K tokens, you're paying a premium for capability you don't use. GPT-4o mini or Claude Haiku cover typical knowledge base Q&A tasks at a fraction of the cost.
 
-**Real-time latency-critical inference**: Even Flash adds API round-trip overhead. For sub-100ms inference requirements, on-device models or locally hosted options ([Ollama](../projects/ollama.md), [vLLM](../projects/vllm.md)) are more appropriate.
+**When you need maximum community tooling.** Claude Code and OpenAI's ecosystem have more mature third-party integrations, richer skill libraries, and larger communities producing reference implementations. The `everything-claude-code` repo's primary platform is Claude Code (38 agents, full feature set); Gemini gets a `.gemini/` directory with partial coverage. If you're standing up an agent system and want to draw on community work, Claude Code's ecosystem is currently deeper.
 
-**Knowledge-graph-heavy agent memory**: Gemini's large context does not substitute for structured [Retrieval-Augmented Generation](../concepts/rag.md) when the task requires cross-session memory, entity tracking, or temporal reasoning over many conversations. Tools like [Graphiti](../projects/graphiti.md) or [Zep](../projects/zep.md) provide this; Gemini's context window provides temporary in-session breadth, not persistent structured memory.
+**When privacy or data residency is a hard constraint.** Gemini API calls send data to Google's infrastructure. For regulated industries (healthcare, finance, legal), this requires evaluating Google's data processing agreements and compliance certifications, which may not satisfy all requirements without specific contract arrangements.
 
 ## Unresolved Questions
 
-**Context caching semantics**: The documentation describes context caching as available for stable prefixes, but the exact staleness handling, cache eviction policies, and behavior when cached content overlaps with new input are not clearly specified. Production applications depending on cache cost savings need to test their specific usage patterns.
+**How does performance degrade in the middle of 1M token contexts?** Google reports 1M token support, but the "lost in the middle" problem (where LLMs poorly attend to content in the middle of very long contexts) is well-documented across models. Google's RULER and similar long-context benchmarks show improvement, but production performance on realistic knowledge base retrieval tasks at 500K+ tokens is not independently benchmarked.
 
-**Gemini CLI governance**: As an open-source project, the Gemini CLI's update cadence, breaking change policy, and long-term maintenance commitment from Google are unclear. The project launched mid-2025 and has not yet accumulated the community extensions or stability track record of competing tools.
+**What is the actual cost model for agentic sessions?** Google's token pricing is published, but agentic coding sessions involve complex patterns of context growth, cache hits, and tool call overhead. The effective cost per meaningful agent action in a real coding session is not documented. Users report wide variance.
 
-**Multi-agent pricing at scale**: Gemini API pricing for agentic workflows where a single user action triggers dozens of model calls is not straightforward. The free tier's 1,000 requests/day is consumed quickly in agentic settings, and the transition to paid pricing for complex workflows is poorly documented.
+**Governance of training data and model updates.** Google updates Gemini models without versioning guarantees. If you build a knowledge base pipeline calibrated to Gemini 2.5 Pro's behavior (extraction patterns, entity recognition quality), a silent model update can break production. OpenAI provides dated model snapshots; Google's versioning policy for production Gemini is less explicit.
 
-**Gemini Ultra access**: Ultra-tier models are not consistently available via the public API. The capability gap between Pro and Ultra is significant on some benchmarks but the access path for organizations needing Ultra-class performance is not straightforward.
+**Community documentation of failure modes.** Claude Code has years of community documentation of edge cases, jailbreaks, and reliability issues. Gemini CLI is newer with less field experience. The failure taxonomy is still forming.
 
-## Alternatives and Selection Guidance
+## Related Concepts and Competitors
 
-**Use [Claude](../projects/claude.md) when**: you need the most reliable multi-step code editing, the strongest reasoning on complex tasks, or the largest community of agent extensions. Claude Code specifically leads for terminal-based software engineering agents.
+Gemini competes directly with [Claude Code](../projects/claude-code.md) and [OpenAI Codex](../projects/codex.md) in the terminal agent space, and with [Claude](../projects/claude.md) and GPT-4 as underlying models. [GitHub Copilot](../projects/github-copilot.md) and [Cursor](../projects/cursor.md) occupy adjacent IDE-based positions.
 
-**Use [OpenAI Codex](../projects/openai-codex.md) / GPT-4o when**: your team has existing OpenAI integrations, you need fine-tuning, or you are optimizing for breadth of third-party tool compatibility.
+In the agent infrastructure ecosystem, Gemini functions as a backend model for [LangChain](../projects/langchain.md), Graphiti's LLM client layer, and [LiteLLM](../projects/litellm.md)'s model routing. It implements [MCP](../concepts/mcp.md) for tool integration and can serve as the reasoning engine in [RAG](../concepts/rag.md) pipelines.
 
-**Use [Cursor](../projects/cursor.md) or [Windsurf](../projects/windsurf.md) when**: you want IDE-native agent assistance rather than a terminal-based CLI tool.
+For [agent memory](../concepts/agent-memory.md) architectures, the 1M context window positions Gemini as a possible alternative to external [vector database](../concepts/vector-database.md) retrieval for projects where the entire knowledge base fits in context, at the cost of per-call pricing.
 
-**Use Gemini when**: your task involves processing very long documents or video natively, you want a free-tier option for prototyping, your infrastructure is Google Cloud native, or you need cost-efficient high-volume inference via Flash.
-
-**Use [Ollama](../projects/ollama.md) when**: data cannot leave your infrastructure, latency requirements preclude API calls, or cost at very high inference volume makes hosted APIs impractical.
-
-## Related Concepts and Projects
-
-- [Model Context Protocol](../concepts/mcp.md) — Gemini CLI implements MCP for tool integration
-- [Retrieval-Augmented Generation](../concepts/rag.md) — Gemini's long context partially substitutes for RAG in some use cases
-- [Agent Skills](../concepts/agent-skills.md) — The Gemini CLI uses GEMINI.md and skill files
-- [Claude Code](../projects/claude-code.md) — Primary direct competitor for terminal-based coding agents
-- [OpenAI Codex](../projects/openai-codex.md) — Competing agentic coding system
-- [Context Engineering](../concepts/context-engineering.md) — Gemini's context caching connects to KV-cache engineering principles
-- [Prompt Engineering](../concepts/prompt-engineering.md) — Safety filtering on Gemini requires more prompt engineering in some domains
+**Selection guidance:**
+- Use Gemini when your context genuinely exceeds 200K tokens and you need to avoid retrieval infrastructure
+- Use Claude Code/Sonnet when you need maximum community tooling, reliable structured output, or lower per-session cost
+- Use [OpenAI Codex](../projects/codex.md) when deep GitHub integration or OpenAI ecosystem compatibility is a priority
+- Use [Cursor](../projects/cursor.md) or [GitHub Copilot](../projects/github-copilot.md) when the team is IDE-first rather than terminal-first
