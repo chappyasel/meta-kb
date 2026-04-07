@@ -117,7 +117,6 @@ Both paths produce the same output structure. Run both for a comparison diff bet
 ## Roadmap
 
 - [x] **Incremental recompilation** — `bun run compile --incremental` skips unchanged sources, regenerates only dirty buckets/entities
-- [x] **Prompt surgery + Opus synthesis** — randomized opening instructions, hardened "takes" prompts, banned-words enforcement, Opus for synthesis articles, restored 15 entity cards, link validation fixing 53 broken links
 - [ ] **Source acquisition** — fill coverage gaps in Knowledge Bases (33 sources) and Agent Systems (23 sources), add historical retrospectives and production case studies
 - [ ] **Cross-article synthesis** — sequential compilation with evidence registry to eliminate cross-article repetition, question-routing ROOT.md layer
 - [ ] **Claims-first migration** — invert pipeline to raw → claims → articles for better attribution accuracy and reliable incremental recompilation
