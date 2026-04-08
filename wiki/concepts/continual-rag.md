@@ -3,133 +3,126 @@ entity_id: continual-rag
 type: concept
 bucket: knowledge-substrate
 abstract: >-
-  Continual RAG extends retrieval-augmented generation with ongoing index
-  updates, enabling systems to incorporate new knowledge without retraining —
-  distinguished from static RAG by treating the index as a living, writable
-  store.
+  Continual RAG extends retrieval-augmented generation to handle ongoing
+  knowledge updates without full reindexing, differentiating itself from static
+  RAG by treating the knowledge base as a living store that accumulates,
+  revises, and prioritizes information over time.
 sources:
-  - tweets/hwchase17-continual-learning-for-ai-agents.md
-  - repos/osu-nlp-group-hipporag.md
-  - repos/agent-on-the-fly-memento.md
   - articles/x-twitter-meta-agent-continual-learning-for-agents.md
+  - repos/agent-on-the-fly-memento.md
+  - repos/osu-nlp-group-hipporag.md
+  - tweets/hwchase17-continual-learning-for-ai-agents.md
 related:
   - continual-learning
-last_compiled: '2026-04-08T03:06:53.078Z'
+last_compiled: '2026-04-08T23:23:53.383Z'
 ---
 # Continual RAG
 
 ## What It Is
 
-Standard [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) treats the document index as read-only: you build it once and query it. Continual RAG removes that constraint. The index grows, revises, and reorganizes as new information arrives, and the retrieval system adapts to reflect those changes without retraining the underlying model.
+Continual RAG describes [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) systems that absorb new documents, facts, and corrections on an ongoing basis while preserving retrieval quality for previously indexed material. The challenge is non-trivial: a naive append-only approach degrades retrieval precision as the index grows, while periodic full reindexing introduces latency windows where new content is invisible. Continual RAG sits between those extremes, borrowing techniques from [Continual Learning](../concepts/continual-learning.md) to manage the retrieval substrate as a dynamic artifact.
 
-The concept sits at the intersection of [Continual Learning](../concepts/continual-learning.md) and retrieval engineering. Where continual learning typically means updating model weights over time — fighting catastrophic forgetting the whole way — continual RAG sidesteps that problem by keeping knowledge in an external, mutable store. The model stays frozen; the index does the learning.
+The concept matters because most deployed RAG systems are built for a snapshot of the world. A legal research tool indexed in January becomes stale by March. A customer support agent trained on last quarter's product docs confidently retrieves obsolete policies. The gap between "when data was indexed" and "when the user asks" is where Continual RAG operates.
 
-This matters because most deployed agents operate in environments where relevant facts change: customer policies update, codebases evolve, new research gets published. A static index goes stale. Continual RAG keeps the retrieval layer current without the cost and instability of retraining.
+## Why Standard RAG Falls Short
 
-## Why It Matters
+Static RAG assumes a fixed corpus. The retriever (dense embedding model, sparse BM25 index, or graph structure) is calibrated once and then queried. When new documents arrive, three problems compound:
 
-[Harrison Chase's framework](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md) maps agent improvement into three layers — model weights, harness code, and context/memory. Continual RAG operates at the third layer. Compared to weight updates, it offers a faster feedback loop and no catastrophic forgetting risk. Compared to harness updates (which apply uniformly across all users), context-layer updates can be scoped per user, per organization, or per agent instance.
+**Index drift.** Dense retrievers embed documents relative to a learned representation space. New documents added incrementally without re-encoding the full corpus can land in different representational neighborhoods than their semantic peers, reducing recall for cross-document queries.
 
-The practical consequence: teams can ship improvements to a deployed agent's knowledge store in hours, not weeks, without touching the model or the scaffolding code.
+**No temporal prioritization.** Standard retrieval ranks by relevance, not recency. A current policy document and a three-year-old version score similarly if their text is similar, causing the retriever to return whichever chunk happens to rank higher by cosine distance.
 
-## How It Works
+**Catastrophic interference in graph structures.** Graph-based retrievers like [GraphRAG](../projects/graphrag.md) and [HippoRAG](../projects/hipporag.md) build entity-relation graphs offline. Incrementally inserting nodes risks disconnected subgraphs or edge proliferation that distorts community structure used during retrieval.
 
-### Index as a Living Structure
+## Core Mechanisms
 
-The simplest version is incremental ingestion: new documents get chunked, embedded, and appended to the [vector database](../concepts/vector-database.md). This works but accumulates noise over time — outdated chunks persist alongside current ones.
+### Incremental Indexing Without Full Rebuild
 
-More sophisticated implementations add four capabilities on top of basic ingestion:
+The simplest continual RAG pattern separates the index into a stable base layer and a volatile recent layer. New documents go into the recent layer, which is fully reindexed on each write (acceptable because it stays small). Periodically, the recent layer merges into the base. This mirrors LSM-tree architecture from databases, and some vector databases implement it natively. [Qdrant](../projects/qdrant.md) and [FAISS](../projects/faiss.md) expose APIs that allow partial index updates with configurable merge policies.
 
-**Deduplication and conflict resolution.** When a new chunk contradicts an existing one, the system must decide which to keep, how to merge them, or how to mark one as superseded. This is where most implementations quietly fail — they append without checking, so queries return contradictory results.
+### Knowledge Graph Continual Updates
 
-**Temporal metadata.** Chunks carry timestamps and version markers. Retrieval can weight recent information more heavily, or explicitly filter by time range. [Temporal Reasoning](../concepts/temporal-reasoning.md) at query time becomes possible when the index tracks when facts were true, not just what they say.
+[HippoRAG](../projects/hipporag.md) (NeurIPS '24, ICML '25) addresses this with a graph structure built from extracted entities and relations, combined with Personalized PageRank for retrieval. Its `hipporag.index(docs=docs)` call processes new documents into the existing graph incrementally rather than rebuilding from scratch. The claim is that this makes it cost and latency efficient online while enabling what the authors call "non-parametric continual learning" — the model weights never change, but the knowledge available to the model grows. Self-reported benchmarks on NaturalQuestions, MuSiQue, 2WikiMultiHopQA, and HotpotQA show HippoRAG 2 outperforming GraphRAG, RAPTOR, and standard dense retrieval on multi-hop queries. These results are from the authors' own paper and have not been independently replicated at scale.
 
-**Graph-based consolidation.** [HippoRAG](../projects/hipporag.md) (NeurIPS '24, ICML '25) extends this further by building a knowledge graph during indexing. Each ingestion pass extracts named entities and relationships, adds them as nodes and edges, and connects new material to existing structure via Personalized PageRank. Multi-hop queries — "what county is Erik Hort's birthplace part of?" — become tractable because the graph preserves associative links that flat vector stores lose. The [OSU NLP Group source](../raw/repos/osu-nlp-group-hipporag.md) reports HippoRAG 2 improves across factual memory (NaturalQuestions, PopQA), sense-making (NarrativeQA), and multi-hop associativity (MuSiQue, 2Wiki, HotpotQA) relative to flat RAG baselines. These are self-reported results from the paper authors; independent replication is limited.
+The graph approach has a genuine advantage for continual updates: inserting a new document that mentions an existing entity connects to that entity's existing node rather than creating a duplicate vector embedding. This is how [Graphiti](../projects/graphiti.md) and [Zep](../projects/zep.md) approach persistent memory for agents — they maintain temporal knowledge graphs where facts can be superseded rather than just appended.
 
-**Offline consolidation ("dreaming").** Systems like [OpenClaw](../projects/openclaw.md) run periodic background jobs over recent traces to extract insights and update the stored context. This mirrors sleep-stage memory consolidation in humans — active sessions write to fast, unsorted storage; consolidation jobs reorganize into structured long-term memory.
+### Temporal Metadata and Decay
 
-### The Hot Path vs. Offline Split
+A lower-infrastructure approach attaches timestamps to all indexed chunks and modifies retrieval scoring to penalize older content when temporal queries are present, or to prefer recent content when recency signals appear in the query. This sidesteps reindexing entirely but requires [Temporal Reasoning](../concepts/temporal-reasoning.md) in the query understanding layer to decide when staleness matters. A question about "current pricing" needs recency weighting; a question about "how photosynthesis works" does not.
 
-Continual RAG updates arrive through two channels:
+### Memory-Augmented MDPs (Memento approach)
 
-**Hot path updates** happen during active agent execution. The agent encounters new information, decides it's worth remembering, and writes to the index mid-task. This keeps the knowledge store current but introduces latency and risks noisy writes — the agent may store incorrect inferences alongside correct facts.
+[Memento](../projects/memento.md) inverts the standard framing: instead of updating the retrieval index, it stores full agent trajectories (successful and failed) in a Case Bank. The retriever then pulls relevant past experiences to guide current decisions, formatted as final-step tuples `(s_T, a_T, r_T)`. This treats continual RAG not as "keep the knowledge base current" but as "keep the behavioral library current." New experiences accumulate without weight updates, and the policy improves through case-based reasoning. This is particularly relevant for agentic settings where the "documents" being retrieved are prior problem-solving episodes, not text corpora.
 
-**Offline batch updates** process accumulated traces after the fact. A separate process reads execution logs, extracts durable knowledge, and writes curated updates to the index. This produces higher-quality additions but introduces lag.
+### Conflict Resolution and Fact Supersession
 
-Most production systems use both: hot-path writes for user-specific preferences and session context, offline jobs for shared knowledge that benefits from consolidation.
+When a new document contradicts an existing indexed fact, naive append creates both versions in the index. Continual RAG systems need one of three strategies:
 
-### Memory Scoping
+1. **Provenance tracking**: store source and timestamp, resolve conflicts at query time by preferring newer or higher-authority sources
+2. **Explicit retraction**: allow document deletion by ID (supported in most vector databases) so outdated chunks are removed when superseded content arrives
+3. **Soft expiry**: score documents with a decay function so older contradicting content gradually loses retrieval weight without explicit deletion
 
-A continual RAG index can be scoped at different granularities:
+None of these is automatic in standard vector database deployments. The application layer must implement the logic that decides when new information supersedes old information, which requires understanding what "supersedes" means for a given domain.
 
-- **Agent-level**: one shared index for all users of a given agent instance
-- **Tenant-level**: per-user or per-organization indices, updated from that entity's interactions
-- **Mixed**: base shared index plus per-tenant overlay
+## Implementation Layers
 
-[Zep](../projects/zep.md), [Mem0](../projects/mem0.md), and [Letta](../projects/letta.md) each implement some version of tenant-scoped continual memory. The architectural choice affects both privacy (tenant data stays isolated) and cost (N tenant indices vs. one shared index).
+Harrison Chase's framing from [Continual learning for AI agents](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md) clarifies where continual RAG sits: knowledge updates happen at three layers in an agentic system.
 
-### Case-Based RAG as an Extension
+- **Model layer**: weight updates via SFT or RL. Slow, expensive, risks catastrophic forgetting.
+- **Harness layer**: changes to code, tools, system prompts. Medium speed, affects all agent instances.
+- **Context layer**: instructions, skills, memory retrieved at runtime. Fast, per-user or per-session.
 
-[Memento](../projects/memento.md) takes the concept further by storing not just facts but full trajectories — successful and failed task executions — as retrievable cases. When the agent faces a new task, it retrieves similar past cases and uses them to guide planning. The index grows with every completed task. This reframes continual RAG as memory-augmented reinforcement learning: the "document store" becomes a case bank, and retrieval informs action selection rather than just answering questions. Memento reports competitive results on GAIA and HLE benchmarks (self-reported by the authors).
+Continual RAG primarily operates at the context layer. The retrieval store is the mechanism that makes context dynamic. When an agent retrieves a document written yesterday, it's accessing continually updated context without any weight changes. This is the fastest feedback loop of the three and carries the least risk of destabilizing existing behavior — which is why practitioners often start here before attempting harness or model-layer updates.
 
-## Key Data Structures
+## Who Implements It
 
-**Chunk with temporal metadata**: `{content, embedding, timestamp, source_id, version, superseded_by}`. The `superseded_by` field enables soft deletion — old facts remain queryable for historical purposes but get downranked in current-context retrieval.
+**[HippoRAG](../projects/hipporag.md)**: graph-based, neurobiologically inspired, designed explicitly for non-parametric continual learning. Best for multi-hop retrieval over growing corpora.
 
-**Knowledge graph node**: `{entity_id, name, type, embeddings, linked_chunks, last_updated}`. HippoRAG's graph stores entities and their connecting passages, allowing Personalized PageRank to traverse relationships during retrieval.
+**[Graphiti](../projects/graphiti.md) / [Zep](../projects/zep.md)**: temporal knowledge graphs for agent memory. Optimized for conversation-length continual updates where facts evolve across sessions.
 
-**Case memory entry** (Memento pattern): `{state_T, action_T, reward_T, task_description, execution_trace}`. Final-step tuples capture what was tried, what happened, and whether it worked.
+**[Mem0](../projects/mem0.md) / [Letta](../projects/letta.md) / [MemGPT](../projects/memgpt.md)**: memory management frameworks that handle write-back, conflict resolution, and retrieval for long-running agents. Continual RAG is a component of their broader memory architecture.
 
-## Failure Modes
+**[LlamaIndex](../projects/llamaindex.md) / [LangChain](../projects/langchain.md)**: provide lower-level primitives (index update APIs, metadata filtering, retrieval pipelines) that developers assemble into continual RAG systems.
 
-**Index poisoning from hot-path writes.** When agents write to their own index during execution, incorrect inferences get stored as facts. Subsequent queries retrieve the hallucination and amplify it. Systems without a validation step between write and retrieval are vulnerable. The fix — a consolidation pass that cross-checks new entries — adds latency and complexity most teams skip.
+**[Memento](../projects/memento.md)**: trajectory-based continual RAG for agent decision-making. Differs from document-focused implementations by treating past agent episodes as the "documents" being indexed and retrieved.
 
-**Stale chunk retention.** Incremental append without expiration causes the index to grow indefinitely. Old product documentation, deprecated API specs, and superseded policies accumulate. Retrieval returns a mixture of current and outdated information, and the model has no reliable signal for which is which. This is the most common silent failure in production continual RAG deployments.
+## Practical Failure Modes
 
-**Overfitting to recent traces.** The meta-agent source documents this explicitly: early optimization iterations fixed specific traces rather than writing general rules, improving search-set accuracy while hurting holdout. The same dynamic affects continual RAG — a system updated heavily on recent interactions may overfit to recent patterns and degrade on less frequent but valid queries.
+**Index bloat degrades precision.** Without pruning or decay, append-only indexes accumulate redundant and contradictory chunks. At sufficient scale, retrieval precision falls because the probability of returning an outdated chunk alongside a current one grows. Systems need explicit pruning strategies or the continual update mechanism defeats itself.
 
-**Conflict without resolution.** Two documents asserting contradictory facts about the same entity both get indexed. Without explicit conflict detection and resolution logic, retrieval returns both, and the model must adjudicate — which it may do inconsistently. [Knowledge Graph](../concepts/knowledge-graph.md)-based systems handle this better than flat vector stores because entity linking makes the contradiction visible at index time.
+**Embedding model staleness.** Continual RAG typically assumes a fixed embedding model. If the domain drifts (new terminology, new entity types), the embedding model's representation of new documents diverges from its representation of old documents, reducing cross-document retrieval. Updating the embedding model requires re-encoding the entire corpus — full reindexing — which the system was designed to avoid. This is the primary unspoken infrastructure assumption: the embedding space is stable over the system's lifetime.
 
-## Infrastructure Assumptions
+**Conflict resolution requires domain knowledge.** No generic algorithm correctly identifies when new text supersedes existing text across all domains. A medical knowledge base has different supersession rules than a legal database or a product catalog. Systems that don't implement explicit supersession logic accumulate contradictions silently, and the retriever returns both the current and outdated fact with similar scores.
 
-Continual RAG assumes an index backend that supports concurrent reads and writes without locking out queries during updates. Most [vector database](../concepts/vector-database.md) implementations ([ChromaDB](../projects/chromadb.md), [Pinecone](../projects/pinatone.md)) satisfy this, but the assumption breaks down when the consolidation job and live query traffic compete for the same index shard at scale.
+**Write amplification in graph-based systems.** Graph-based continual RAG (HippoRAG, Graphiti) runs LLM calls during indexing to extract entities and relations. Each new document triggers inference, which makes write costs proportional to LLM API cost rather than just storage cost. At high document ingestion rates, this becomes expensive.
 
-There is also a quiet assumption about write latency tolerance. Hot-path updates add round-trip time to every agent turn that decides to write. In latency-sensitive applications — customer service agents, real-time coding assistants — this overhead is often unacceptable, which pushes teams toward async writes and eventual consistency. The gap between write and availability then reintroduces staleness.
+## When Not to Use Continual RAG
 
-## When Not to Use It
+**Stable corpora**: if your knowledge base changes quarterly or less, full reindexing is simpler and produces better retrieval quality. The complexity of incremental update logic only pays off when the corpus changes frequently enough that reindexing windows are operationally unacceptable.
 
-**Correctness-critical, regulated domains.** If wrong information in the index carries legal or safety consequences — medical guidance, financial compliance, legal precedent — continuous unsupervised updates are dangerous. Static, audited indices with explicit version control and human review gates are more appropriate.
+**Regulated environments requiring audit trails**: systems where every fact's provenance must be verifiable at retrieval time face real engineering overhead. Continual RAG indexes need provenance metadata attached to every chunk, conflict resolution decisions logged, and retraction events tracked. This is solvable but adds substantial infrastructure.
 
-**Low-update-frequency knowledge.** If the underlying facts change monthly or slower, the operational overhead of continual update infrastructure outweighs the benefit. Build the index quarterly and redeploy.
-
-**Single-session agents.** If the agent serves one-off tasks with no returning users and no shared knowledge domain, continual RAG adds complexity without benefit. Stateless RAG over a well-maintained static corpus is simpler and easier to debug.
-
-**Small teams without index monitoring.** Continual RAG requires observability into what's being written, what's being retrieved, and whether quality is degrading. Without that infrastructure, the system silently accumulates noise. [Observability](../concepts/observability.md) tooling is a prerequisite, not an optional add-on.
-
-## Relationship to Adjacent Concepts
-
-Continual RAG is a specific implementation strategy within [Continual Learning](../concepts/continual-learning.md) — it achieves ongoing adaptation through external memory rather than weight updates. It produces and maintains [Semantic Memory](../concepts/semantic-memory.md) (factual knowledge about the world) and sometimes [Episodic Memory](../concepts/episodic-memory.md) (records of specific past events or interactions). [Agent Memory](../concepts/agent-memory.md) systems often use continual RAG as their retrieval backend.
-
-[GraphRAG](../projects/graphrag.md) and [HippoRAG](../projects/hipporag.md) extend flat continual RAG with graph structure, enabling multi-hop retrieval and more principled conflict detection. [RAPTOR](../projects/raptor.md) uses hierarchical summarization during indexing, which can be applied incrementally as new content arrives.
-
-[Context Compression](../concepts/context-compression.md) and [Context Management](../concepts/context-management.md) interact with continual RAG at query time: what gets retrieved must fit the context window, so compression and ranking of retrieved chunks matters as much as the quality of the index itself.
+**Small context window models**: continual RAG assumes the retrieved content can fit in context alongside the query and generation. Models with constrained context budgets need aggressive [Context Compression](../concepts/context-compression.md) before the retrieval layer adds value.
 
 ## Unresolved Questions
 
-**Conflict resolution at scale.** No widely-adopted standard exists for detecting and resolving contradictions between indexed chunks. Most systems either ignore the problem (append-only) or require manual curation. Graph-based approaches help but add indexing cost.
+The documentation and papers around continual RAG leave several questions open:
 
-**Evaluation of index quality over time.** Benchmarks like [LongMemEval](../projects/longmemeval.md) measure retrieval quality at a point in time, not how quality evolves as the index grows and updates. There is no standard benchmark for continual RAG degradation curves.
+**How do you know when to retract?** No published system provides a general mechanism for detecting that a new document supersedes an existing one without human annotation or domain-specific rules. The provenance-tracking approach pushes this problem to query time, but that requires the LLM to reason about document timestamps and authority — a capability that varies significantly across models.
 
-**Write authorization.** In multi-agent systems, which agents are allowed to write to a shared index, and with what validation? Unanswered in most frameworks. A rogue or compromised subagent writing to a shared organizational index is a real attack surface that current architectures largely ignore.
+**Cost at scale for graph-based approaches.** HippoRAG's claim that it uses "significantly fewer resources for offline indexing compared to GraphRAG, RAPTOR, and LightRAG" is relative to those systems' known high costs. Absolute cost at millions of documents with LLM-based entity extraction is not characterized in public benchmarks.
 
-**Cost at scale.** Graph-based continual RAG (HippoRAG, [Graphiti](../projects/graphiti.md)) requires LLM calls during indexing to extract entities and relationships. At high ingestion volume, this cost compounds. The tradeoff between indexing fidelity and cost per document is not well-characterized in the literature.
+**Retrieval quality over time.** Benchmark evaluations (HippoRAG 2's ICML '25 results, Memento's GAIA results) measure a fixed snapshot. Whether retrieval quality degrades gracefully or catastrophically as the index grows over months of real-world updates is not documented in any published evaluation.
 
-## Alternatives
+**Governance of automated memory updates.** Systems like OpenClaw's SOUL.md and Hex's Context Studio update agent context automatically from production traces. The criteria for what gets written, who can audit it, and how incorrect automated updates get corrected are operational questions that each team answers differently and rarely documents publicly.
 
-- **Static RAG with scheduled rebuilds**: Simpler operationally. Use when facts change slowly and index rebuild is cheap. Avoids all the failure modes above at the cost of staleness windows.
-- **Fine-tuning**: Bakes knowledge into weights. Use when the target knowledge domain is stable, well-defined, and the team has the infrastructure for safe fine-tuning. Slower feedback loop, catastrophic forgetting risk.
-- **[Hybrid Search](../concepts/hybrid-search.md) over append-only logs**: Use [BM25](../concepts/bm25.md) plus vector search over raw, timestamped logs without consolidation. Simpler than full continual RAG, handles recency naturally through date filters, but scales poorly and returns noisy results.
-- **[Knowledge Graph](../concepts/knowledge-graph.md)-only memory** ([Graphiti](../projects/graphiti.md), [Neo4j](../projects/neo4j.md)): Use when relationship traversal matters more than semantic similarity search. Better conflict detection, higher indexing cost, requires more schema design upfront.
+## Relationship to Adjacent Concepts
+
+Continual RAG connects directly to [Semantic Memory](../concepts/semantic-memory.md) (the persistent factual store) and [Long-Term Memory](../concepts/long-term-memory.md) (the infrastructure maintaining it across sessions). [Agent Memory](../concepts/agent-memory.md) frameworks treat the retrieval layer as one of several memory types, alongside [Episodic Memory](../concepts/episodic-memory.md) (past interactions) and [Procedural Memory](../concepts/procedural-memory.md) (learned skills).
+
+[Hybrid Search](../concepts/hybrid-search.md) — combining dense vector retrieval with sparse [BM25](../concepts/bm25.md) — becomes more valuable in continual RAG settings because BM25 indexes update incrementally with lower overhead than dense indexes, providing a stable baseline retrieval while the dense index catches up after bulk ingestion.
+
+[Agentic RAG](../concepts/agentic-rag.md) extends continual RAG by making the retrieval process itself agent-driven: instead of a single retrieval call, the agent iteratively queries, refines, and re-retrieves based on what it finds. When combined with continual updates, this creates systems where both the retrieval strategy and the knowledge base evolve — the configuration space Harrison Chase identifies at the harness and context layers simultaneously.
 
 
 ## Related

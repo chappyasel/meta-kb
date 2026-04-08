@@ -3,171 +3,180 @@ entity_id: agent-harness
 type: concept
 bucket: agent-architecture
 abstract: >-
-  Agent harness is the scaffolding code surrounding an LLM — prompt
-  construction, retrieval logic, tool integrations, memory management,
-  evaluation loops, and sandbox environments — that can produce up to 6x
-  performance gaps independent of model weights.
+  An agent harness is the scaffolding layer surrounding an LLM — the code
+  controlling what information to retrieve, store, and present — that can
+  produce up to 6x performance gaps independent of model weights, and is now the
+  primary target for automated optimization.
 sources:
-  - tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md
-  - tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md
-  - repos/letta-ai-letta-code.md
-  - papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
   - articles/x-twitter-meta-agent-continual-learning-for-agents.md
   - deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
+  - papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
+  - repos/letta-ai-letta-code.md
+  - tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md
+  - tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md
 related:
   - termination-bench
   - openai-agents-sdk
   - prompt-optimization
-  - openai-agents-sdk
-last_compiled: '2026-04-08T03:02:45.087Z'
+last_compiled: '2026-04-08T23:19:45.321Z'
 ---
 # Agent Harness
 
 ## What It Is
 
-An agent harness is the infrastructure surrounding a language model that determines what information the model receives, what actions it can take, and how its outputs get evaluated and fed back into the next iteration. The term encompasses everything except the model weights themselves: system prompts, retrieval pipelines, tool definitions, memory management code, sandbox environments, evaluation loops, and optimization components.
+An agent harness is the code layer surrounding a language model that determines what information the model receives and when. It encompasses prompt construction, retrieval logic, memory management, tool definitions, lifecycle hooks, stop conditions, and state orchestration. The model weights are fixed; the harness is everything else.
 
-The concept gained formal definition in the Meta-Harness paper (Lee et al., 2026), which demonstrated that harness changes alone can produce up to 6x performance gaps on identical benchmarks with identical models. This makes harness engineering as consequential as model selection, yet the field has treated it as boilerplate rather than a first-class engineering concern.
+The term comes from testing infrastructure (a "test harness" controls how code is exercised) but in the LLM context it has broader meaning: any scaffolding that mediates between raw model capability and task performance. [TerminalBench](../projects/termination-bench.md) uses the term explicitly for the code wrapping agent execution; [Meta-Harness](../deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md) defines it formally as "the code that determines what information to store, retrieve, and present to the model."
 
-The practical scope of a harness includes:
-
-- **Prompt construction** — how system prompts, user instructions, and context are assembled before each model call
-- **Retrieval and memory** — what information gets fetched from external stores, how it's ranked and filtered, how much of it enters the context window
-- **Tool integration** — which tools are available, how they're described to the model, how their outputs are post-processed
-- **Sandbox environments** — isolated execution environments for code or system commands, with permission constraints and resource limits
-- **Evaluation loops** — mechanisms for scoring outputs, whether through deterministic checks, test suites, or LLM judges
-- **Optimization components** — any outer loop that modifies harness code based on evaluation feedback
+The key empirical finding driving recent attention: harness changes alone produce up to 6x performance differences on the same benchmark with the same model. Vanilla Claude Code with Haiku 4.5 scores 27.5% on TerminalBench-2; the best hand-engineered harness on the same model reaches 35.5%. No fine-tuning involved.
 
 ## Why It Matters
 
-The gap between a model's raw capability and its deployed performance runs through the harness. A vanilla Claude Haiku 4.5 on TerminalBench-2 scores 27.5%. The best hand-engineered harness on the same model reaches 35.5%. Meta-Harness automated optimization pushes that to 37.6% — all with no fine-tuning, no model changes. [Source](../raw/deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md)
+Model selection and prompt engineering have been the primary levers practitioners reach for when performance is unsatisfactory. Harness engineering is the third lever, and evidence suggests it is at least as powerful as the other two. The field has mostly ignored it because harnesses were assumed to be boilerplate infrastructure rather than a primary optimization target.
 
-This matters for three reasons. First, harness changes are cheap to deploy relative to fine-tuning or model upgrades. Second, harness changes are reversible and auditable in ways that weight changes are not. Third, a well-designed harness can transfer across model generations — the retrieval logic and memory management that works with one model often works with its successor.
+Three developments have shifted this:
 
-The field has reached a point where the bottleneck is no longer writing code but everything after: validating behavior, catching regressions, debugging failures, and maintaining evaluations as systems evolve and user behaviors drift. [Source](../raw/tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md)
+1. Benchmarks now expose harness-induced variance explicitly. [SWE-bench](../projects/swe-bench.md), [tau-bench](../projects/tau-bench.md), and TerminalBench-2 all show large spreads across agents using the same base model — spreads attributable to harness design rather than model capability.
+
+2. Automated harness optimization has proven feasible. Systems like Meta-Harness, [auto-harness](https://github.com/neosigmaai/auto-harness), and meta-agent treat harness code as a search space and use LLM coding agents as optimizers.
+
+3. Production agents run on unlabeled traces. Most real agents never see clean labeled data. Harness optimization methods that work with production traces and LLM judges unlock continuous improvement in settings where traditional ML pipelines fail.
 
 ## Core Components
 
-### Prompt Construction
+A harness typically combines several distinct subsystems:
 
-The system prompt and context assembly code constitutes the most visible part of the harness. This includes how tool descriptions are formatted, how conversation history is truncated, whether few-shot examples are included, and in what order information appears in the context window. Small changes here propagate to every model call. The [CLAUDE.md](../concepts/claude-md.md) pattern formalizes one approach to prompt construction by externalizing agent instructions into persistent, editable files rather than hardcoding them.
+**Prompt construction.** The code that assembles the context window — system prompt, retrieved documents, conversation history, tool definitions, few-shot examples. This is the most studied component; it is what most "prompt optimization" work targets. But it is only one piece.
 
-### Retrieval and Memory Management
+**Retrieval logic.** For [RAG](../concepts/retrieval-augmented-generation.md)-based systems, the harness controls query construction, index selection, result filtering, and reranking. The same corpus with different retrieval logic produces dramatically different results. Meta-Harness discovered a subject-specific routing system for math retrieval: four lexical routes over [BM25](../concepts/bm25.md), each with different k values and reranking bonuses calibrated to mathematical subdomain characteristics.
 
-For [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) systems, the harness controls which retrieval strategy runs (dense, sparse, hybrid), how many results are fetched, how they're reranked, and how they're formatted before insertion into context. Meta-Harness discovered through automated search that a subject-specific router outperforms generic BM25 for math reasoning: combinatorics problems use BM25@20 deduplicated to 8 and reranked to 3; geometry problems use 1 hard reference plus 2 BM25 neighbors; number theory uses BM25@12 with a technique-early reranking bonus. [Source](../raw/deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md)
+**Memory management.** How the harness reads and writes to [agent memory](../concepts/agent-memory.md) systems. Which memories to surface per turn, when to consolidate, what to discard. [Letta Code](../projects/letta.md) treats this as the primary differentiator: persistent agents accumulate domain knowledge across sessions where session-based agents start fresh each time.
 
-The harness also mediates between different memory types. [Core Memory](../concepts/core-memory.md) (always-in-context facts), [Episodic Memory](../concepts/episodic-memory.md) (retrievable past experiences), and [Semantic Memory](../concepts/semantic-memory.md) (factual knowledge stores) each require different retrieval patterns that the harness must coordinate. [MemGPT](../projects/memgpt.md) and [Letta](../projects/letta.md) treat this coordination as the central problem of agent design.
+**Lifecycle hooks.** Code that runs before and after tool calls, on errors, at state transitions. The auto-harness system on tau-bench airline found that a targeted stop condition change — keeping the agent engaged rather than letting it exit early — plus a skill encoding domain policy rules produced a 20-point accuracy jump (67% to 87%).
 
-### Tool Integration
+**Tool definitions and permissions.** Which tools the agent can call, with what parameter schemas and permission gates. Meta-Harness's agentic coding harness added environment bootstrapping before the agent loop: collect OS, language availability, package managers, and memory state. This reduced 3-5 wasted exploration turns on dependency-heavy tasks.
 
-Tool definitions, permission logic, and result post-processing are harness concerns. The [Model Context Protocol](../concepts/model-context-protocol.md) standardizes one layer of this — how tools are described and called — but the harness still controls which tools are exposed to which agents in which contexts, how tool errors are handled, and whether tool outputs are passed through directly or summarized before reaching the model.
+**Stop conditions and error handling.** When to terminate, retry, or escalate. Poor stop conditions produce agents that quit early (missing completions) or loop indefinitely (wasting resources).
 
-A [Tool Registry](../concepts/tool-registry.md) is the harness component responsible for maintaining available tools, resolving conflicts between tool definitions, and routing tool calls appropriately in [Multi-Agent Systems](../concepts/multi-agent-systems.md).
+## How Automated Harness Optimization Works
 
-### Sandbox Environments
+Three open systems have converged on similar architecture:
 
-For agents that execute code or issue system commands, the sandbox defines the trust boundary. This includes file system access permissions, network access controls, execution timeouts, resource limits, and how execution outputs (stdout, stderr, exit codes) are formatted before returning to the model. [TerminalBench](../projects/termination-bench.md) exists specifically to evaluate how well harnesses support terminal-based agent work within these constraints.
+### The Basic Loop
 
-### Evaluation Loops
+1. Run the current harness on a task set, collect execution traces.
+2. Score traces (with ground truth labels or an LLM judge).
+3. Give a coding agent access to prior harness code, traces, and scores.
+4. The coding agent proposes one targeted harness modification.
+5. Evaluate the modified harness on a holdout set.
+6. Keep the change if holdout performance improves; discard otherwise.
+7. Repeat.
 
-The evaluation loop sits outside the agent's operational loop and measures whether the harness is working. This ranges from deterministic test suites (pass/fail on code execution) to [LLM-as-Judge](../concepts/llm-as-judge.md) scoring for conversational tasks where ground truth is ambiguous. The choice of evaluation mechanism directly shapes what the harness optimizes toward.
+The critical design choice is what the proposer agent can see in step 3. Meta-Harness's ablation makes this concrete:
 
-### Optimization Components
+| Access Level | Median Accuracy |
+|---|---|
+| Scores only | 34.6 |
+| Scores + summaries | 34.9 |
+| Full filesystem (raw traces) | 50.0 |
 
-The most recent development is making the evaluation loop drive automatic harness modification. This is where projects like Meta-Harness, meta-agent, and auto-harness operate — they treat the harness as a search target rather than a fixed artifact. See the Automated Harness Optimization section below.
+Summaries add 0.3 points. Full traces add 15.4 points. Compressed feedback destroys the causal signal needed for systematic improvement. The proposer needs to see specific failing examples — the exact prompts constructed, the retrieval results returned, the model outputs produced — to form hypotheses about root causes.
 
-## How Harnesses Get Built
+### Proposer Behavior at Scale
 
-### Manual Engineering
+Meta-Harness documents sophisticated causal reasoning by its proposer (Claude Code with Opus-4.6). On TerminalBench-2, after five consecutive regressions from structural changes, the proposer explicitly stated: "All prior iterations regressed because they modified the completion flow, prompt template, or observation processing. This takes a different approach — purely additive." It then pivoted to only adding behavior rather than modifying existing logic.
 
-The dominant approach. A developer writes prompt templates, wires up retrieval, defines tools, and iterates based on qualitative observation and ad-hoc testing. This produces harnesses that work but embed implicit assumptions about model behavior that break when the model changes, and accumulate technical debt that's hard to audit.
+This pattern — the optimizer learning from its own optimization history — requires access to that history. The proposer reads a median of 82 files per iteration, referencing over 20 prior candidates. Filesystem-based storage makes this natural: code, traces, and scores all live in directories the proposer can inspect.
 
-### Framework-Assisted
+### Production-Trace Variants
 
-Frameworks like [LangChain](../projects/langchain.md), [LangGraph](../projects/langgraph.md), [CrewAI](../projects/crewai.md), and the [OpenAI Agents SDK](../projects/openai-agents-sdk.md) provide harness scaffolding. They handle tool registration, conversation history management, and basic retry logic. The developer still decides what goes in the system prompt and how retrieval works, but the plumbing is provided.
+Meta-Harness requires labeled data for evaluation. Most production agents lack labels. The meta-agent system addresses this: an LLM judge scores unlabeled production traces, the proposer reads failed traces and proposes targeted changes, and a small labeled holdout set serves as the final gate. On tau-bench airline (Haiku 4.5), judge-based search reached 87% holdout accuracy versus 67% baseline — and outperformed the labeled-search variant at 80%.
 
-[Letta](../projects/letta.md) takes a stronger position — it provides persistent memory as a first-class harness component rather than leaving memory management to the developer. Its [Letta API](../projects/letta-api.md) manages memory across sessions, so the harness maintains continuity even as conversation threads start and stop. [Letta Code](../projects/letta-api.md) applies this to coding assistants specifically, allowing an agent to accumulate project-specific knowledge that session-based tools like Claude Code discard at session end. [Source](../raw/repos/letta-ai-letta-code.md)
+The hypothesis from the meta-agent authors: natural-language error descriptions from the judge ("the agent refunded without checking the cancellation policy") provide richer optimization signal than binary correct/incorrect labels.
 
-### Automated Harness Optimization
+### Regression Gating
 
-This is the frontier. Three approaches have emerged:
+Auto-harness introduces a critical mechanism: a growing regression suite. Each resolved failure cluster contributes new test cases to the suite. A proposed harness change must improve performance on the current task set *and* maintain performance on all previously fixed cases. Without this gate, the optimizer cycles through the same ground repeatedly. With it, every improvement becomes a floor that subsequent changes must clear.
 
-**Meta-Harness (offline, full trace access):** A coding agent (Claude Code with Opus 4.6) reads a filesystem containing all prior harness candidates, their scores, and complete execution traces — approximately 10 million tokens per iteration, three orders of magnitude more than prior text optimizers. The key finding: ablating from full traces to compressed summaries drops accuracy from 50.0 to 34.9 (a 15-point loss). Summaries destroy the causal signal. On text classification, Meta-Harness achieved +7.7 points over ACE while using 4x fewer context tokens. On IMO-level math, it improved accuracy by 4.7 points across 5 held-out models. These are self-reported results from a single research paper. [Source](../raw/deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md)
+This converts harness optimization from a single-pass search into a compounding process where gains accumulate rather than erode.
 
-**meta-agent (continuous, LLM judge scoring):** Operates on unlabeled production traces rather than labeled benchmarks. An LLM judge scores traces as they stream; a proposer reads failed traces and writes one targeted harness update at a time; updates are kept only if they improve a small labeled holdout set. On tau-bench v3 airline tasks, meta-agent improved holdout accuracy from 67% to 87% using judge-based scoring, outperforming a labeled-search variant that reached 80%. The key insight: natural-language error descriptions from an LLM judge ("the agent refunded without checking the cancellation policy") may provide richer optimization signal than binary labels. Single-run results on a small benchmark split. [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
+## Discovered Harness Patterns
 
-**auto-harness (continuous, regression gate):** Mines failures from production traces, clusters them by root cause, converts clusters into reusable evaluation cases, and proposes harness changes validated against a growing regression suite. The regression gate is the key mechanism — fixed failures become permanent test cases, so the system cannot regress on what it has already solved. On tau-bench airline tasks, improved agent score from 0.56 to 0.78 (~40% jump). [Source](../raw/tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md)
+The patterns automated systems discover are transferable engineering practices:
 
-## Discovered Harness Patterns Worth Knowing
+**Draft-verification retrieval.** Two-stage retrieval for classification: (1) retrieve 5 similar examples to generate a draft label, (2) retrieve confirmers and challengers conditioned on the draft for verification. Lower token cost than exhaustive retrieval, higher accuracy than single-pass.
 
-Meta-Harness's automated search discovered several patterns that manual engineers had not converged on:
+**Label-primed context.** Single retrieval call combining a label primer (all valid output categories), a coverage block (one example per label), and contrastive pairs (similar examples with different labels). Highest accuracy on text classification at 48.6% but higher token cost.
 
-**Draft-verification retrieval:** Two-stage RAG where the first retrieval call gets 5 similar examples to generate a draft prediction, then a second call retrieves both confirmers (supporting the draft label) and challengers (contradicting it) to verify. Lowers context cost while maintaining accuracy.
+**Subject-specific retrieval routing.** Classify the input, then route to specialized retrieval policies calibrated to that input type. The math system uses four routes: combinatorics (BM25@20, deduplicate to 8, rerank, keep 3), geometry (1 hard reference + 2 BM25 neighbors), number theory (BM25@12 with technique-early bonus), and a default route.
 
-**Label-primed query:** Single retrieval call that combines a label primer (all valid output categories), a coverage block (one example per label), and contrastive pairs (similar examples with different labels). Highest accuracy but higher token cost.
+**Environment bootstrapping.** Before the agent loop begins, inject a snapshot of available tools, languages, package managers, and memory state. Eliminates 3-5 wasted exploration turns on dependency-heavy tasks. Low implementation cost, immediate benefit.
 
-**Environment bootstrapping for agentic tasks:** Before the agent loop starts, inject a snapshot of the execution environment — OS version, available languages, package managers, installed packages, memory state. Reduces 3-5 wasted exploration turns on dependency-heavy tasks. Trivially implementable and transferable to any agentic coding harness.
-
-**Failure abstraction rules:** meta-agent discovered that the proposer tends to overfit to specific traces rather than writing general behavioral rules. Adding the instruction "State your change as a rule about agent behavior. If you can only justify it by pointing to specific traces, it's too narrow" substantially improved optimization quality. [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
+**Skill encoding.** Move domain rules from the system prompt into explicit skill modules the agent can load. The meta-agent tau-bench harness moved airline policy rules into a skill, then corrected factual errors in that skill — two targeted changes that together produced most of the 20-point improvement.
 
 ## Relationship to Adjacent Concepts
 
-A harness is not the same as a [Cognitive Architecture](../concepts/cognitive-architecture.md), though architectures are implemented through harnesses. The architecture specifies what components exist (planning module, memory stores, tool executor); the harness is the code that wires them together and makes specific choices about how each component operates.
+**[Context Engineering](../concepts/context-engineering.md)** optimizes the content of what goes into a context window. Harness optimization optimizes the code that constructs that content. These are complementary. A well-designed retrieval harness and well-engineered context content compound.
 
-[Prompt Optimization](../concepts/prompt-optimization.md) is a subset of harness optimization focused on text inputs. Meta-Harness extends this to the full codebase — retrieval logic, routing decisions, memory management, and prompt construction code together.
+**[Prompt Optimization](../concepts/prompt-optimization.md)** is a subset of harness optimization that focuses specifically on text prompts. Systems like [DSPy](../projects/dspy.md) operate at this layer. Meta-Harness treats prompt construction as one component among many rather than the only target.
 
-[Context Engineering](../concepts/context-engineering.md) describes the practice of deliberately managing what information enters the context window. Harness design is the mechanism through which context engineering decisions get implemented.
+**[Self-Improving Agents](../concepts/self-improving-agents.md)** operate at a higher level: agents that modify their own capabilities or learning procedures. Harness optimization is a specific mechanism for self-improvement where the search space is harness code rather than model weights or architecture.
 
-[Execution Traces](../concepts/execution-traces.md) are the primary diagnostic artifact the harness produces. The Meta-Harness finding that full trace access is essential for automated optimization makes traces not just a debugging artifact but a core input to the optimization loop.
+**[Reflexion](../concepts/reflexion.md)** uses verbal self-reflection stored in episodic memory as a feedback signal. Meta-Harness's ablation directly contradicts the assumption that compressed verbal summaries are sufficient — raw traces outperform summaries by 15.4 points.
 
-[Self-Improving Agents](../concepts/self-improving-agents.md) depend on harness optimization as their primary mechanism. Systems like [Darwin Gödel Machine](../projects/darwin-godel-machine.md) and [Voyager](../projects/voyager.md) improve by modifying their own harness components — tools, skills, system prompts — based on evaluation feedback.
+**[Multi-Agent Systems](../concepts/multi-agent-systems.md)** often involve harness-level decisions about orchestration: which subagent handles which task, how results are aggregated, what information flows between agents. Auto-harness's use of sub-agents to manage verbose trace context is itself a harness design choice.
 
-[Observability](../concepts/observability.md) is what makes harness optimization possible. Without instrumented traces that capture what the model received, what it produced, and where failures occurred, automated optimization has no signal to work from.
+**[Meta-Agent](../concepts/meta-agent.md)** systems use an outer agent to optimize an inner agent. Automated harness optimization is a specific instantiation: the outer agent optimizes the harness code of the inner agent.
 
 ## Failure Modes
 
-**Proposer overfitting:** Automated optimizers tend to fix the specific traces they observed rather than writing general behavioral rules. The fix is explicit instructions to the proposer: any change that can only be justified by pointing to specific examples is too narrow. [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
+**Proposer overfitting.** The proposer sees specific failing traces and writes harness changes that fix those specific cases rather than the underlying behavioral pattern. Meta-agent addressed this with an explicit instruction: "State your change as a rule about agent behavior. If you can only justify it by pointing to specific traces, it's too narrow." Without this guard, search-set accuracy improves while holdout degrades.
 
-**Benchmark overfitting without held-out validation:** TerminalBench optimization in Meta-Harness searched and evaluated on the same 89 tasks with no held-out set. Any discovered patterns that are specific to those 89 tasks will not generalize. The meta-agent approach addresses this by maintaining a separate labeled holdout set used only for keep/reject decisions.
+**Regression without gating.** Harness changes that improve performance on new cases while breaking previously working cases are accepted if only forward progress is measured. The regression gate prevents this, but adds engineering overhead.
 
-**Regression without a gate:** Iterative harness improvement without a regression suite means fixes can get undone in later iterations. The auto-harness regression gate converts every fixed failure into a permanent test case, making improvements additive rather than circular. [Source](../raw/tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md)
+**Proposer model dependency.** Meta-Harness requires Opus-4.6 class capability for the proposer to exhibit the causal reasoning documented in the paper. Weaker proposer models may not generalize from trace analysis to systematic harness improvements. The discovered harness can run on cheaper models; the optimization process cannot.
 
-**Trace compression:** Summarizing execution traces before feeding them to an optimizer destroys the causal signal. The ablation is clear: scores + summaries = 34.9 accuracy; full traces = 50.0. Any system that compresses traces before the optimization loop should treat this 15-point gap as a baseline for what it might be leaving on the table.
+**Trace volume cost.** Full trace access — the mechanism that produces Meta-Harness's gains — consumes roughly 10 million tokens per iteration. For systems with high-output traces or many tasks per evaluation, this accumulates quickly. Auto-harness addresses this with sub-agent summarization at the cost of some signal fidelity.
 
-**Infrastructure assumption — capable proposer required:** Automated harness optimization as described in Meta-Harness and meta-agent requires an Opus-class model as the proposer. The sophisticated causal reasoning — identifying that prior regressions came from confounded interventions, pivoting to purely additive changes after five consecutive failures — does not emerge from weaker models. Running these systems with cheaper proposer models is untested.
+**Single-harness generalization.** Optimization discovers one harness that performs well on average across the evaluation set. For tasks with highly heterogeneous input characteristics, a single harness may be suboptimal across the distribution even when its aggregate score is high. The subject-specific routing in math retrieval partially addresses this within a single harness.
 
 ## When Not to Use Automated Harness Optimization
 
-Automated optimization requires a stable evaluation signal. If you cannot define what "better" means in a measurable way — a test suite, a labeled holdout set, or at minimum an LLM judge with consistent scoring criteria — the optimization loop has nothing to search toward.
+**When you lack a stable evaluation set.** Harness optimization requires reliable performance measurement. If your task distribution is highly non-stationary or your evaluation is noisy, the optimizer will chase measurement artifacts rather than genuine improvements.
 
-For low-traffic agents where production traces accumulate slowly, continuous optimization loops will not have enough signal to make reliable keep/reject decisions. The meta-agent approach requires enough unlabeled traces to surface recurring failure patterns worth optimizing against.
+**When per-iteration cost is prohibitive.** Full-trace optimization at 10M tokens per iteration with an Opus-class proposer is expensive. For low-budget experiments or cheap underlying tasks, the optimization cost may exceed the value of the performance gain.
 
-For agents where the correct behavior is highly context-dependent and not capturable in a holdout set, automated optimization may optimize the measurable proxy at the expense of the actual goal.
+**When the harness is already close to optimal.** If performance gaps are primarily attributable to model capability limitations rather than information access or retrieval quality, harness optimization produces diminishing returns. Harness optimization is most valuable when there is a large gap between current harness performance and an upper-bound achievable through better information management.
+
+**When you need immediate results.** Meta-Harness reaches competitive performance within 4 iterations but runs more total iterations for peak results. Auto-harness runs "over the weekend." These are multi-hour to multi-day processes.
 
 ## Unresolved Questions
 
-**Cost at scale:** Meta-Harness consumes ~10 million tokens per optimization iteration. For production systems running continuous optimization, this cost accumulates. None of the published work provides cost estimates for running these loops on realistic production volumes.
+**Cost accounting at scale.** No published work provides a full cost breakdown: proposer API calls, evaluation runs, and storage for a complete optimization campaign. The 10M tokens/iteration figure for Meta-Harness excludes evaluation cost.
 
-**Multi-harness coordination:** In [Multi-Agent Systems](../concepts/multi-agent-systems.md), different agents may run different harnesses. How optimization of one agent's harness affects others — particularly in systems with shared memory or tool registries — is not addressed in current work.
+**Proposer instruction sensitivity.** Both meta-agent and auto-harness note that small changes to proposer instructions produce large changes in optimization quality. Neither provides systematic guidance on how to configure the proposer for a new domain. This is effectively a meta-harness problem one level up.
 
-**Proposer-model coupling:** All published results use Claude Code with Opus 4.6 as the proposer. Whether discovered harnesses are proposer-specific (i.e., optimized for patterns that Opus 4.6 responds well to) or genuinely model-agnostic is not tested systematically. The cross-model transfer results on math reasoning (harness discovered with one set of models, evaluated on five held-out models) are encouraging but not definitive.
+**Generalization across task distributions.** Meta-Harness tests out-of-distribution transfer on text classification (9 unseen datasets) with positive results (+2.9 points, fewer tokens). Math and coding transfer are not tested. The conditions under which a discovered harness generalizes versus overfits to the optimization distribution are not characterized.
 
-**Governance of evolving harnesses:** When a harness changes autonomously in production, the organization needs to know what changed, why, and whether to accept it. None of the published systems address audit trails, rollback mechanisms, or approval workflows for harness modifications.
+**Interaction with model updates.** A harness optimized for one model version may degrade when the underlying model is updated. Production systems using continuous harness optimization need a mechanism to detect model-induced regressions and re-trigger optimization.
+
+**Multi-agent harness optimization.** All current work targets single-agent harnesses. Multi-agent systems have additional harness decisions: orchestration logic, inter-agent communication formats, task routing. Whether the same optimization loop applies to multi-agent harnesses is untested.
 
 ## Alternatives and Selection Guidance
 
-Use [Prompt Optimization](../concepts/prompt-optimization.md) (via [DSPy](../projects/dspy.md) or similar) when the performance bottleneck is in the text of instructions and few-shot examples rather than retrieval logic or control flow. Prompt optimization is cheaper and well-understood; full harness optimization is warranted when prompt changes alone are insufficient.
+**Manual harness engineering.** For well-understood task types with stable distributions, hand-engineering based on domain knowledge may outperform automated search with lower cost. The discovered patterns above (draft-verification, environment bootstrapping) are directly implementable without running an optimizer.
 
-Use [LangGraph](../projects/langgraph.md) or [CrewAI](../projects/crewai.md) when you need structured multi-agent coordination with human-readable graph definitions and are not yet at the optimization stage.
+**[DSPy](../projects/dspy.md) / prompt optimization.** Use when the primary harness bottleneck is prompt text rather than retrieval logic, tool definitions, or lifecycle hooks. DSPy optimizes prompts within a fixed harness structure; Meta-Harness optimizes the structure itself.
 
-Use [Letta](../projects/letta.md) when persistent cross-session memory is the primary requirement and you want memory management handled by the framework rather than custom harness code.
+**[Reflexion](../concepts/reflexion.md).** Use when you want the agent to improve its behavior within a single session through verbal self-reflection. Harness optimization is an offline process producing a better static configuration; Reflexion is an online process producing better in-context reasoning.
 
-Use manual harness engineering when your task distribution is narrow enough that a careful human engineer can enumerate the important cases, or when you cannot yet define an evaluation signal reliable enough to drive automated optimization.
+**[GEPA](../concepts/gepa.md) / text optimizers.** Use when the optimization target is prompt text and the evaluation set is small enough that compressed feedback is sufficient. Meta-Harness's ablation shows full traces are essential for code-level optimization; text-level optimization with summaries is viable.
+
+Use automated harness optimization when: performance plateaus despite prompt engineering, you have a reliable evaluation set, you have a capable proposer model available, and the task involves non-trivial retrieval, memory, or orchestration logic where the bottleneck is information access rather than reasoning capability.
 
 
 ## Related
 
 - [TerminalBench](../projects/termination-bench.md) — part_of (0.6)
-- [OpenAI Agents SDK](../projects/openai-agents-sdk.md) — implements (0.8)
+- [OpenAI Agents SDK](../projects/openai-agents-sdk.md) — implements (0.7)
 - [Prompt Optimization](../concepts/prompt-optimization.md) — implements (0.7)
-- [OpenAI Agents SDK](../projects/openai-agents-sdk.md) — implements (0.8)

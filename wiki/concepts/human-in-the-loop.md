@@ -3,146 +3,176 @@ entity_id: human-in-the-loop
 type: approach
 bucket: agent-architecture
 abstract: >-
-  Human-in-the-Loop (HITL): an agent design pattern that inserts human oversight
-  into agent pipelines via approval gates, feedback collection, or input
-  prompts, trading autonomy for correctability in high-stakes or uncertain
-  tasks.
+  Human-in-the-Loop (HITL): integrating human oversight at agent decision
+  points, distinguished from full automation by its explicit approval gates,
+  feedback capture, and gradual autonomy expansion as trust accumulates.
 sources:
-  - tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md
-  - repos/evoagentx-evoagentx.md
-  - repos/jackchen-me-open-multi-agent.md
-  - articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md
   - >-
     articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md
   - >-
     articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md
+  - articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md
+  - repos/evoagentx-evoagentx.md
+  - repos/jackchen-me-open-multi-agent.md
+  - tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md
 related:
   - openai
-  - multi-agent-systems
   - claude
   - multi-agent-systems
-last_compiled: '2026-04-08T02:50:44.802Z'
+last_compiled: '2026-04-08T23:07:33.621Z'
 ---
 # Human-in-the-Loop (HITL)
 
 ## What It Is
 
-Human-in-the-Loop is a design pattern for agent pipelines that preserves human judgment at specific decision points rather than delegating all choices to the model. At its simplest, the pattern pauses execution, surfaces an agent's proposed action or output to a person, waits for a response, then continues or aborts based on that input.
+Human-in-the-Loop describes any design where a human can inspect, approve, correct, or reject an agent's action before or after it executes. The term spans a wide range — from a simple "confirm before sending" prompt to a structured approval workflow that captures the human's reasoning as durable organizational memory. What distinguishes HITL from pure automation is that human judgment is a first-class input to the system, not just a fallback when the agent fails.
 
-The pattern exists on a spectrum. At one end, a human approves every agent action before it runs. At the other, humans only review flagged edge cases while routine decisions execute automatically. Most production deployments sit somewhere in the middle and shift the boundary over time as trust accumulates.
-
-HITL is not a single mechanism. It appears in several forms depending on what needs human attention: pre-execution approval gates, post-execution review with correction, inline feedback during a generation loop, and escalation routing when an agent signals low confidence.
+The concept predates LLM agents — it appears in control theory, active machine learning, and robotic process automation — but it has acquired new urgency because modern agents can take consequential, hard-to-reverse actions across many systems simultaneously.
 
 ## Why It Matters
 
-Agents fail in ways that are hard to predict in advance. They misinterpret ambiguous goals, apply rules incorrectly in novel situations, compound earlier mistakes across long task chains, and lack the organizational context needed to know when an exception is appropriate. Humans carry knowledge that is rarely encoded in any system: precedent, political context, tacit expertise, and judgment about when the formal process doesn't apply.
+Agents amplify both capability and risk. An agent that can book travel, send emails, modify database records, or execute code can also book the wrong flight, send an embarrassing email, corrupt data, or run destructive commands. The cost of a mistake scales with the agent's autonomy and reach.
 
-At the same time, full human oversight defeats the efficiency case for agents. The practical value of HITL is that it makes agents deployable in high-stakes domains before they are fully trustworthy, and provides the feedback signal needed to make them more trustworthy over time. An agent that records every human override, approval, and correction builds a corpus of decision traces that can later drive automation of those same decisions.
-
-The pattern also addresses regulatory and liability requirements. Many sectors mandate human review for certain categories of decision regardless of model accuracy. HITL makes this auditable.
+HITL is the primary mechanism for controlling that risk while still capturing the benefits of automation. It also serves a second purpose that is less discussed: **accumulating organizational knowledge**. When a human approves an exception, overrides a default, or corrects an agent's reasoning, that decision contains information the organization has never systematically captured before. A well-designed HITL system turns those moments into durable precedent — what [Jaya Gupta describes](../concepts/jaya-gupta.md) as a "context graph" where exception logic, approval chains, and cross-system reasoning become queryable rather than dying in Slack threads.
 
 ## How It Works
 
-### Core Mechanism
+### Intervention Points
 
-A HITL checkpoint interrupts normal agent execution and hands control to a human interface. The interface presents the agent's context, proposed action, and any supporting evidence. The human responds, and execution resumes.
+HITL can be positioned at three points in an agent's execution:
 
-The checkpoint can trigger in several ways:
+**Pre-execution (approval gate)**: The agent proposes an action and pauses for human confirmation before running it. This is the most common pattern. [EvoAgentX](../projects/evoagentx.md) implements it as `HITLInterceptorAgent` with `mode: HITLMode.PRE_EXECUTION`, configured to intercept specific agent/action pairs. The human sees what the agent intends to do and chooses to approve or reject.
 
-- **Pre-execution**: the agent proposes an action (send an email, execute a database write, approve a discount) and waits for approval before running it
-- **Post-execution**: the agent completes a task and presents output for review; the human accepts, rejects, or edits before the result propagates downstream
-- **Conditional**: the agent evaluates its own confidence and routes to human review only when below a threshold
-- **Scheduled**: batches of agent outputs are reviewed periodically rather than synchronously
+**In-execution (human input collection)**: The agent reaches a point where it needs information only a human can provide — a password, a contextual judgment, a legal determination. [EvoAgentX](../projects/evoagentx.md) implements this as `HITLUserInputCollectorAgent`. Execution pauses, collects input, then continues with the human-provided data mapped back into the workflow.
 
-### Implementation in Practice
+**Post-execution (review and feedback)**: The agent acts, and a human reviews the output and rates it. This is the pattern used in OpenAI's self-evolving agent cookbook, where human reviewers rate summaries (thumbs up/down plus qualitative comments) through the Evals platform. The feedback drives prompt optimization rather than blocking individual actions.
 
-[EvoAgentX](../projects/evoagentx.md) implements HITL through a `HITLManager` class. Activating it is explicit: `hitl_manager.activate()` — it defaults to disabled. The `HITLInterceptorAgent` takes a target agent name and action name as constructor arguments, plus a `HITLMode` (pre or post execution) and `HITLInteractionType` (approve/reject or free-form input collection). When triggered, the workflow pauses at the console and waits for `[a]pprove` or `[r]eject`. An `HITLUserInputCollectorAgent` handles the separate case where the agent needs human-provided data, not just a binary decision. The framework maps interceptor output fields back to workflow input fields to maintain continuity after human intervention.
+### Feedback Loops and Prompt Optimization
 
-[Open Multi-Agent](https://github.com/JackChen-me/open-multi-agent) exposes HITL through an `onApproval` callback on `runTasks()`. After each batch of parallel tasks completes, the callback fires and the caller decides whether to proceed or abort. This is coarser than per-action gating but requires no special agent configuration.
+Post-execution HITL becomes the foundation for self-improving systems. The [OpenAI self-evolving agents cookbook](../raw/articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md) describes this loop:
 
-The OpenAI self-evolving agents cookbook shows a different application: HITL as feedback signal rather than execution gate. Human reviewers rate outputs thumbs up or down with optional text, and the platform's Optimize function uses that feedback to improve the prompt. The feedback loop is: agent produces output → human reviews → score triggers prompt refinement → updated agent runs again. When humans aren't available, an LLM-as-judge fills the same slot with automated scores.
+1. Baseline agent produces outputs
+2. Humans (or an LLM-as-judge) rate and annotate those outputs
+3. A metaprompt agent reads the feedback and generates an improved system prompt
+4. The updated prompt replaces the baseline if it passes evaluation thresholds
 
-### Connection to Decision Traces
+The loop runs with `MAX_OPTIMIZATION_RETRIES = 3` per section. If all attempts fail, the system alerts engineers that manual improvement is needed. This is explicit HITL at the loop level: humans set thresholds, review failures, and decide when to intervene. The individual steps may be automated, but humans define what "good enough" means.
 
-One of the more consequential uses of HITL isn't the approval itself but what gets recorded when a human makes one. When an agent proposes a 20% discount that exceeds the automatic threshold, routes to a VP for approval, and the VP approves, the CRM typically records only the final price. The HITL layer sits in the execution path and can record the full context: what rule was triggered, which evidence was surfaced, who approved, and under which precedent. Over time these records become a queryable decision corpus. Future agents can search that corpus to determine whether a similar exception was granted before, making the HITL pattern itself a driver of eventual automation.
+### Approval Routing
 
-This is the key architectural insight in the context graphs framing: HITL isn't just a safety mechanism. It's the primary mechanism for capturing the organizational knowledge that makes autonomous operation defensible later.
+In multi-agent systems, HITL often requires routing decisions to the right human. [Context graph design](../concepts/context-graphs.md) research notes that approval chains frequently happen outside systems — in Zoom calls or Slack DMs — and the final state (e.g., a discounted price) gets written back without capturing who approved or why. Purpose-built HITL routes approvals through the system so the authorization is recorded with the decision.
 
-## Who Uses It
+Open Multi-Agent implements this as an `onApproval` callback on `runTasks()`: after each batch of tasks completes, the callback receives results and decides whether to proceed or abort remaining work. This is coarser than per-action approval but sufficient for many pipelines.
 
-- [Anthropic / Claude](../projects/anthropic.md): approval patterns in multi-step workflows, particularly for tool use that touches external systems
-- [OpenAI](../projects/openai.md): the Evals platform collects human feedback to drive automated prompt optimization; the Agents SDK supports approval callbacks
-- [EvoAgentX](../projects/evoagentx.md): first-class HITLManager with interceptor agents for pre/post execution gating
-- [Multi-Agent Systems](../concepts/multi-agent-systems.md) broadly: any orchestration framework that calls external APIs, writes files, or sends messages to external parties typically exposes some approval mechanism
+### Gradual Autonomy Expansion
+
+A key design principle: HITL is not a permanent tax on every action, but a temporary scaffold that shrinks as the system accumulates verified decisions. The agent handles well-understood cases automatically; humans stay in the loop only for novel situations, high-stakes actions, or cases that fall outside established precedent.
+
+The Jaya Gupta context graph framing makes this concrete: every human decision — approval, override, exception — adds a trace to a graph of prior decisions. Over time, the agent can match new situations against that graph and act autonomously on cases that are sufficiently similar to approved precedent, while routing genuinely novel cases back to humans. The loop is self-reinforcing: more decisions → more precedent → fewer human interventions required.
+
+## Implementation Patterns
+
+### Interception Architecture
+
+[EvoAgentX](../projects/evoagentx.md) shows one concrete implementation. The `HITLManager` is a central coordinator that must be explicitly activated (`hitl_manager.activate()`). Individual `HITLInterceptorAgent` instances are configured with `target_agent_name` and `target_action_name`, so the interception is scoped — only specific agent/action pairs pause for human review, not every action. The `hitl_input_output_mapping` field maps the human's response back into the workflow's data model.
+
+```python
+interceptor = HITLInterceptorAgent(
+    target_agent_name="DataSendingAgent",
+    target_action_name="DummyEmailSendAction",
+    interaction_type=HITLInteractionType.APPROVE_REJECT,
+    mode=HITLMode.PRE_EXECUTION
+)
+hitl_manager.hitl_input_output_mapping = {"human_verified_data": "extracted_data"}
+```
+
+This is reasonable for workflows where you know in advance which actions need gating. It breaks down when the set of risky actions is open-ended or discovered at runtime.
+
+### Agent Skills Registry with HITL
+
+The Google Cloud [skills agent article](../raw/articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md) shows HITL applied to a different problem: gating skill installation. The agent finds an appropriate skill, then pauses and presents its choice to the user before running `gemini skills install`. This is explicit in the agent prompt: "ALWAYS prompt the user to confirm the skills you intend to add BEFORE calling the `add_agent_skills` tool." The human confirmation step is mandated by instruction, not by framework machinery.
+
+This instruction-based approach is fragile — a prompt change or a sufficiently confident model could bypass it — but it is common in practice and sufficient for many use cases.
+
+### Evaluation-Driven HITL
+
+The OpenAI cookbook demonstrates HITL at the evaluation layer. Human reviewers use the Evals platform UI to rate outputs and provide qualitative feedback. The system aggregates scores and runs prompt optimization automatically. Humans set the pass threshold (0.8 in the example) and decide when to stop iterating. They don't approve individual agent actions; they approve the agent's behavior in aggregate by validating the prompts that govern it.
+
+This is appropriate for high-volume tasks where per-action review is impractical but population-level quality control is feasible.
 
 ## Strengths
 
-**Deployability in high-stakes domains before full reliability.** Healthcare documentation, regulatory submissions, financial approvals, and legal review all require human accountability by policy or regulation. HITL makes agents useful in these domains immediately rather than waiting for accuracy guarantees that may never fully arrive.
+**Risk containment**: Pre-execution gates prevent irreversible actions from running without authorization. This is most valuable for actions with external effects — sending messages, writing records, executing code.
 
-**Feedback signal for continuous improvement.** Every human intervention, whether an approval, rejection, or correction, is a labeled example. Systems that capture this signal can feed it into prompt optimization, fine-tuning, or policy refinement loops. The human attention is doing double duty: governing the immediate decision and training the system that will eventually need less governing.
+**Knowledge capture**: When human decisions are recorded as structured data (not just allowed/blocked), they accumulate into organizational memory. This is the value that pure automation misses.
 
-**Graceful handling of novel situations.** Rule-based systems fail at edge cases. Human reviewers recognize novelty and apply judgment that the agent's training distribution doesn't cover. HITL is the fallback for situations where the agent knows it doesn't know, or where the stakes of a wrong autonomous decision are unacceptable.
+**Trust calibration**: HITL lets organizations deploy agents incrementally. Start with approval required for everything; reduce it as the system demonstrates reliable behavior on specific action types.
 
-## Critical Limitations
+**Auditability**: Every human-approved action creates a record. Regulated domains (healthcare, finance, legal) often require this regardless of agent capability.
 
-**Throughput bottleneck.** Synchronous HITL checkpoints that require human response before continuing block the agent pipeline. In high-volume workflows, this creates queues that defeat the efficiency case for automation entirely. The bottleneck typically appears at high-variance decision points: the agent handles routine cases quickly, but exception routing backs up because human reviewers become the constraint. Systems that can't distinguish routine from exceptional early in the pipeline route too much to humans and fail to scale.
+## Limitations
 
-**Unspoken assumption: human reviewers understand what they're approving.** HITL assumes the human has enough context to make a meaningful decision. In practice, reviewers often face compressed summaries of complex agent reasoning without the supporting evidence needed to evaluate it. Approving a 500-page regulatory summary or a multi-step financial calculation based on a one-paragraph presentation is not meaningfully different from not reviewing it at all. The interface that presents agent outputs to humans is as important as the approval gate itself, and it gets significantly less design attention.
+### Concrete Failure Mode: Approval Fatigue
 
-## When Not to Use It
+When every agent action requires human confirmation, humans start approving without reading. The approval gate becomes theater — it records consent but doesn't capture judgment. This is the HITL equivalent of clicking "I agree" on a terms of service. Systems that gate too aggressively degrade to this state quickly, especially when agents are fast and humans are busy.
 
-**High-volume, low-stakes, reversible decisions.** If the action can be undone cheaply and the cost of an individual error is low, synchronous HITL adds friction without meaningful protection. Classify, route, and flag edge cases for batch review rather than blocking each transaction.
+The mitigation is calibrated gating: intercept only actions above a risk threshold, use automated checks for routine cases, and reserve human attention for genuinely consequential decisions.
 
-**When humans can't actually evaluate the output.** If reviewers lack the domain expertise to judge agent outputs — reviewing code they can't read, approving drug interaction analysis without pharmacology training — the approval gate creates false assurance. This is worse than no gate because it diffuses accountability without adding genuine oversight.
+### Unspoken Infrastructure Assumption
 
-**When the agent is replacing human judgment that was already poor.** In some workflows, agents systematically outperform the humans who would review them. Adding HITL in these cases degrades system quality while creating audit overhead.
+HITL assumes a human is available within the agent's operating window. Batch workflows that run overnight, agents triggered by external events at arbitrary times, and multi-step pipelines with tight latency requirements all break this assumption. Most HITL implementations silently time out or block indefinitely when the designated approver is unavailable. The system needs an explicit policy for unavailable reviewers: auto-approve after timeout, auto-reject, escalate to a backup, or pause the pipeline.
 
-**Real-time systems.** Any approval pattern that requires human response within a latency budget of seconds or less is architecturally incompatible with synchronous HITL. Use asynchronous review, automated confidence-based routing, or post-hoc auditing instead.
+### Latency
 
-## Failure Modes
+Every human approval step adds unbounded latency. For workflows where speed matters — customer-facing interactions, time-sensitive operations — HITL at the action level may be incompatible with the required response time.
 
-**Automation bias.** Humans presented with agent recommendations tend to approve them. Studies of decision support systems consistently show reviewers rubber-stamp outputs, especially under time pressure or when the recommendation appears confident. The HITL gate exists but provides no real oversight. This is particularly acute when the approval interface presents the agent's conclusion prominently and the supporting evidence secondarily.
+### Feedback Quality Degrades at Scale
 
-**Alert fatigue.** When the volume of approval requests is high or the majority are routine approvals, reviewers stop reading carefully. The HITL gate becomes a formality. This is the synchronous bottleneck failure in slow motion.
+Post-execution feedback loops work when reviewers have the domain expertise to evaluate outputs meaningfully. As agent volume grows, organizations struggle to staff expert reviewers. LLM-as-judge fills some of this gap, but introduces its own biases and cannot replace domain judgment on novel edge cases.
 
-**Context collapse.** Long-running agent workflows accumulate context that is difficult to communicate to a human reviewer mid-task. The reviewer sees a snapshot; the agent holds a richer state. Approvals made on incomplete context introduce decisions that are locally coherent but globally inconsistent with the full execution history.
+## When NOT to Use It
 
-**Feedback loop contamination.** When human feedback drives automated prompt optimization, reviewer inconsistency or systematic bias propagates into the model. If reviewers prefer confident-sounding outputs over accurate ones, the optimization loop produces agents that sound more certain regardless of evidence.
+**High-frequency, low-stakes actions**: Agents generating dozens or hundreds of routine outputs per hour (customer service responses, data transformations, summary generation) cannot scale with per-action human review. Use automated evaluation with periodic human audits instead.
+
+**Real-time pipelines**: If the agent operates in a latency-sensitive loop — monitoring infrastructure, responding to live events — pre-execution approval gates are architecturally incompatible. Post-hoc review or sampling-based audit is the appropriate pattern.
+
+**Fully deterministic workflows**: If the agent's action space is completely enumerable and all outcomes are verified safe, HITL adds overhead without reducing risk.
+
+**When you cannot staff reviewers with domain expertise**: HITL is only as good as the humans in the loop. If the humans approving actions cannot evaluate them meaningfully, the gate provides false assurance. Better to invest in automated evaluation criteria than deploy HITL with unqualified reviewers.
 
 ## Unresolved Questions
 
-**Where does the approval record live?** Most frameworks implement the approval gate but don't specify durable storage for what was approved, by whom, and why. Without this, HITL provides accountability at the moment of decision but not after.
+**Conflict resolution**: When a human overrides the agent's recommendation, whose logic should govern future similar cases — the agent's original reasoning or the human's override? Most systems record the outcome but not the rationale, which limits the value of the decision trace.
 
-**How does the interface handle uncertainty communication?** Agents that express calibrated uncertainty should surface that uncertainty to reviewers in actionable form. Most HITL implementations show agent outputs without confidence signals, leaving reviewers to infer uncertainty from output hedging language.
+**Reviewer qualification**: Who decides which humans are authorized to approve which action types? HITL implementations rarely address credentialing. An approval from an unauthorized person may be worse than no approval — it creates a false record of authorization.
 
-**What constitutes meaningful human review?** There is no established standard for how much context a human reviewer needs, how much time they should spend, or what cognitive effort constitutes genuine oversight versus rubber-stamping. Regulatory frameworks that mandate human review rarely specify these parameters.
+**Cost at scale**: Human review time is expensive. The economic model for HITL in high-volume production systems is rarely stated. As agent deployments scale, organizations discover that the real bottleneck is not model capability but reviewer capacity.
 
-**Cost at scale.** As agents handle more volume, the cost of human review either grows proportionally (defeating automation ROI) or shrinks relative to volume (creating the conditions for rubber-stamping). The steady-state economics of HITL in high-volume production are rarely addressed in implementation guides.
+**Feedback loop integrity**: When human feedback drives prompt optimization, adversarial or low-quality feedback can degrade the agent. The OpenAI cookbook doesn't address how to detect or filter bad feedback from reviewers who are gaming the system or making errors.
 
-## Relationship to Related Concepts
+**Autonomy threshold criteria**: How does an organization decide when a case type has enough verified precedent to remove the HITL gate? No standard methodology exists. Most teams make this decision informally, which means similar organizations make inconsistent choices.
 
-[Self-Improving Agents](../concepts/self-improving-agents.md) depend on HITL feedback signals to drive their improvement loops. The human judgment captured in approval decisions and output ratings is training data for subsequent optimization passes.
+## Relationship to Adjacent Concepts
 
-[Execution Traces](../concepts/execution-traces.md) become significantly more valuable when HITL checkpoints annotate them with human decisions and rationale. A trace that records only what the agent did is less useful than one that also records what a human approved, rejected, or corrected.
+HITL is a component of [Cognitive Architecture](../concepts/cognitive-architecture.md) — it governs how external authority (human judgment) integrates with agent decision-making. In [Multi-Agent Systems](../concepts/multi-agent-systems.md), HITL often appears as a specialized agent role (the "human proxy" that routes approvals) rather than a framework-level feature.
 
-[Observability](../concepts/observability.md) tooling for agents often surfaces HITL metrics alongside performance metrics: approval rates, rejection reasons, review latency, and reviewer agreement rates.
+[Context Graphs](../concepts/context-graphs.md) are what HITL can produce when decisions are captured as structured data rather than ephemeral approvals. [Observability](../concepts/observability.md) is a prerequisite for useful post-execution HITL — you need the agent's reasoning trace to evaluate its decisions meaningfully.
 
-[LLM-as-Judge](../concepts/llm-as-judge.md) is the automated alternative that fills the HITL slot when human reviewers aren't available or are too slow. The two are often deployed together: human review in production for high-stakes decisions, LLM-as-judge in development for rapid iteration.
+[Self-Improving Agents](../concepts/self-improving-agents.md) depend on HITL feedback loops as the primary signal for improvement. Without human or LLM-as-judge evaluation, self-improvement systems have no ground truth to optimize against.
 
-[Multi-Agent Systems](../concepts/multi-agent-systems.md) introduce additional HITL complexity because the agent requesting approval may be a coordinator rather than the agent that will execute the action, making it harder for human reviewers to understand the full impact of an approval.
+## Alternatives
 
-## Alternatives and Selection Guidance
+**Full automation with monitoring**: Remove human gates and rely on post-hoc anomaly detection to catch problems. Appropriate when action volume is too high for review and consequences are recoverable.
 
-- Use **automated confidence-based routing** when the agent can reliably self-assess uncertainty and the cost of routing false positives to humans is acceptable
-- Use **LLM-as-Judge** when you need rapid iteration cycles without human reviewer availability, or for monitoring production drift at scale
-- Use **post-hoc auditing** when real-time approval gates aren't feasible but accountability records are required
-- Use **[ReAct](../concepts/react.md)-style reasoning traces** surfaced to reviewers when the approval decision requires understanding the chain of reasoning rather than just the conclusion
-- Use full HITL when regulatory requirements mandate it, when decisions are irreversible, when the cost of an error is high relative to the cost of review, or when the feedback signal is needed to train toward eventual automation
+**[LLM-as-Judge](../concepts/llm-as-judge.md)**: Replace human reviewers with a second model that evaluates outputs against a rubric. Lower cost, faster, but misses domain knowledge and novel edge cases.
+
+**Staged rollout**: Deploy with HITL in a sandbox or for a subset of users, then remove gates as confidence grows. Combines human oversight with operational efficiency.
+
+**Constraint-based guardrails**: Define hard rules on what the agent can and cannot do, enforce them programmatically, and skip human approval for actions within bounds. Use HITL only for out-of-bounds cases. This is the approach that scales best when the risk taxonomy is well-understood.
 
 
 ## Related
 
 - [OpenAI](../projects/openai.md) — implements (0.5)
-- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — implements (0.6)
-- [Claude](../projects/claude.md) — implements (0.6)
+- [Claude](../projects/claude.md) — implements (0.5)
 - [Multi-Agent Systems](../concepts/multi-agent-systems.md) — implements (0.6)

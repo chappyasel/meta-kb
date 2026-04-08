@@ -3,177 +3,161 @@ entity_id: hybrid-search
 type: approach
 bucket: knowledge-substrate
 abstract: >-
-  Hybrid Search combines BM25 sparse retrieval with dense vector search, fusing
-  results via reciprocal rank fusion to capture both exact keyword matches and
-  semantic similarity that neither method alone handles well.
+  Hybrid Search combines BM25 sparse keyword matching with dense vector
+  similarity, merging results via reciprocal rank fusion to recover what either
+  method misses alone.
 sources:
-  - repos/getzep-graphiti.md
-  - repos/supermemoryai-supermemory.md
   - articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md
   - >-
     articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md
   - deep/repos/getzep-graphiti.md
   - deep/repos/memvid-memvid.md
   - deep/repos/tirth8205-code-review-graph.md
+  - repos/getzep-graphiti.md
+  - repos/supermemoryai-supermemory.md
 related:
   - knowledge-graph
-  - retrieval-augmented-generation
   - cursor
   - episodic-memory
-  - model-context-protocol
-  - semantic-memory
-last_compiled: '2026-04-08T02:57:37.967Z'
+last_compiled: '2026-04-08T23:14:37.024Z'
 ---
 # Hybrid Search
 
 ## What It Is
 
-Hybrid search combines two retrieval methods that fail in complementary ways: BM25 sparse retrieval (which matches exact tokens) and dense vector search (which matches semantic meaning). A user searching for "CUDA out of memory error" wants exact token matching for the technical string and semantic matching for related concepts like "GPU memory allocation failure." BM25 handles the first; vectors handle the second; hybrid search handles both.
+Hybrid search runs two retrieval passes over the same corpus — one sparse, one dense — then merges their result lists before returning candidates to the caller.
 
-The core mechanism is simple. Run both retrieval methods independently, then merge their ranked result lists into a single ordering. The merged ranking is the output. The sophistication is in how you merge, what you retrieve, and how you handle mismatches between sparse and dense representations.
+The **sparse pass** scores documents by exact and near-exact token overlap. [BM25](../concepts/bm25.md), the standard algorithm, weighs term frequency against inverse document frequency: rare terms that appear in a document score higher than common ones. BM25 handles acronyms, code symbols, proper nouns, and technical identifiers cleanly because it operates on literal token strings.
 
-## Why It Matters for Agent Knowledge Systems
+The **dense pass** scores documents by cosine similarity between query and document embedding vectors stored in a [vector database](../concepts/vector-database.md). Embedding models compress meaning into high-dimensional vectors, so semantically equivalent phrases ("heart attack" and "myocardial infarction") land near each other even with zero lexical overlap.
 
-Single-method retrieval has predictable blind spots. BM25 fails on paraphrase: "automobile" and "car" are unrelated tokens. Vector search fails on rare tokens: technical identifiers, proper nouns, version strings, and entity names that appear rarely in training data get poor embeddings and vanish from results. Code symbol names, chemical formulas, and product SKUs are systematically underweighted by embedding models.
+Neither pass dominates. Sparse retrieval fails when the user paraphrases or queries conceptually without using source vocabulary. Dense retrieval fails on rare proper nouns, code identifiers, and out-of-distribution tokens that the embedding model never saw during training. Hybrid search runs both and merges.
 
-For [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md), these blind spots translate directly into agent failures. An agent searching for a specific API function by name gets poor recall from vector search. An agent searching for "how to handle authentication" gets poor precision from BM25 (every document mentioning "authentication" ranks equally). Hybrid search narrows both failure modes without requiring separate retrieval strategies per query type.
+## Why It Matters for Agents
 
-Agent memory systems face an additional constraint: the same retrieval layer must handle structured facts ("Alice works at Google"), free-form observations ("the user seems frustrated with the onboarding flow"), and episodic records ("Tuesday's planning session covered Q3 goals"). No single retrieval method performs consistently across all three types.
+[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) pipelines fail silently: the LLM never learns that its context is missing a critical document, it just generates from whatever was retrieved. Hybrid search lowers the miss rate compared to either method alone, which matters more as the corpus grows and query diversity increases.
+
+For [agent memory](../concepts/agent-memory.md) specifically, the case is stronger. Agents store heterogeneous content: structured entity facts ("Alice's employer: Google"), natural language summaries, raw conversation turns, code snippets. A single retrieval strategy cannot handle all of these well. Structured entity names and code identifiers call for BM25; conceptual questions about preferences or relationships call for dense search. Hybrid retrieval handles both in one query.
 
 ## How It Works
 
-### BM25 (Sparse Retrieval)
+### Reciprocal Rank Fusion
 
-[BM25](../concepts/bm25.md) represents documents as token frequency vectors with two saturation parameters: k1 controls term frequency saturation (default 1.2) and b controls document length normalization (default 0.75). A document scores higher when it contains query terms frequently, adjusted for document length relative to the corpus average. Scores are sparse: only tokens present in both query and document contribute.
+The standard merging algorithm is Reciprocal Rank Fusion (RRF). Given result lists from $k$ retrieval methods, each document's score is:
 
-The implementation typically uses an inverted index. For each token in the query, the index returns the list of documents containing that token with their frequencies. BM25 computes the score as:
+$$\text{RRF}(d) = \sum_{i=1}^{k} \frac{1}{K + \text{rank}_i(d)}$$
 
-```
-score(D, Q) = Σ IDF(qi) · (f(qi, D) · (k1 + 1)) / (f(qi, D) + k1 · (1 - b + b · |D|/avgdl))
-```
+where $K$ is a constant (typically 60) that dampens the advantage of top-ranked items and provides a floor for documents that don't appear in every list. Documents that rank well in multiple lists accumulate higher scores. Documents absent from a list contribute nothing for that list.
 
-where f(qi, D) is the term frequency of query term qi in document D, and IDF is the inverse document frequency. Document databases expose BM25 natively: SQLite's FTS5, PostgreSQL's `tsvector`, Elasticsearch, OpenSearch, Tantivy, and Neo4j all implement it. In [Graphiti](../projects/graphiti.md)'s search layer (`graphiti_core/search/search.py`), BM25 runs as phi_bm25 via the graph database's native fulltext index, searching across fact fields, entity names, and community names.
+RRF has two practical advantages over weighted score combination: it requires no tuning of fusion weights, and it is robust to score distribution differences between sparse and dense methods (BM25 scores are unbounded; cosine similarities are bounded to [-1, 1]).
 
-### Dense Vector Search
+### Three-Way Hybrid in Practice
 
-Vector search embeds query and documents into a shared semantic space, then retrieves documents by nearest-neighbor distance (typically cosine similarity). Documents semantically similar to the query rank highly even with zero token overlap. The embedding model determines what "similar" means: embeddings trained on conversation data weight different semantic relationships than embeddings trained on code.
+Several production implementations extend beyond two passes. [Graphiti](../projects/graphiti.md) runs three parallel methods in `search/search.py`:
 
-The infrastructure requirement is a [Vector Database](../concepts/vector-database.md) or an approximate nearest neighbor index. HNSW (Hierarchical Navigable Small World graphs) is the dominant ANN algorithm in production systems: M=16 and ef_construction=100 are common parameters, trading recall against index size and build time. Memvid's `src/vec.rs` uses HNSW (via the Rust `hnsw` crate) for collections exceeding 1000 vectors, switching to brute-force L2 for smaller sets. Graphiti uses cosine similarity search via Neo4j's vector indices.
+1. **Cosine similarity** (`phi_cos`) — vector embedding search targeting semantic similarity
+2. **BM25** (`phi_bm25`) — database-native fulltext search targeting word-level similarity
+3. **BFS** (`phi_bfs`) — breadth-first graph traversal from anchor nodes targeting contextual proximity
 
-The embedding dimension determines storage and search cost. BGE-small produces 384-dimensional vectors; BGE-m3 produces 1024-dimensional. Memvid offers four local ONNX models: BGE-small (384-dim, default), BGE-base (768), nomic-embed-text (768), and GTE-large (1024). Graphiti's paper uses BGE-m3 for benchmarks. Product quantization compresses vectors at the cost of recall: Memvid's `src/vec_pq.rs` achieves 16x compression (384-dim to 96 bytes) using 96 subspaces with 256 centroids.
+The paper formalizes this as covering "word similarities, semantic similarities, and contextual similarities" — three dimensions that no single method addresses. After retrieval, the system applies one of several reranking strategies: RRF for standard multi-signal fusion, `node_distance` for graph-anchor queries, `mmr` for result diversification, or a cross-encoder neural reranker for maximum precision at higher compute cost.
 
-### Fusion: Reciprocal Rank Fusion
+Code-review-graph implements a similar pattern in `search.py`: FTS5 BM25 against a SQLite fulltext index, optional sentence-transformer embeddings, and RRF fusion with $k=60$. It adds query-aware boosting heuristics on top: PascalCase query tokens boost Class and Type results by 1.5×; snake_case tokens boost Function results by 1.5×; dotted-path queries boost qualified-name matches by 2.0×.
 
-Reciprocal Rank Fusion (RRF) is the standard merge algorithm. For each document retrieved by any method, compute its RRF score as the sum of 1/(k + rank) across all retrieval lists that returned it, where k is a smoothing constant (typically 60) and rank is the document's position in each list. Documents appearing in multiple lists get additive score boosts:
+### Dense Retrieval Side
 
-```
-RRF_score(d) = Σ 1/(k + rank_l(d))  for each list l containing d
-```
+[Semantic search](../concepts/semantic-search.md) via embedding vectors requires a vector index. [FAISS](../projects/faiss.md) (Facebook AI Similarity Search) provides HNSW and IVF indices for approximate nearest neighbor lookup. [Qdrant](../projects/qdrant.md), [ChromaDB](../projects/chromadb.md), and [Pinecone](../projects/pinatone-project.md) expose managed vector indices with metadata filtering. The specific algorithm matters: HNSW trades index size for sub-linear query time; brute-force L2 is exact but $O(n)$. For large corpora (>100K vectors), approximate methods dominate.
 
-RRF has three practical advantages over weighted linear combination: it requires no weight tuning, it handles incommensurable scales (BM25 scores and cosine similarities use different ranges), and it is robust to outliers in either ranking. A document ranked first by BM25 and tenth by vectors scores better than a document ranked third by both, which captures the intuition that strong signal from any single method outweighs mediocre signal from all methods.
+Embedding model choice sets the ceiling on dense retrieval quality. Domain mismatch degrades performance: a model trained on general web text will produce poor embeddings for medical terminology or code. Graphiti uses BGE-m3 (BAAI) for benchmarks; code-review-graph defaults to all-MiniLM-L6-v2 (384 dimensions) with ONNX for local inference.
 
-Code-review-graph's `search.py` implements RRF with k=60 for merging FTS5 and embedding results. Graphiti's `search/search.py` uses RRF (`rrf` reranking strategy) to merge cosine similarity, BM25, and BFS traversal results.
+### Sparse Retrieval Side
 
-Alternative fusion methods exist but see less use. Linear combination (alpha · vector_score + (1-alpha) · bm25_score) requires score normalization and alpha tuning. CombSUM and CombMNZ aggregate scores directly but inherit scale incompatibility. RRF dominates in practice because it works without configuration.
+BM25 requires an inverted index. Most implementations build on established engines: Elasticsearch, Tantivy (Rust), or SQLite's FTS5 virtual table. Graphiti uses the graph database's native fulltext implementation. Code-review-graph uses SQLite FTS5 with Porter stemming and Unicode tokenization. Memvid embeds Tantivy segments directly inside its `.mv2` file format.
 
-### Query-Time Decisions
+For code specifically, standard tokenizers are counterproductive — they split `UserAuthService` into `user`, `auth`, `service`, losing the original identifier. Code-aware chunking preserves identifiers. The code-review-graph parser uses Tree-sitter ASTs to extract qualified names (`auth.py::UserService.login`) as discrete tokens, making BM25 precise on code entity lookup.
 
-Which documents go to which retrieval method is a design choice. Some systems run both methods over the entire corpus. Others route by query type: BM25 for short exact-match queries, vectors for longer semantic queries. Code-review-graph applies query-aware boosting: PascalCase tokens boost Class/Type results by 1.5x (recognized as code identifiers), snake_case boosts Function results by 1.5x, and dotted paths boost qualified name matches by 2.0x. This is a lightweight classifier that improves precision without complex routing logic.
+### Optional Reranking
 
-Query expansion is a related technique: expand BM25 queries with semantic neighbors before retrieval to improve recall on paraphrases. This can be done offline (via a synonym table) or with a small language model. The tradeoff is query latency and the risk of topic drift from poor expansion.
+After fusion, a cross-encoder reranker can reorder the top-$k$ candidates. Cross-encoders jointly encode query and document, producing a relevance score that is more accurate than independent embeddings but $O(k)$ in compute. In Graphiti's `COMBINED_HYBRID_SEARCH_CROSS_ENCODER` config, RRF produces a candidate pool and the cross-encoder rescores the top results. The paper describes this as "the most sophisticated" reranking approach — it improves precision at the cost of latency.
 
 ## Who Implements It
 
-Hybrid search appears in every significant retrieval system in this space:
+**[Graphiti](../projects/graphiti.md)** (`search/search.py`) — three-way hybrid (cosine, BM25, BFS) with configurable reranking strategies. The BFS component is unique to graph-based memory: it surfaces contextually related facts that share no semantic or lexical similarity with the query but are graph-adjacent to known anchor entities.
 
-**[Graphiti](../projects/graphiti.md)** implements three-way hybrid search: cosine similarity (phi_cos), BM25 (phi_bm25), and breadth-first graph traversal (phi_bfs). The BFS component is unique: it retrieves facts and entities close in the knowledge graph to specified anchor nodes, capturing contextual relevance that semantic and lexical methods miss. Configured via `SearchConfig` with RRF, node_distance, episode_mentions, MMR, or cross-encoder reranking. The paper (arXiv:2501.13956) reports this combination achieves 71.2% accuracy on LongMemEval with gpt-4o, compared to 60.2% for full-context baseline.
+**[LlamaIndex](../projects/llamaindex.md)** — ships a `QueryFusionRetriever` that accepts a list of base retrievers and a fusion algorithm. Supports RRF and simple score addition. Commonly used to combine a `VectorStoreIndex` with a `BM25Retriever` backed by the same document corpus.
 
-**[SuperMemory](../projects/supermemory.md)** combines RAG and memory retrieval in its default "hybrid" search mode, returning both document chunks and user-specific memories in one query. Their `searchMode: "hybrid"` parameter makes this the default behavior. They claim #1 on LongMemEval (81.6%) though this is self-reported.
+**[LangChain](../projects/langchain.md)** — provides `EnsembleRetriever` for multi-retriever fusion and a BM25 retriever via `langchain_community`. The ensemble retriever applies RRF internally.
 
-**[HippoRAG](../projects/hipporag.md)** extends hybrid search with hippocampal-inspired retrieval: dense vectors find seed nodes in a knowledge graph, then personalized PageRank expands to neighboring nodes via graph traversal. This combines semantic search with structural graph traversal.
+**Code-review-graph** (`search.py`) — FTS5 + optional sentence-transformer embeddings + RRF. Query-type heuristics boost results by code entity kind (class vs. function vs. file).
 
-**[LlamaIndex](../projects/llamaindex.md)** exposes `QueryFusionRetriever` that runs multiple retrievers and merges results. The default fusion mode is RRF.
+**[Supermemory](../projects/supermemory-project.md)** — combines RAG document retrieval with extracted fact retrieval in a single hybrid query. Their `searchMode: "hybrid"` returns deployment documentation alongside user preferences in the same result list.
 
-**[LangChain](../projects/langchain.md)** provides `EnsembleRetriever` with configurable weights for combining retriever scores. Unlike LlamaIndex's RRF default, LangChain uses weighted linear combination, requiring manual weight tuning.
+**[HippoRAG](../projects/hipporag.md)** — uses a knowledge graph as the structural backbone, combining embedding-based retrieval with graph path traversal, analogous to Graphiti's BFS component.
 
-**Code-review-graph** (`search.py`) implements hybrid search across FTS5 (BM25 via SQLite) and optional vector embeddings with RRF at k=60, plus query-aware kind boosting for code entity types.
+**[AutoResearch](../projects/autoresearch.md)** — runs sequential hybrid search cycles, routing between sparse and dense methods based on query type.
 
-## Practical Implications
+## Strengths
 
-### Chunking Affects Both Methods Differently
+**Robustness across query types.** A corpus containing both entity names and conceptual descriptions will be retrieved accurately without tuning the retrieval strategy per query. Hybrid handles both.
 
-BM25 is sensitive to chunk size: very small chunks (single sentences) miss co-occurrence signals between related terms; very large chunks dilute term frequencies. Vector search is sensitive to semantic coherence: chunks spanning multiple topics produce embeddings that represent no topic well. Optimal chunking for hybrid search is typically document-structure-aware: split at natural semantic boundaries (section headers, paragraph breaks) rather than fixed character counts.
+**No weight tuning required.** RRF sidesteps the need to calibrate score scales between BM25 (unbounded integer) and cosine similarity ([-1, 1]). The rank-based formula normalizes both into a common range.
 
-Code-review-graph uses structure-aware chunking in `src/memvid/chunks.rs` with a 1200-character default and special handling for tables and code blocks. Memvid uses 1200-character chunks with a 2400-character minimum document size before chunking activates.
+**Graceful degradation.** When dense retrieval returns poor results for an out-of-vocabulary query, BM25 compensates. When BM25 fails for a synonym or paraphrase, dense retrieval compensates. Neither failure mode cascades.
 
-### Reranking Adds a Third Stage
+**Additive to existing retrieval.** Hybrid search layers on top of existing vector indices and inverted indices. Most production RAG systems already have both; hybrid fusion is an orchestration change, not an infrastructure change.
 
-Two-stage retrieval (coarse retrieval + reranking) is now standard. Hybrid search handles the coarse stage: retrieve the top 50-100 candidates. A cross-encoder reranker then scores each candidate against the query jointly (not independently), producing a final top-k. Cross-encoders are slower than bi-encoders but significantly more accurate because they see query and document together. Graphiti's `COMBINED_HYBRID_SEARCH_CROSS_ENCODER` config applies this pattern. Memvid's `ask()` endpoint implements similar multi-stage retrieval with RRF at k=60 and optional cross-encoder reranking.
+## Limitations
 
-The latency tradeoff: adding cross-encoder reranking over 50 candidates adds 100-500ms depending on model and hardware. For agent workloads where retrieval is on the critical path, this matters.
+### Concrete Failure Mode: Embedding Vocabulary Mismatch
 
-### Index Synchronization
+Dense retrieval degrades silently when queries contain tokens outside the embedding model's training distribution. A biomedical corpus queried with clinical abbreviations, a codebase queried with internal library names, or a multilingual corpus queried in a low-resource language will all produce poor embedding matches. BM25 compensates partially, but if the BM25 component is also configured poorly (e.g., aggressive stemming that conflates distinct identifiers), the hybrid output degrades worse than pure keyword search would.
 
-Maintaining a BM25 inverted index and a vector index from the same document corpus creates a synchronization problem. When a document updates, both indices must update atomically or queries during the update window return inconsistent results. Systems that use a single database for both indices (PostgreSQL with pgvector + `tsvector`, or Elasticsearch with dense_vector fields) handle this with transaction semantics. Systems with separate BM25 and vector stores must implement their own coordination.
+The failure is silent: retrieval returns results, just not the right ones. The LLM generates from whatever was retrieved.
 
-[Graphiti](../projects/graphiti.md) stores both indices in Neo4j: the graph database maintains its own fulltext index (BM25) and vector index for entity embeddings, so updates to a node update both indices in the same transaction. Memvid stores the Tantivy (BM25) index and HNSW (vector) index both inside the `.mv2` file, serializing both on `commit()`.
+### Infrastructure Assumption
 
-## Limitations and Failure Modes
+Hybrid search assumes both indices exist, are synchronized, and cover the same document corpus. Maintaining dual indices — inverted and vector — doubles the ingestion pipeline complexity. New documents must be indexed in both; deletions must be propagated to both; schema changes must be applied to both. In practice, index drift causes recall degradation that is difficult to diagnose.
 
-**Vocabulary mismatch in both directions**: If a query uses terminology that neither appears in documents (BM25 miss) nor appears in embedding training data (vector miss), hybrid search fails entirely. Technical jargon from emerging domains, proprietary terminology, and multilingual content spanning languages the embedding model handles poorly all exhibit this failure. No fusion strategy recovers from poor base retrieval.
-
-**Embedding model dependency**: Vector search quality is bounded by embedding model quality for the specific domain. An embedding model trained on web text handles code entity names poorly; one trained on code handles conversational language poorly. Most deployed systems use a single embedding model for all content types, accepting degraded performance on out-of-domain content. [Semantic Search](../concepts/semantic-search.md) quality varies significantly by domain.
-
-**Infrastructure overhead**: Hybrid search requires two indices (sparse and dense), two retrieval paths, a fusion step, and optionally a reranking step. This doubles the indexing pipeline complexity and adds query-time latency. For simple corpora or latency-sensitive applications, the overhead may not be justified.
-
-**RRF ties**: RRF breaks ties by returning the document from the first list in case of equal rank sum. For equally-ranked results, ordering is arbitrary. Downstream agents consuming top-1 results are sensitive to this tie-breaking behavior.
-
-**Score normalization traps**: When developers use weighted linear combination instead of RRF, they must normalize BM25 and vector scores to a common range. BM25 scores are corpus-dependent (a score of 5.0 means different things in different corpora), so min-max normalization over retrieved results produces inconsistent weights across queries. RRF avoids this by using only rank positions.
+Most documentation treats index synchronization as trivial. It is not when documents are updated frequently or when the embedding model is upgraded.
 
 ## When NOT to Use It
 
-**Small corpora (<1000 documents)**: BM25 requires sufficient corpus statistics (IDF values) to produce meaningful rankings. On small corpora, IDF underweights common terms incorrectly and the marginal benefit over simple keyword search is small. Build cost and query latency are harder to justify.
+**Very small corpora.** Below a few hundred documents, BM25 and dense retrieval both approach exhaustive search. The complexity of maintaining dual indices and running fusion logic outweighs any precision gain. A single BM25 pass is simpler and often sufficient.
 
-**Hard exact-match requirements**: If users need exact string matching (searching for a specific error code, a UUID, a version string), BM25 with standard tokenization may tokenize or normalize the string in ways that prevent exact matching. Use a dedicated exact-match index instead.
+**Strict latency requirements with no reranking budget.** Running two retrieval passes in parallel doubles retrieval latency compared to a single pass. Adding a cross-encoder reranker multiplies latency further. If P99 latency is a hard constraint, profiling the hybrid pipeline against the baseline before committing matters.
 
-**Real-time streaming data**: Maintaining synchronized BM25 and vector indices over a high-velocity event stream is operationally complex. Systems processing thousands of documents per second face write amplification from dual indexing. Consider approximate single-method retrieval until data velocity drops.
+**Homogeneous query types.** A corpus queried exclusively with exact identifier lookups (log retrieval by request ID, documentation by function name) has no semantic ambiguity to resolve. Dense retrieval adds compute and complexity without improving recall. Pure BM25 is the right choice.
 
-**Homogeneous content with clear lexical structure**: Code search within a single language using a language-aware parser (like code-review-graph's Tree-sitter approach) can outperform hybrid search on BM25 alone because the structural index (qualified names, AST relationships) handles semantic proximity better than general embeddings. Code-review-graph's FTS5 MRR of 0.35 on its benchmark is achieved without vectors.
+**Embedding model unavailability.** Some deployment environments cannot load embedding models (edge devices, air-gapped systems, constrained containers). Memvid disables vector features by default for this reason — the `vec` feature flag must be explicitly enabled, pulling in ONNX Runtime. In these environments, BM25-only retrieval is the practical choice.
 
 ## Unresolved Questions
 
-**Optimal k for RRF by domain**: The k=60 default comes from original RRF paper evaluation on TREC benchmarks. Whether k=60 is optimal for conversational memory, code retrieval, or knowledge graph fact retrieval is unverified. Most systems use the default without tuning.
+**Optimal $K$ in RRF.** The constant $K=60$ is a convention from the original 2009 RRF paper. It was validated on web retrieval, not agent memory corpora with short dense documents. Whether $K=60$ is appropriate for 200-token memory fragments versus 2,000-token document chunks is not established by published benchmarks in this space.
 
-**BFS as a hybrid search component**: Graphiti's three-way hybrid (cosine + BM25 + BFS) is unusual. The paper attributes temporal reasoning improvements (+38.4% on LongMemEval temporal questions) partly to this combination, but does not isolate the BFS contribution from the temporal edge model. Whether BFS over arbitrary knowledge graphs improves retrieval generally is an open question.
+**BFS weight in three-way hybrid.** Graphiti runs cosine, BM25, and BFS in parallel and fuses via RRF. The relative contribution of graph traversal versus the two standard methods is not characterized empirically in the Zep paper (arXiv:2501.13956). The paper reports aggregate improvements on LongMemEval but does not ablate the BFS component independently.
 
-**Embedding model selection at scale**: No standard guidance exists on which embedding model performs best for which types of agent memory content. Practitioners make ad hoc choices (BGE-small for speed, text-embedding-3-large for quality) without systematic benchmarking on their specific content types.
+**Cross-encoder cost at scale.** Cross-encoder reranking scales linearly with the number of candidates being rescored. For high-throughput systems processing many queries per second against large candidate pools, the compute cost is substantial. None of the implementations examined provide cost characterization for the cross-encoder step at production query volumes.
 
-**Continual index updating**: [Continual RAG](../concepts/continual-rag.md) requires hybrid search indices that update without degrading existing retrieval quality. How embedding index updates (adding new vectors, removing old ones) interact with BM25 IDF updates is not addressed in most hybrid search implementations.
+**Benchmark representativeness.** Supermemory claims #1 on LongMemEval, LoCoMo, and ConvoMem. Graphiti (Zep) reports +18.5% on LongMemEval with gpt-4o. Both are self-reported. The benchmarks measure conversational memory retrieval — a specific task. Performance on heterogeneous agent memory (code context, structured data, tool outputs) is not independently characterized.
 
-## Alternatives
+## Alternatives and Selection Guidance
 
-**BM25 only**: Use when queries are keyword-intensive, corpus vocabulary is stable, and infrastructure simplicity matters. Effective for technical documentation search and log retrieval.
+**Use pure [BM25](../concepts/bm25.md)** when: queries are exact identifier lookups, the corpus is small (<500 documents), or vector infrastructure is unavailable.
 
-**Vector search only**: Use when queries are semantic and conversational, exact token matching is rare, and infrastructure for a vector database is acceptable. [Semantic Memory](../concepts/semantic-memory.md) systems often default to this.
+**Use pure [semantic search](../concepts/semantic-search.md)** when: queries are conceptual, vocabulary mismatch between users and documents is high, and corpus identifiers are not diagnostic.
 
-**[Knowledge Graph](../concepts/knowledge-graph.md) traversal only**: Use when entities and relationships are the primary retrieval target and queries are structured ("who works at Google?"). [GraphRAG](../projects/graphrag.md) and Graphiti's BFS component use this approach. Handles multi-hop reasoning that neither BM25 nor vectors support natively.
+**Use hybrid search** when: the corpus is large and heterogeneous, query types vary (some exact, some conceptual), or retrieval precision is critical enough to justify dual infrastructure.
 
-**Full-context retrieval**: For short contexts (<32k tokens), send the entire document corpus to the LLM and skip retrieval entirely. LongMemEval results show this underperforms structured retrieval on complex temporal and multi-session questions, but it eliminates retrieval infrastructure entirely. Use when context window size is sufficient and retrieval engineering cost is not justified.
+**Use graph-augmented hybrid (Graphiti-style)** when: documents have explicit relationships, queries benefit from multi-hop inference ("what companies does Alice's manager work with?"), or temporal validity of facts matters.
 
-**[RAPTOR](../projects/raptor.md)**: Hierarchical summarization creates document trees where higher levels summarize lower levels. Retrieval searches multiple granularity levels simultaneously. Better for hierarchical content (books, technical reports) than for conversational memory.
+**[Agentic RAG](../concepts/agentic-rag.md)** — for cases where a single retrieval pass is insufficient and the agent must iteratively retrieve based on intermediate reasoning. Hybrid search improves the quality of each retrieval step but does not replace the multi-step structure.
 
----
+## Related Concepts
 
-*Related concepts: [BM25](../concepts/bm25.md), [Semantic Search](../concepts/semantic-search.md), [Vector Database](../concepts/vector-database.md), [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md), [Knowledge Graph](../concepts/knowledge-graph.md), [Episodic Memory](../concepts/episodic-memory.md), [Semantic Memory](../concepts/semantic-memory.md), [Context Engineering](../concepts/context-engineering.md), [Continual RAG](../concepts/continual-rag.md)*
-
-*Projects implementing this: [Graphiti](../projects/graphiti.md), [SuperMemory](../projects/supermemory.md), [HippoRAG](../projects/hipporag.md), [LlamaIndex](../projects/llamaindex.md), [LangChain](../projects/langchain.md), [Cursor](../projects/cursor.md), [Model Context Protocol](../concepts/model-context-protocol.md)*
-
-
-## Related
-
-- [Knowledge Graph](../concepts/knowledge-graph.md) — part_of (0.6)
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — implements (0.7)
-- [Cursor](../projects/cursor.md) — implements (0.5)
-- [Episodic Memory](../concepts/episodic-memory.md) — implements (0.5)
-- [Model Context Protocol](../concepts/model-context-protocol.md) — implements (0.5)
-- [Semantic Memory](../concepts/semantic-memory.md) — implements (0.6)
+- [BM25](../concepts/bm25.md) — the sparse retrieval algorithm underlying most hybrid implementations
+- [Semantic Search](../concepts/semantic-search.md) — the dense retrieval component
+- [Vector Database](../concepts/vector-database.md) — infrastructure for the dense pass
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — the downstream consumer of hybrid search results
+- [Context Engineering](../concepts/context-engineering.md) — the broader practice of assembling precise LLM context, of which retrieval is one component
+- [Knowledge Graph](../concepts/knowledge-graph.md) — adds a third traversal-based retrieval dimension on top of sparse and dense
+- [Episodic Memory](../concepts/episodic-memory.md) — agent memory pattern that benefits from hybrid search across raw conversational episodes
+- [Continual RAG](../concepts/continual-rag.md) — extends retrieval to dynamically updating corpora where index freshness interacts with hybrid search design

@@ -171,7 +171,9 @@ export interface EvalReport {
   version: number;
   compiled_at: string;
   total_claims: number;
-  sample_size: number;
+  sample_size: number; // claims actually verified with LLM this run
+  carried_forward: number; // claims reused from eval cache
+  total_evaluated: number; // sample_size + carried_forward
   accuracy: number;
   results: EvalResult[];
   failures: Array<{
@@ -183,4 +185,46 @@ export interface EvalReport {
   }>;
   by_type: Record<string, { sampled: number; passed: number }>;
   by_bucket: Record<string, { sampled: number; passed: number }>;
+}
+
+// ─── Eval Cache ───────────────────────────────────────────────────────
+
+export interface EvalCacheEntry {
+  claim_content_hash: string;
+  verdict: "PASS" | "FAIL";
+  reason: string;
+  source_ref: string; // the actual source that was verified (may be deep/ fallback)
+  source_hash: string; // SHA-256 of that source at verification time
+  verified_at: string;
+  bucket: string;
+}
+
+export interface EvalCache {
+  version: 1;
+  config_hash: string; // reuse computeConfigHash() — single source of truth
+  entries: Record<string, EvalCacheEntry>; // keyed by claim content_hash
+}
+
+// ─── Compilation Diff ─────────────────────────────────────────────────
+
+export interface ArticleDiff {
+  bucket: string;
+  word_count_before: number;
+  word_count_after: number;
+  sections_added: string[]; // ## headings that are new
+  sections_removed: string[]; // ## headings that disappeared
+  sections_changed: string[]; // ## headings with different content
+  citations_added: string[]; // from frontmatter sources diff
+  citations_removed: string[]; // from frontmatter sources diff
+  entities_added: string[]; // from frontmatter entities/related diff
+  entities_removed: string[]; // from frontmatter entities/related diff
+}
+
+export interface CompilationDiff {
+  version: 1;
+  compiled_at: string;
+  articles: ArticleDiff[];
+  cards_added: string[];
+  cards_removed: string[];
+  cards_regenerated: string[];
 }

@@ -16,6 +16,8 @@ export interface WriteOptions {
    * - "prompt": warn and ask the user (manual ingestion, default)
    */
   lowRelevance?: "auto-reject" | "prompt";
+  /** Force re-ingest even if file already exists. */
+  force?: boolean;
 }
 
 /** Cache of scores for sources that were rejected — avoids re-scoring on retry. */
@@ -28,11 +30,11 @@ export async function writeRawSource(
   bodyMarkdown: string,
   opts: WriteOptions = {},
 ): Promise<string> {
-  const { lowRelevance = "prompt" } = opts;
+  const { lowRelevance = "prompt", force = false } = opts;
   const filePath = path.join("raw", dir, `${slug}.md`);
 
-  // Never overwrite existing files
-  if (existsSync(filePath)) {
+  // Never overwrite existing files (unless force re-ingest)
+  if (!force && existsSync(filePath)) {
     console.log(`  skip (file exists): ${filePath}`);
     return filePath;
   }

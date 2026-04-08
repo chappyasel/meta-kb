@@ -1,0 +1,4929 @@
+{
+  "version": 2,
+  "compiled_at": "2026-04-08T23:32:11.797Z",
+  "total": 268,
+  "claims": [
+    {
+      "id": "claim-d7fba2934a60",
+      "content": "Napkin scored 91% on LongMemEval-S, beating the previous best system score of 86%.",
+      "content_hash": "d7fba2934a60",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "napkin",
+        "longmemeval"
+      ],
+      "temporal_scope": "as of 2025-05",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-96ce0b83f611",
+      "content": "GPT-4o with full context stuffing scored 64% on LongMemEval-S.",
+      "content_hash": "96ce0b83f611",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "napkin"
+      ],
+      "temporal_scope": "as of 2025-05",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-43dd48a3540f",
+      "content": "Napkin uses zero dependencies and performs BM25 search over markdown files with no embeddings, no vector database, no graph construction, and no preprocessing.",
+      "content_hash": "43dd48a3540f",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "napkin",
+        "bm25"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-8ee5df711524",
+      "content": "Napkin's search composite score combines BM25_score + backlink_count * 0.5 + recency_normalized * 1.0.",
+      "content_hash": "8ee5df711524",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "napkin",
+        "bm25"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-89305f267eab",
+      "content": "Napkin implements a four-level progressive disclosure model: Level 0 pinned context (~200 tokens), Level 1 TF-IDF keyword map (~1-2K tokens), Level 2 BM25 search (~2-5K tokens), Level 3 full file read.",
+      "content_hash": "89305f267eab",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "napkin",
+        "progressive-disclosure",
+        "bm25"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-11eee1711b92",
+      "content": "Napkin scored 50% on abstention tasks because BM25 always returns results ranked by score with no calibrated confidence threshold.",
+      "content_hash": "11eee1711b92",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "napkin",
+        "bm25"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-057f3982e08e",
+      "content": "Karpathy's LLM wiki pattern tweet received 38,638 likes and 9.9M views.",
+      "content_hash": "057f3982e08e",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "andrej-karpathy"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-cf8cdf506b7d",
+      "content": "Graphiti has 24,473 stars and implements a bi-temporal data model where every edge carries four timestamps: valid_at, invalid_at, created_at, expired_at.",
+      "content_hash": "cf8cdf506b7d",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "graphiti",
+        "zep"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-399b01470344",
+      "content": "Graphiti's entity extraction uses a multi-stage LLM pipeline: extract entities, deduplicate via hybrid matching (cosine + BM25 + cross-encoder), extract fact triples with temporal bounds, resolve contradictions by invalidating older edges.",
+      "content_hash": "399b01470344",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-9ce019f79faf",
+      "content": "Zep achieved 94.8% on Deep Memory Retrieval versus 93.4% for MemGPT.",
+      "content_hash": "9ce019f79faf",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "zep",
+        "memgpt"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-442457cd9ac4",
+      "content": "Zep achieved 18.5% accuracy improvement on LongMemEval with 90% latency reduction.",
+      "content_hash": "442457cd9ac4",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "zep",
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-8b3774b6fa37",
+      "content": "Graphiti showed a -17.7% regression on single-session-assistant tasks in LongMemEval where the system needed to recall what the assistant itself said.",
+      "content_hash": "8b3774b6fa37",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "graphiti",
+        "zep"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-04f50677dee6",
+      "content": "Lossless-claw has approximately 4,000 stars and replaces sliding-window truncation with a DAG-based hierarchical summarization system storing every message in SQLite.",
+      "content_hash": "04f50677dee6",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/martian-engineering-lossless-claw.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "lossless-claw"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d90e82403d4c",
+      "content": "Lossless-claw's leaf summaries compress contiguous message chunks into ~800-1200 tokens with depth-specific prompt templates (d1: technical decisions, d2: strategic themes, d3+: narrative arc).",
+      "content_hash": "d90e82403d4c",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/martian-engineering-lossless-claw.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "lossless-claw"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-014d542b47e9",
+      "content": "Obsidian Skills has 19,325 stars and provides modular agent skills for creating and editing Obsidian markdown, JSON Canvas, and Bases files.",
+      "content_hash": "014d542b47e9",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/kepano-obsidian-skills.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "obsidian"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-9d8bd0173277",
+      "content": "Graphify has 7,021 stars and achieves 71.5x token reduction per query versus raw file retrieval using AST extraction via tree-sitter for code plus Claude vision for images.",
+      "content_hash": "9d8bd0173277",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/safishamsi-graphify.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "graphify",
+        "tree-sitter"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-0dac47cb2fe9",
+      "content": "Ars Contexta has approximately 2,900 stars and traverses 249 interconnected research claims to compose domain-specific cognitive architectures from first principles.",
+      "content_hash": "0dac47cb2fe9",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/agenticnotetaking-arscontexta.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "ars-contexta"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-540ed9690829",
+      "content": "OriginTrail DKG v9 combines RDF triple stores with Merkle-proof anchoring on EVM chains and uses compare-and-swap concurrency control with per-entity write locks acquired in sorted order to prevent deadlocks.",
+      "content_hash": "540ed9690829",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/origintrail-dkg-v9.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "origintrail"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-cddb0ad8f558",
+      "content": "Multi-agent DKG collaboration reduced coding swarm wall time by 47% (20 min vs 38 min) and improved completion reliability from 7/8 to 8/8 versus no-collaboration baselines.",
+      "content_hash": "cddb0ad8f558",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/origintrail-dkg-v9.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "origintrail"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-80e2af86c5e4",
+      "content": "Code-review-graph has 6,592 stars, builds persistent structural maps using tree-sitter AST parsing stored in SQLite, and achieves an average 8.2x token reduction across 6 real repositories.",
+      "content_hash": "80e2af86c5e4",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/tirth8205-code-review-graph.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "code-review-graph",
+        "tree-sitter"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-fe75b1a6abbb",
+      "content": "Code-review-graph achieves up to 49x token reduction on a Next.js monorepo and completes incremental updates in under 2 seconds for a 2,900-file project.",
+      "content_hash": "fe75b1a6abbb",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/tirth8205-code-review-graph.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "code-review-graph"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-14255ae69753",
+      "content": "All serious retrieval systems now combine BM25 with at least one other signal: Graphiti uses cosine + BM25 + BFS graph traversal; Napkin combines BM25 + backlinks + recency.",
+      "content_hash": "14255ae69753",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md",
+        "deep/repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "bm25",
+        "hybrid-search"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-e1b100942365",
+      "content": "All production knowledge systems now use predefined queries rather than LLM-generated ones for graph mutations.",
+      "content_hash": "e1b100942365",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+        "deep/repos/getzep-graphiti.md",
+        "deep/repos/origintrail-dkg-v9.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "graphiti",
+        "zep",
+        "origintrail"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-4e0b9bdf13e3",
+      "content": "A-MEM's Zettelkasten-inspired approach achieved 2.5x improvement on multi-hop reasoning (45.85 vs 18.41 F1).",
+      "content_hash": "4e0b9bdf13e3",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "a-mem",
+        "zettelkasten"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-47cf7d71d246",
+      "content": "Dash has 1,900 stars and implements a dual-tier knowledge system with curated knowledge plus auto-learned corrections captured by an Agno Learning Machine.",
+      "content_hash": "47cf7d71d246",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/agno-agi-dash.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "dash"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-75819d2972e9",
+      "content": "Full-context baselines on LongMemEval took 31.3 seconds versus 3.2 seconds with Zep's graph-based retrieval.",
+      "content_hash": "75819d2972e9",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "zep"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-1e3267d9b857",
+      "content": "Planning-with-files has 18,000 stars and uses a PreToolUse hook that re-injects the first 30 lines of task_plan.md before every tool call.",
+      "content_hash": "1e3267d9b857",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/othmanadi-planning-with-files.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "planning-with-files"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-cacc7f294ec7",
+      "content": "HippoRAG has 3,332 stars and uses personalized PageRank over knowledge graphs with BM25 as a retrieval component.",
+      "content_hash": "cacc7f294ec7",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/osu-nlp-group-hipporag.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "hipporag"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-2d7d947db9c7",
+      "content": "Cognee has 14,899 stars and provides a graph+vector solution for multi-hop reasoning.",
+      "content_hash": "2d7d947db9c7",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/topoteretes-cognee.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "cognee"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-040dfbe3a2c2",
+      "content": "CORAL runs multiple agents in isolated git worktrees with shared state symlinked via .coral/public/, and achieves 3-10x faster improvement rates through knowledge reuse.",
+      "content_hash": "040dfbe3a2c2",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "papers/qu-coral-towards-autonomous-multi-agent-evolution-fo.md",
+        "repos/human-agent-society-coral.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-c8bf0a21c87c",
+      "content": "MemEvolve uses LLMs to generate entirely new memory provider implementations from trajectory analysis, achieving 7-17% gains across benchmarks.",
+      "content_hash": "c8bf0a21c87c",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/bingreeky-memevolve.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "memevolve"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-a2200b412ecd",
+      "content": "Graphiti now supports four graph backends: Neo4j, FalkorDB, Kuzu, and Neptune.",
+      "content_hash": "a2200b412ecd",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/getzep-graphiti.md"
+      ],
+      "article_ref": "knowledge-substrate",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T19:53:36.227Z",
+      "updated_at": "2026-04-08T19:53:36.227Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-372545ceb40d",
+      "content": "Zep's temporal knowledge graph scored 94.8% on the Deep Memory Retrieval benchmark, beating MemGPT's 93.4%.",
+      "content_hash": "372545ceb40d",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "zep",
+        "memgpt",
+        "graphiti"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-9286bd4c0080",
+      "content": "Zep's temporal knowledge graph showed a 17.7% decrease in performance on single-session-assistant tasks in a follow-up benchmark.",
+      "content_hash": "9286bd4c0080",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "zep",
+        "graphiti"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-263188b9e212",
+      "content": "Mem0 has 51,880 GitHub stars.",
+      "content_hash": "263188b9e212",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/mem0ai-mem0.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "mem0"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-db11b05c88fa",
+      "content": "Mem0 claims a 26% accuracy improvement over OpenAI Memory on the LoCoMo benchmark.",
+      "content_hash": "db11b05c88fa",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/mem0ai-mem0.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "mem0",
+        "locomo"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-12ea3a5ad5c4",
+      "content": "Mem0 claims 90% fewer tokens than full-context approaches on the LoCoMo benchmark.",
+      "content_hash": "12ea3a5ad5c4",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/mem0ai-mem0.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "mem0",
+        "locomo"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-cf53a2d81f15",
+      "content": "Graphiti has 24,473 GitHub stars.",
+      "content_hash": "cf53a2d81f15",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-62619ce3fd54",
+      "content": "Graphiti's temporal context graph edges carry four timestamps: when the fact became true, when it stopped being true, when the system learned about it, and when the system invalidated it.",
+      "content_hash": "62619ce3fd54",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-79f0155a4472",
+      "content": "Graphiti uses a multi-stage LLM pipeline per episode including entity extraction, node deduplication, edge extraction, edge resolution, and attribute extraction.",
+      "content_hash": "79f0155a4472",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-47e45459db7b",
+      "content": "Graphiti achieves a 38.4% improvement on temporal reasoning tasks compared to alternative approaches.",
+      "content_hash": "47e45459db7b",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ba8ec22754d9",
+      "content": "Hipocampus maintains a ~3K token compressed topic index (ROOT.md) at the apex of a 5-level compaction tree.",
+      "content_hash": "ba8ec22754d9",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5aa68ab1e0e6",
+      "content": "Hipocampus with vector search scored 21.0% on implicit recall on the MemAware benchmark versus 3.4% for BM25 + vector search alone.",
+      "content_hash": "5aa68ab1e0e6",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-3d73b28d2b7f",
+      "content": "Hipocampus scored 8.0% on hard cross-domain questions with zero keyword overlap versus 0.7% for vector search alone.",
+      "content_hash": "3d73b28d2b7f",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-db354ec75426",
+      "content": "napkin reports 91.0% on the LongMemEval S benchmark versus 86% for the best prior system.",
+      "content_hash": "db354ec75426",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "napkin"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-60e6c08cf224",
+      "content": "napkin uses zero preprocessing, no embeddings, and no graphs to achieve its benchmark results.",
+      "content_hash": "60e6c08cf224",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "napkin"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-c696efab3324",
+      "content": "Acontext implements a three-stage pipeline: a Task Agent extracts tasks, a Distillation phase classifies them, and a Skill Learner Agent writes structured markdown skill files.",
+      "content_hash": "c696efab3324",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/memodb-io-acontext.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "agent-zero"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5733c52b7aa2",
+      "content": "Acontext's Distillation phase classifies tasks into skip, success analysis, failure analysis, or factual content categories.",
+      "content_hash": "5733c52b7aa2",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/memodb-io-acontext.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "agent-zero"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-e84a9f782bc2",
+      "content": "Memento's training pipeline uses approximately 30K examples from an OpenMementos dataset of 228K annotated traces.",
+      "content_hash": "e84a9f782bc2",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-902740a48b9c",
+      "content": "Memento drops peak KV cache by 2-3x and nearly doubles throughput.",
+      "content_hash": "902740a48b9c",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-9bcc12fa9e7d",
+      "content": "Autocontext runs a five-agent architecture per generation: Competitor, Analyst, Coach, Architect, and Curator.",
+      "content_hash": "9bcc12fa9e7d",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "antigravity"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-296854f37d30",
+      "content": "Autocontext's TrendAwareGate relaxes acceptance thresholds when scores plateau and tightens them when scores improve.",
+      "content_hash": "296854f37d30",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "antigravity"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-297f47d52db6",
+      "content": "Meta-agent improved holdout accuracy from 67% to 87% on tau-bench v3 airline benchmark.",
+      "content_hash": "297f47d52db6",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "meta-agent"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-6c92964dd01f",
+      "content": "Anthropic's skills repository has 110,064 GitHub stars.",
+      "content_hash": "6c92964dd01f",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/anthropics-skills.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "anthropic"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-0266ad309755",
+      "content": "Anthropic's skills spec formalizes progressive disclosure as three tiers: metadata always loaded (~100 tokens), instructions on trigger, and bundled resources on demand.",
+      "content_hash": "0266ad309755",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/anthropics-skills.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "anthropic"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-35758b67b2d1",
+      "content": "Everything Claude Code contains 156 skills across 12 language ecosystems with a manifest-driven selective install system.",
+      "content_hash": "35758b67b2d1",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "claude-code"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-30ae24b2f0d0",
+      "content": "Everything Claude Code has 136,116 GitHub stars.",
+      "content_hash": "30ae24b2f0d0",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "claude-code"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-cd25b74b7ece",
+      "content": "Everything Claude Code's instinct system captures tool call observations in JSONL format and runs a background analyzer every 5 minutes.",
+      "content_hash": "cd25b74b7ece",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "claude-code"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-bebb131476a7",
+      "content": "Analysis of 42,447 skills from major marketplaces found 26.1% contain at least one vulnerability, with 5.2% exhibiting high-severity patterns suggesting malicious intent.",
+      "content_hash": "bebb131476a7",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "anthropic"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-c60ba08750df",
+      "content": "Skills with executable scripts are 2.12x more vulnerable than instruction-only skills (p<0.001).",
+      "content_hash": "c60ba08750df",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-8cc4b21105e2",
+      "content": "Zep demonstrated 90% latency reduction by compressing 115K tokens to 1.6K while improving accuracy by 18.5% on the LongMemEval benchmark.",
+      "content_hash": "8cc4b21105e2",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "zep",
+        "graphiti"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-3e9aef7d426c",
+      "content": "Recursive summarization scored 35.3% on the Deep Memory Retrieval benchmark versus 94.8% for temporal knowledge graphs.",
+      "content_hash": "3e9aef7d426c",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "zep",
+        "graphiti"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-83bd49cfef33",
+      "content": "Single-vector-space memory retrieval scores 3.4% on implicit context recall on the MemAware benchmark.",
+      "content_hash": "83bd49cfef33",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-cafcc74c62f1",
+      "content": "Systems with access to full execution traces (~10M tokens per iteration) outperform systems with only scores or summaries by 15.4 accuracy points.",
+      "content_hash": "cafcc74c62f1",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-616d3918d19a",
+      "content": "Meta-harness optimization produces +7.7 points over ACE on classification with 4x fewer tokens compared to prompt optimization alone.",
+      "content_hash": "616d3918d19a",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-3672a79fc040",
+      "content": "SICA achieved a 3x improvement on SWE-Bench Verified, going from 17% to 53% across 14 iterations of self-modification.",
+      "content_hash": "3672a79fc040",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "swe-bench"
+      ],
+      "temporal_scope": "as of 2025-01",
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-3a5f78bb3809",
+      "content": "Graphiti supports four graph backends (Neo4j, FalkorDB, Kuzu, Neptune) behind a GraphDriver abstraction.",
+      "content_hash": "3a5f78bb3809",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-3a4a2eaa0049",
+      "content": "All serious agent memory systems have converged on progressive disclosure: loading only a minimal context summary always in context and deferring detailed content to on-demand retrieval.",
+      "content_hash": "3a4a2eaa0049",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/anthropics-skills.md",
+        "deep/repos/kevin-hs-sohn-hipocampus.md",
+        "repos/michaelliv-napkin.md",
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "mem0",
+        "graphiti",
+        "hipocampus",
+        "napkin",
+        "anthropic"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-15261701fac7",
+      "content": "The field has shifted from prompt-level optimization as the primary improvement lever to optimizing the entire harness including retrieval logic, routing, memory management, and prompt construction code.",
+      "content_hash": "15261701fac7",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d00045e63190",
+      "content": "Production memory systems have moved from single-vector-space retrieval toward hybrid retrieval combining cosine similarity, BM25, and graph traversal.",
+      "content_hash": "d00045e63190",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md",
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "graphiti",
+        "hipocampus"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-87abb0344621",
+      "content": "All memory systems that handle temporal data now version facts rather than overwriting them in place.",
+      "content_hash": "87abb0344621",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md",
+        "deep/repos/kevin-hs-sohn-hipocampus.md",
+        "deep/repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "graphiti",
+        "hipocampus",
+        "antigravity",
+        "mem0"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-cba1ac2bc2fa",
+      "content": "Larger context windows have not made memory retrieval systems obsolete because attention degrades with context length and cost scales linearly with context size.",
+      "content_hash": "cba1ac2bc2fa",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "repos/mem0ai-mem0.md",
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-memory",
+      "entity_refs": [
+        "mem0",
+        "zep"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:33.029Z",
+      "updated_at": "2026-04-08T22:53:33.029Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ff1230356077",
+      "content": "Memento trains models to segment their own chain-of-thought into blocks, compress each block into a dense summary, and mask the original reasoning from attention.",
+      "content_hash": "ff1230356077",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-f3b4f4d2888b",
+      "content": "Memento cuts KV cache by 2-3x while preserving 96.4% problem overlap with the baseline.",
+      "content_hash": "f3b4f4d2888b",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-0fab0ab83157",
+      "content": "Anthropic's skills repo has 110,064 stars.",
+      "content_hash": "0fab0ab83157",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/anthropics-skills.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "anthropics-skills"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-2882d00e21b2",
+      "content": "Everything Claude Code has 136,116 stars.",
+      "content_hash": "2882d00e21b2",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "everything-claude-code"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-17d7eb4f168b",
+      "content": "Anthropic's skills repo implements a three-tier progressive disclosure pattern where metadata costs ~100 tokens, instructions load on trigger, and resources load on demand.",
+      "content_hash": "17d7eb4f168b",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/anthropics-skills.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "anthropics-skills",
+        "progressive-disclosure"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-c3bbbdc3c609",
+      "content": "The skill-creator meta-skill in Anthropic's repo implements a description optimizer that runs 3x per query on a 60/40 train/test split, iterating up to 5 times to maximize trigger reliability.",
+      "content_hash": "c3bbbdc3c609",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/anthropics-skills.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "anthropics-skills"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-46d773226394",
+      "content": "Everything Claude Code scales to 156 skills across 12 language ecosystems with a manifest-driven selective installer using install-plan.js, install-apply.js, and a SQLite state store.",
+      "content_hash": "46d773226394",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "everything-claude-code"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ec50066ca444",
+      "content": "Hipocampus maintains a ~3K-token compressed topic index (ROOT.md) always loaded into every API call.",
+      "content_hash": "ec50066ca444",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ebfc3d824854",
+      "content": "Hipocampus implements a 5-level compaction tree with levels: Raw, Daily, Weekly, Monthly, and Root.",
+      "content_hash": "ebfc3d824854",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-bd3b4a154830",
+      "content": "Hipocampus has 145 stars.",
+      "content_hash": "bd3b4a154830",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d774311ed2ce",
+      "content": "Napkin implements four disclosure levels: NAPKIN.md (~200 tokens), napkin overview (~1-2K tokens), napkin search (~2-5K tokens), and napkin read (~5-20K tokens).",
+      "content_hash": "d774311ed2ce",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "napkin"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-980049e5be65",
+      "content": "Napkin has 264 stars.",
+      "content_hash": "980049e5be65",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "napkin"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-9c06de1b63f3",
+      "content": "Graphiti routes context through hybrid search combining cosine similarity, BM25, and breadth-first graph traversal, with cross-encoder reranking.",
+      "content_hash": "9c06de1b63f3",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "graphiti",
+        "bm25"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-523d0763a1a9",
+      "content": "Graphiti edges carry a bi-temporal validity window with fields: valid_at, invalid_at, created_at, and expired_at.",
+      "content_hash": "523d0763a1a9",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-969d04204339",
+      "content": "Graphiti has 24,473 stars.",
+      "content_hash": "969d04204339",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-8bd1fe0157e3",
+      "content": "Memento uses a three-stage curriculum: standard causal attention, format learning, and block masking to teach context compression.",
+      "content_hash": "8bd1fe0157e3",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-613913dd2655",
+      "content": "Memento trains on Qwen3-8B to segment reasoning into blocks, write a dense memento for each block, then mask the original block from attention.",
+      "content_hash": "613913dd2655",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-2b9b62c0d783",
+      "content": "Memento restart mode (recomputing KV from scratch) drops AIME'24 accuracy from 66.1% to 50.8%.",
+      "content_hash": "2b9b62c0d783",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-a000968c881c",
+      "content": "Meta-Harness demonstrated that compressing execution traces into summaries destroyed diagnostic signal: full filesystem access scored 50.0 median accuracy versus 34.9 for scores plus summaries, a 15-point gap.",
+      "content_hash": "a000968c881c",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "meta-harness"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-1eb4013f7b87",
+      "content": "Acontext transforms raw agent execution traces into structured SKILL.md files through a three-stage pipeline: Task Extraction, Distillation, and Skill Learner.",
+      "content_hash": "1eb4013f7b87",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/memodb-io-acontext.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "acontext"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-329d0d0de153",
+      "content": "Acontext has 3,300 stars.",
+      "content_hash": "329d0d0de153",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/memodb-io-acontext.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "acontext"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-53a3e2f35e6d",
+      "content": "CORAL persists context through filesystem-based collaboration where multiple agents work in isolated git worktrees with a shared .coral/public/ directory symlinked into each worktree.",
+      "content_hash": "53a3e2f35e6d",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/human-agent-society-coral.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-e5f5140932f8",
+      "content": "CORAL agents share three knowledge types: attempt records (JSON with commit hash, score, feedback), notes (free-form markdown), and skills (SKILL.md directories).",
+      "content_hash": "e5f5140932f8",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/human-agent-society-coral.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-65304526d512",
+      "content": "CORAL has 120 stars.",
+      "content_hash": "65304526d512",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/human-agent-society-coral.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-1caefa47b866",
+      "content": "Ars Contexta persists context through a three-space architecture: self/ (agent identity), notes/ (knowledge graph), and ops/ (transient coordination state).",
+      "content_hash": "1caefa47b866",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/agenticnotetaking-arscontexta.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "ars-contexta"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-6514a3be639c",
+      "content": "Ars Contexta has 2,900 stars.",
+      "content_hash": "6514a3be639c",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/agenticnotetaking-arscontexta.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "ars-contexta"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-8c7932a18fa8",
+      "content": "Autocontext uses a Curator agent that quality-gates all knowledge changes using HTML comment markers indicating accept, reject, or merge decisions.",
+      "content_hash": "8c7932a18fa8",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "autocontext"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-6ff1d1056b83",
+      "content": "Autocontext has 695 stars.",
+      "content_hash": "6ff1d1056b83",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "autocontext"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-3e571cd09938",
+      "content": "Meta-Harness achieved +7.7 points over ACE on text classification with 4x fewer context tokens.",
+      "content_hash": "3e571cd09938",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "meta-harness"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-898e04c7b6e5",
+      "content": "The Meta-Harness proposer agent (Claude Code with Opus-4.6) reads a median of 82 files per iteration, referencing over 20 prior candidates.",
+      "content_hash": "898e04c7b6e5",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "meta-harness"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-24cb05639e26",
+      "content": "Meta-agent improved holdout accuracy from 67% to 87% on tau-bench v3 airline.",
+      "content_hash": "24cb05639e26",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "meta-agent"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-592f4f222e83",
+      "content": "SICA allows an agent to modify its own Python source code including tools, reasoning structures, and sub-agents, then evaluate modifications against benchmarks.",
+      "content_hash": "592f4f222e83",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-7ee96b15dc9c",
+      "content": "SICA improved SWE-Bench Verified accuracy from 17% to 53% across 14 iterations.",
+      "content_hash": "7ee96b15dc9c",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ec0b0c4f8bd4",
+      "content": "SICA has 299 stars.",
+      "content_hash": "ec0b0c4f8bd4",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5eab2cfa38e1",
+      "content": "Graphify transforms heterogeneous sources including code, papers, and images into a queryable knowledge graph using NetworkX, Leiden community detection, and tree-sitter AST parsing.",
+      "content_hash": "5eab2cfa38e1",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/safishamsi-graphify.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "graphify"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-bde0f05affe9",
+      "content": "Graphify reports 71.5x fewer tokens per query versus raw file retrieval.",
+      "content_hash": "bde0f05affe9",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/safishamsi-graphify.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "graphify"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ef32a08b1785",
+      "content": "Graphify has 7,021 stars.",
+      "content_hash": "ef32a08b1785",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/safishamsi-graphify.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "graphify"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-b5cbe3f46eaa",
+      "content": "Mem0 reports 90% token reduction versus full-context approaches.",
+      "content_hash": "b5cbe3f46eaa",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/mem0ai-mem0.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "mem0"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-52995c785341",
+      "content": "Mem0 has 51,880 stars.",
+      "content_hash": "52995c785341",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/mem0ai-mem0.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "mem0"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-f6e3fc59ee60",
+      "content": "Zep reduced context from 115K to ~1.6K tokens while improving accuracy by 18.5% on LongMemEval.",
+      "content_hash": "f6e3fc59ee60",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ebc586e1fd92",
+      "content": "Hipocampus's MemAware benchmark on 900 implicit context questions showed BM25 plus vector search scored 3.4%, while Hipocampus's compaction tree alone scored 9.2%, and Hipocampus plus vector scored 17.3%.",
+      "content_hash": "ebc586e1fd92",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-c54ea95880a8",
+      "content": "On Hard questions with zero keyword overlap between query and relevant memory, Hipocampus scored 8.0% versus 0.7% for vector search, an 11.4x gap.",
+      "content_hash": "c54ea95880a8",
+      "type": "comparative",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-8a1f13c1b63b",
+      "content": "Napkin's BM25-only retrieval on markdown matched 92% of oracle-context accuracy on LongMemEval with zero preprocessing or embeddings.",
+      "content_hash": "8a1f13c1b63b",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "napkin"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-c427957de5c8",
+      "content": "Napkin achieved 91.0% on S-scale LongMemEval with zero embeddings using BM25 only.",
+      "content_hash": "c427957de5c8",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "napkin"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-9ac633bd7d03",
+      "content": "The agent skills survey analyzed 42,447 skills from major marketplaces and found 26.1% contain at least one vulnerability.",
+      "content_hash": "9ac633bd7d03",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-0d03b9140a9f",
+      "content": "Skills with executable scripts are 2.12x more vulnerable than instruction-only skills.",
+      "content_hash": "0d03b9140a9f",
+      "type": "comparative",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-57a3c3e66ccd",
+      "content": "A single industrialized actor produced 54.1% of confirmed malicious skill cases (157 skills, 632 total vulnerabilities).",
+      "content_hash": "57a3c3e66ccd",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-a546842cb02f",
+      "content": "Security vulnerabilities found in community skills include data exfiltration (13.3%) and privilege escalation (11.8%).",
+      "content_hash": "a546842cb02f",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-b14765fcb8bf",
+      "content": "Anthropic's skill-creator testing framework has three tiers: Tier 1 (free, under 2 seconds) for static validation, Tier 2 (~$3.85, ~20 minutes) for full end-to-end testing, and Tier 3 (~$0.15, ~30 seconds) for LLM-as-judge quality scoring.",
+      "content_hash": "b14765fcb8bf",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/anthropics-skills.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "anthropics-skills",
+        "llm-as-judge"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-33b2cc1d8996",
+      "content": "Graphiti reports 94.8% on Deep Memory Retrieval versus napkin's 92.0% on LongMemEval Oracle, but these benchmarks measure different things.",
+      "content_hash": "33b2cc1d8996",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md",
+        "repos/michaelliv-napkin.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "graphiti",
+        "napkin"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-edfa4efa3146",
+      "content": "Graphiti achieves +38.4% improvement on LongMemEval temporal questions compared to flat retrieval approaches.",
+      "content_hash": "edfa4efa3146",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5553b65979ba",
+      "content": "Memento released OpenMementos containing 228K annotated reasoning traces along with a data generation pipeline and a vLLM patch with native block masking.",
+      "content_hash": "5553b65979ba",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "memento",
+        "vllm"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-446836ab9db4",
+      "content": "Memento requires approximately 30K training examples to teach context management as a model skill.",
+      "content_hash": "446836ab9db4",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-197ac0540e70",
+      "content": "gstack has 63,766 stars.",
+      "content_hash": "197ac0540e70",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "gstack"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-a572b1a25341",
+      "content": "ECC budgets 10K tokens for system prompts, 5-8K for resident rules, and 2-5K per MCP tool, recommending no more than 10 MCPs per project.",
+      "content_hash": "a572b1a25341",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "everything-claude-code"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d3a1ebcaf42e",
+      "content": "The field has converged on separating hot context from cold context with explicit token budgets, with structured retrieval outperforming full-context loading even when window size permits storing everything.",
+      "content_hash": "d3a1ebcaf42e",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md",
+        "deep/repos/kevin-hs-sohn-hipocampus.md",
+        "deep/repos/anthropics-skills.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "graphiti",
+        "hipocampus",
+        "anthropics-skills"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-7ab7ee71e8b2",
+      "content": "Production context engineering systems have converged on human-readable markdown files with YAML frontmatter as the canonical storage format, replacing opaque embedding-only approaches.",
+      "content_hash": "7ab7ee71e8b2",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "repos/michaelliv-napkin.md",
+        "deep/repos/anthropics-skills.md",
+        "deep/repos/memodb-io-acontext.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "napkin",
+        "anthropics-skills",
+        "acontext",
+        "mem0"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-8ea40809df59",
+      "content": "Serious harness improvement systems now require full execution trace access rather than compressed summaries, as compression destroys diagnostic signal needed for systematic improvement.",
+      "content_hash": "8ea40809df59",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+        "deep/repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "meta-harness",
+        "autocontext",
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-dd5a706f53cc",
+      "content": "Semantic search alone is insufficient as a primary retrieval mechanism for agent memory because it requires a query, and queries require the agent to already suspect that relevant context exists.",
+      "content_hash": "dd5a706f53cc",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "hipocampus",
+        "mem0"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-70ad2eb0c34e",
+      "content": "Meta-Harness matched text-optimizer approaches' final performance within 4 evaluations, demonstrating that richer diagnostic context accelerates convergence with 10x fewer full evaluations.",
+      "content_hash": "70ad2eb0c34e",
+      "type": "comparative",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "context-engineering",
+      "entity_refs": [
+        "meta-harness"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:56.854Z",
+      "updated_at": "2026-04-08T22:53:56.854Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-184e1c93d170",
+      "content": "Meta-Harness demonstrated that harness changes alone produce up to 6x performance gaps on the same benchmark with the same model.",
+      "content_hash": "184e1c93d170",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "meta-harness"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-9477cdd4e53c",
+      "content": "Meta-Harness achieved +7.7 points over ACE on text classification while using 4x fewer context tokens.",
+      "content_hash": "9477cdd4e53c",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "meta-harness"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-bd54ea9b2ac0",
+      "content": "Meta-Harness with full execution trace access scored 50.0 median accuracy versus 34.6 with scores alone and 34.9 with scores plus summaries.",
+      "content_hash": "bd54ea9b2ac0",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "meta-harness"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d69bca3ae106",
+      "content": "meta-agent improved holdout accuracy on Tau-bench v3 airline from 67% to 87%.",
+      "content_hash": "d69bca3ae106",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "meta-agent",
+        "tau-bench"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-2758383168df",
+      "content": "meta-agent's LLM-judge-based search outperformed labeled-search (80%) achieving 87% holdout accuracy on Tau-bench.",
+      "content_hash": "2758383168df",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "meta-agent",
+        "tau-bench"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-87d76b3b08f9",
+      "content": "SICA improved SWE-Bench Verified accuracy from 17% to 53% across 14 iterations of self-modification.",
+      "content_hash": "87d76b3b08f9",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-b5121e9e4f9b",
+      "content": "SICA's selection function balances performance (weight 0.5), cost efficiency (0.25), and execution time (0.25).",
+      "content_hash": "b5121e9e4f9b",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-edd7a00925d7",
+      "content": "SICA modifies its own Python source code, tools, reasoning structures, and sub-agents inside a Docker sandbox.",
+      "content_hash": "edd7a00925d7",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-32b81f829b45",
+      "content": "Anthropic's SKILL.md specification defines a three-tier progressive disclosure architecture: metadata (~100 tokens, always in context), instructions (full SKILL.md body, loaded on trigger), and bundled resources (loaded on demand).",
+      "content_hash": "32b81f829b45",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/anthropics-skills.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "anthropic",
+        "agent-skills"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-c922b95ab74d",
+      "content": "The claude-api skill demonstrates loading only the relevant language's docs when triggered from 20+ reference files across 8 languages.",
+      "content_hash": "c922b95ab74d",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/anthropics-skills.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "anthropic"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-f9a448a63e21",
+      "content": "gstack's /review command dispatches 7 parallel specialist subagents covering testing, maintainability, security, performance, data-migration, API contract, and red team concerns.",
+      "content_hash": "f9a448a63e21",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/garrytan-gstack.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "gstack"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-625eefd29408",
+      "content": "gstack creator Garry Tan reports averaging 10,000 lines of code and 100 pull requests per week over a 50-day period.",
+      "content_hash": "625eefd29408",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/garrytan-gstack.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "gstack"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-6c8ff40f9a63",
+      "content": "Everything Claude Code implements a continuous learning system where an Observer Agent runs every 5 minutes analyzing tool-call observations and converting patterns into atomic instincts with confidence scores that decay over time.",
+      "content_hash": "6c8ff40f9a63",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "everything-claude-code"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-19d5c9a091ae",
+      "content": "Everything Claude Code scaled to 156 skills across 12 language ecosystems.",
+      "content_hash": "19d5c9a091ae",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "everything-claude-code"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-4fdc36ddd934",
+      "content": "Graphiti builds temporal context graphs where edges carry valid_at and invalid_at timestamps, using a multi-stage LLM pipeline with Pydantic structured output.",
+      "content_hash": "4fdc36ddd934",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "graphiti",
+        "zep"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-b6c0bf6a6b03",
+      "content": "Zep achieved +18.5% accuracy improvement with 90% latency reduction on the LongMemEval benchmark compared to full-context baselines.",
+      "content_hash": "b6c0bf6a6b03",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "graphiti",
+        "zep"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5b8b382737b9",
+      "content": "Graphiti's temporal edge invalidation drove +38.4% improvement on temporal reasoning tasks specifically.",
+      "content_hash": "5b8b382737b9",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "graphiti",
+        "zep"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-3281d8d36f81",
+      "content": "Graphiti requires 4-5 LLM calls per episode ingestion.",
+      "content_hash": "3281d8d36f81",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-937df2929cc6",
+      "content": "Graphiti's single-session-assistant tasks showed a 17.7% performance decrease compared to full-context baseline.",
+      "content_hash": "937df2929cc6",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "graphiti",
+        "zep"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5f5062e360f9",
+      "content": "Hipocampus implements a compaction tree (Raw → Daily → Weekly → Monthly → Root) that compresses months of conversation into a ~3K token ROOT.md topic index loaded into every session.",
+      "content_hash": "5f5062e360f9",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-008940d500d6",
+      "content": "Hipocampus + Vector scored 17.3% on the MemAware benchmark versus 0.8% for no memory and 3.4% for vector search alone.",
+      "content_hash": "008940d500d6",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5ea4ab19fef4",
+      "content": "Hipocampus scored 8.0% on hard cross-domain questions versus 0.7% for vector search, an 11.4x improvement.",
+      "content_hash": "5ea4ab19fef4",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d0f5e7809a11",
+      "content": "Acontext implements a three-stage learning pipeline: Task Extraction, Distillation (classifying completed tasks into SOPs, failure warnings, or factual content), and Skill Learner (writing structured markdown skill files).",
+      "content_hash": "d0f5e7809a11",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/memodb-io-acontext.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "acontext"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-2b4550154bc1",
+      "content": "Memento reduces peak KV cache by 2-3x and nearly doubles throughput by compressing chain-of-thought blocks within a single generation call.",
+      "content_hash": "2b4550154bc1",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d74a90f3b8f9",
+      "content": "Memento's restart mode (recomputing KV from scratch) drops AIME'24 accuracy from 66.1% to 50.8%, a 15 percentage point loss.",
+      "content_hash": "d74a90f3b8f9",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-faf57162dc7b",
+      "content": "Memento requires approximately 30K training examples with a three-stage curriculum: standard causal attention, then block masking.",
+      "content_hash": "faf57162dc7b",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-2b03fb044b5e",
+      "content": "CORAL uses a shared .coral/public/ state directory symlinked into each isolated git worktree so agents share filesystem state in real time.",
+      "content_hash": "2b03fb044b5e",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/human-agent-society-coral.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-595673b0ee54",
+      "content": "Autocontext deploys five specialized agents per generation: Competitor, Analyst, Coach, Architect, and Curator.",
+      "content_hash": "595673b0ee54",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "autocontext"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-67ea3132775c",
+      "content": "The agent skills survey analyzed 42,447 community skills and found 26.1% contain at least one vulnerability and 5.2% exhibit high-severity patterns suggesting malicious intent.",
+      "content_hash": "67ea3132775c",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "papers/xu-agent-skills-for-large-language-models-architectu.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-546705a4fbec",
+      "content": "Skills with executable scripts are 2.12x more vulnerable than instruction-only skills according to the agent skills survey.",
+      "content_hash": "546705a4fbec",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "papers/xu-agent-skills-for-large-language-models-architectu.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-bf4faeebb8b7",
+      "content": "A single industrialized actor was responsible for 54.1% of confirmed malicious cases in the agent skills survey.",
+      "content_hash": "bf4faeebb8b7",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "papers/xu-agent-skills-for-large-language-models-architectu.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ee2e12e132f0",
+      "content": "pi-autoresearch demonstrated 53% parse+render speedup on Shopify's Liquid template engine across approximately 120 automated experiments with zero test regressions.",
+      "content_hash": "ee2e12e132f0",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/davebcn87-pi-autoresearch.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "pi-autoresearch"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-600a29b5f70a",
+      "content": "Zep's knowledge graph scored 71.2% on LongMemEval with gpt-4o versus 60.2% for full-context baseline, using less than 2% of the baseline's tokens (1.6k vs 115k tokens).",
+      "content_hash": "600a29b5f70a",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "graphiti",
+        "zep"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-77928641c4b4",
+      "content": "All serious self-improving agent systems now treat execution traces as first-class optimization input rather than relying on compressed summaries or scalar scores.",
+      "content_hash": "77928641c4b4",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "meta-harness",
+        "meta-agent",
+        "sica",
+        "autocontext",
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-98a0ac33336c",
+      "content": "All production skill systems now enforce progressive disclosure with at most three tiers, separating always-loaded metadata from on-demand instruction and resource loading.",
+      "content_hash": "98a0ac33336c",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/anthropics-skills.md",
+        "deep/repos/affaan-m-everything-claude-code.md",
+        "deep/repos/memodb-io-acontext.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "anthropic",
+        "gstack",
+        "hipocampus",
+        "acontext",
+        "everything-claude-code"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-4b0dda5406d3",
+      "content": "All self-improving agent systems now separate the improvement mechanism from the target being improved, as demonstrated across meta-agent, Meta-Harness, SICA, and Autocontext.",
+      "content_hash": "4b0dda5406d3",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md",
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "meta-agent",
+        "meta-harness",
+        "sica",
+        "autocontext"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d2a3e13ba5dd",
+      "content": "Structured memory retrieval via knowledge graphs, compaction trees, or progressive disclosure now outperforms context stuffing on both accuracy and latency, invalidating the assumption that longer context windows solve the memory problem.",
+      "content_hash": "d2a3e13ba5dd",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md",
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "hipocampus",
+        "graphiti",
+        "zep"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-daccacf46daf",
+      "content": "Anthropic's skills repository had 110,064 GitHub stars.",
+      "content_hash": "daccacf46daf",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/anthropics-skills.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "anthropic"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-bd5501f1bc15",
+      "content": "gstack had 63,766 GitHub stars.",
+      "content_hash": "bd5501f1bc15",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/garrytan-gstack.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "gstack"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5d450f691c30",
+      "content": "Everything Claude Code had 136,116 GitHub stars.",
+      "content_hash": "5d450f691c30",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "everything-claude-code"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ff77df9f76bf",
+      "content": "Graphiti had 24,473 GitHub stars.",
+      "content_hash": "ff77df9f76bf",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "graphiti",
+        "zep"
+      ],
+      "temporal_scope": "as of 2025-07",
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-de04effb94c8",
+      "content": "Memento released OpenMementos containing 228K annotated reasoning traces along with a full data generation pipeline and a vLLM fork with native block masking.",
+      "content_hash": "de04effb94c8",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "agent-architecture",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:53:34.180Z",
+      "updated_at": "2026-04-08T22:53:34.180Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-95d88e9274b8",
+      "content": "Meta-agent achieved a holdout accuracy jump from 67% to 87% on tau-bench airline tasks by using an LLM judge to score unlabeled production traces and a proposer agent to rewrite the harness one change at a time.",
+      "content_hash": "95d88e9274b8",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "meta-agent"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-e951fc1dc25c",
+      "content": "MetaGPT uses a `_watch()` mechanism that lets each role declare which upstream action types it subscribes to, with the Environment acting as a pub-sub bus where messages carry `cause_by` metadata.",
+      "content_hash": "e951fc1dc25c",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/foundationagents-metagpt.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "metagpt"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-e8967154fdb8",
+      "content": "MetaGPT's `Environment.publish_message` silently drops messages when no role's subscription addresses match, causing tasks to vanish without trace in complex pipelines.",
+      "content_hash": "e8967154fdb8",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/foundationagents-metagpt.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "metagpt"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-2b4d78060885",
+      "content": "CORAL uses isolated git worktrees with a shared `.coral/public/` directory symlinked into every worktree, so writes by one agent are immediately visible to others without a synchronization protocol.",
+      "content_hash": "2b4d78060885",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/human-agent-society-coral.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-b4e41df168da",
+      "content": "CORAL had 120 GitHub stars at time of writing.",
+      "content_hash": "b4e41df168da",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/human-agent-society-coral.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5c79597d2a34",
+      "content": "Graphiti builds temporal knowledge graphs where edges carry bi-temporal validity windows using `valid_at`, `invalid_at`, `created_at`, and `expired_at` fields.",
+      "content_hash": "5c79597d2a34",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-1800767f414f",
+      "content": "Graphiti's ingestion pipeline makes 4-5 or more LLM calls per episode to extract nodes, deduplicate, extract edges, resolve edges, and extract attributes.",
+      "content_hash": "1800767f414f",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-f64ced174c41",
+      "content": "Graphiti had 24,473 GitHub stars at time of writing.",
+      "content_hash": "f64ced174c41",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ceedb189e106",
+      "content": "Mem0 claims a 26% accuracy gain and 90% token reduction versus full-context approaches on the LoCoMo benchmark.",
+      "content_hash": "ceedb189e106",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/mem0ai-mem0.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "mem0"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-3512c4ce9bec",
+      "content": "Mem0 had 51,880 GitHub stars at time of writing.",
+      "content_hash": "3512c4ce9bec",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/mem0ai-mem0.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "mem0"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-12a332a1d128",
+      "content": "Hipocampus maintains a ~3K-token compressed topic index (ROOT.md) always loaded into context, acting as a table of contents for everything the agent has discussed.",
+      "content_hash": "12a332a1d128",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-8e85a7269b15",
+      "content": "On the MemAware benchmark, Hipocampus combined with vector search scores 21x better than no memory and 5.1x better than search alone on implicit context questions.",
+      "content_hash": "8e85a7269b15",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-8e0bf659567d",
+      "content": "SICA implements self-modification by having the coding agent modify its own Python source code including tools, reasoning structures, and sub-agents inside Docker sandboxes, evaluating against benchmarks, and keeping or reverting changes using confidence-interval-aware selection.",
+      "content_hash": "8e0bf659567d",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-4009ba63097b",
+      "content": "SICA improved SWE-Bench Verified accuracy from 17% to 53% across 14 self-modification iterations.",
+      "content_hash": "4009ba63097b",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-1a043d69b2b7",
+      "content": "SICA exhibits path dependence as its dominant failure mode, where a bad early modification steers the entire improvement trajectory with no mechanism for global restart beyond manually resetting to iteration 0.",
+      "content_hash": "1a043d69b2b7",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d0324b33bb28",
+      "content": "Autocontext uses five specialized agents — Competitor, Analyst, Coach, Architect, and Curator — each handling one aspect of the improvement cycle, with a backpressure gate deciding whether to advance, retry, or rollback each generation.",
+      "content_hash": "d0324b33bb28",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "autocontext"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-32be12df96d7",
+      "content": "Autocontext had 695 GitHub stars at time of writing.",
+      "content_hash": "32be12df96d7",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "autocontext"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-63d24d58b719",
+      "content": "Meta-agent modifies harness configuration — prompts, hooks, tools, and subagents — rather than code or knowledge, and an update survives only if holdout accuracy improves.",
+      "content_hash": "63d24d58b719",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "meta-agent"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-6589dba4301d",
+      "content": "Anthropic's skills repo and the Agent Skills specification use a three-tier progressive disclosure architecture: metadata (~100 tokens, always in context), SKILL.md body loaded on trigger, and bundled resources loaded on demand.",
+      "content_hash": "6589dba4301d",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/anthropics-skills.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "anthropic"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-8514beba0e52",
+      "content": "Anthropic's skills repo had 110,064 GitHub stars at time of writing.",
+      "content_hash": "8514beba0e52",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/anthropics-skills.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "anthropic"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ec2b3a51333d",
+      "content": "Everything Claude Code contains 156 skills across 12 language ecosystems with a manifest-driven selective install system.",
+      "content_hash": "ec2b3a51333d",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "everything-claude-code"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5980f2203b34",
+      "content": "Everything Claude Code had 136,116 GitHub stars at time of writing.",
+      "content_hash": "5980f2203b34",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "everything-claude-code"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-6d7d2039937b",
+      "content": "Acontext uses a three-stage learning pipeline (Task Extraction → Distillation → Skill Learner Agent) that transforms raw agent execution traces into structured markdown skill files, with an LLM-as-judge distillation phase classifying learnings into SOPs, failure warnings, or factual content.",
+      "content_hash": "6d7d2039937b",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/memodb-io-acontext.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "acontext"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d3ff4fab55b2",
+      "content": "A survey by Xu and Yan found that 26.1% of community-contributed skills contain vulnerabilities across 42,447 analyzed skills, with 14 distinct vulnerability patterns.",
+      "content_hash": "d3ff4fab55b2",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-16044ae44add",
+      "content": "Skills with executable scripts are 2.12x more vulnerable than instruction-only skills according to the Xu and Yan survey.",
+      "content_hash": "16044ae44add",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-decbaa02731b",
+      "content": "Structured temporal knowledge graph retrieval outperformed full-context by 18.5% on LongMemEval while reducing latency by 90%, from 115K tokens to approximately 1.6K tokens.",
+      "content_hash": "decbaa02731b",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-c034f135ff9f",
+      "content": "BM25 plus vector search on raw history scored only 3.4% on implicit context questions in the Hipocampus benchmark, while a 3K-token compressed topic index scored 17.3%.",
+      "content_hash": "c034f135ff9f",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/kevin-hs-sohn-hipocampus.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "hipocampus"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-fec4b4453994",
+      "content": "In the Meta-Harness paper, providing the optimizer with full execution traces (10M tokens per iteration) produced 50.0% accuracy, while compressed summaries produced only 34.9% accuracy, a 15.1 percentage point gap.",
+      "content_hash": "fec4b4453994",
+      "type": "comparative",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "meta-agent"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5a417b1ba053",
+      "content": "Graphiti outperforms alternative memory approaches by 38.4% on LongMemEval temporal tasks and by 30.7% on cross-session synthesis tasks.",
+      "content_hash": "5a417b1ba053",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/getzep-graphiti.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "graphiti"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-4498cdfc1ad9",
+      "content": "In CORAL, two agents writing the same note simultaneously can corrupt it because `fcntl.flock()` only serializes checkpoint operations, not individual file writes.",
+      "content_hash": "4498cdfc1ad9",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/human-agent-society-coral.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-91c85c3a9ce9",
+      "content": "Memento teaches LLMs to compress their own chain-of-thought mid-generation, cutting peak KV cache by 2-3x while approximately doubling throughput.",
+      "content_hash": "91c85c3a9ce9",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-54c15162b19e",
+      "content": "CORAL published its paper (arXiv:2604.01658) formalizing the multi-agent git-worktree isolation pattern with shared filesystem state in April 2026.",
+      "content_hash": "54c15162b19e",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/human-agent-society-coral.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-180676101ce2",
+      "content": "The field has converged on separating the improvement target from the improvement agent, with all serious multi-agent self-improvement systems now implementing this separation.",
+      "content_hash": "180676101ce2",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md",
+        "deep/repos/greyhaven-ai-autocontext.md",
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+        "deep/repos/davebcn87-pi-autoresearch.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "sica",
+        "autocontext",
+        "meta-agent",
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-92071feb1155",
+      "content": "All production multi-agent systems now use some form of append-only experiment logging with structured metadata, replacing in-memory state with persistent records.",
+      "content_hash": "92071feb1155",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/foundationagents-metagpt.md",
+        "deep/repos/greyhaven-ai-autocontext.md",
+        "deep/repos/garrytan-gstack.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "metagpt",
+        "autocontext",
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d670c87581dc",
+      "content": "All production multi-agent self-improvement systems now implement some form of backpressure or gating that prevents improvements from being adopted without validation, replacing immediate adoption of proposed changes.",
+      "content_hash": "d670c87581dc",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/greyhaven-ai-autocontext.md",
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md",
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+        "deep/repos/garrytan-gstack.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "autocontext",
+        "sica",
+        "meta-agent"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-6288e7c2b186",
+      "content": "The field has shifted away from large-context-window approaches to multi-agent coordination toward context engineering, where structured retrieval, progressive disclosure, and targeted trace access outperform dumping full history into context.",
+      "content_hash": "6288e7c2b186",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+        "deep/repos/kevin-hs-sohn-hipocampus.md",
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "graphiti",
+        "hipocampus",
+        "mem0"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ec5e44c8db6b",
+      "content": "MetaGPT had 66,769 GitHub stars at time of writing.",
+      "content_hash": "ec5e44c8db6b",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/foundationagents-metagpt.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "metagpt"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-b37347ad27eb",
+      "content": "Ars Contexta derives skill configurations from a graph of 249 interconnected research claims and had 2,900 GitHub stars at time of writing.",
+      "content_hash": "b37347ad27eb",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/agenticnotetaking-arscontexta.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "ars-contexta"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-81ddf5b2cbf9",
+      "content": "Acontext had 3,300 GitHub stars at time of writing.",
+      "content_hash": "81ddf5b2cbf9",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/memodb-io-acontext.md"
+      ],
+      "article_ref": "multi-agent-systems",
+      "entity_refs": [
+        "acontext"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:26.156Z",
+      "updated_at": "2026-04-08T22:54:26.156Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-7c94637b30e4",
+      "content": "Harness changes alone create up to 6x performance gaps on the same benchmark with the same model, according to the Meta-Harness paper.",
+      "content_hash": "7c94637b30e4",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "meta-harness"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-f4bee4748300",
+      "content": "meta-agent improved holdout accuracy from 67% to 87% on Tau-bench v3 airline using judge-based search.",
+      "content_hash": "f4bee4748300",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "meta-agent",
+        "tau-bench"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-7b2097c24cf9",
+      "content": "meta-agent's labeled-search variant achieved 80% holdout accuracy on Tau-bench v3 airline, compared to 87% for judge-based search.",
+      "content_hash": "7b2097c24cf9",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "meta-agent",
+        "tau-bench"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-3c7bf55d9988",
+      "content": "meta-agent has 20 GitHub stars.",
+      "content_hash": "3c7bf55d9988",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "meta-agent"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-e1ff9ca7eae6",
+      "content": "Autocontext employs five specialized agents per generation: a Competitor, Analyst, Coach, Architect, and Curator.",
+      "content_hash": "e1ff9ca7eae6",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "autocontext"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-68840de1553f",
+      "content": "Autocontext adds GEPA-inspired Pareto optimization and Elo/Glicko scoring backends.",
+      "content_hash": "68840de1553f",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "autocontext",
+        "gepa"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-20820bd368cf",
+      "content": "Autocontext has 695 GitHub stars.",
+      "content_hash": "20820bd368cf",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "autocontext"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-927f9b466358",
+      "content": "GOAL.md formalizes a dual-score pattern: one score for the thing being improved and another for the quality of the measurement instrument itself.",
+      "content_hash": "927f9b466358",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/jmilinovich-goal-md.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "goal-md"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-6c65a5ad0b6b",
+      "content": "GOAL.md has 112 GitHub stars.",
+      "content_hash": "6c65a5ad0b6b",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/jmilinovich-goal-md.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "goal-md"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-0592e3ad3148",
+      "content": "uditgoenka/autoresearch has 3,142 GitHub stars.",
+      "content_hash": "0592e3ad3148",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "autoresearch"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-746b467eda4b",
+      "content": "Pi-autoresearch has 3,393 GitHub stars.",
+      "content_hash": "746b467eda4b",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/davebcn87-pi-autoresearch.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "pi-autoresearch"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-7cd9422bbc5d",
+      "content": "Pi-autoresearch uses append-only JSONL for session persistence and auto-revert on failure via git checkout that stages protected files first.",
+      "content_hash": "7cd9422bbc5d",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/davebcn87-pi-autoresearch.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "pi-autoresearch"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-f1cd1e3a7dd3",
+      "content": "Pi-autoresearch uses MAD-based confidence scoring for statistical analysis of experiment results.",
+      "content_hash": "f1cd1e3a7dd3",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/davebcn87-pi-autoresearch.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "pi-autoresearch"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-3783dd2a669b",
+      "content": "SICA improved SWE-Bench Verified accuracy from 17% to 53% across 14 iterations of self-modification.",
+      "content_hash": "3783dd2a669b",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-2832ee70f557",
+      "content": "SICA runs each modification against benchmarks inside Docker containers with network_mode='none' and mem_limit='2g'.",
+      "content_hash": "2832ee70f557",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-a51a86f6e6f5",
+      "content": "SICA uses a confidence-interval-aware selection mechanism that finds the best-performing iteration's lower confidence bound, then scans backward to find the first agent whose mean score exceeds it.",
+      "content_hash": "a51a86f6e6f5",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-b25e7bf7c563",
+      "content": "SICA has 299 GitHub stars.",
+      "content_hash": "b25e7bf7c563",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-b825e96b32b0",
+      "content": "CORAL uses git worktrees with shared state (attempts, notes, skills) symlinked through .coral/public/ so multiple agents share findings without synchronization.",
+      "content_hash": "b825e96b32b0",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/human-agent-society-coral.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-168b941d048a",
+      "content": "CORAL's heartbeat system with plateau detection interrupts stalled agents with reflection prompts.",
+      "content_hash": "168b941d048a",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/human-agent-society-coral.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-089023fd266d",
+      "content": "On the Erdős minimum overlap problem, four CORAL co-evolving agents improved the best known score from 1363 to 1103 cycles.",
+      "content_hash": "089023fd266d",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "papers/qu-coral-towards-autonomous-multi-agent-evolution-fo.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-b3a32525d970",
+      "content": "CORAL has 120 GitHub stars.",
+      "content_hash": "b3a32525d970",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d9422ec5cef8",
+      "content": "Acontext uses a three-stage pipeline transforming raw execution traces into skills: a Task Agent extracts tasks, a Distillation phase classifies completed tasks, and a Skill Learner Agent writes structured Markdown with YAML frontmatter.",
+      "content_hash": "d9422ec5cef8",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/memodb-io-acontext.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "acontext"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d5c2b363f52a",
+      "content": "Acontext uses progressive disclosure through tool calls (list_skills, get_skill, get_skill_file) rather than embedding search for skill retrieval.",
+      "content_hash": "d5c2b363f52a",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "repos/memodb-io-acontext.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "acontext"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-06b17c1014b8",
+      "content": "Acontext has 3,264 GitHub stars.",
+      "content_hash": "06b17c1014b8",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/memodb-io-acontext.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "acontext"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-dddfa7a65ff9",
+      "content": "ACE maintains a Skillbook of strategies managed by three roles: Agent (executes tasks), Reflector (analyzes traces), and SkillManager (curates strategies).",
+      "content_hash": "dddfa7a65ff9",
+      "type": "architectural",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/kayba-ai-agentic-context-engine.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "ace"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-f6cf6a4c99b1",
+      "content": "ACE reports doubling pass^4 consistency on the Tau2 airline benchmark with 15 learned strategies.",
+      "content_hash": "f6cf6a4c99b1",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/kayba-ai-agentic-context-engine.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "ace"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-e4a9819f77f1",
+      "content": "ACE has 2,112 GitHub stars.",
+      "content_hash": "e4a9819f77f1",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "repos/kayba-ai-agentic-context-engine.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "ace"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-14a8be661cd8",
+      "content": "Ars Contexta's 6Rs processing pipeline (Record, Reduce, Reflect, Reweave, Verify, Rethink) runs each phase in a fresh context window via subagent spawning.",
+      "content_hash": "14a8be661cd8",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/agenticnotetaking-arscontexta.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "ars-contexta"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-c99874d15913",
+      "content": "Ars Contexta traverses 249 interconnected research claims to compose domain-specific cognitive architectures.",
+      "content_hash": "c99874d15913",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/agenticnotetaking-arscontexta.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "ars-contexta"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-2b489c5a2b7a",
+      "content": "Ars Contexta has 2,900 GitHub stars.",
+      "content_hash": "2b489c5a2b7a",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/agenticnotetaking-arscontexta.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "ars-contexta"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-cc9053222ca5",
+      "content": "AgentEvolver's ADCA-GRPO assigns step-level credit by having an external LLM evaluate each step as GOOD or BAD, fused with outcome signals through independent z-score normalization.",
+      "content_hash": "cc9053222ca5",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/modelscope-agentevolver.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "agentevolver",
+        "grpo"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-9d3dfd3b73c4",
+      "content": "AgentEvolver's ADCA-GRPO reduces training steps by approximately 40% compared to standard GRPO.",
+      "content_hash": "9d3dfd3b73c4",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/modelscope-agentevolver.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "agentevolver",
+        "grpo"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-f721e3637cd7",
+      "content": "AgentEvolver has 1,336 GitHub stars.",
+      "content_hash": "f721e3637cd7",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/modelscope-agentevolver.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "agentevolver"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-9c91e5d8fe06",
+      "content": "Memento reduces peak KV cache by 2-3x and nearly doubles throughput by having models segment reasoning into blocks and mask preceding blocks from attention.",
+      "content_hash": "9c91e5d8fe06",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-2aa51c546033",
+      "content": "Information from blocks masked by Memento persists in KV cache representations of downstream mementos and can be recovered via probes even seven blocks after masking.",
+      "content_hash": "2aa51c546033",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "memento"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-a3ace3b208ea",
+      "content": "Meta-Harness's ablation showed that full trace access adds +15.4 accuracy points over scores alone, while summaries add only +0.3 accuracy points over scores alone.",
+      "content_hash": "a3ace3b208ea",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "meta-harness"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-8c11e7365b64",
+      "content": "Meta-Harness showed scores plus summaries achieved 34.9% accuracy while full filesystem access achieved 50.0%, a 15.1 point gap.",
+      "content_hash": "8c11e7365b64",
+      "type": "empirical",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "meta-harness"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ee6b86ccd790",
+      "content": "CORAL's paper demonstrated that autonomous agents with persistent shared memory achieve 3-10x higher improvement rates with fewer evaluations than fixed evolutionary baselines.",
+      "content_hash": "ee6b86ccd790",
+      "type": "comparative",
+      "confidence": "reported",
+      "source_refs": [
+        "papers/qu-coral-towards-autonomous-multi-agent-evolution-fo.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-791afda714f5",
+      "content": "Everything Claude Code has 136,116 GitHub stars and covers 156 skills across 12 language ecosystems with manifest-driven selective install.",
+      "content_hash": "791afda714f5",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "everything-claude-code"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-ceedaa368bf1",
+      "content": "Mem0 has 51,880 GitHub stars and uses vector embeddings as its primary memory storage.",
+      "content_hash": "ceedaa368bf1",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "mem0"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-c01e3f3999d1",
+      "content": "Mem0 reports 26% accuracy gains over full context and 90% token reduction using vector embedding-based memory retrieval.",
+      "content_hash": "c01e3f3999d1",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "mem0"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5e077d9ea694",
+      "content": "AgentEvolver's ADCA-GRPO achieved 57.6% avg@8 on combined benchmarks with a 14B model.",
+      "content_hash": "5e077d9ea694",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/modelscope-agentevolver.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "agentevolver"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-52a270ce5d0c",
+      "content": "AgentEvolver requires 8x A100 GPUs to run.",
+      "content_hash": "52a270ce5d0c",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/modelscope-agentevolver.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "agentevolver"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-98d0c89af1f3",
+      "content": "The field has converged on storing scored execution traces as the primary feedback signal, moving past binary success/failure signals alone.",
+      "content_hash": "98d0c89af1f3",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+        "deep/repos/davebcn87-pi-autoresearch.md",
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md",
+        "papers/qu-coral-towards-autonomous-multi-agent-evolution-fo.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "meta-harness",
+        "pi-autoresearch",
+        "sica",
+        "coral"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-d6761882ceee",
+      "content": "All production self-improvement systems have adopted automatic revert on regression as a standard safety mechanism.",
+      "content_hash": "d6761882ceee",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/davebcn87-pi-autoresearch.md",
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md",
+        "deep/repos/human-agent-society-coral.md",
+        "repos/jmilinovich-goal-md.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "pi-autoresearch",
+        "sica",
+        "coral",
+        "goal-md"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5a7bbd829fbc",
+      "content": "Systems that persist knowledge across sessions now prefer human-readable text files (Markdown with YAML frontmatter, wikilinked notes) over opaque vector embeddings.",
+      "content_hash": "5a7bbd829fbc",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/memodb-io-acontext.md",
+        "deep/repos/agenticnotetaking-arscontexta.md",
+        "deep/repos/human-agent-society-coral.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "acontext",
+        "ars-contexta",
+        "coral",
+        "mem0"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-3d0d8c202bba",
+      "content": "LLM judges on unlabeled traces can outperform labeled search, disproving the assumption that LLM self-improvement requires labeled data or ground-truth rewards.",
+      "content_hash": "3d0d8c202bba",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+        "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "meta-agent",
+        "meta-harness"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-14f7782c886d",
+      "content": "The community has converged on separating agent behavior into three distinct layers: rules (always-follow guidelines), skills (context-loaded domain knowledge), and hooks (deterministic automations).",
+      "content_hash": "14f7782c886d",
+      "type": "directional",
+      "confidence": "inferred",
+      "source_refs": [
+        "deep/repos/affaan-m-everything-claude-code.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "everything-claude-code"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-265c16b61b13",
+      "content": "gstack has 63,766 GitHub stars and implements a sprint-as-DAG pattern with 23 specialist roles.",
+      "content_hash": "265c16b61b13",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/garrytan-gstack.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "gstack"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-b13d3bf53206",
+      "content": "Compound Product has 503 GitHub stars and extends the autoresearch pattern to product-level autonomous improvement including reading production reports and generating PRDs.",
+      "content_hash": "b13d3bf53206",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "deep/repos/snarktank-compound-product.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "compound-product"
+      ],
+      "temporal_scope": "as of 2026-04",
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-5a7072bcbec6",
+      "content": "Autocontext uses FIFO capping via AUTOCONTEXT_SKILL_MAX_LESSONS rather than quality-based pruning for lesson management, which can cause contradictory lessons to accumulate.",
+      "content_hash": "5a7072bcbec6",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/greyhaven-ai-autocontext.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "autocontext"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-aca86cc35268",
+      "content": "SICA's agent_change_log.md grows linearly with iterations, eventually exceeding the LLM's effective attention span and degrading improvement proposal quality.",
+      "content_hash": "aca86cc35268",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "sica"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-61e83f9d4cc4",
+      "content": "Pi-autoresearch rate-limits auto-resume to once per 5 minutes with a cap of 20 auto-resume turns when context window exhaustion is detected.",
+      "content_hash": "61e83f9d4cc4",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/davebcn87-pi-autoresearch.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "pi-autoresearch"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-979ad8eeaa2a",
+      "content": "MemEvolve selects top-T memory systems by raw performance with no diversity metric, causing evolved populations to converge on similar architectural approaches.",
+      "content_hash": "979ad8eeaa2a",
+      "type": "architectural",
+      "confidence": "verified",
+      "source_refs": [
+        "deep/repos/bingreeky-memevolve.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "memevolve"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    },
+    {
+      "id": "claim-dec655656ee2",
+      "content": "The Memento team released OpenMementos, a dataset of 228K annotated reasoning traces, along with a data generation pipeline and a vLLM fork with native block masking.",
+      "content_hash": "dec655656ee2",
+      "type": "empirical",
+      "confidence": "reported",
+      "source_refs": [
+        "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+      ],
+      "article_ref": "self-improving",
+      "entity_refs": [
+        "memento",
+        "vllm"
+      ],
+      "temporal_scope": null,
+      "created_at": "2026-04-08T22:54:47.132Z",
+      "updated_at": "2026-04-08T22:54:47.132Z",
+      "status": "active"
+    }
+  ]
+}

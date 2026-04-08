@@ -11,6 +11,7 @@ bun install                        # install dependencies
 
 # Ingestion (manual — prompts user if relevance < 6.0)
 bun run ingest <url1> [url2] ...   # ingest sources (auto-detects platform)
+bun run ingest --force <url>       # re-ingest and re-score (overwrites existing)
 bun run ingest:twitter [urls...]   # platform-specific ingestion
 bun run ingest:github [urls...]    # supports --min-stars N --min-relevance N
 bun run ingest:arxiv [urls...]
@@ -28,7 +29,7 @@ bun run compile --incremental      # only recompile what changed since last run
 bun run compile --status           # show pending changes without compiling
 
 bun run rescore                    # score unscored sources for relevance
-bun test                           # run incremental compilation tests
+bun test                           # run incremental compilation tests (46 tests, 0 LLM calls)
 ```
 
 ## Architecture

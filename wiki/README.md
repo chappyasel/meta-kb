@@ -1,6 +1,6 @@
 # meta-kb wiki
 
-A compiled knowledge base covering LLM agent infrastructure: knowledge systems, memory, context engineering, agent capabilities, multi-agent coordination, and self-improvement. Built from 192 curated sources including deep research files with source-code-level analysis.
+A compiled knowledge base covering LLM agent infrastructure: knowledge systems, memory, context engineering, agent capabilities, multi-agent coordination, and self-improvement. Built from 199 curated sources including deep research files with source-code-level analysis.
 
 ## Start here
 
@@ -21,13 +21,13 @@ For agents: [ROOT.md](ROOT.md) — compact topic index (<2K tokens).
 
 ## Browse
 
-- [Project index](indexes/projects.md) — all 88 projects with links
-- [Topic index](indexes/topics.md) — 68 concepts and approaches
+- [Project index](indexes/projects.md) — all 134 projects with links
+- [Topic index](indexes/topics.md) — 83 concepts and approaches
 - [Landscape comparison](comparisons/landscape.md) — all projects in one table
-- [Coverage gaps](indexes/missing.md) — 37 topics needing more sources
+- [Coverage gaps](indexes/missing.md) — 87 topics needing more sources
 
 ## Stats
 
-- **192** curated sources
-- **159** entities (122 full articles, 37 stubs)
-- **533** relationships mapped across 6 topic areas
+- **199** curated sources
+- **235** entities (148 full articles, 87 stubs)
+- **469** relationships mapped across 6 topic areas

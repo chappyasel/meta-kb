@@ -1,0 +1,2724 @@
+{
+  "total": 199,
+  "byType": {
+    "tweet": 31,
+    "repo": 115,
+    "paper": 29,
+    "article": 24
+  },
+  "byBucket": {
+    "agent-memory": 184,
+    "agent-architecture": 186,
+    "multi-agent-systems": 184,
+    "knowledge-substrate": 70,
+    "self-improving": 118,
+    "context-engineering": 131
+  },
+  "sources": [
+    {
+      "path": "tweets/jack-from-hierarchy-to-intelligence.md",
+      "type": "tweet",
+      "tags": [
+        "agent-systems",
+        "organizational-intelligence",
+        "ai-coordination",
+        "span-of-control",
+        "hierarchical-automation",
+        "information-routing"
+      ],
+      "relevance": 5.6
+    },
+    {
+      "path": "tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md",
+      "type": "tweet",
+      "tags": [
+        "knowledge-bases",
+        "obsidian",
+        "markdown-wiki",
+        "self-improving",
+        "context-engineering",
+        "zettelkasten",
+        "linting",
+        "synthetic-data"
+      ],
+      "relevance": 9.5
+    },
+    {
+      "path": "tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md",
+      "type": "tweet",
+      "tags": [
+        "self-improving",
+        "agent-systems",
+        "agent-memory",
+        "Letta",
+        "self-evolution",
+        "autonomous-agents",
+        "agent-architecture"
+      ],
+      "relevance": 6.2
+    },
+    {
+      "path": "tweets/akoratana-context-graphs-will-be-to-the-2030s-what-databases.md",
+      "type": "tweet",
+      "tags": [
+        "context-engineering",
+        "agent-memory",
+        "organizational-knowledge",
+        "decision-traces",
+        "agentic-skills",
+        "context-graphs",
+        "latency-bandwidth"
+      ],
+      "relevance": 7.4
+    },
+    {
+      "path": "tweets/jayagup10-google-s-20-year-secret-is-now-available-to-every.md",
+      "type": "tweet",
+      "tags": [
+        "self-improving",
+        "agent-systems",
+        "decision-intelligence",
+        "enterprise-learning-loops",
+        "agent-observation-patterns",
+        "compounding-feedback"
+      ],
+      "relevance": 5.8
+    },
+    {
+      "path": "tweets/ashpreetbedi-dash-v2-the-multi-agent-data-system-every-company.md",
+      "type": "tweet",
+      "tags": [
+        "multi-agent-systems",
+        "agent-memory",
+        "knowledge-substrate",
+        "context-engineering",
+        "self-improving",
+        "data-infrastructure",
+        "query-curation"
+      ],
+      "relevance": 7
+    },
+    {
+      "path": "tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md",
+      "type": "tweet",
+      "tags": [
+        "context-engineering",
+        "agentic-skills",
+        "CLAUDE.md standard",
+        "agent-memory",
+        "skill composition",
+        "project structure",
+        "permissions management"
+      ],
+      "relevance": 7.8
+    },
+    {
+      "path": "tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md",
+      "type": "tweet",
+      "tags": [
+        "context-engineering",
+        "agent-systems",
+        "agent-memory",
+        "decision-tracing",
+        "systems-of-record",
+        "governance",
+        "organizational-memory",
+        "precedent-management"
+      ],
+      "relevance": 8
+    },
+    {
+      "path": "tweets/hesamation-bro-created-a-skill-inspired-by-karpathy-s-autores.md",
+      "type": "tweet",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "skill-composition",
+        "auto-improvement-loops",
+        "iterative-refinement",
+        "test-driven-development"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "tweets/hwchase17-continual-learning-for-ai-agents.md",
+      "type": "tweet",
+      "tags": [
+        "agent-systems",
+        "self-improving",
+        "agent-memory",
+        "context-engineering",
+        "harness-optimization",
+        "traces",
+        "SOUL.md"
+      ],
+      "relevance": 8.5
+    },
+    {
+      "path": "tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md",
+      "type": "tweet",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "autonomous-optimization",
+        "hyperparameter-tuning",
+        "multi-agent-collaboration",
+        "experiment-synthesis"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md",
+      "type": "tweet",
+      "tags": [
+        "self-improving",
+        "agent-memory",
+        "agentic-skills",
+        "context-engineering",
+        "error-logging",
+        "markdown-memory",
+        "OpenClaw"
+      ],
+      "relevance": 8
+    },
+    {
+      "path": "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md",
+      "type": "tweet",
+      "tags": [
+        "context-engineering",
+        "agent-architecture",
+        "self-improving",
+        "memory-compression",
+        "reasoning-efficiency",
+        "kv-cache-optimization"
+      ],
+      "relevance": 8.1
+    },
+    {
+      "path": "tweets/jayagup10-the-trillion-dollar-loop-b2b-never-had.md",
+      "type": "tweet",
+      "tags": [
+        "agent-systems",
+        "self-improving",
+        "decision-tracing",
+        "enterprise-intelligence",
+        "agent-mediated-workflows",
+        "judgment-signals",
+        "durable-moats"
+      ],
+      "relevance": 5.6
+    },
+    {
+      "path": "tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md",
+      "type": "tweet",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "knowledge-bases",
+        "autoresearch",
+        "iterative-optimization",
+        "evaluation-loops",
+        "version-control-agents"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md",
+      "type": "tweet",
+      "tags": [
+        "self-improving",
+        "agent-systems",
+        "auto-evals",
+        "failure-mining",
+        "regression-testing",
+        "harness-evolution",
+        "continuous-improvement"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md",
+      "type": "tweet",
+      "tags": [
+        "context-engineering",
+        "agent-systems",
+        "enterprise-infrastructure",
+        "identity-access-management",
+        "decision-tracking",
+        "agent-autonomy",
+        "knowledge-retrieval"
+      ],
+      "relevance": 7.4
+    },
+    {
+      "path": "tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md",
+      "type": "tweet",
+      "tags": [
+        "knowledge-bases",
+        "agent-memory",
+        "context-engineering",
+        "agent-systems",
+        "decision-lineage",
+        "context-graphs",
+        "multi-agent-coordination",
+        "verifiable-knowledge",
+        "decentralized-knowledge-graph"
+      ],
+      "relevance": 7.4
+    },
+    {
+      "path": "tweets/pawelhuryn-your-claude-md-is-doing-jobs-that-rules-hooks-an.md",
+      "type": "tweet",
+      "tags": [
+        "context-engineering",
+        "agentic-skills",
+        "CLAUDE.md",
+        "agent-architecture",
+        "instruction-layering",
+        "deterministic-execution",
+        "scope-hierarchies"
+      ],
+      "relevance": 7.8
+    },
+    {
+      "path": "tweets/jennyzhangzt-introducing-hyperagents-an-ai-system-that-not-onl.md",
+      "type": "tweet",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "metacognition",
+        "open-ended-learning",
+        "agent-evolution",
+        "skill-improvement",
+        "Darwin-Gödel-Machine"
+      ],
+      "relevance": 8.1
+    },
+    {
+      "path": "tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md",
+      "type": "tweet",
+      "tags": [
+        "agentic-skills",
+        "agent-memory",
+        "cli-native",
+        "composability",
+        "tool-integration",
+        "agent-accessibility",
+        "skill-primitives"
+      ],
+      "relevance": 6.6
+    },
+    {
+      "path": "tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md",
+      "type": "tweet",
+      "tags": [
+        "agent-systems",
+        "knowledge-bases",
+        "mcp-integration",
+        "code-intelligence",
+        "dependency-mapping",
+        "blast-radius-analysis",
+        "architectural-context"
+      ],
+      "relevance": 6.7
+    },
+    {
+      "path": "tweets/omarsar0-universal-claude-md-claims-to-cut-claude-output-t.md",
+      "type": "tweet",
+      "tags": [
+        "context-engineering",
+        "prompt-optimization",
+        "claude",
+        "token-efficiency",
+        "agentic-skills",
+        "context-window-management"
+      ],
+      "relevance": 7
+    },
+    {
+      "path": "tweets/ericosiu-how-to-practically-deploy-jack-dorsey-s-world-int.md",
+      "type": "tweet",
+      "tags": [
+        "agent-systems",
+        "knowledge-bases",
+        "agent-memory",
+        "world-model",
+        "vector-database",
+        "organizational-coordination",
+        "local-inference"
+      ],
+      "relevance": 6.6
+    },
+    {
+      "path": "tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md",
+      "type": "tweet",
+      "tags": [
+        "agent-systems",
+        "multi-agent-coordination",
+        "emergent-behavior",
+        "sequential-processing",
+        "self-organization",
+        "capability-thresholds",
+        "orchestration"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md",
+      "type": "tweet",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "context-engineering",
+        "agent-memory",
+        "autonomous-optimization",
+        "prompt-engineering",
+        "hyperparameter-tuning"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md",
+      "type": "tweet",
+      "tags": [
+        "knowledge-bases",
+        "agent-memory",
+        "self-improving",
+        "obsidian",
+        "markdown-wiki",
+        "agentic-memory-maintenance",
+        "linting",
+        "context-efficiency"
+      ],
+      "relevance": 8.1
+    },
+    {
+      "path": "tweets/philschmid-agent-skills-are-powerful-but-they-are-often-ai-ge.md",
+      "type": "tweet",
+      "tags": [
+        "agentic-skills",
+        "self-improving",
+        "evaluation-testing",
+        "skill-composition",
+        "llm-as-judge",
+        "prompt-engineering"
+      ],
+      "relevance": 6.8
+    },
+    {
+      "path": "tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md",
+      "type": "tweet",
+      "tags": [
+        "agent-memory",
+        "knowledge-bases",
+        "self-improving",
+        "multi-agent-coordination",
+        "quality-gates",
+        "context-engineering",
+        "hallucination-prevention"
+      ],
+      "relevance": 8.5
+    },
+    {
+      "path": "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "type": "tweet",
+      "tags": [
+        "agent-systems",
+        "context-engineering",
+        "agent-memory",
+        "orchestration",
+        "harness-architecture",
+        "production-patterns"
+      ],
+      "relevance": 7.1
+    },
+    {
+      "path": "tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md",
+      "type": "tweet",
+      "tags": [
+        "knowledge-bases",
+        "context-engineering",
+        "self-improving",
+        "obsidian",
+        "markdown-wiki",
+        "rag-alternative",
+        "synthetic-data",
+        "linting",
+        "episodic-knowledge"
+      ],
+      "relevance": 9
+    },
+    {
+      "path": "repos/getzep-graphiti.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "knowledge-bases",
+        "context-engineering",
+        "temporal-graphs",
+        "entity-relationships",
+        "episode-provenance",
+        "zep",
+        "graphiti"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "repos/vectorspacelab-general-agentic-memory.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "agentic-skills",
+        "context-engineering",
+        "hierarchical-memory",
+        "semantic-chunking",
+        "long-horizon-trajectories",
+        "multi-modal-memory",
+        "episodic-memory",
+        "memory-compression",
+        "agent-file-system"
+      ],
+      "relevance": 7.9
+    },
+    {
+      "path": "repos/orchestra-research-ai-research-skills.md",
+      "type": "repo",
+      "tags": [
+        "agentic-skills",
+        "skill-composition",
+        "knowledge-bases",
+        "agent-orchestration",
+        "research-automation",
+        "skill-registry",
+        "multi-domain-expertise"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "repos/modelscope-agentevolver.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agent-systems",
+        "agentic-rl",
+        "credit-assignment",
+        "autonomous-training",
+        "multi-turn-reasoning",
+        "policy-optimization"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "repos/bingreeky-memevolve.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "self-improving",
+        "meta-learning",
+        "memory-architecture-evolution",
+        "dual-evolution",
+        "Mem0",
+        "semantic-working-memory",
+        "adaptive-interfaces"
+      ],
+      "relevance": 7.4
+    },
+    {
+      "path": "repos/memodb-io-acontext.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "agentic-skills",
+        "self-improving",
+        "context-engineering",
+        "skill-files",
+        "markdown-memory",
+        "progressive-disclosure",
+        "portable-agents"
+      ],
+      "relevance": 8.7
+    },
+    {
+      "path": "repos/zhongwanjun-memorybank-siliconfriend.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "self-improving",
+        "memory-decay",
+        "ebbinghaus-forgetting-curve",
+        "episodic-memory",
+        "semantic-memory",
+        "personality-adaptation",
+        "long-term-context-management"
+      ],
+      "relevance": 7.1
+    },
+    {
+      "path": "repos/gepa-ai-gepa.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "context-engineering",
+        "agentic-skills",
+        "prompt-optimization",
+        "evolutionary-search",
+        "pareto-optimization",
+        "dspy-integration"
+      ],
+      "relevance": 8
+    },
+    {
+      "path": "repos/aiming-lab-simplemem.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "context-engineering",
+        "semantic-compression",
+        "multimodal-memory",
+        "mcp-integration",
+        "lifelong-learning",
+        "lossless-compression",
+        "context-window-optimization"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "repos/helloruru-claude-memory-engine.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "self-improving",
+        "context-engineering",
+        "markdown-based-memory",
+        "correction-loops",
+        "episodic-memory",
+        "mistake-learning"
+      ],
+      "relevance": 7.3
+    },
+    {
+      "path": "repos/microsoft-llmlingua.md",
+      "type": "repo",
+      "tags": [
+        "context-engineering",
+        "knowledge-bases",
+        "prompt-compression",
+        "rag",
+        "token-optimization",
+        "inference-acceleration",
+        "kv-cache"
+      ],
+      "relevance": 7.6
+    },
+    {
+      "path": "repos/canvas-org-meta-agent.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agent-systems",
+        "prompt-optimization",
+        "meta-learning",
+        "harness-configuration",
+        "benchmark-driven-improvement"
+      ],
+      "relevance": 8.7
+    },
+    {
+      "path": "repos/supermemoryai-supermemory.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "memory-engines",
+        "rag-alternative",
+        "context-engineering",
+        "temporal-reasoning",
+        "multi-modal-ingestion",
+        "mcp-server"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "repos/affaan-m-everything-claude-code.md",
+      "type": "repo",
+      "tags": [
+        "agentic-skills",
+        "agent-memory",
+        "context-engineering",
+        "self-improving",
+        "claude-integration",
+        "skill-registry",
+        "memory-persistence",
+        "multi-language-agents"
+      ],
+      "relevance": 8.1
+    },
+    {
+      "path": "repos/osu-nlp-group-hipporag.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-bases",
+        "rag",
+        "knowledge-graphs",
+        "agent-memory",
+        "multi-hop-retrieval",
+        "continual-learning",
+        "graph-based-rag"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "repos/snarktank-compound-product.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "context-engineering",
+        "autonomous-loops",
+        "product-automation",
+        "skill-composition"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "repos/memorilabs-memori.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "context-engineering",
+        "self-improving",
+        "sql-native",
+        "structured-state",
+        "long-conversation-memory",
+        "LoCoMo-benchmark"
+      ],
+      "relevance": 8.1
+    },
+    {
+      "path": "repos/natebjones-projects-ob1.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "knowledge-bases",
+        "context-engineering",
+        "multi-agent-coordination",
+        "vector-database",
+        "persistent-memory",
+        "protocol-driven-architecture"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "repos/bytedtsinghua-sia-memagent.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "agentic-skills",
+        "self-improving",
+        "context-engineering",
+        "reinforcement-learning",
+        "multi-turn-reasoning",
+        "memory-architecture",
+        "long-context-extrapolation",
+        "verifiable-rewards"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "repos/agno-agi-dash.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "knowledge-substrate",
+        "agent-memory",
+        "context-engineering",
+        "agent-architecture",
+        "data-engineering",
+        "multi-agent-systems"
+      ],
+      "relevance": 7.9
+    },
+    {
+      "path": "repos/vectifyai-pageindex.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-bases",
+        "rag",
+        "reasoning-based-retrieval",
+        "vectorless-rag",
+        "tree-indexing",
+        "document-structure",
+        "agent-retrieval"
+      ],
+      "relevance": 8
+    },
+    {
+      "path": "repos/agenticnotetaking-arscontexta.md",
+      "type": "repo",
+      "tags": [
+        "context-engineering",
+        "agent-memory",
+        "knowledge-bases",
+        "self-improving",
+        "markdown-vault",
+        "agentic-skills",
+        "cognitive-architecture",
+        "rag-alternative",
+        "hooks-automation",
+        "derivation-not-templating"
+      ],
+      "relevance": 7.9
+    },
+    {
+      "path": "repos/transformeroptimus-superagi.md",
+      "type": "repo",
+      "tags": [
+        "agent-systems",
+        "orchestration",
+        "autonomous-agents",
+        "developer-tools",
+        "agent-management",
+        "framework",
+        "open-source"
+      ],
+      "relevance": 5
+    },
+    {
+      "path": "repos/safishamsi-graphify.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-substrate",
+        "context-engineering",
+        "agent-architecture",
+        "multi-agent-systems",
+        "vision-multimodal",
+        "knowledge-graph",
+        "skill-composition",
+        "persistent-context",
+        "incremental-indexing"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "repos/human-agent-society-coral.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agent-memory",
+        "agentic-skills",
+        "multi-agent-systems",
+        "autoresearch",
+        "knowledge-sharing",
+        "skill-registry"
+      ],
+      "relevance": 9.4
+    },
+    {
+      "path": "repos/zorazrw-agent-workflow-memory.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "agentic-skills",
+        "self-improving",
+        "workflow-abstraction",
+        "episodic-to-semantic",
+        "online-learning",
+        "skill-induction"
+      ],
+      "relevance": 7.6
+    },
+    {
+      "path": "repos/ayanami1314-swe-pruner.md",
+      "type": "repo",
+      "tags": [
+        "context-engineering",
+        "agentic-skills",
+        "self-improving",
+        "agent-memory",
+        "context-window-management",
+        "task-aware-pruning",
+        "coding-agents",
+        "adaptive-compression"
+      ],
+      "relevance": 7.2
+    },
+    {
+      "path": "repos/alirezarezvani-claude-skills.md",
+      "type": "repo",
+      "tags": [
+        "agentic-skills",
+        "skill-registry",
+        "agent-plugins",
+        "context-engineering",
+        "modular-agent-design",
+        "multi-platform-agent-orchestration"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "repos/kevin-hs-sohn-hipocampus.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "context-engineering",
+        "compaction-tree",
+        "implicit-context-discovery",
+        "semantic-indexing",
+        "memory-hierarchy",
+        "proactive-retrieval"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "repos/karpathy-autoresearch.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "context-engineering",
+        "agent-memory",
+        "autonomous-research",
+        "program-as-context",
+        "nanochat"
+      ],
+      "relevance": 8.5
+    },
+    {
+      "path": "repos/greyhaven-ai-autocontext.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "skill-composition",
+        "playbook-distillation",
+        "verifier-driven-goals",
+        "multi-agent-coordination"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "repos/mirix-ai-mirix.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "multi-agent-systems",
+        "episodic-semantic-working-memory",
+        "screen-capture-grounding",
+        "agentic-skills",
+        "knowledge-bases",
+        "rag-alternative",
+        "memory-routing",
+        "privacy-first-design"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "repos/martian-engineering-lossless-claw.md",
+      "type": "repo",
+      "tags": [
+        "context-engineering",
+        "agent-memory",
+        "context-window-management",
+        "lossless-compression",
+        "dag-summarization",
+        "episodic-memory",
+        "retrieval-augmented-generation"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "repos/garrytan-gstack.md",
+      "type": "repo",
+      "tags": [
+        "agentic-skills",
+        "context-engineering",
+        "self-improving",
+        "Claude-Code",
+        "skill-composition",
+        "SKILL.md-standard",
+        "prompt-frameworks",
+        "agent-orchestration",
+        "Karpathy-pattern"
+      ],
+      "relevance": 8.2
+    },
+    {
+      "path": "repos/anthropics-skills.md",
+      "type": "repo",
+      "tags": [
+        "agentic-skills",
+        "skill-composition",
+        "skill-registry",
+        "modular-agents",
+        "context-engineering",
+        "SKILL.md-standard",
+        "agent-capabilities"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "repos/caviraoss-openmemory.md",
+      "type": "repo",
+      "tags": [
+        "rag",
+        "vector-store"
+      ],
+      "relevance": 7.6
+    },
+    {
+      "path": "repos/gustycube-membrane.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "self-improving",
+        "knowledge-bases",
+        "competence-learning",
+        "trust-gating",
+        "semantic-extraction",
+        "audit-trails"
+      ],
+      "relevance": 8
+    },
+    {
+      "path": "repos/thedotmack-claude-mem.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "context-engineering",
+        "claude-code",
+        "session-persistence",
+        "memory-compression",
+        "semantic-summarization",
+        "self-improving"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "repos/wangziqi06-724-office.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agent-memory",
+        "agentic-skills",
+        "context-engineering",
+        "episodic-semantic-memory",
+        "tool-composition",
+        "vector-store",
+        "lancedb",
+        "skill-registry",
+        "runtime-evolution"
+      ],
+      "relevance": 7.9
+    },
+    {
+      "path": "repos/wangyu-ustc-mem-alpha.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "reinforcement-learning",
+        "episodic-semantic-memory",
+        "memory-architecture",
+        "context-window-management",
+        "agentic-skills",
+        "self-improving"
+      ],
+      "relevance": 8.5
+    },
+    {
+      "path": "repos/shengranhu-adas.md",
+      "type": "repo",
+      "tags": [
+        "agentic-skills",
+        "self-improving",
+        "agent-design-automation",
+        "meta-learning",
+        "code-generation",
+        "architecture-search"
+      ],
+      "relevance": 7.6
+    },
+    {
+      "path": "repos/volcengine-openviking.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "context-engineering",
+        "agentic-skills",
+        "knowledge-bases",
+        "self-improving",
+        "filesystem-paradigm",
+        "hierarchical-context"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "repos/davebcn87-pi-autoresearch.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "autonomous-loops",
+        "benchmark-driven-iteration",
+        "skill-composition",
+        "git-branching-strategy"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "repos/jmilinovich-goal-md.md",
+      "type": "repo",
+      "tags": [
+        "agentic-skills",
+        "context-engineering",
+        "self-improving",
+        "agent-autonomous-loops",
+        "fitness-functions",
+        "metric-construction",
+        "claude-md-pattern"
+      ],
+      "relevance": 8.7
+    },
+    {
+      "path": "repos/topoteretes-cognee.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "knowledge-bases",
+        "graph-database",
+        "vector-search",
+        "context-engineering",
+        "agentic-memory",
+        "multimodal-ingestion"
+      ],
+      "relevance": 8.5
+    },
+    {
+      "path": "repos/uditgoenka-autoresearch.md",
+      "type": "repo",
+      "tags": [
+        "agentic-skills",
+        "self-improving",
+        "agent-memory",
+        "context-engineering",
+        "Karpathy-pattern",
+        "autonomous-iteration",
+        "verification-loop"
+      ],
+      "relevance": 8.7
+    },
+    {
+      "path": "repos/aiming-lab-agent0.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agent-systems",
+        "tool-use",
+        "zero-shot-learning",
+        "autonomous-evolution",
+        "curriculum-learning",
+        "multimodal-agents"
+      ],
+      "relevance": 6.9
+    },
+    {
+      "path": "repos/letta-ai-letta-code.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "agent-systems",
+        "self-improving",
+        "coding-assistant",
+        "skill-learning",
+        "memory-persistence",
+        "multi-session-learning"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "repos/kayba-ai-agentic-context-engine.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agent-memory",
+        "agentic-skills",
+        "skill-composition",
+        "learning-loops",
+        "context-engineering",
+        "feedback-driven-improvement"
+      ],
+      "relevance": 8.7
+    },
+    {
+      "path": "repos/evoagentx-evoagentx.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agent-systems",
+        "agent-memory",
+        "workflow-orchestration",
+        "multi-agent-evolution",
+        "evaluation-driven-optimization",
+        "agentic-workflows"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "repos/maximerobeyns-self-improving-coding-agent.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "coding-agent",
+        "meta-improvement",
+        "skill-bootstrapping",
+        "benchmark-driven-evolution"
+      ],
+      "relevance": 8.1
+    },
+    {
+      "path": "repos/yusufkaraaslan-skill-seekers.md",
+      "type": "repo",
+      "tags": [
+        "agentic-skills",
+        "knowledge-bases",
+        "skill-composition",
+        "rag",
+        "context-engineering",
+        "multi-format-ingestion",
+        "claude-skills"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "repos/nemori-ai-nemori.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "episodic-memory",
+        "event-segmentation",
+        "self-improving",
+        "rag-alternative",
+        "predict-calibrate-loops",
+        "semantic-knowledge-distillation",
+        "conversational-agents"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "repos/othmanadi-planning-with-files.md",
+      "type": "repo",
+      "tags": [
+        "context-engineering",
+        "agentic-skills",
+        "agent-memory",
+        "self-improving",
+        "markdown-planning",
+        "session-recovery",
+        "skill-composition",
+        "SKILL.md-pattern"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "repos/foundationagents-metagpt.md",
+      "type": "repo",
+      "tags": [
+        "multi-agent-systems",
+        "agent-architecture",
+        "workflow-orchestration",
+        "role-based-coordination",
+        "SOP-materialization",
+        "software-generation"
+      ],
+      "relevance": 7.4
+    },
+    {
+      "path": "repos/tirth8205-code-review-graph.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-substrate",
+        "context-engineering",
+        "agent-architecture",
+        "static-analysis",
+        "code-graph",
+        "token-optimization",
+        "MCP-integration",
+        "codebase-indexing",
+        "incremental-updates"
+      ],
+      "relevance": 6.5
+    },
+    {
+      "path": "repos/memvid-memvid.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "knowledge-bases",
+        "RAG-alternatives",
+        "serverless-architecture",
+        "offline-first",
+        "temporal-reasoning",
+        "portable-memory"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "repos/langchain-ai-langgraph-reflection.md",
+      "type": "repo",
+      "tags": [
+        "agent-systems",
+        "self-improving",
+        "langgraph",
+        "critique-loops",
+        "llm-as-judge",
+        "iterative-refinement",
+        "orchestration"
+      ],
+      "relevance": 6.7
+    },
+    {
+      "path": "repos/agent-on-the-fly-memento.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "self-improving",
+        "agentic-skills",
+        "case-based-reasoning",
+        "memory-augmented-learning",
+        "continual-learning",
+        "trajectory-replay",
+        "MCP-tooling"
+      ],
+      "relevance": 8.1
+    },
+    {
+      "path": "repos/kepano-obsidian-skills.md",
+      "type": "repo",
+      "tags": [
+        "agentic-skills",
+        "knowledge-bases",
+        "obsidian",
+        "skill-composition",
+        "agent-tooling",
+        "markdown-wikis",
+        "context-engineering"
+      ],
+      "relevance": 8.7
+    },
+    {
+      "path": "repos/matrixorigin-memoria.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "self-improving",
+        "data-integrity",
+        "memory-versioning",
+        "contradiction-detection",
+        "audit-trails",
+        "multi-session-persistence"
+      ],
+      "relevance": 7.6
+    },
+    {
+      "path": "repos/mem0ai-mem0.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "mem0",
+        "multi-level-memory",
+        "context-engineering",
+        "personalization",
+        "vector-store",
+        "self-improving"
+      ],
+      "relevance": 9.5
+    },
+    {
+      "path": "repos/infiniflow-ragflow.md",
+      "type": "repo",
+      "tags": [
+        "rag"
+      ],
+      "relevance": 7.2
+    },
+    {
+      "path": "repos/origintrail-dkg-v9.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "knowledge-bases",
+        "agent-systems",
+        "decentralized-graph",
+        "verifiable-knowledge",
+        "multi-agent-collaboration",
+        "context-graphs"
+      ],
+      "relevance": 7.1
+    },
+    {
+      "path": "repos/letta-ai-letta.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "self-improving",
+        "stateful-agents",
+        "memory-blocks",
+        "skills-composition",
+        "multi-turn-learning"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "repos/jackchen-me-open-multi-agent.md",
+      "type": "repo",
+      "tags": [
+        "multi-agent-systems",
+        "agent-architecture",
+        "task-decomposition",
+        "parallel-execution",
+        "TypeScript-native",
+        "observability",
+        "self-improving"
+      ],
+      "relevance": 7.3
+    },
+    {
+      "path": "repos/memento-teams-memento-skills.md",
+      "type": "repo",
+      "tags": [
+        "agentic-skills",
+        "self-improving",
+        "agent-memory",
+        "skill-composition",
+        "skill-registry",
+        "deployment-time-learning",
+        "reflection-loops",
+        "skill-evolution"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "repos/michaelliv-napkin.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-bases",
+        "agent-memory",
+        "context-engineering",
+        "markdown",
+        "local-first",
+        "BM25-search",
+        "progressive-disclosure",
+        "Obsidian",
+        "agentic-memory"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "repos/letta-ai-lettabot.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "agent-systems",
+        "multi-channel",
+        "persistent-memory",
+        "unified-memory",
+        "skills-composition",
+        "letta"
+      ],
+      "relevance": 6.7
+    },
+    {
+      "path": "repos/alvinreal-awesome-autoresearch.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "autoresearch",
+        "autonomous-loops",
+        "skill-composition",
+        "fitness-functions"
+      ],
+      "relevance": 8.1
+    },
+    {
+      "path": "repos/laurian-context-compression-experiments-2508.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-bases",
+        "context-engineering",
+        "rag",
+        "prompt-optimization",
+        "dspy",
+        "textgrad",
+        "cost-optimization",
+        "agentic-rag"
+      ],
+      "relevance": 7.2
+    },
+    {
+      "path": "papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "type": "paper",
+      "tags": [
+        "agentic-skills",
+        "agent-memory",
+        "context-engineering",
+        "skill-composition",
+        "model-context-protocol",
+        "security-governance",
+        "skill-registry",
+        "autonomous-skill-discovery",
+        "progressive-disclosure"
+      ],
+      "relevance": 9.3
+    },
+    {
+      "path": "papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md",
+      "type": "paper",
+      "tags": [
+        "knowledge-bases",
+        "rag",
+        "graph-retrieval",
+        "context-engineering",
+        "evaluation-benchmarking",
+        "reasoning",
+        "retrieval-architectures"
+      ],
+      "relevance": 6.9
+    },
+    {
+      "path": "papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md",
+      "type": "paper",
+      "tags": [
+        "agentic-skills",
+        "agent-memory",
+        "self-improving",
+        "context-engineering",
+        "autonomous-agents",
+        "research-automation",
+        "prompt-engineering"
+      ],
+      "relevance": 6.9
+    },
+    {
+      "path": "papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "type": "paper",
+      "tags": [
+        "context-engineering",
+        "agent-memory",
+        "self-improving",
+        "context-collapse",
+        "playbook-evolution",
+        "long-context-optimization",
+        "execution-feedback"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "papers/qu-coral-towards-autonomous-multi-agent-evolution-fo.md",
+      "type": "paper",
+      "tags": [
+        "multi-agent-systems",
+        "self-improving",
+        "agent-memory",
+        "agent-architecture",
+        "autonomous-evolution",
+        "open-ended-discovery",
+        "knowledge-reuse"
+      ],
+      "relevance": 8.7
+    },
+    {
+      "path": "papers/xu-a-mem-agentic-memory-for-llm-agents.md",
+      "type": "paper",
+      "tags": [
+        "agent-memory",
+        "zettelkasten",
+        "knowledge-graph",
+        "dynamic-indexing",
+        "memory-evolution",
+        "self-improving"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "type": "paper",
+      "tags": [
+        "context-engineering",
+        "rag",
+        "knowledge-bases",
+        "agent-memory",
+        "multi-agent-systems",
+        "context-optimization",
+        "prompt-engineering"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md",
+      "type": "paper",
+      "tags": [
+        "agentic-skills",
+        "context-engineering",
+        "workflow-optimization",
+        "dynamic-graph-generation",
+        "agent-composition",
+        "execution-traces",
+        "verification-signals"
+      ],
+      "relevance": 7.8
+    },
+    {
+      "path": "papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md",
+      "type": "paper",
+      "tags": [
+        "knowledge-bases",
+        "rag",
+        "graph-indexing",
+        "context-engineering",
+        "query-focused-summarization",
+        "entity-extraction",
+        "hierarchical-aggregation"
+      ],
+      "relevance": 8.6
+    },
+    {
+      "path": "papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+      "type": "paper",
+      "tags": [
+        "rag",
+        "context-engineering",
+        "self-improving",
+        "harness-optimization",
+        "automated-engineering",
+        "execution-traces"
+      ],
+      "relevance": 8.5
+    },
+    {
+      "path": "papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md",
+      "type": "paper",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "skill-composition",
+        "embodied-learning",
+        "lifelong-learning",
+        "prompt-engineering"
+      ],
+      "relevance": 7.3
+    },
+    {
+      "path": "papers/song-paperorchestra-a-multi-agent-framework-for-automa.md",
+      "type": "paper",
+      "tags": [
+        "multi-agent-systems",
+        "agent-architecture",
+        "context-engineering",
+        "task-delegation",
+        "agent-coordination",
+        "scientific-workflow",
+        "structured-output-generation"
+      ],
+      "relevance": 6.7
+    },
+    {
+      "path": "papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md",
+      "type": "paper",
+      "tags": [
+        "agent-memory",
+        "self-improving",
+        "episodic-memory",
+        "verbal-reinforcement-learning",
+        "agentic-skills",
+        "feedback-loops",
+        "language-reasoning"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "type": "paper",
+      "tags": [
+        "agent-memory",
+        "knowledge-graphs",
+        "temporal-reasoning",
+        "enterprise-agents",
+        "graphiti",
+        "context-synthesis",
+        "long-term-memory"
+      ],
+      "relevance": 9.1
+    },
+    {
+      "path": "papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md",
+      "type": "paper",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "open-ended-evolution",
+        "code-generation",
+        "meta-learning",
+        "skill-registry"
+      ],
+      "relevance": 8.5
+    },
+    {
+      "path": "papers/zweiger-self-adapting-language-models.md",
+      "type": "paper",
+      "tags": [
+        "self-improving",
+        "agent-architecture",
+        "weight-adaptation",
+        "in-context-to-weights",
+        "few-shot-generalization",
+        "reinforcement-learning-optimization"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md",
+      "type": "article",
+      "tags": [
+        "self-improving",
+        "agent-memory",
+        "context-engineering",
+        "agentic-skills",
+        "traces",
+        "evals",
+        "feedback-loops",
+        "production-observability"
+      ],
+      "relevance": 7
+    },
+    {
+      "path": "articles/ai-by-aakash-the-ultimate-autoresearch-guide.md",
+      "type": "article",
+      "tags": [
+        "karpathy-loop",
+        "self-improving",
+        "agent-systems",
+        "knowledge-bases",
+        "automation",
+        "measurement-driven",
+        "skill-composition"
+      ],
+      "relevance": 6.1
+    },
+    {
+      "path": "articles/effective-context-engineering-for-ai-agents.md",
+      "type": "article",
+      "tags": [
+        "context-engineering",
+        "attention-budget",
+        "context-window-management",
+        "agent-loops",
+        "transformer-architecture",
+        "multi-turn-inference",
+        "context-rot"
+      ],
+      "relevance": 8
+    },
+    {
+      "path": "articles/lil-log-llm-powered-autonomous-agents.md",
+      "type": "article",
+      "tags": [
+        "agentic-skills",
+        "self-improving",
+        "agent-memory",
+        "planning",
+        "reasoning",
+        "reflection",
+        "chain-of-thought",
+        "task-decomposition"
+      ],
+      "relevance": 5.7
+    },
+    {
+      "path": "articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md",
+      "type": "article",
+      "tags": [
+        "agentic-skills",
+        "skill-registry",
+        "progressive-disclosure",
+        "context-engineering",
+        "agent-memory",
+        "security-gating",
+        "skill-composition"
+      ],
+      "relevance": 7.4
+    },
+    {
+      "path": "articles/notion-notion-site-notion-notion-site.md",
+      "type": "article",
+      "tags": [
+        "agent-architecture",
+        "context-engineering",
+        "multi-agent-systems",
+        "workflow-automation",
+        "operational-scaling",
+        "permission-models",
+        "agent-deployment"
+      ],
+      "relevance": 3
+    },
+    {
+      "path": "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md",
+      "type": "article",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "prompt-optimization",
+        "evaluation-loops",
+        "automation",
+        "continuous-improvement",
+        "skill-composition"
+      ],
+      "relevance": 8.1
+    },
+    {
+      "path": "articles/calmops-ai-agent-skills-complete-guide-2026-building-reus.md",
+      "type": "article",
+      "tags": [
+        "agentic-skills",
+        "agent-orchestration",
+        "skill-composition",
+        "modular-architecture",
+        "capability-reuse",
+        "domain-expertise-encapsulation",
+        "skill-versioning"
+      ],
+      "relevance": 7
+    },
+    {
+      "path": "articles/cameron-westland-autoresearch-is-reward-function-design.md",
+      "type": "article",
+      "tags": [
+        "agentic-skills",
+        "self-improving",
+        "context-engineering",
+        "reward-shaping",
+        "deterministic-testing",
+        "optimization-agents",
+        "constraint-modeling"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "articles/agent-skills-overview.md",
+      "type": "article",
+      "tags": [
+        "agentic-skills",
+        "skill-composition",
+        "context-engineering",
+        "knowledge-bases",
+        "capability-modules",
+        "portable-knowledge",
+        "organizational-knowledge"
+      ],
+      "relevance": 8.1
+    },
+    {
+      "path": "articles/arion-research-llc-algorithmic-circuit-breakers-preventing-flash-cr.md",
+      "type": "article",
+      "tags": [
+        "agent-memory",
+        "agentic-skills",
+        "self-improving",
+        "safety-guardrails",
+        "anomaly-detection",
+        "circuit-breakers",
+        "governance",
+        "token-budget-management"
+      ],
+      "relevance": 6.7
+    },
+    {
+      "path": "articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md",
+      "type": "article",
+      "tags": [
+        "agent-memory",
+        "context-engineering",
+        "knowledge-bases",
+        "semantic-retrieval",
+        "attention-budget",
+        "self-improving",
+        "information-decay"
+      ],
+      "relevance": 7.1
+    },
+    {
+      "path": "articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md",
+      "type": "article",
+      "tags": [
+        "self-improving",
+        "agent-memory",
+        "evaluation-and-grading",
+        "feedback-loops",
+        "prompt-optimization",
+        "healthcare",
+        "multi-turn-refinement"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "articles/dev-journal-building-the-inception-loop-a-month-of-autonomous.md",
+      "type": "article",
+      "tags": [
+        "self-improving",
+        "agent-memory",
+        "agentic-skills",
+        "temporal-continuity",
+        "autonomous-deployment",
+        "inception-loop",
+        "health-checks"
+      ],
+      "relevance": 7
+    },
+    {
+      "path": "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+      "type": "article",
+      "tags": [
+        "self-improving",
+        "agent-systems",
+        "production-optimization",
+        "harness-engineering",
+        "LLM-judges",
+        "continuous-improvement",
+        "anthropic-sdk"
+      ],
+      "relevance": 9.7
+    },
+    {
+      "path": "articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md",
+      "type": "article",
+      "tags": [
+        "agent-memory",
+        "context-engineering",
+        "agentic-skills",
+        "self-improving",
+        "rl-training",
+        "markdown-scaffolds",
+        "dynamic-memory",
+        "gspo"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "articles/fabricio-q-memory-in-agents-episodic-vs-semantic-and-the-h.md",
+      "type": "article",
+      "tags": [
+        "agent-memory",
+        "episodic-semantic-hybrid",
+        "rag",
+        "vector-embeddings",
+        "context-engineering",
+        "agent-architecture",
+        "retrieval-augmented-generation"
+      ],
+      "relevance": 7
+    },
+    {
+      "path": "articles/lil-log-reward-hacking-in-reinforcement-learning.md",
+      "type": "article",
+      "tags": [
+        "reward-hacking",
+        "rlhf-alignment",
+        "self-improving",
+        "agentic-skills",
+        "specification-gaming",
+        "incentive-design",
+        "agent-behavior-safety"
+      ],
+      "relevance": 4.5
+    },
+    {
+      "path": "articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md",
+      "type": "article",
+      "tags": [
+        "knowledge-bases",
+        "RAG",
+        "hybrid-retrieval",
+        "context-engineering",
+        "production-patterns",
+        "chunking-strategy",
+        "reranking"
+      ],
+      "relevance": 6.4
+    },
+    {
+      "path": "articles/turing-post-9-open-agents-that-improve-themselves.md",
+      "type": "article",
+      "tags": [
+        "self-improving",
+        "agent-memory",
+        "agent-systems",
+        "persistent-memory",
+        "skill-evolution",
+        "feedback-loops",
+        "multi-platform-agents"
+      ],
+      "relevance": 7.5
+    },
+    {
+      "path": "articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md",
+      "type": "article",
+      "tags": [
+        "agent-memory",
+        "episodic-memory",
+        "semantic-memory",
+        "context-engineering",
+        "elasticsearch",
+        "memory-architecture",
+        "selective-retrieval"
+      ],
+      "relevance": 7.1
+    },
+    {
+      "path": "articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md",
+      "type": "article",
+      "tags": [
+        "agentic-skills",
+        "context-engineering",
+        "agent-memory",
+        "control-loops",
+        "retrieval-verification",
+        "token-budgeting",
+        "observability"
+      ],
+      "relevance": 7.2
+    },
+    {
+      "path": "articles/martinfowler-com-context-engineering-for-coding-agents.md",
+      "type": "article",
+      "tags": [
+        "context-engineering",
+        "coding-agents",
+        "claude-code",
+        "prompt-engineering",
+        "context-window-management",
+        "skill-composition",
+        "agentic-skills"
+      ],
+      "relevance": 7.6
+    },
+    {
+      "path": "articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md",
+      "type": "article",
+      "tags": [
+        "self-improving",
+        "context-engineering",
+        "agentic-skills",
+        "prompt-optimization",
+        "eval-automation",
+        "karpathy-pattern",
+        "claude-code"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "deep/repos/getzep-graphiti.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "knowledge-bases",
+        "temporal-graphs",
+        "entity-relationships",
+        "context-engineering",
+        "community-detection"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "deep/repos/modelscope-agentevolver.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agent-architecture",
+        "agentic-rl",
+        "credit-assignment",
+        "autonomous-training",
+        "multi-turn-reasoning",
+        "policy-optimization"
+      ],
+      "relevance": 8.8
+    },
+    {
+      "path": "deep/repos/bingreeky-memevolve.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agent-memory",
+        "knowledge-bases"
+      ],
+      "relevance": 8.7
+    },
+    {
+      "path": "deep/repos/memodb-io-acontext.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "agentic-skills",
+        "self-improving",
+        "context-engineering",
+        "skill-files",
+        "markdown-memory",
+        "progressive-disclosure",
+        "distillation-pipeline",
+        "learning-spaces"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "deep/repos/gepa-ai-gepa.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "context-engineering"
+      ],
+      "relevance": 8.1
+    },
+    {
+      "path": "deep/repos/microsoft-llmlingua.md",
+      "type": "repo",
+      "tags": [
+        "context-engineering",
+        "knowledge-bases"
+      ],
+      "relevance": 7.5
+    },
+    {
+      "path": "deep/repos/supermemoryai-supermemory.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "context-engineering",
+        "forgetting-mechanisms",
+        "temporal-reasoning",
+        "user-profiles",
+        "memory-graph",
+        "contradiction-handling",
+        "multi-modal-ingestion"
+      ],
+      "relevance": 7.9
+    },
+    {
+      "path": "deep/repos/affaan-m-everything-claude-code.md",
+      "type": "repo",
+      "tags": [
+        "agent-systems",
+        "agentic-skills",
+        "context-engineering",
+        "self-improving",
+        "agent-memory"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "deep/repos/osu-nlp-group-hipporag.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-bases",
+        "agent-memory",
+        "context-engineering"
+      ],
+      "relevance": 8.2
+    },
+    {
+      "path": "deep/repos/snarktank-compound-product.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "context-engineering",
+        "knowledge-bases"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "deep/repos/memorilabs-memori.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "context-engineering",
+        "llm-middleware",
+        "semantic-triples",
+        "fact-extraction",
+        "recall-injection",
+        "multi-provider",
+        "sql-native"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "deep/repos/vectifyai-pageindex.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-bases",
+        "context-engineering"
+      ],
+      "relevance": 8
+    },
+    {
+      "path": "deep/repos/agenticnotetaking-arscontexta.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-bases",
+        "context-engineering",
+        "self-improving",
+        "agent-memory"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "deep/repos/human-agent-society-coral.md",
+      "type": "repo",
+      "tags": [
+        "agentic-skills",
+        "self-improving",
+        "agent-memory",
+        "context-engineering"
+      ],
+      "relevance": 9.3
+    },
+    {
+      "path": "deep/repos/zorazrw-agent-workflow-memory.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agent-memory",
+        "agentic-skills"
+      ],
+      "relevance": 7.7
+    },
+    {
+      "path": "deep/repos/kevin-hs-sohn-hipocampus.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "context-engineering",
+        "compaction-tree",
+        "implicit-context-discovery",
+        "bio-inspired-indexing",
+        "proactive-retrieval",
+        "memory-hierarchy"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "deep/repos/karpathy-autoresearch.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "context-engineering",
+        "agentic-skills",
+        "knowledge-bases"
+      ],
+      "relevance": 8.6
+    },
+    {
+      "path": "deep/repos/greyhaven-ai-autocontext.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "context-engineering",
+        "knowledge-bases"
+      ],
+      "relevance": 9.4
+    },
+    {
+      "path": "deep/repos/martian-engineering-lossless-claw.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-bases",
+        "agent-memory",
+        "context-engineering"
+      ],
+      "relevance": 8.6
+    },
+    {
+      "path": "deep/repos/garrytan-gstack.md",
+      "type": "repo",
+      "tags": [
+        "agent-systems",
+        "agentic-skills",
+        "skill-composition",
+        "context-engineering",
+        "self-improving"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "deep/repos/anthropics-skills.md",
+      "type": "repo",
+      "tags": [
+        "agent-systems",
+        "agentic-skills",
+        "skill-composition",
+        "context-engineering",
+        "SKILL.md-standard"
+      ],
+      "relevance": 9.7
+    },
+    {
+      "path": "deep/repos/caviraoss-openmemory.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "knowledge-bases",
+        "context-engineering",
+        "self-improving",
+        "agentic-skills"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "deep/repos/thedotmack-claude-mem.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "context-engineering",
+        "claude-code",
+        "session-persistence",
+        "memory-compression",
+        "self-improving"
+      ],
+      "relevance": 7.9
+    },
+    {
+      "path": "deep/repos/wangyu-ustc-mem-alpha.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "self-improving",
+        "knowledge-bases"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "deep/repos/volcengine-openviking.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agent-memory",
+        "context-engineering",
+        "knowledge-bases"
+      ],
+      "relevance": 7.9
+    },
+    {
+      "path": "deep/repos/davebcn87-pi-autoresearch.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "autonomous-loops",
+        "benchmark-driven-iteration",
+        "skill-composition",
+        "git-branching-strategy"
+      ],
+      "relevance": 9.4
+    },
+    {
+      "path": "deep/repos/jmilinovich-goal-md.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "knowledge-bases",
+        "context-engineering"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "deep/repos/topoteretes-cognee.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "knowledge-bases",
+        "graph-database",
+        "vector-search",
+        "context-engineering",
+        "self-improving"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "deep/repos/uditgoenka-autoresearch.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "context-engineering"
+      ],
+      "relevance": 8.6
+    },
+    {
+      "path": "deep/repos/kayba-ai-agentic-context-engine.md",
+      "type": "repo",
+      "tags": [
+        "context-engineering",
+        "agentic-skills",
+        "self-improving",
+        "agent-memory"
+      ],
+      "relevance": 8.6
+    },
+    {
+      "path": "deep/repos/evoagentx-evoagentx.md",
+      "type": "repo",
+      "tags": [
+        "multi-agent-systems",
+        "self-improving",
+        "agent-architecture",
+        "workflow-orchestration",
+        "evaluation-driven-optimization"
+      ],
+      "relevance": 8.7
+    },
+    {
+      "path": "deep/repos/maximerobeyns-self-improving-coding-agent.md",
+      "type": "repo",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "context-engineering"
+      ],
+      "relevance": 9.1
+    },
+    {
+      "path": "deep/repos/othmanadi-planning-with-files.md",
+      "type": "repo",
+      "tags": [
+        "context-engineering",
+        "knowledge-bases",
+        "agentic-skills"
+      ],
+      "relevance": 8.7
+    },
+    {
+      "path": "deep/repos/foundationagents-metagpt.md",
+      "type": "repo",
+      "tags": [
+        "multi-agent-systems",
+        "agent-architecture",
+        "workflow-orchestration",
+        "role-based-coordination",
+        "SOP-materialization",
+        "agent-memory",
+        "self-improving"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "deep/repos/tirth8205-code-review-graph.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-bases",
+        "context-engineering",
+        "agentic-skills"
+      ],
+      "relevance": 7.5
+    },
+    {
+      "path": "deep/repos/memvid-memvid.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "knowledge-bases",
+        "RAG-alternatives",
+        "serverless-architecture",
+        "offline-first",
+        "portable-memory"
+      ],
+      "relevance": 7.5
+    },
+    {
+      "path": "deep/repos/kepano-obsidian-skills.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-bases",
+        "agentic-skills",
+        "context-engineering"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "deep/repos/mem0ai-mem0.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "multi-level-memory",
+        "vector-store",
+        "context-engineering",
+        "personalization",
+        "fact-extraction"
+      ],
+      "relevance": 8.5
+    },
+    {
+      "path": "deep/repos/infiniflow-ragflow.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-bases",
+        "context-engineering",
+        "agent-memory"
+      ],
+      "relevance": 7.3
+    },
+    {
+      "path": "deep/repos/origintrail-dkg-v9.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-substrate",
+        "multi-agent-systems",
+        "agent-memory",
+        "decentralized-graph",
+        "verifiable-knowledge",
+        "multi-agent-collaboration",
+        "context-graphs"
+      ],
+      "relevance": 8.7
+    },
+    {
+      "path": "deep/repos/letta-ai-letta.md",
+      "type": "repo",
+      "tags": [
+        "agent-memory",
+        "stateful-agents",
+        "memory-blocks",
+        "context-engineering",
+        "self-improving",
+        "agent-systems"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "deep/repos/jackchen-me-open-multi-agent.md",
+      "type": "repo",
+      "tags": [
+        "multi-agent-systems",
+        "agent-architecture",
+        "task-decomposition",
+        "parallel-execution",
+        "context-engineering"
+      ],
+      "relevance": 8.5
+    },
+    {
+      "path": "deep/repos/memento-teams-memento-skills.md",
+      "type": "repo",
+      "tags": [
+        "agent-systems",
+        "agentic-skills",
+        "self-improving",
+        "agent-memory",
+        "skill-composition"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "deep/repos/michaelliv-napkin.md",
+      "type": "repo",
+      "tags": [
+        "knowledge-bases",
+        "context-engineering",
+        "agent-memory"
+      ],
+      "relevance": 8.7
+    },
+    {
+      "path": "deep/papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "type": "paper",
+      "tags": [
+        "agentic-skills",
+        "agent-memory",
+        "context-engineering",
+        "skill-composition",
+        "model-context-protocol",
+        "security-governance",
+        "skill-registry",
+        "autonomous-skill-discovery",
+        "progressive-disclosure"
+      ],
+      "relevance": 9.3
+    },
+    {
+      "path": "deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md",
+      "type": "paper",
+      "tags": [
+        "knowledge-bases",
+        "rag",
+        "graph-retrieval",
+        "context-engineering",
+        "evaluation-benchmarking",
+        "reasoning",
+        "retrieval-architectures"
+      ],
+      "relevance": 8.3
+    },
+    {
+      "path": "deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md",
+      "type": "paper",
+      "tags": [
+        "agentic-skills",
+        "agent-memory",
+        "self-improving",
+        "context-engineering",
+        "autonomous-agents",
+        "research-automation",
+        "prompt-engineering"
+      ],
+      "relevance": 7.9
+    },
+    {
+      "path": "deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "type": "paper",
+      "tags": [
+        "context-engineering",
+        "agent-memory",
+        "self-improving",
+        "context-collapse",
+        "playbook-evolution",
+        "long-context-optimization",
+        "execution-feedback"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md",
+      "type": "paper",
+      "tags": [
+        "agent-memory",
+        "zettelkasten",
+        "knowledge-graph",
+        "dynamic-indexing",
+        "memory-evolution",
+        "self-improving"
+      ],
+      "relevance": 8.6
+    },
+    {
+      "path": "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "type": "paper",
+      "tags": [
+        "context-engineering",
+        "rag",
+        "knowledge-bases",
+        "agent-memory",
+        "multi-agent-systems",
+        "context-optimization",
+        "prompt-engineering"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md",
+      "type": "paper",
+      "tags": [
+        "agentic-skills",
+        "context-engineering",
+        "workflow-optimization",
+        "dynamic-graph-generation",
+        "agent-composition",
+        "execution-traces",
+        "verification-signals"
+      ],
+      "relevance": 8.4
+    },
+    {
+      "path": "deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md",
+      "type": "paper",
+      "tags": [
+        "knowledge-bases",
+        "rag",
+        "graph-indexing",
+        "context-engineering",
+        "query-focused-summarization",
+        "entity-extraction",
+        "hierarchical-aggregation"
+      ],
+      "relevance": 7
+    },
+    {
+      "path": "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+      "type": "paper",
+      "tags": [
+        "context-engineering",
+        "self-improving",
+        "rag",
+        "agentic-skills",
+        "harness-optimization",
+        "automated-engineering",
+        "execution-traces"
+      ],
+      "relevance": 9
+    },
+    {
+      "path": "deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md",
+      "type": "paper",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "skill-composition",
+        "embodied-learning",
+        "lifelong-learning",
+        "prompt-engineering"
+      ],
+      "relevance": 8.2
+    },
+    {
+      "path": "deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md",
+      "type": "paper",
+      "tags": [
+        "agent-memory",
+        "self-improving",
+        "episodic-memory",
+        "verbal-reinforcement-learning",
+        "agentic-skills",
+        "feedback-loops",
+        "language-reasoning"
+      ],
+      "relevance": 7.9
+    },
+    {
+      "path": "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "type": "paper",
+      "tags": [
+        "agent-memory",
+        "knowledge-graphs",
+        "temporal-reasoning",
+        "enterprise-agents",
+        "graphiti",
+        "context-synthesis",
+        "long-term-memory"
+      ],
+      "relevance": 8.9
+    },
+    {
+      "path": "deep/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md",
+      "type": "paper",
+      "tags": [
+        "self-improving",
+        "agentic-skills",
+        "agent-memory",
+        "open-ended-evolution",
+        "code-generation",
+        "meta-learning",
+        "skill-registry"
+      ],
+      "relevance": 8.5
+    }
+  ]
+}

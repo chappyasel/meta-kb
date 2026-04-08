@@ -3,164 +3,178 @@ entity_id: long-term-memory
 type: concept
 bucket: agent-memory
 abstract: >-
-  Long-term memory enables agents to retain and recall information across
-  sessions through external storage — differentiated from in-context memory by
-  persistence, scalability beyond token limits, and selective retrieval.
+  Long-term memory gives AI agents persistent knowledge across sessions via
+  external storage and retrieval, enabling continuity and personalization that
+  context windows alone cannot provide.
 sources:
-  - repos/helloruru-claude-memory-engine.md
-  - repos/osu-nlp-group-hipporag.md
-  - repos/kevin-hs-sohn-hipocampus.md
-  - repos/thedotmack-claude-mem.md
-  - repos/caviraoss-openmemory.md
-  - repos/mem0ai-mem0.md
-  - repos/letta-ai-lettabot.md
-  - articles/lil-log-llm-powered-autonomous-agents.md
   - >-
     articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md
+  - articles/lil-log-llm-powered-autonomous-agents.md
+  - repos/caviraoss-openmemory.md
+  - repos/helloruru-claude-memory-engine.md
+  - repos/kevin-hs-sohn-hipocampus.md
+  - repos/letta-ai-lettabot.md
+  - repos/mem0ai-mem0.md
+  - repos/osu-nlp-group-hipporag.md
+  - repos/thedotmack-claude-mem.md
 related:
   - retrieval-augmented-generation
   - context-management
-  - openai
   - episodic-memory
+  - anthropic
+  - claude
   - semantic-memory
   - vector-database
   - claude-code
-  - anthropic
-  - claude
-  - vector-database
-last_compiled: '2026-04-08T02:43:06.149Z'
+last_compiled: '2026-04-08T23:00:20.503Z'
 ---
 # Long-Term Memory
 
 ## What It Is
 
-Long-term memory, in agent systems, refers to information stored outside a model's context window that persists across sessions. When a conversation ends, the context window disappears. Long-term memory fills that gap by writing key information to external storage and retrieving it on demand in future sessions.
+Long-term memory in AI agents means storing and retrieving information that persists beyond a single conversation or context window. A model's weights encode general knowledge from training, but they cannot update from user interactions at inference time. Long-term memory solves this by externalizing dynamic knowledge to storage systems the agent can read and write during operation.
 
-This is distinct from the other memory types agents use:
+The problem is not simply "the context window is too small." It is that relevant context must be identified, retrieved selectively, and injected at the right moment, without flooding the prompt with noise. A naive approach — dump all history into every request — fails on three dimensions simultaneously: cost scales with history length, attention degrades over long contexts, and irrelevant material crowds out relevant signals.
 
-- [Short-Term Memory](../concepts/short-term-memory.md) is the active context window itself, limited to tens or hundreds of thousands of tokens and discarded when the session ends
-- [Episodic Memory](../concepts/episodic-memory.md) stores records of specific past interactions — what happened, when, and in what order
-- [Semantic Memory](../concepts/semantic-memory.md) stores factual knowledge, distilled from experience into reusable facts
-- [Procedural Memory](../concepts/procedural-memory.md) stores learned behaviors — how to do things
-
-Long-term memory acts as the container for all of these across sessions. An agent without it starts from zero every time.
+Long-term memory systems address this by treating storage and retrieval as distinct engineering problems, each with its own design tradeoffs.
 
 ## Why It Matters
 
-The fundamental problem: transformer models are stateless. Every API call begins with a blank slate. For single-turn Q&A, this is fine. For agents doing extended work — debugging a codebase over weeks, supporting a user across dozens of sessions, accumulating domain knowledge — statelessness is a critical failure.
+Without persistent memory, every conversation starts from zero. The agent cannot:
 
-The naive solution is dumping all history into the context window. Modern models support 200K–1M token contexts, which sounds like enough. It isn't, for three reasons:
+- Remember that a user is allergic to shellfish three months after they mentioned it
+- Connect a current refactoring request to a rate-limiting decision made two weeks ago
+- Accumulate expertise on a codebase across hundreds of sessions
+- Adapt its behavior based on feedback patterns over time
 
-1. **Cost.** A 500K token context on every API call is expensive at scale.
-2. **Attention degradation.** Models perform worse on information buried in the middle of very long contexts. This is the [Lost in the Middle](../concepts/lost-in-the-middle.md) problem — attention scores degrade with distance, so a critical decision from week two of a project gets drowned by recent noise.
-3. **Unknown unknowns.** Even perfect retrieval fails when an agent doesn't know what to search for. If a user asks to "refactor the payment endpoint," the agent won't search for "rate limiting decisions from three weeks ago" — because it doesn't know that connection exists.
-
-Long-term memory systems address all three: they store history cheaply, surface relevant information selectively, and some architectures (like compaction trees) maintain an always-loaded topic index that makes implicit context discoverable without explicit search.
+This matters more as agents handle longer-horizon tasks. A coding assistant used daily for a year should behave differently than one used for the first time — not because its weights changed, but because its operational knowledge grew. The distinction between [Episodic Memory](../concepts/episodic-memory.md) (what happened) and [Semantic Memory](../concepts/semantic-memory.md) (what is generally true) maps onto this: episodic memories capture specific past events, semantic memories capture distilled facts and preferences.
 
 ## How It Works
 
-### Storage Backends
+### Storage Substrates
 
-Long-term memory sits in one of three storage types:
+Long-term memory requires a storage layer that outlives any single process. Three main approaches exist, each with distinct retrieval characteristics:
 
-**[Vector Databases](../concepts/vector-database.md)** convert text to embedding vectors and store them for semantic similarity search. Given a query, the system embeds it and retrieves the closest matches by cosine similarity. [ChromaDB](../projects/chromadb.md), [Pinecone](../projects/pinatone.md), and Qdrant are common choices. This handles "what topics are similar to X?" but fails at exact keyword lookup.
+**Vector databases** store embeddings of memory entries alongside the original text. Retrieval works by embedding the current query and finding nearest neighbors by cosine similarity. [Vector Database](../concepts/vector-database.md) systems like [ChromaDB](../projects/chromadb.md), [Pinecone](../projects/pinatone.md), [Qdrant](../projects/qdrant.md), and [FAISS](../projects/faiss.md) implement this. Semantic search finds thematically related memories even when exact keywords differ. The failure mode: similarity search requires a query, so it cannot surface context the agent does not know to look for.
 
-**Relational/Document stores** (SQLite, PostgreSQL) handle structured storage — session metadata, timestamps, exact text, typed memory records. FTS5 (SQLite's full-text search) powers [BM25](../concepts/bm25.md)-style keyword retrieval. This handles "what did the user say about authentication?" but fails at semantic similarity.
+**Relational and key-value databases** — [SQLite](../projects/sqlite.md), [PostgreSQL](../projects/postgresql.md), [Redis](../projects/redis.md) — store structured memory records with explicit schemas. Full-text search (BM25) provides keyword retrieval. These work well for structured facts, preferences, and records with known schemas. The failure mode: keyword mismatch between how something was stored and how it is later queried.
 
-**Knowledge graphs** ([Neo4j](../projects/neo4j.md), property graphs) store entities and their relationships. [HippoRAG](../projects/hipporag.md) uses this approach — it builds a graph from documents and traverses it using personalized PageRank to find multi-hop connections that vector search misses. [Graphiti](../projects/graphiti.md) and [Zep](../projects/zep.md) build similar temporal graphs where facts carry `valid_from`/`valid_to` windows.
+**Knowledge graphs** represent memory as nodes and typed edges, enabling traversal along semantic relationships. Systems like [Graphiti](../projects/graphiti.md), [GraphRAG](../projects/graphrag.md), and [HippoRAG](../projects/hipporag.md) use graph structures for associative retrieval. HippoRAG's key mechanism is personalized PageRank over a knowledge graph: entities extracted from text become nodes, and retrieval follows relationship edges rather than pure vector similarity. This enables multi-hop reasoning — finding that "Erik Hort's birthplace" connects to "Rockland County" through intermediate entities. The failure mode: graph construction quality depends on entity extraction accuracy, and schema design requires upfront domain knowledge.
 
-Production systems rarely use just one. claude-mem combines SQLite (for session records and FTS5 search) with a Chroma vector database (for semantic search). [Mem0](../projects/mem0.md) layers vector storage with graph storage.
+**File-based systems** store memories as markdown or structured files organized hierarchically. [CLAUDE.md](../concepts/claude-md.md) uses this pattern, as does Hipocampus, which maintains a `ROOT.md` topic index auto-loaded into every session. The advantage is transparency and zero infrastructure. The failure mode: unstructured files require disciplined organization to remain navigable.
 
 ### Retrieval Mechanisms
 
-**RAG (vector similarity)** is the default approach. Text chunks get embedded at write time; at query time, the query gets embedded and the closest chunks are returned. [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) covers this in depth. The limitation: retrieval requires knowing what to search for.
+Retrieval is where most long-term memory systems diverge in design philosophy.
 
-**Hybrid search** combines vector similarity with BM25 keyword matching, then merges ranked results. [Hybrid Search](../concepts/hybrid-search.md) is better than either alone — BM25 handles exact terms, vectors handle semantic variation. [Mem0](../projects/mem0.md) reports 26% accuracy gain over OpenAI's native memory on the LOCOMO benchmark using this approach, with 90% token reduction versus full-context retrieval (self-reported, published in arXiv:2504.19413, not yet independently replicated).
+**Pure vector search** works when the user's query contains enough semantic signal to surface relevant memories. [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) in its standard form operates this way. The hipocampus benchmark puts the ceiling here starkly: BM25 search alone achieves 2.8% on implicit context recall; vector search alone achieves 3.4%. Search cannot find what the agent does not know to search for. [Source](../raw/repos/kevin-hs-sohn-hipocampus.md)
 
-**Compaction trees** take a different approach: instead of search-on-demand, they maintain a hierarchical index of what the agent knows. [Hipocampus](../repos/kevin-hs-sohn-hipocampus.md) implements a 5-level tree (raw logs → daily → weekly → monthly → root) where ROOT.md, a ~3K token topic index, loads automatically every session. On the MemAware benchmark (900 implicit context questions across 3 months of history), this scores 21% overall versus 0.8% for no memory and 3.4% for hybrid search alone. The benchmark evaluates the hardest case: questions where no keyword connects the query to the relevant memory. (Self-reported benchmark, internal to the project.)
+**Hybrid search** combines vector similarity with keyword matching (BM25), improving recall across different query types. [Hybrid Search](../concepts/hybrid-search.md) addresses the complementary failure modes of each approach — vector search misses keyword-specific matches, BM25 misses semantic matches.
 
-**Graph traversal** suits multi-hop questions. [HippoRAG](../projects/hipporag.md) constructs a knowledge graph at index time and uses personalized PageRank at retrieval time. A query seeds specific nodes; PageRank propagates across the graph to find connected entities that vector search wouldn't surface — "what county is Erik Hort's birthplace in?" requires connecting birthplace → Montebello → Rockland County as a chain. Accepted at NeurIPS 2024 (HippoRAG 1), ICML 2025 (HippoRAG 2).
+**Topic indexing** maintains a small, always-loaded index of what memories exist, enabling O(1) triage before any retrieval. Hipocampus's `ROOT.md` approach — a ~3K token file listing topics with types and ages — allows the agent to notice connections before issuing any search query. With a 10K token ROOT budget (120 topics), the hipocampus benchmark shows 21x improvement over no memory on implicit context recall. [Source](../raw/repos/kevin-hs-sohn-hipocampus.md)
 
-### Write Operations
+**Knowledge graph traversal** follows relationship edges from seed nodes. HippoRAG uses personalized PageRank seeded by query-relevant nodes, propagating importance through the graph to surface connected entities. This handles multi-hop questions that require connecting information across multiple documents.
 
-Memory systems write in one of three modes:
+**LLM-mediated selection** uses a model to select relevant memory files from metadata before reading full content. Hipocampus implements this as a fallback: when keyword lookup fails, an LLM reads compaction node frontmatter (~500 tokens) and selects the top 5 relevant files. This handles cross-lingual and cross-domain keyword mismatches.
 
-**Continuous capture**: Every tool use, observation, or turn gets logged. [claude-mem](../repos/thedotmack-claude-mem.md) uses 5 lifecycle hooks (SessionStart, UserPromptSubmit, PostToolUse, Stop, SessionEnd) to automatically record everything. The risk is noise accumulation — storing too much degrades retrieval quality.
+### Memory Classification
 
-**Selective extraction**: An LLM reviews conversation turns and extracts facts worth keeping. Mem0 uses this pattern — it passes recent conversation to a model with instructions to identify and store important facts, preferences, and decisions. Better signal-to-noise, but adds latency and LLM cost on every write.
+Not all memories should be stored and retrieved the same way. Several systems classify memories by type before storing them, which affects compression, retention, and retrieval priority:
 
-**Compaction**: Periodic summarization of raw logs into compressed representations. Hipocampus compacts raw daily logs into weekly summaries, weekly into monthly, monthly into a root index — with verbatim copy below a line threshold and LLM summarization above it. This amortizes the compression cost and preserves detail for recent events while compressing older ones.
+**Episodic**: specific past events with temporal context ("the user mentioned shellfish allergy on March 12")  
+**Semantic**: distilled facts and general truths ("user is allergic to shellfish")  
+**Procedural**: skills and process knowledge ("user prefers async/await over Promise chains")  
+**Reflective/Preference**: meta-level insights about user behavior and preferences
 
-### Memory Types and Lifecycles
+Hipocampus classifies each entry as `project`, `feedback`, `user`, or `reference`. `user` and `feedback` memories survive compaction indefinitely; `project` memories compress into historical summaries; `reference` entries receive staleness markers after 30 days. [Source](../raw/repos/kevin-hs-sohn-hipocampus.md)
 
-Production systems classify stored memories by type, because different information ages differently:
+OpenMemory implements five sectors (episodic, semantic, procedural, emotional, reflective) with a sector classifier routing each incoming memory. Each sector has its own decay parameters rather than uniform TTLs. [Source](../raw/repos/caviraoss-openmemory.md)
 
-- **User facts** (preferences, identity) should never be compressed or discarded
-- **Feedback/corrections** (the user said the agent was wrong about X) should survive indefinitely
-- **Project records** (decisions made, work done) can compress after project completion
-- **Reference pointers** (URLs, external tools) should get staleness markers after 30+ days without verification
+### Memory Consolidation and Compression
 
-Hipocampus formalizes these as `user`, `feedback`, `project`, and `reference` types with explicit compaction rules per type.
+Raw session logs accumulate faster than they can be injected into context. Compression is necessary but lossy — the design question is what to preserve.
 
-## Implementations
+Hierarchical compaction trees process raw logs through multiple aggregation levels: raw → daily → weekly → monthly → root index. Below a threshold (e.g., 200 lines), files are copied verbatim with no information loss. Above the threshold, an LLM generates keyword-dense summaries. The summaries trade completeness for navigability. [Source](../raw/repos/kevin-hs-sohn-hipocampus.md)
 
-**[Mem0](../projects/mem0.md)**: Universal memory layer with Python/TypeScript SDKs, hosted platform, and multi-level storage (user/session/agent). Selective LLM-based extraction. 51K+ GitHub stars. Reports +26% accuracy over OpenAI Memory on LOCOMO, 91% faster than full-context, 90% fewer tokens. Self-reported, see arXiv:2504.19413.
+[Mem0](../projects/mem0.md) uses an LLM to extract discrete memory facts from conversations rather than summarizing full transcripts. The extraction step transforms conversational text into structured, retrievable facts at multiple scopes: user-level, session-level, agent-level. This enables targeted retrieval by scope without loading irrelevant session data. Their benchmark reports 26% accuracy improvement over OpenAI Memory, 91% faster responses than full-context, and 90% fewer tokens than full-context on the LoCoMo benchmark — though these figures are self-reported in their own paper. [Source](../raw/repos/mem0ai-mem0.md)
 
-**[Letta](../projects/letta.md)** (formerly MemGPT): Implements a paging model inspired by OS virtual memory. [Core Memory](../concepts/core-memory.md) stays in context; archival memory pages in/out via tool calls. The agent explicitly manages its own memory.
+### Temporal Reasoning
 
-**[MemGPT](../projects/memgpt.md)**: The research paper behind Letta's approach. Introduced the paging metaphor for LLM memory management.
+A fact's truth value changes over time. "The CEO of CompanyX is Alice" becomes false when Bob takes over. Naive memory systems store the latest value and discard history; this breaks point-in-time queries.
 
-**[Zep](../projects/zep.md)**: Temporal knowledge graph with `valid_from`/`valid_to` semantics, designed for multi-turn conversation history.
+Temporal knowledge graphs address this with `valid_from` / `valid_to` intervals on each fact. When a new fact contradicts an existing one, the old fact's `valid_to` is set rather than deleted. Point-in-time queries specify a timestamp and retrieve facts valid at that moment. OpenMemory implements this pattern with automatic timeline reconstruction and change detection. [Source](../raw/repos/caviraoss-openmemory.md)
 
-**[Graphiti](../projects/graphiti.md)**: Knowledge graph library optimized for agent memory, designed to work with Zep.
+[Temporal Reasoning](../concepts/temporal-reasoning.md) also matters for retrieval priority: memories from last week are typically more relevant than memories from six months ago, unless the older memory established a stable preference. Age-weighted scoring and decay functions encode this intuition.
 
-**[HippoRAG](../projects/hipporag.md)**: Graph-based RAG using personalized PageRank. Research-grade, designed for knowledge-intensive QA tasks.
+## Who Implements It
 
-**[OpenMemory](../projects/openmemory.md)**: Local-first, self-hosted memory engine. Multi-sector classification (episodic, semantic, procedural, emotional, reflective), temporal knowledge graph, explainable recall traces. Currently being rewritten.
+Several systems approach long-term memory differently:
 
-**[claude-mem](../repos/thedotmack-claude-mem.md)**: Claude Code plugin with lifecycle hooks, SQLite + Chroma storage, progressive disclosure retrieval. 44K+ GitHub stars.
+[Mem0](../projects/mem0.md) provides a managed memory layer with multi-level scoping (user/session/agent), LLM-mediated fact extraction, and a platform API. The abstraction decouples memory management from LLM choice. 51K GitHub stars. [Source](../raw/repos/mem0ai-mem0.md)
 
-**[Hipocampus](../repos/kevin-hs-sohn-hipocampus.md)**: File-based compaction tree for Claude Code. Zero infrastructure — just markdown files. 21x better than no memory on implicit context benchmark.
+[Letta](../projects/letta.md) (formerly MemGPT) builds long-term memory into the agent architecture itself, with [Core Memory](../concepts/core-memory.md) (always in context) and archival memory (retrieved on demand). The agent manages its own memory through explicit tool calls.
 
-[Claude Code](../projects/claude-code.md) also uses [CLAUDE.md](../concepts/claude-md.md) as a lightweight form of long-term memory: project-level context that persists across sessions as a file the agent reads at startup.
+[HippoRAG](../projects/hipporag.md) uses knowledge graphs with personalized PageRank for associative, multi-hop retrieval. Published at NeurIPS 2024, ICML 2025. [Source](../raw/repos/osu-nlp-group-hipporag.md)
+
+[Zep](../projects/zep.md) and [Graphiti](../projects/graphiti.md) provide graph-based memory with temporal reasoning for production agent deployments.
+
+[Claude Code](../projects/claude-code.md) uses [CLAUDE.md](../concepts/claude-md.md) files as file-based persistent memory — project-specific instructions and context that persist across sessions without any retrieval infrastructure.
+
+[Anthropic](../projects/anthropic.md)'s [Claude](../projects/claude.md) natively supports Projects with persistent memory attached to conversation threads, though the implementation details are not public.
 
 ## Practical Implications
 
-**Token budget management**: Retrieved memories consume context. A naive implementation that retrieves 50 results and injects them all defeats the purpose. Production systems use progressive disclosure — a compact index first, full detail only for selected records. [claude-mem](../repos/thedotmack-claude-mem.md) reports ~10x token savings from this pattern. [Context Management](../concepts/context-management.md) covers the broader topic.
+**The unknown unknowns problem**: vector search requires knowing what to search for. The hardest memory retrieval problems involve connections the agent cannot anticipate from the current query alone. Topic indexes and knowledge graphs address this; pure RAG does not.
 
-**Retrieval latency**: Each memory lookup adds round-trip time. Vector search against a large index (1M+ records) can take 100–500ms. For interactive agents, this matters. Some systems pre-load a compressed summary (ROOT.md, CLAUDE.md) so common queries hit the context directly rather than triggering a search.
+**Cost at scale**: every retrieved memory consumes input tokens. A system that retrieves 20 memory chunks per request, each 500 tokens, adds 10K tokens to every API call. At volume, this dominates cost. Hierarchical retrieval (index first, full content on demand) and compression are not optional optimizations — they are necessary for production economics.
 
-**Memory staleness**: Information stored months ago may be wrong today. Temporal knowledge graphs handle this explicitly. Simpler systems get stale silently — the agent confidently uses outdated information. OpenMemory's decay engine and Hipocampus's `[?]` staleness markers are two mitigation strategies.
+**Memory staleness**: preferences and facts change. A memory system without expiry or temporal reasoning will eventually serve outdated information confidently. Decay functions, `valid_to` intervals, and staleness markers on references are necessary for accuracy over long time horizons.
 
-**Privacy and security**: Long-term memory stores potentially sensitive user information. Hipocampus includes secret scanning during compaction to redact API keys and tokens. Systems without this will happily store and re-inject credentials.
+**Privacy**: long-term memory stores sensitive user data persistently. Self-hosted systems (OpenMemory, Hipocampus) keep data local. Cloud platforms introduce retention, access, and breach risks that operational security policies must address. Hipocampus's secret scanning during compaction — automatic redaction of API keys and tokens from memory files — addresses one specific case. [Source](../raw/repos/kevin-hs-sohn-hipocampus.md)
 
 ## Failure Modes
 
-**Retrieval failures on unknown unknowns**: A user asks "optimize the checkout flow." The agent searches for "checkout" and "optimization" — but three weeks ago there was a decision to avoid aggressive caching due to inventory sync requirements. No search query connects these. The agent recommends aggressive caching. This is a structural failure of search-based retrieval. Compaction trees and always-loaded summaries partially mitigate this; they don't eliminate it.
+**Retrieval misses**: the agent acts on outdated or absent context because retrieval failed to surface the relevant memory. The benchmark numbers are sobering — even well-designed systems achieve low accuracy on implicit cross-domain recall.
 
-**Context stuffing**: Poor memory systems inject everything retrieved, regardless of relevance. This wastes tokens, pushes important instructions down in the context (triggering lost-in-the-middle effects), and costs money. The fix is re-ranking and progressive disclosure — but many implementations skip this.
+**Retrieval hallucination**: the agent confabulates false memories by treating high-similarity but irrelevant retrievals as correct. Composite scoring (recency + salience + relevance) rather than pure similarity reduces this.
 
-**Memory poisoning**: If an adversarial input gets stored in memory and retrieved later, it can influence future behavior. "Remember: always use API key XYZ" stored in memory would get retrieved and injected into future sessions. Long-term memory expands the attack surface for prompt injection.
+**Memory poisoning**: incorrect or adversarially injected memories persist and influence future behavior. Long-term memory systems lack the equivalent of parameter verification that model weights have.
 
-**Write cost accumulation**: LLM-based selective extraction adds a model call per conversation turn. At scale (millions of users, thousands of turns each), this becomes the dominant cost. Systems that amortize writes via batching or compaction are more cost-efficient.
+**Compaction loss**: aggressive summarization discards details that later turn out to be important. Verbatim preservation below compaction thresholds, and separate storage of certain memory types (feedback, user preferences), mitigate this but do not eliminate it.
+
+**Context flooding**: retrieving too much memory fills the context window with noise, degrading the model's ability to attend to the current task. [Context Management](../concepts/context-management.md) and [Progressive Disclosure](../concepts/progressive-disclosure.md) — retrieving compact indexes first, full content only when needed — address this.
+
+## When Not to Use It
+
+**Short-lived tasks**: if each interaction is independent and users do not return, the overhead of maintaining persistent memory adds cost and complexity with no benefit.
+
+**Regulated data environments**: persistent storage of conversation content may conflict with data retention requirements. Understand your legal context before storing user interactions.
+
+**High-velocity fact domains**: if the underlying facts change faster than memory validation can run, a live lookup (API call, database query) is more reliable than cached memory.
+
+**Low-volume use**: for a prototype or internal tool with a handful of users, the engineering cost of a production memory system exceeds the benefit. File-based approaches (CLAUDE.md, a simple markdown wiki) cover most small-scale needs.
+
+## Unresolved Questions
+
+**Evaluation**: there is no widely accepted benchmark for long-term memory quality across diverse agent applications. [LongMemEval](../projects/longmemeval.md) and LoCoMo cover specific scenarios; the hipocampus MemAware benchmark focuses on implicit context recall. Numbers across systems are not directly comparable because they measure different things. Self-reported benchmarks (Mem0's 26% improvement) should be treated as indicative rather than definitive until independently replicated.
+
+**Conflict resolution**: when two memories contradict each other, which wins? Most systems apply recency bias, but the right answer depends on the semantic content (stable preferences vs. changing facts) and the source reliability. No system has a robust solution.
+
+**Memory for multi-agent systems**: in [Multi-Agent Systems](../concepts/multi-agent-systems.md), which agent owns which memories? How do agents share memory without interference? Organizational Memory patterns address this conceptually but production implementations are sparse.
+
+**Long-term drift**: a memory system that never forgets will accumulate outdated preferences and obsolete facts over years. Decay functions help but require tuning per memory type and domain. The right forgetting rate for "user prefers dark mode" differs from the right rate for "user is working on a payment API."
 
 ## Related Concepts
 
-- [Agent Memory](../concepts/agent-memory.md): The broader category encompassing all memory types
-- [Context Engineering](../concepts/context-engineering.md): How memory content gets injected into context effectively
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md): The standard retrieval pattern
-- [Context Management](../concepts/context-management.md): Managing the context window that retrieved memories populate
-- [Episodic Memory](../concepts/episodic-memory.md): Event-based long-term memory specifically
-- [Semantic Memory](../concepts/semantic-memory.md): Fact-based long-term memory specifically
-- [Continual Learning](../concepts/continual-learning.md): Learning that accumulates over time, related but distinct
-- [Memory Evolution](../concepts/memory-evolution.md): How stored memories change and improve over time
-
-## Open Questions
-
-**Consolidation quality**: LLM-based compression is lossy by design. How do you know which facts got lost? No current system provides good visibility into what was discarded during compaction.
-
-**Multi-agent memory sharing**: When multiple agents work in parallel on the same project, who owns the long-term memory store? How are write conflicts resolved? Most production memory systems assume a single agent per memory store.
-
-**Evaluation**: There is no widely accepted benchmark for long-term memory quality in agents. LOCOMO and MemAware exist but are narrow. [LongMemEval](../projects/longmemeval.md) is another, but no standard has emerged.
-
-**Cost at scale**: The hosted platforms (Mem0, Zep) do not publish pricing that makes it easy to estimate cost for high-volume deployments. The token savings claims are relative to full-context approaches, not absolute.
+- [Agent Memory](../concepts/agent-memory.md) — the broader taxonomy of memory types in agent systems
+- [Short-Term Memory](../concepts/short-term-memory.md) — in-context working memory, the complement to long-term persistence
+- [Episodic Memory](../concepts/episodic-memory.md) — event-based memory subsystem
+- [Semantic Memory](../concepts/semantic-memory.md) — fact and concept memory subsystem
+- [Core Memory](../concepts/core-memory.md) — always-in-context persistent memory (Letta's approach)
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — the retrieval pattern that underlies most LTM implementations
+- [Context Management](../concepts/context-management.md) — how retrieved memories get incorporated into prompts
+- [Vector Database](../concepts/vector-database.md) — primary storage substrate for embedding-based retrieval
+- [Temporal Reasoning](../concepts/temporal-reasoning.md) — handling time-varying facts in memory
+- [Memory Evolution](../concepts/memory-evolution.md) — how memory systems change over time
+- [CLAUDE.md](../concepts/claude-md.md) — file-based persistent memory for Claude agents
+- [Continual Learning](../concepts/continual-learning.md) — the broader ML problem of learning without forgetting

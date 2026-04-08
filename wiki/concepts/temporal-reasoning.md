@@ -3,167 +3,115 @@ entity_id: temporal-reasoning
 type: concept
 bucket: agent-memory
 abstract: >-
-  Temporal reasoning enables AI agents to understand when facts were true, how
-  knowledge changes over time, and in what order events occurred — distinct from
-  pure semantic similarity retrieval.
+  Temporal reasoning in agent memory: how agents track when facts were true,
+  sequence events, detect knowledge staleness, and resolve contradictions across
+  time — the mechanism that separates stateful agents from glorified chatbots.
 sources:
-  - repos/supermemoryai-supermemory.md
-  - repos/caviraoss-openmemory.md
   - papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
+  - repos/caviraoss-openmemory.md
+  - repos/supermemoryai-supermemory.md
 related:
-  - retrieval-augmented-generation
   - claude
-  - model-context-protocol
-last_compiled: '2026-04-08T02:57:36.141Z'
+last_compiled: '2026-04-08T23:15:00.464Z'
 ---
 # Temporal Reasoning
 
 ## What It Is
 
-Temporal reasoning is the capacity to represent, retrieve, and draw conclusions from time-ordered information. For AI agents, this means more than knowing that event A happened before event B. It requires tracking when facts were established, when they stopped being true, how relationships between entities evolved, and how to answer questions that are only meaningful at a specific point in time.
+Temporal reasoning is an agent's capacity to work with time as a first-class dimension of knowledge. This covers four distinct problems: sequencing events in the right order, knowing when a fact was valid, detecting when stored knowledge has become stale, and resolving contradictions that arise because the world changes.
 
-This problem is distinct from general knowledge retrieval. A semantic search for "CEO of CompanyX" returns whatever is most similar in embedding space. Temporal reasoning asks: who was CEO on March 15, 2022? Those two operations can return different answers, and conflating them produces silent errors that are hard to detect.
+Most memory implementations ignore this. They store facts as embeddings and retrieve by cosine similarity, with no representation of when something was true. An agent built this way will confidently report that a company's CEO is whoever you told it first, even after three leadership changes. Temporal reasoning is the engineering work that prevents this failure mode.
 
-In the context of [Agent Memory](../concepts/agent-memory.md), temporal reasoning sits at the intersection of [Episodic Memory](../concepts/episodic-memory.md) (what happened, in order) and [Semantic Memory](../concepts/semantic-memory.md) (what is currently true). Most production memory systems treat both as the same retrieval problem and get neither right.
+The concept matters because agents increasingly operate across sessions, days, and months. A personal assistant that misremembers when you said you'd move cities is not a minor inconvenience — it poisons every downstream inference that depends on your location. At enterprise scale, stale facts in a memory graph cause compounding errors across task chains.
 
-## Why It Matters
+## Core Problems Temporal Reasoning Addresses
 
-Language models have a training cutoff. Beyond that hard boundary, every fact they learned is frozen at the moment of data collection. For a deployed agent operating across months or years, this creates a class of failure that doesn't look like hallucination — it looks like confident use of outdated information.
+**Fact validity windows.** Any fact has a `valid_from` and `valid_to`. "Alice is CEO of CompanyX" was true from 2021-01-01 until 2024-04-10, when Bob took over. A system without validity windows will return both facts on retrieval and leave conflict resolution to the LLM, which may not have the context to resolve it correctly.
 
-But training cutoff is only the most visible form of the problem. Even within a single session or across a user's interaction history, facts change. A user who said "I'm looking for a job" three months ago may be employed today. A system that retrieves that old memory and treats it as current produces contextually wrong outputs.
+**Event sequencing.** Agents need to reconstruct causal chains. "User reported a bug, then the fix was deployed, then user confirmed resolution" — getting this order wrong produces nonsensical summaries and bad decisions about what to do next. Purely semantic retrieval retrieves relevant events but loses their ordering.
 
-The deeper issue is that most [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) architectures treat memory as an append-only log. Retrieval returns whatever scores highest against a query vector, with no mechanism to determine whether a retrieved fact is current, superseded, or historically accurate but no longer applicable. This is adequate for document retrieval where documents don't contradict each other. It breaks down for factual knowledge that evolves.
+**Knowledge staleness.** Some facts are time-indexed even when their validity window is implicit. "User prefers Python" recorded eighteen months ago may still be true or may have been superseded. Without decay mechanisms, memory systems accumulate noise that degrades retrieval quality over time.
 
-## Core Mechanisms
+**Temporal query answering.** Agents sometimes need to answer questions that are explicitly about time: "What did the user say about this last month?" or "What was the project status when we last discussed it?" These require point-in-time retrieval, not just similarity search.
 
-### Validity Windows
-
-The foundational primitive for temporal reasoning is the validity window: a `valid_from` and `valid_to` timestamp pair attached to each fact. This converts a static fact into a temporally bounded truth claim.
-
-```
-{ subject: "CompanyX", predicate: "has_CEO", object: "Alice", valid_from: "2021-01-01", valid_to: "2024-04-09" }
-{ subject: "CompanyX", predicate: "has_CEO", object: "Bob",   valid_from: "2024-04-10", valid_to: null }
-```
-
-A `valid_to: null` indicates the fact is currently asserted. Point-in-time queries filter on this window rather than treating all records as equivalent candidates.
-
-[Zep](../projects/zep.md) implements this through its Graphiti engine. [OpenMemory](../projects/openmemory.md) exposes a `/api/temporal/fact` endpoint that handles automatic closure of prior fact windows when a new assertion about the same subject-predicate pair arrives. [Source](../raw/repos/caviraoss-openmemory.md)
+## How It Works: Implementation Patterns
 
 ### Temporal Knowledge Graphs
 
-A temporal knowledge graph extends a standard knowledge graph by attaching validity metadata to edges rather than just nodes. This allows the graph structure itself to change over time while retaining historical states.
+The most complete temporal reasoning implementations use knowledge graphs with validity timestamps on edges. [Graphiti](../projects/graphiti.md) (the core of [Zep](../projects/zep.md)) structures this explicitly: each relationship in the graph carries `valid_from` and `valid_to` timestamps. When a new fact contradicts an existing one, the system closes the old edge's validity window rather than deleting it. Historical queries reconstruct the graph state at any point in time by filtering edges by their validity windows.
 
-[Graphiti](../projects/graphiti.md) (the core engine in [Zep](../projects/zep.md)) represents the current state-of-the-art implementation. Its key architectural choice is to synthesize both unstructured conversational data and structured business data into the same temporal graph, maintaining historical relationships as first-class objects rather than archiving or deleting them. [Source](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)
+[Zep's paper](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md) reports 18.5% accuracy improvement on LongMemEval with 90% latency reduction versus baseline implementations. These numbers are self-reported by the Zep team; the LongMemEval benchmark results have not been independently replicated in peer-reviewed work, though LongMemEval itself is an established benchmark designed for exactly these temporal reasoning tasks.
 
-The graph enables queries that pure vector retrieval cannot answer:
-- What was the relationship between X and Y at a specific date?
-- How has entity X changed over time?
-- Which facts about X changed most recently?
+[OpenMemory](../projects/openmemory.md) takes a similar approach via its `/api/temporal/` endpoints. Its temporal API lets you post a fact with `valid_from`, then post a superseding fact; the system automatically closes the prior entry's validity window. Point-in-time queries ask "what was true on date X?" by filtering against stored validity windows. [Source](../raw/repos/caviraoss-openmemory.md)
 
-### Conflict Detection and Resolution
+### Decay and Reinforcement
 
-When a new fact contradicts an existing one, a temporal reasoning system must decide what to do. The naive approach is last-write-wins. More sophisticated systems:
+Static validity windows work for facts with known end dates. For facts that age out probabilistically — user preferences, project context, conversational state — temporal reasoning requires decay functions. OpenMemory implements per-sector decay: episodic memories (events) decay faster than semantic memories (stable facts). Reinforcement on recall slows decay for frequently-accessed information. This contrasts with hard TTLs, which expire memories abruptly regardless of access patterns.
 
-1. Close the existing fact's `valid_to` to the new fact's `valid_from`
-2. Retain both records for historical queries
-3. Flag the transition for higher-level reasoning if the change is semantically significant
+[Supermemory](../projects/supermemory.md) handles automatic forgetting through fact extraction and contradiction resolution: when a user says "I just moved to SF," the system supersedes the prior "I live in NYC" fact. [Source](../raw/repos/supermemoryai-supermemory.md) The mechanism relies on LLM-based extraction to detect that two facts contradict, which introduces latency and occasional errors when the extraction model misjudges semantic overlap.
 
-[OpenMemory](../projects/openmemory.md) describes this as "auto-evolution" — new facts close previous ones, so timeline queries remain consistent. [Supermemory](../projects/supermemory.md) handles this at the semantic layer: "I just moved to SF" supersedes "I live in NYC" rather than coexisting with it. [Source](../raw/repos/supermemoryai-supermemory.md)
+### Temporal Scoring in Hybrid Retrieval
 
-### Decay and Salience
+[Hybrid search](../concepts/hybrid-search.md) typically combines dense vector similarity with sparse keyword matching (BM25). Temporal reasoning adds a third dimension: recency weighting. OpenMemory's composite scoring formula combines salience (importance), recency (how recent), and coactivation (how often recalled together with other memories). This means a recent, frequently-recalled memory beats a slightly-more-similar but older, rarely-accessed one.
 
-Separate from hard validity windows, some systems apply decay functions to memory salience. This models the intuition that older, less-reinforced memories should score lower in retrieval even when they remain technically valid.
+### Chain-of-Thought Temporal Reasoning
 
-[OpenMemory](../projects/openmemory.md) implements a decay engine that operates per memory sector (episodic, semantic, procedural, emotional, reflective) rather than applying a single global TTL. Composite scoring combines salience, recency, and co-activation rather than relying on cosine distance alone. [Source](../raw/repos/caviraoss-openmemory.md)
-
-This matters for agents that need to distinguish between "user mentioned this once in passing" and "user has mentioned this consistently across ten sessions."
-
-### Temporal Query Reformulation
-
-An agent that knows about temporal reasoning needs to do more than store facts with timestamps. It needs to formulate retrieval queries that specify time constraints. This requires:
-
-1. Recognizing when a user's question is temporally scoped ("what was X before the merger?")
-2. Extracting the temporal constraint
-3. Issuing a retrieval query that filters on validity windows rather than returning all semantically similar results
-
-This is a parsing and reasoning problem that sits on top of the storage layer. Most current implementations handle it partially — the storage layer supports temporal queries, but the agent's query formulation is not consistently temporally aware.
-
-## Benchmarks and Evidence
-
-The [LongMemEval](../projects/longmemeval.md) benchmark specifically tests temporal reasoning tasks in the context of long-term agent memory. It includes cross-session information synthesis and long-term context maintenance, both of which require accurate temporal handling.
-
-[Zep](../projects/zep.md) reports 18.5% accuracy improvement and 90% latency reduction on LongMemEval compared to baseline implementations. This is self-reported by the Zep team. [Source](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)
-
-[Supermemory](../projects/supermemory.md) claims #1 on LongMemEval (81.6%), [LoCoMo](../projects/locomo.md), and ConvoMem. LoCoMo explicitly includes a temporal reasoning subcategory alongside single-hop, multi-hop, and adversarial questions. These benchmarks are self-reported on the project's README, and independent reproduction is not confirmed. [Source](../raw/repos/supermemoryai-supermemory.md)
-
-## Implementation Patterns
-
-### Store: Append With Timestamps
-
-Every write to a memory store should include a creation timestamp and, where applicable, a validity window. Avoid overwriting existing records; close them and create new ones. This enables historical reconstruction.
-
-### Retrieve: Filter Before Rank
-
-Retrieval pipelines that first filter by temporal validity and then rank by semantic similarity outperform pipelines that rank all records and try to infer recency from scores. The filter step is cheap; it prevents the ranking step from returning confidently irrelevant results.
-
-### Query: Surface Temporal Constraints
-
-When an agent reformulates a user query into a retrieval query, it should extract temporal markers ("before," "after," "when I was," "last time") and convert them into explicit time bounds. This is an underimplemented part of most agent toolchains.
-
-### Prompt: Anchor the Model's Time Sense
-
-Including the current date in the system prompt is a minimal but necessary step. Without it, models apply their training-data temporal distribution to date estimates, which skews toward earlier periods where training data is denser. [Context Engineering](../concepts/context-engineering.md) approaches that include session timestamps and recent memory timestamps further reduce temporal confusion.
+At inference time, temporal reasoning requires more than storage — the model must reason over retrieved temporal data correctly. [Chain-of-Thought](../concepts/chain-of-thought.md) prompting that explicitly scaffolds temporal ordering ("First X happened, then Y, therefore Z") produces significantly better temporal inference than flat context injection. The [LongMemEval benchmark](../projects/longmemeval.md) specifically tests cross-session temporal reasoning by asking questions like "when did the user first mention X?" and "has the user's position on X changed since Y?" — these require models to track temporal relationships in retrieved context, not just retrieve relevant facts.
 
 ## Failure Modes
 
-**Silent staleness.** The most common failure: a system retrieves a fact that was true when stored but is no longer true, presents it as current, and the agent acts on it. The user sees contextually wrong behavior without any error signal. This is more damaging than retrieval failure because it produces confident wrong answers.
+**Temporal hallucination.** When an agent lacks explicit validity windows, it often invents plausible temporal orderings. Ask an agent "when did this change?" and it will guess rather than admit uncertainty. This is worse than simple factual hallucination because temporal errors compound — a wrong date infects every downstream inference that depends on sequencing.
 
-**Temporal anchor confusion in long contexts.** Models processing long context windows containing facts from multiple time periods can merge or confuse their temporal anchors. A fact described in past tense and a fact described in present tense may receive identical treatment if the model doesn't reliably track their provenance. This is related to but distinct from [Lost in the Middle](../concepts/lost-in-the-middle.md).
+**Extraction drift in contradiction resolution.** Systems that use LLMs to detect when facts contradict each other face a subtle failure: the extractor may miss contradictions with low surface-level similarity ("I live in New York" vs. "I'm settling into my new San Francisco apartment") or falsely flag non-contradictions. Contradiction resolution quality degrades on indirect or implicit updates.
 
-**Training cutoff leakage.** Even when a system stores current facts with timestamps, a model may blend retrieved facts with its training-time knowledge about the same entities. If the training-time knowledge is outdated, the blend produces errors. The model's internal knowledge doesn't have a validity window.
+**Sparse event coverage.** Temporal reasoning requires knowing what happened when. In practice, agents only capture events that pass through their context window. A long-running process with gaps in observation produces a temporal graph with holes — the agent knows state at T1 and T3 but not what changed between them.
 
-**Query-time under-specification.** Most retrieval queries are temporally under-specified. "What does the user know about X?" doesn't specify when. Systems that default to "most recent" handle this correctly for most cases but fail for historical queries.
-
-**Contradictory context.** If a context window contains both an old fact and its superseding update without clear temporal markers, models frequently weight both, producing hedged or averaged outputs rather than using the correct current fact.
-
-## When Temporal Reasoning Is Inadequate
-
-Standard similarity-based retrieval is fine when:
-- Facts don't change over the period of interest
-- Questions are not time-scoped
-- The agent operates within a single session and no historical comparison is needed
-
-Temporal reasoning becomes necessary when:
-- The agent maintains memory across sessions spanning weeks or months
-- Facts about users, entities, or the world evolve during the deployment period
-- Users ask questions that require knowing what was true at a specific past time
-- Contradictory information accumulates in memory and needs resolution
+**Query-time temporal scope.** Retrieval systems that don't support point-in-time queries force temporal reasoning into the LLM's context, which is unreliable at scale. If you dump 50 facts with mixed timestamps into context and ask "what was true in January?", the model must do temporal filtering in-context — a task it handles inconsistently.
 
 ## Relationship to Adjacent Concepts
 
-[Episodic Memory](../concepts/episodic-memory.md) is the primary store for time-ordered events. Temporal reasoning is the set of operations over that store.
+Temporal reasoning is a prerequisite for [Episodic Memory](../concepts/episodic-memory.md) to be coherent. Episodic memory stores event sequences; without temporal ordering, episodes become unordered bags of facts. Similarly, [Long-Term Memory](../concepts/long-term-memory.md) degrades without temporal reasoning because the system has no mechanism to retire stale facts.
 
-[Semantic Memory](../concepts/semantic-memory.md) stores general facts. Without temporal reasoning, semantic memory accumulates contradictions silently as facts change.
+[Knowledge Graphs](../concepts/knowledge-graph.md) are the natural substrate for temporal reasoning because edges can carry validity metadata. Pure [Vector Databases](../concepts/vector-database.md) require external bookkeeping to approximate temporal reasoning — typically storing timestamps as metadata and filtering at query time, which works for recency but not for validity windows or point-in-time reconstruction.
 
-[Knowledge Graph](../concepts/knowledge-graph.md) structures naturally support temporal reasoning when edges carry validity metadata. Flat vector stores require separate metadata filtering infrastructure to achieve the same result.
+[Continual Learning](../concepts/continual-learning.md) intersects temporal reasoning at the model level: how do you update a model's parametric knowledge as facts change over time? Agent memory systems address this in the retrieval layer rather than the model weights, which is more tractable but requires the model to correctly process temporally-tagged context at inference time.
 
-[Context Management](../concepts/context-management.md) intersects when the agent must decide which temporal slice of memory is relevant to include in the current context window.
+[Memory Evolution](../concepts/memory-evolution.md) describes the higher-level process of how an agent's memory changes over time — temporal reasoning is the mechanism that keeps that evolution coherent.
 
-[Continual Learning](../concepts/continual-learning.md) addresses the complementary problem of updating the model's weights in response to new information, rather than externalizing temporal state into a retrieval system.
+## Implementation Choices
+
+**Graph storage vs. vector storage.** Temporal validity windows are natural graph edges; forcing them into vector metadata requires workarounds. [Neo4j](../projects/neo4j.md) with temporal edge properties handles point-in-time queries natively. Vector databases like [Qdrant](../projects/qdrant.md) or [ChromaDB](../projects/chromadb.md) require timestamp filtering at the application layer. For most production systems, a hybrid approach works: graph for temporal relationships, vector store for semantic retrieval, merged at query time.
+
+**LLM-based vs. rule-based temporal extraction.** LLM-based extraction generalizes better across implicit temporal language ("I just switched to...") but is slower and less reliable on edge cases. Rule-based systems with explicit temporal markers (`valid_from`/`valid_to` fields) are faster and auditable but require structured input. Most production systems combine both.
+
+**Granularity of validity windows.** Fine-grained timestamps (milliseconds) enable precise sequencing but inflate storage costs for long-lived agents. Coarser granularity (day-level) is sufficient for most conversational use cases and simplifies point-in-time query logic.
+
+## When Temporal Reasoning Matters Most
+
+Build explicit temporal reasoning when: agents operate across multiple sessions over days or months; facts in your domain change (personnel, prices, project status, user context); users ask questions that require knowing what happened when; or the domain includes explicit deadlines or scheduled events.
+
+Skip it when: the agent handles single-session tasks with no persistent state; the knowledge domain is stable (reference documentation, code that rarely changes); or you're building a proof-of-concept where the engineering overhead isn't justified yet.
 
 ## Unresolved Questions
 
-**Granularity tradeoffs.** How finely should validity windows be specified? Second-level granularity enables precise historical queries but adds storage overhead and increases the complexity of conflict detection. Most systems default to day-level granularity without explaining the tradeoff.
+Standard benchmarks for temporal reasoning in agents remain thin. LongMemEval covers some temporal question types, but realistic multi-session temporal reasoning with fact updates, deletions, and timeline reconstruction lacks agreed evaluation protocols. Performance claims from systems like Zep and Supermemory are tested on these benchmarks but self-reported.
 
-**User-facing transparency.** When an agent retrieves a fact and presents it as current, should it surface the fact's timestamp to the user? Current implementations don't expose this, which makes it impossible for users to verify or correct temporal assumptions.
+Cost at scale is underspecified in most implementations. Maintaining validity windows and running contradiction detection on every new fact becomes expensive as memory grows. None of the major open-source implementations (Zep, Mem0, OpenMemory) publish detailed cost curves for high-volume agents.
 
-**Cross-source temporal coherence.** If an agent ingests facts from multiple sources (a user conversation, a connected calendar, a business database), facts about the same entity from different sources may have conflicting timestamps or validity windows. No current system specifies a resolution policy for this case.
+Conflict resolution for concurrent updates — multiple agents writing to shared memory — has no established pattern. Most systems assume a single-writer model.
 
-**Training cutoff interaction.** Even with a perfect external temporal knowledge store, the model's internal knowledge can conflict with retrieved facts. The resolution strategy (retrieved facts override training knowledge? or blend?) is typically left to the model's general instruction following, which is inconsistent.
+## Related Concepts and Projects
 
-
-## Related
-
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — part_of (0.6)
-- [Claude](../projects/claude.md) — part_of (0.5)
-- [Model Context Protocol](../concepts/model-context-protocol.md) — part_of (0.5)
+- [Agent Memory](../concepts/agent-memory.md) — the broader category
+- [Episodic Memory](../concepts/episodic-memory.md) — event sequences that temporal reasoning orders
+- [Long-Term Memory](../concepts/long-term-memory.md) — persistence layer that temporal reasoning keeps fresh
+- [Knowledge Graph](../concepts/knowledge-graph.md) — primary substrate for temporal fact storage
+- [Memory Evolution](../concepts/memory-evolution.md) — how memory changes over time
+- [Continual Learning](../concepts/continual-learning.md) — model-level analog to temporal knowledge updates
+- [Zep](../projects/zep.md) — temporal knowledge graph for agent memory
+- [Graphiti](../projects/graphiti.md) — the temporal graph engine inside Zep
+- [LongMemEval](../projects/longmemeval.md) — benchmark with temporal reasoning tasks
+- [LoCoMo](../projects/locomo.md) — benchmark including temporal question types
+- [Supermemory](../projects/supermemory.md) — memory system with contradiction resolution and automatic forgetting
+- [OpenMemory](../projects/openmemory.md) — self-hosted memory with explicit temporal graph API
+- [Claude](../projects/claude.md) — LLM that implements temporal reasoning in context

@@ -3,155 +3,154 @@ entity_id: metagpt
 type: project
 bucket: multi-agent-systems
 abstract: >-
-  MetaGPT is a multi-agent framework encoding software engineering SOPs as
-  message-routing topology, where roles self-coordinate by subscribing to
-  upstream action output types rather than receiving explicit orchestration
-  commands.
+  MetaGPT encodes software engineering SOPs as pub-sub message routing between
+  LLM agents (PM, Architect, Engineer, QA), generating full codebases from a
+  single natural language prompt.
 sources:
-  - tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md
-  - repos/foundationagents-metagpt.md
-  - deep/repos/foundationagents-metagpt.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
-related:
-  - react
-last_compiled: '2026-04-08T02:51:22.766Z'
+  - deep/repos/foundationagents-metagpt.md
+  - repos/foundationagents-metagpt.md
+  - tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md
+related: []
+last_compiled: '2026-04-08T23:08:42.429Z'
 ---
 # MetaGPT
 
 ## What It Does
 
-MetaGPT turns a single natural-language requirement into a full software project by running a team of specialized LLM agents through a structured pipeline: Product Manager writes a PRD, Architect produces system design, Project Manager decomposes tasks, Engineers write code, and QA validates and debugs. The headline claim is `Code = SOP(Team)` — the coordination logic lives in the subscription topology, not in an orchestrator.
+MetaGPT converts a one-line requirement into a working software project by routing tasks through a team of specialized LLM agents: ProductManager, Architect, ProjectManager, Engineer, and QaEngineer. The central philosophy is `Code = SOP(Team)` — standard operating procedures are encoded directly into the coordination structure rather than written as explicit orchestration code.
 
-At 66,769 GitHub stars, MetaGPT is one of the most-forked multi-agent frameworks. The popularity reflects timing (early entrant in the software-agent space) as much as technical superiority. [Source](../raw/repos/foundationagents-metagpt.md)
+The architectural differentiator is that no orchestrator directs traffic. Instead, each role subscribes to the output types of upstream roles via `_watch()`. When ProductManager finishes `WritePRD`, the resulting message carries `cause_by="WritePRD"`, and Architect picks it up because it registered `self._watch([WritePRD])`. Adding a new role to a pipeline requires only declaring what it watches — zero changes to existing code.
 
-## Architecturally Unique: SOP as Message Routing
+This competes directly with [AutoGen](../projects/autogen.md), [CrewAI](../projects/crewai.md), and [LangGraph](../projects/langgraph.md), each taking a different stance on how much coordination logic lives in the framework versus the agents.
 
-Most multi-agent frameworks use an explicit orchestrator — one agent directs others. MetaGPT's central insight: encode the standard operating procedure implicitly through subscription topology. Each role registers which upstream action types it cares about via `_watch()`. No coordinator dispatches tasks. [Source](../raw/deep/repos/foundationagents-metagpt.md)
+**67K GitHub stars, MIT licensed, Python 3.9–3.11.**
 
-When ProductManager finishes `WritePRD`, the resulting `Message` carries `cause_by="WritePRD"`. The Environment's `publish_message()` checks every registered role's subscription addresses. Architect, watching for `WritePRD`, finds the message in its `msg_buffer`. Nothing more is needed.
+---
 
-This means adding a new role to a pipeline requires defining only what it watches — zero changes to existing roles or any central coordinator.
+## Core Architecture
 
-The framework has since evolved. The original "fixed SOP" mode uses hardcoded pipelines. The newer "MGX" mode introduces a `TeamLeader` agent that dynamically routes messages and decomposes tasks, partially re-centralizing coordination in exchange for flexibility.
+Four abstractions compose the entire system:
 
-## Core Mechanism
+**Role** (`metagpt/roles/role.py`): Base agent class with a `RoleContext` containing `memory` (all processed messages), `working_memory` (per-task scratch space), `msg_buffer` (async receive queue), `watch` (subscribed action types), and `react_mode` (BY_ORDER, REACT, or PLAN_AND_ACT). Fixed-SOP roles set `enable_memory = False` to avoid stale cross-project context, using the filesystem as shared state instead.
 
-### Four Abstractions
+**Action** (`metagpt/actions/action.py`): An executable unit, LLM-powered by default. `ActionNode` (`metagpt/actions/action_node.py`) provides structured output via Pydantic schemas — `WRITE_PRD_NODE` defines 15+ typed child nodes (user stories, competitive analysis, Mermaid diagrams, API endpoints) filled in a single LLM call with format enforcement and retry logic. `ActionGraph` allows dependency DAGs between ActionNodes within a single role.
 
-**Role** (`metagpt/roles/role.py`): Base agent class. Key state in `RoleContext`: `memory` (message history), `working_memory` (per-task scratch), `msg_buffer` (async receive queue), `watch` (subscription set), `react_mode` (BY_ORDER, REACT, or PLAN_AND_ACT).
+**Environment** (`metagpt/environment/base_env.py`): A pub-sub bus holding all roles, routing messages via `publish_message()`. For each registered role, it checks `is_send_to(message, addrs)` and pushes matching messages into the role's private `msg_buffer`. `Environment.run()` fires `asyncio.gather` across all non-idle roles, enabling parallel execution within a coordination round.
 
-**Action** (`metagpt/actions/action.py`): An executable LLM-powered operation. `ActionNode` (`metagpt/actions/action_node.py`) adds structured output via Pydantic schemas — the `WRITE_PRD_NODE` in `metagpt/actions/write_prd_an.py` defines 15+ typed child nodes (user stories, competitive analysis, API endpoints, Mermaid diagrams) filled in a single LLM call with schema validation.
+**Team** (`metagpt/team.py`): The top-level container. Owns the environment, tracks API budget via `CostManager`, and runs the main loop: call `env.run()` until all roles are idle or `NoMoneyException` fires. Default `n_round=3` bounds total rounds.
 
-**Environment** (`metagpt/environment/base_env.py`): The pub-sub bus. Holds all roles, their subscription addresses, and a shared history for debugging. `env.run()` fires `asyncio.gather` on all non-idle roles, enabling parallel execution within a coordination round.
+### The Role Execution Loop
 
-**Team** (`metagpt/team.py`): Top-level container. Manages budget via `CostManager`, runs the main loop until all roles are idle or budget is exhausted. Default `n_round=3` bounds total rounds.
+Each role's `run()` follows three phases:
 
-### The Software Company Pipeline
+1. **`_observe()`**: Pops messages from `msg_buffer`, filters by `cause_by in self.rc.watch`, adds to `self.rc.memory`. Returns zero if nothing relevant arrived — role stays idle.
 
-The default fixed-SOP pipeline in concrete terms:
+2. **`_think()`**: Selects the next action. BY_ORDER advances `self.rc.state` sequentially. REACT asks the LLM to output a number selecting from `states` list, parsed by `extract_state_value_from_output()`. PLAN_AND_ACT runs the Planner to generate a task DAG, then executes tasks with review cycles.
 
-1. **ProductManager** (watches `UserRequirement`) → runs `PrepareDocuments` then `WritePRD` → saves structured JSON PRD to `docs/prd/`
-2. **Architect** (watches `WritePRD`) → runs `WriteDesign` with data structures, API interfaces, Mermaid sequence diagrams → saves to `docs/system_design/`
-3. **ProjectManager** (watches `WriteDesign`) → runs `WriteTasks`, decomposes to ordered file list with dependencies → saves to `docs/task/`
-4. **Engineer** (watches `WriteTasks`, `SummarizeCode`) → iterates through task list running `WriteCode` per file, then `SummarizeCode` for consistency review; loops back via `MESSAGE_ROUTE_TO_SELF` if issues found
-5. **QaEngineer** (watches `SummarizeCode`) → `WriteTest` → `RunCode` → `DebugError` → routes failures back to Engineer
+3. **`_act()`**: Runs `self.rc.todo.run(self.rc.history)`, wraps output in a `Message`, returns it. The caller broadcasts via `publish_message()`.
 
-All roles disable memory (`enable_memory = False`) and use the `ProjectRepo` filesystem as shared persistent state.
+### The Default Software Pipeline
 
-### Message Routing
+In fixed-SOP mode:
 
-`Message` (`metagpt/schema.py`) carries: `cause_by` (producing action class), `sent_from` (producing role), `send_to` (recipients, defaults to `MESSAGE_ROUTE_TO_ALL`), `instruct_content` (typed Pydantic payload for structured inter-role communication), and `metadata` (extensible key-value store).
+1. **ProductManager** watches `UserRequirement` → runs `PrepareDocuments` (initializes git repo) then `WritePRD` → structured JSON saved to `docs/prd/`
+2. **Architect** watches `WritePRD` → runs `WriteDesign` → system design with Mermaid sequence diagrams saved to `docs/system_design/`
+3. **ProjectManager** watches `WriteDesign` → runs `WriteTasks` → ordered file implementation list saved to `docs/task/`
+4. **Engineer** watches `WriteTasks` → creates `WriteCode` actions per file, then `SummarizeCode` for consistency review; loops via `MESSAGE_ROUTE_TO_SELF` if issues found
+5. **QaEngineer** watches `SummarizeCode` → writes tests via `WriteTest`, executes via `RunCode`, debugs via `DebugError`
 
-### Three Execution Modes
+### The MGX Evolution
 
-**BY_ORDER**: Sequential through action list. Used by ProductManager (PrepareDocuments → WritePRD).
-
-**REACT**: LLM picks the next action by outputting a number selecting from the `states` list. Up to `max_react_loop` iterations. The LLM must output just an integer — noisy outputs default to state -1, terminating the role prematurely.
-
-**PLAN_AND_ACT**: Creates a `Plan` (DAG of `Task` objects) via `Planner`, executes tasks with review/confirmation cycles, adapts to failures by re-planning remaining tasks.
+The codebase maintains two coordination modes. The original fixed-SOP mode uses the hardcoded pipeline above. The newer MGX mode (`metagpt/environment/mgx/mgx_env.py`) introduces a **TeamLeader** agent that dynamically routes tasks. In MGX, every message passes through the TeamLeader first — it reads complexity (XS/S/M/L), decomposes work, and delegates via `publish_team_message(content, send_to)`. This trades the zero-central-coordinator elegance for explicit routing control, and introduces a single point of failure: if the TeamLeader misroutes, the pipeline stalls.
 
 ### RoleZero: Dynamic Tool Use
 
-`RoleZero` (`metagpt/roles/di/role_zero.py`) extends `Role` with dynamic tool selection. Rather than choosing from a fixed action list, it uses `BM25ToolRecommender` to select tools from a registry based on current context, generates JSON command arrays (e.g., `[{"command_name": "Editor.open_file", "args": {...}}]`), and executes them via `tool_execution_map`. Default `max_react_loop=50`. Built-in tools: `Editor`, `Browser` (Playwright), `Terminal`, `git_create_pull`, and more.
+`RoleZero` (`metagpt/roles/di/role_zero.py`) extends `Role` with dynamic tool selection. Rather than choosing from a fixed action list, RoleZero generates JSON command arrays the LLM outputs like `[{"command_name": "Editor.open_file", "args": {"path": "..."}}]` executed via `tool_execution_map`. The `BM25ToolRecommender` selects relevant tools per step. `max_react_loop=50` bounds iterations. Optional Chroma-backed `RoleZeroLongTermMemory` transfers old messages to vector storage when short-term capacity (`memory_k=200`) is exceeded.
 
-### Self-Improvement Extensions
-
-**AFlow** (`metagpt/ext/aflow/`) automatically optimizes agentic workflows through iterative graph modification and evaluation. Accepted as an oral at ICLR 2025 (top 1.8%), ranked #2 in the LLM-based Agent category. Evaluates on GSM8K, HotPotQA, HumanEval, MBPP, MATH, DROP.
-
-**SPO** (`metagpt/ext/spo/`) runs tournament-style prompt optimization: execute both old and new prompts on test questions, compare pairwise via LLM judge with randomized ordering, keep the winner.
-
-**Experience caching**: `@exp_cache` decorator on `llm_cached_aask` stores (request, response) pairs in a ChromaDB-backed vector store. `RoleZero` retrieves similar past solutions as few-shot context. A `SimplePerfectJudge` decides if a cached response qualifies as "perfect" and can be returned without an LLM call.
+---
 
 ## Key Numbers
 
-- **66,769 stars, 8,453 forks** as of April 2025 — community size is real; quality is harder to assess
-- **~$0.2** GPT-4 cost per analysis/design example, **~$2.0** per complete project — self-reported in README, no automated benchmark suite in the codebase validates these numbers
-- **AFlow ICLR 2025 oral acceptance** — independently validated academic result, though it benchmarks workflow optimization on academic datasets, not MetaGPT's software generation quality specifically
-- No public comparison of MetaGPT's multi-agent pipeline output against ChatDev, [AutoGen](../projects/autogen.md), or [CrewAI](../projects/crewai.md) on standardized software generation tasks
+| Metric | Value | Source |
+|--------|-------|--------|
+| GitHub stars | ~67K | Verified |
+| API cost per project | ~$2.00 (GPT-4) | Self-reported in README |
+| AFlow ICLR 2025 ranking | Top 1.8%, oral, #2 in LLM Agent category | Paper acceptance verified |
+| Supported LLM providers | 15+ | Verified from `metagpt/provider/` |
+
+The $2.00 cost figure is not reproduced by any benchmark in the test suite — `CostManager` tracks tokens per run, but no automated cost benchmark exists. Treat it as a rough order of magnitude.
+
+---
 
 ## Strengths
 
-**Composable SOP encoding**: The `_watch()` mechanism is a minimal, clean alternative to explicit DAG definitions. Adding roles without touching existing code is architecturally elegant and practically useful.
+**Composable coordination without an orchestrator.** The `_watch()` subscription model means the SOP is structural, not procedural. You can audit the full pipeline by reading which action types each role watches — no hidden routing logic in a central dispatcher.
 
-**Structured inter-role communication**: `instruct_content` with Pydantic models avoids the lossy natural-language-only message passing of simpler frameworks. Type-safe payloads between roles reduce parsing failures.
+**Typed inter-role communication.** `Message.instruct_content` carries Pydantic models between roles (`WritePRDOutput`, `WriteDesignOutput`), avoiding lossy string passing. `ActionNode` enforces schema at generation time with retry logic via tenacity.
 
-**Filesystem as shared state**: `ProjectRepo` provides a natural coordination primitive — roles read/write to known paths rather than passing large payloads through messages. Enables recovery and checkpointing.
+**Shared filesystem as durable state.** `ProjectRepo` gives all roles a structured, recoverable artifact store. Roles coordinate by reading known file paths rather than passing large payloads through messages. Combined with `Team.serialize()` checkpointing, this enables mid-pipeline crash recovery.
 
-**Serialization and recovery**: `Team.serialize()`/`Team.deserialize()` with `@serialize_decorator` auto-saves state after each round. `recovered = True` with `latest_observed_msg` enables mid-pipeline recovery after crashes, not just restart from scratch.
+**Budget as coordination primitive.** `CostManager` with `max_budget` and `NoMoneyException` provides hard cost limits across the entire agent team — transferable to any multi-agent system running against paid APIs.
 
-**Cost as coordination signal**: `NoMoneyException` from `CostManager` provides hard budget enforcement across an entire team. Prevents runaway API costs in multi-agent runs.
+**Multi-environment support.** Beyond software generation, MetaGPT ships Stanford-Town, Werewolf, Android, and Minecraft environments, each using the same Role/Action/Environment primitives with gymnasium-compatible interfaces.
 
-**Broad LLM provider support**: 15+ providers through `metagpt/provider/`, per-role `LLMConfig`, YAML-based configuration.
+---
 
 ## Critical Limitations
 
-**Message loss with no notification**: If no role's `member_addrs` matches a message's routing, `Environment.publish_message()` logs a warning but silently drops the message. In dynamic pipelines or with novel role compositions, tasks vanish without error.
+**Silent message loss.** If no role's `member_addrs` matches a message's routing target, `Environment.publish_message` logs a warning and drops the message. In novel role compositions or MGX with TeamLeader routing errors, tasks vanish with no exception or retry.
 
-**Round-bounded execution**: The default `n_round=3` caps coordination cycles. Complex software generation may require more than three passes through the PM → Architect → Engineer → QA loop. If rounds expire mid-pipeline, partial artifacts are produced without any signal to the user that work is incomplete.
+**Round-bounded execution.** The default `n_round=3` means complex projects that need more than three coordination rounds — a common case when QA finds bugs requiring re-implementation — simply stop. Partial artifacts remain in `ProjectRepo` without indication that work is incomplete. Users must manually tune `n_round` per project, and there is no adaptive bound.
 
-**Infrastructure assumption — synchronous filesystem access**: `ProjectRepo` assumes all roles share a local filesystem. Deploying MetaGPT across distributed machines or containerized roles requires implementing a shared filesystem or replacing `ProjectRepo` entirely. The documentation does not mention this.
+**Unspoken infrastructure assumption.** MetaGPT assumes a writable local filesystem for `ProjectRepo`. Cloud deployments, containerized environments with read-only filesystems, or any setup where the working directory is not writable will fail silently or raise unhandled IO errors. The framework has no abstraction layer for remote or object-store-backed repositories.
 
-## Concrete Failure Mode
+---
 
-The `Plan._topological_sort()` method contains a documented bug: "FIXME: if LLM generates cyclic tasks, this will result in infinite recursion." When the TeamLeader or Planner asks an LLM to generate a task dependency graph and the LLM produces a cycle, the system hangs. No cycle detection exists in the current codebase. [Source](../raw/deep/repos/foundationagents-metagpt.md)
+## When NOT to Use It
 
-## When NOT to Use MetaGPT
+**Short-lived or simple tasks.** The five-role pipeline adds 3–5 LLM calls before the first line of code is generated. For tasks solvable in a single well-prompted call, MetaGPT's SOP overhead produces worse latency and higher cost with no quality benefit.
 
-**Single-agent tasks with clear scope**: MetaGPT's coordination overhead — multiple LLM calls for PRD, design, task decomposition, and code review before a line of code is written — adds significant latency and cost for simple scripts or well-defined functions. A single-role `DataInterpreter` or a tool-augmented agent like [Claude Code](../projects/claude-code.md) will be faster and cheaper.
+**Weak model backends.** The MIPT coordination study cited in source material shows that self-organizing agent systems require models with strong self-reflection, multi-step reasoning, and instruction following. MetaGPT's dynamic modes (RoleZero, PLAN_AND_ACT) will degrade with models below Claude/GPT-4 tier — and REACT mode's LLM-driven state selection becomes unreliable. Fixed-SOP mode is more robust to weaker models but inflexible.
 
-**Tasks requiring dynamic agent count**: MetaGPT's Team is assembled before the run. You cannot spawn additional agents mid-execution based on task complexity. Systems like [AutoGen](../projects/autogen.md) or [LangGraph](../projects/langgraph.md) handle dynamic team composition better.
+**Concurrent multi-project workloads.** The `Context` object and `CostManager` are team-scoped singletons. Running multiple projects in the same process requires separate `Team` instances, and there is no built-in isolation of `ProjectRepo` paths. Cross-contamination of artifacts is possible if paths are not carefully managed.
 
-**When sequential coordination is suboptimal**: A large-scale coordination study found that protocol choice drives 3x more quality variation than model selection, and that rigid pre-assigned role hierarchies underperform emergent specialization in capable models. MetaGPT's fixed SOP mode is exactly the pre-assigned hierarchy that study found suboptimal for complex tasks. [Source](../raw/tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md)
+**Production services requiring auditability.** The implicit SOP graph encoded in `_watch()` subscriptions is hard to inspect programmatically. There is no graph export, no structured trace of which role produced which artifact, and no built-in observability hooks. Debugging a failed pipeline requires manually tracing `cause_by` chains across role memories.
 
-**Production environments requiring audit trails**: MetaGPT provides no structured logging of inter-agent message flows beyond the shared `Memory` list. Tracing why a specific design decision was made requires manually reconstructing the `cause_by` chain across multiple roles' memories. [Observability](../concepts/observability.md) is an afterthought.
+---
 
 ## Unresolved Questions
 
-**MGX commercial relationship**: MGX (mgx.dev) is a commercial product built on MetaGPT. The README promotes it. The relationship between the open-source framework and the commercial product — data sharing, prompt differences, which capabilities are gated — is not documented.
+**Conflict resolution for shared state.** When Engineer and QaEngineer both write to `ProjectRepo` during the same round, there is no file locking. Engineer serializes writes internally via `code_todos`, but cross-role conflicts are silently overwritten.
 
-**TeamLeader prompt versioning**: The TeamLeader prompt (`metagpt/prompts/di/team_leader.py`) contains extensive hardcoded routing rules and t-shirt sizing logic. How these rules are maintained, tested, or versioned as the framework evolves is unclear. A prompt change can silently break routing for entire task categories.
+**Cyclic task dependency detection.** `Plan._topological_sort()` contains a documented `FIXME`: if the LLM generates circular task dependencies, the sort infinite-loops. No cycle detection exists.
 
-**Conflict resolution for concurrent file writes**: Engineer and QaEngineer can both be active and writing to the project repository in the same coordination round. `ProjectRepo` provides file-level operations but no locking or conflict detection. The documentation does not address this.
+**Experience pool governance.** `RoleZeroLongTermMemory` accumulates (request, response) pairs in ChromaDB indefinitely. There is no eviction policy, TTL, or quality threshold for stored experiences beyond `SimplePerfectJudge`. At scale, retrieval quality degrades as the pool fills with stale or low-quality examples.
 
-**Scale cost model**: The README claims ~$2.00 per project at GPT-4 pricing. This was written before GPT-4 Turbo and o-series models changed pricing significantly. No updated cost analysis exists for current model pricing or for using local models via Ollama.
+**Scaling beyond the default team.** The MGX TeamLeader prompt contains hardcoded t-shirt sizing logic and role routing rules. How this prompt evolves as teams grow — and who maintains it — is not documented. The `max_react_loop=3` on the TeamLeader is a tight bound for complex delegation decisions.
+
+**Cost at scale.** The README's $2.00 estimate has no variance information, no breakdown by role, and no comparison across model providers. There is no tooling to predict cost before running a project.
+
+---
 
 ## Alternatives
 
-**[AutoGen](../projects/autogen.md)**: Use when you need dynamic conversation patterns between agents, flexible group chat orchestration, or integration with existing agent runtimes. MetaGPT's fixed pipelines are more predictable; AutoGen is more flexible.
+| Project | Choose when |
+|---------|-------------|
+| [AutoGen](../projects/autogen.md) | You need flexible conversation patterns between agents, not a fixed engineering pipeline, and want Microsoft ecosystem integration |
+| [CrewAI](../projects/crewai.md) | You want explicit role assignment with simpler configuration and don't need MetaGPT's SOP formalism |
+| [LangGraph](../projects/langgraph.md) | You need explicit graph-based workflow control with fine-grained state management and human-in-the-loop checkpoints |
+| [Claude Code](../projects/claude-code.md) / [Cursor](../projects/cursor.md) | Your task is code editing within an existing codebase rather than greenfield generation |
+| Single-agent with [ReAct](../concepts/react.md) | Your task is simple enough for one model; skip the coordination overhead entirely |
 
-**[CrewAI](../projects/crewai.md)**: Use when you want role-based multi-agent coordination with a simpler API and tighter integration with tool use. CrewAI lacks MetaGPT's structured output layer and experience caching but has cleaner onboarding.
+MetaGPT fits best when the output is a new software project from scratch, the task complexity justifies PM/Architect/Engineer specialization, and you're willing to accept higher latency and cost for structured artifact generation.
 
-**[LangGraph](../projects/langgraph.md)**: Use when you need explicit state machines with human-in-the-loop checkpoints, custom branching logic, or fine-grained control over agent coordination. MetaGPT's pub-sub topology is less inspectable than LangGraph's explicit graph.
-
-**[Claude Code](../projects/claude-code.md)**: Use for software generation tasks where a single capable agent with filesystem access and tool use outperforms multi-agent coordination overhead. For well-scoped coding tasks, the coordination cost of MetaGPT's SOP pipeline rarely pays off.
-
-**[DSPy](../projects/dspy.md)**: Use when the goal is prompt optimization and structured LLM pipelines rather than multi-agent coordination. DSPy's compiled prompts are more reproducible than MetaGPT's SOP-encoded workflows.
+---
 
 ## Related Concepts
 
-- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — the broader coordination paradigm MetaGPT instantiates
-- [ReAct](../concepts/react.md) — the observe-think-act loop that MetaGPT's `_observe → _think → _act` implements
-- [Agent Memory](../concepts/agent-memory.md) — MetaGPT's append-only `Memory` class with no eviction is a minimal implementation
-- [Human-in-the-Loop](../concepts/human-in-the-loop.md) — MetaGPT supports `AskReview` in PLAN_AND_ACT mode and `ask_human` fallback in RoleZero
-- [Self-Improving Agents](../concepts/self-improving-agents.md) — AFlow and SPO extensions implement meta-level self-improvement
-- [Context Engineering](../concepts/context-engineering.md) — each ActionNode's `instruction` field, experience retrieval injection, and `ProjectRepo` context assembly are all forms of context engineering for structured LLM outputs
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — the broader coordination paradigm MetaGPT implements
+- [Agent Memory](../concepts/agent-memory.md) — MetaGPT's append-only `Memory` class and `RoleZeroLongTermMemory`
+- [Context Engineering](../concepts/context-engineering.md) — how MetaGPT assembles role-specific context from project artifacts
+- [Human-in-the-Loop](../concepts/human-in-the-loop.md) — ActionNode's `ReviewMode.HUMAN` and Planner's `AskReview`
+- [Cognitive Architecture](../concepts/cognitive-architecture.md) — Role/Action/Environment as a cognitive architecture instantiation

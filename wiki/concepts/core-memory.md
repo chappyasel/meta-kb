@@ -3,42 +3,54 @@ entity_id: core-memory
 type: concept
 bucket: agent-memory
 abstract: >-
-  Core memory is a fixed-size, always-in-context text block giving agents
-  persistent knowledge of user identity and persona — differentiating it from
-  retrieved memory by guaranteeing presence in every prompt.
+  Core Memory is the always-present, editable in-context memory block that gives
+  agents persistent identity and user knowledge across sessions, implemented as
+  character-limited text blocks compiled directly into the system prompt.
 sources:
-  - repos/mirix-ai-mirix.md
-  - repos/wangyu-ustc-mem-alpha.md
-  - repos/jackchen-me-open-multi-agent.md
-  - deep/repos/wangyu-ustc-mem-alpha.md
   - deep/repos/jackchen-me-open-multi-agent.md
   - deep/repos/letta-ai-letta.md
+  - deep/repos/wangyu-ustc-mem-alpha.md
+  - repos/jackchen-me-open-multi-agent.md
+  - repos/mirix-ai-mirix.md
+  - repos/wangyu-ustc-mem-alpha.md
 related:
+  - retrieval-augmented-generation
   - episodic-memory
   - semantic-memory
-  - retrieval-augmented-generation
-last_compiled: '2026-04-08T02:52:56.029Z'
+last_compiled: '2026-04-08T23:09:59.016Z'
 ---
 # Core Memory
 
 ## What It Is
 
-Core memory is a reserved section of an LLM agent's context window containing information that must be present on every turn: who the user is, who the agent is, and any facts too critical to risk missing through retrieval failure. Unlike [Episodic Memory](../concepts/episodic-memory.md) or [Semantic Memory](../concepts/semantic-memory.md), core memory is not retrieved — it is always there.
+Core memory is a small, persistent text block that lives inside an agent's system prompt on every single inference call. While [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) pulls information from external stores on demand, core memory never leaves context. It is the agent's working identity: what it knows about itself, the user, and the current task.
 
-The concept originated in [MemGPT](../projects/memgpt.md) (arXiv:2310.08560), where the authors framed context windows as RAM and external storage as disk. Core memory maps to the always-resident portion of RAM: the data you cannot afford to page out. [Letta](../projects/letta.md) productionized this into an explicit API, and several downstream systems (MIRIX, Mem-alpha) adopted or extended the abstraction.
+The concept originated in the [MemGPT](../projects/memgpt.md) paper (arXiv:2310.08560) and became the architectural centerpiece of [Letta](../projects/letta.md). The analogy is RAM versus disk. Core memory is RAM — small, fast, always accessible. Archival and episodic stores are disk — large, searchable, but requiring an explicit read operation to load.
+
+## Why It Matters
+
+Most LLM sessions are stateless. Every new conversation starts from scratch, requiring the user to re-establish context. This is tolerable for one-off tasks but breaks down for personal assistants, long-running research agents, and multi-session workflows where continuity matters.
+
+Core memory solves the statelessness problem by giving the agent a small, persistent scratch pad that survives across sessions. Crucially, agents can modify this scratch pad themselves through tool calls, so the memory reflects what the agent has learned, not just what a developer pre-loaded.
+
+This makes it distinct from a static system prompt. A static system prompt is read-only. Core memory is read-write. The agent can add, replace, or reorganize content as it learns more about the user or task context.
 
 ## How It Works
 
-### The Block Model (Letta)
+### The Block Data Structure
 
-In Letta's implementation, core memory consists of named `Block` objects compiled directly into the system prompt before every LLM call. Each block has:
+In Letta's implementation (`letta/schemas/block.py`), a core memory block is:
 
-- **label** — a human-readable name (`human`, `persona`, `knowledge`)
-- **value** — the actual text content the agent reads and modifies
-- **limit** — a character cap (default `CORE_MEMORY_BLOCK_CHAR_LIMIT`, typically 5,000 characters per block)
-- **read_only** — whether the agent can modify it via tool calls
+```python
+class Block(BaseBase):
+    value: str        # The actual text content
+    limit: int        # Character cap (not token cap)
+    label: str        # e.g. "human", "persona", "knowledge"
+    description: str  # Shown in context so the agent understands the block's purpose
+    read_only: bool   # Whether the agent can modify it
+```
 
-`Memory.compile()` renders these blocks into XML-structured text injected into the system prompt:
+A `Memory` object holds a list of these blocks. Before each LLM call, `Memory.compile()` renders all blocks into XML-structured text that gets injected into the system prompt:
 
 ```xml
 <memory_blocks>
@@ -55,125 +67,127 @@ The user's name is Alice. She prefers dark mode.
 </memory_blocks>
 ```
 
-The agent sees this metadata and knows its own memory constraints — how full each block is, how much space remains.
+The metadata section (character count, limit) appears in every call. The agent sees not just the content but also how much space remains, enabling it to decide when to consolidate versus append.
 
-[Source](../raw/deep/repos/letta-ai-letta.md)
+### Self-Modification via Tool Calls
 
-### Self-Modification via Tools
+The agent modifies its own core memory through tool functions defined in `letta/functions/function_sets/base.py`:
 
-Agents update core memory through tool calls, not through fine-tuning or gradient updates. Letta provides three mechanisms:
+**`core_memory_replace(label, old_content, new_content)`** — Exact string replacement. If `old_content` is not found, the call fails. This forces the agent to be precise about what it is changing, preventing accidental overwrites of adjacent content.
 
-**`core_memory_replace(label, old_content, new_content)`** — exact string replacement. Fails if `old_content` is not found verbatim. Forces precision; prevents accidental overwrites.
+**`core_memory_append(label, content)`** — Appends text with a newline. Simple but prone to block fragmentation over many sessions.
 
-**`core_memory_append(label, content)`** — appends with a newline. Simple but produces fragmented blocks over time.
+**`rethink_memory(new_memory, target_block_label)`** — Replaces the entire block. The agent must regenerate all existing content along with any additions. This addresses fragmentation by allowing complete reorganization, at the cost of requiring the agent to hold the full block in its reasoning.
 
-**`rethink_memory(new_memory, target_block_label)`** — wholesale rewrite of the entire block. The agent regenerates all content from scratch. Addresses fragmentation but requires the agent to reconstruct everything it wants to keep.
+Each tool call triggers a new LLM turn. A user message like "I prefer dark mode" may cause the agent to call `core_memory_append("human", "Prefers dark mode interfaces.")` in a non-visible reasoning step before responding to the user. The updated block is then persisted to the database and reflected in every subsequent system prompt.
 
-A newer `memory()` multi-command tool treats blocks like versioned files, supporting create, str_replace, insert at line number, delete, and rename — backed optionally by git for rollback.
+### Compilation into the System Prompt
 
-This architecture means an agent's "learning" happens entirely in token space. When the agent decides Alice prefers dark mode, it calls `core_memory_replace` on the `human` block. That change persists to the database and appears in every subsequent system prompt. No weight update, no retraining — just an LLM editing a string in its own prompt.
+The `_rebuild_memory_async` method in `BaseAgent` runs before each LLM call:
 
-[Source](../raw/deep/repos/letta-ai-letta.md)
+1. Refresh block values from the database
+2. Compile all blocks into a string via `Memory.compile()`
+3. Compare with the current system message
+4. If changed, update the stored system message
 
-### Relationship to Other Memory Tiers
+The full system prompt assembly order is: base instructions (read-only) → compiled memory blocks (editable) → metadata about external stores → recent messages → historical summaries. Core memory sits near the top, before retrieved content, making it the highest-priority context the model sees.
 
-Core memory sits at the top of a three-tier hierarchy:
+### Character Limits, Not Token Limits
 
-| Tier | Location | Access | Bounded by |
-|------|----------|--------|------------|
-| Core memory | System prompt (in-context) | Always present | Character limit per block |
-| Recall memory | Database | Explicit search via `conversation_search` | Storage capacity |
-| Archival memory | Vector database | Explicit search via `archival_memory_search` | Storage capacity |
+Blocks enforce character limits (default `CORE_MEMORY_BLOCK_CHAR_LIMIT`), not token limits. This is simpler to implement but less precise — 5,000 characters of dense code consumes far more tokens than 5,000 characters of English prose. The context overflow check uses a 90% multiplier as a safety margin, but a block at its character limit could still push total context well above comfortable levels depending on content type.
 
-The critical distinction: recall and archival memory require the agent to search. Core memory requires nothing — it shows up whether the agent asks for it or not. This is both the strength and the design constraint.
+### Persistence and Cross-Agent Sharing
 
-[Source](../raw/deep/repos/letta-ai-letta.md)
+Each block has a unique `block_id` and is stored in the database independently. This enables two important capabilities:
 
-### The Mem-alpha Variant
+**Cross-session persistence**: Block values survive conversation resets. The agent picks up exactly where it left off on the next session.
 
-Mem-alpha (UCSD, arXiv:2509.25911) uses a structurally similar but operationally different core memory. Its implementation in `memory.py` defines core as a single string capped at 512 tokens — stricter than Letta's per-block limit. The key difference is *how* an agent decides what goes there: Mem-alpha trains a 4B-parameter model via GRPO (reinforcement learning) to autonomously decide when information deserves core placement versus semantic or episodic storage.
-
-The RL reward function:
-```
-reward = QA_accuracy + beta * compression_reward + gamma * content_type_reward
-```
-
-The `content_type_reward` (gamma=0.1) penalizes misclassification — putting episodic facts in semantic memory, or transient details in core. This teaches the model that core memory is for essential invariants, not everything important.
-
-Trained on 30K-token contexts, Mem-alpha's core memory management generalizes to 400K+ tokens (self-reported; the 13x length generalization claim has not been independently validated).
-
-[Source](../raw/deep/repos/wangyu-ustc-mem-alpha.md)
-
-### MIRIX's Six-Tier Extension
-
-MIRIX extends the core memory concept into a six-agent architecture: Core, Episodic, Semantic, Procedural, Resource, and Knowledge Vault — each managed by a dedicated subagent. Core memory in MIRIX retains the MemGPT/Letta semantics (user identity, persona), but specialized stores handle different information types. The design argument is that routing queries to domain-specific stores outperforms a flat vector index for retrieval relevance.
-
-[Source](../raw/repos/mirix-ai-mirix.md)
+**Cross-agent sharing**: Multiple agents can hold references to the same block. If a research agent and a writing agent both reference a shared `project_context` block, updates from either agent are visible to the other on their next call. This is the foundation of Letta's multi-agent coordination patterns — shared blocks function as a typed communication channel between agents operating on the same task.
 
 ## Who Implements It
 
-- **[Letta](../projects/letta.md)** — the canonical production implementation; core memory is a first-class API concept with block CRUD operations, shared blocks across agents, and visual inspection in the Agent Development Environment
-- **[MemGPT](../projects/memgpt.md)** — the research origin; the MemGPT paper introduced the concept in the context of document QA and multi-session chat
-- **Mem-alpha** — research extension that trains core memory management as a learnable RL policy
-- **MIRIX** — production personal assistant that forks Letta's framework and extends core memory with five additional specialized memory types
+**[Letta](../projects/letta.md)** (formerly MemGPT) is the canonical implementation, with core memory as the central abstraction around which the entire platform is organized. Letta exposes full CRUD access to blocks via REST API, enabling developers to read and modify agent memory externally.
+
+**[Mirix](../projects/mem0.md)** treats its "Core Memory Agent" as one of six specialized memory agents (alongside Episodic, Semantic, Procedural, Resource, and Knowledge Vault). Its core memory holds "human" and "persona" blocks, initialized via config and updated during screen capture processing.
+
+**[Mem-alpha](../projects/memgpt.md)** (arXiv:2509.25911) makes core memory one of three tiers (alongside semantic and episodic) in a system where the memory agent itself is trained via [GRPO](../concepts/grpo.md) reinforcement learning to decide when to write to core versus other stores. Core memory is capped at 512 tokens and reserved for the most critical persistent context.
+
+**[CLAUDE.md](../concepts/claude-md.md)** files serve a functionally equivalent role for coding agents like [Claude Code](../projects/claude-code.md): persistent, always-in-context text about the project and user preferences that the agent reads on every call. The key difference is that CLAUDE.md files are version-controlled and developer-authored rather than agent-edited.
+
+## Relationship to Other Memory Types
+
+Core memory sits at the top of a [Long-Term Memory](../concepts/long-term-memory.md) hierarchy:
+
+| Memory Type | Location | Access Method | Agent Can Write? |
+|---|---|---|---|
+| Core Memory | System prompt | Always available | Yes, via tools |
+| [Episodic Memory](../concepts/episodic-memory.md) | External store | Explicit retrieval | Yes, via tools |
+| [Semantic Memory](../concepts/semantic-memory.md) | External store | Semantic search | Yes, via tools |
+| [Working/Short-Term Memory](../concepts/short-term-memory.md) | Context window | Implicit | Not persisted |
+
+[RAG](../concepts/retrieval-augmented-generation.md) retrieves from episodic and semantic stores. Core memory is not retrieved — it is compiled. This distinction matters: retrieval can fail to surface relevant content, retrieval costs tokens on every query, and retrieval introduces latency. Core memory has none of these failure modes within its character limit, but it does not scale beyond a few thousand tokens.
+
+In practice, well-designed agents use core memory for facts that are almost always relevant (user name, preferences, current project goal) and episodic/semantic stores for facts that are only sometimes relevant (past conversations, reference documents). The agent's memory tools let it promote information from retrieval stores into core memory when something becomes repeatedly relevant.
 
 ## Strengths
 
-**Guaranteed availability.** Core memory does not fail retrieval. A vector search can return nothing relevant; a keyword search can miss the right document. Core memory shows up on every turn, regardless of query quality. For baseline facts that must never be missing (the user's name, the agent's role, critical constraints), this reliability is worth the context cost.
+**Zero retrieval latency**: Core memory is always in context. There is no vector search, no BM25 pass, no additional LLM call. The agent sees core memory on every inference call with no extra work.
 
-**Agent self-awareness.** Because core memory appears in the system prompt with explicit character counts and limits, the agent knows how full its own memory is. This enables proactive management — the agent can reorganize blocks when approaching capacity, rather than silently truncating.
+**Agent-visible memory state**: Unlike external databases, the agent can read its own core memory directly. It knows what it knows. This enables the agent to reason about gaps in its knowledge ("I don't have the user's timezone yet") and act to fill them.
 
-**Inspectable and overridable.** Unlike fine-tuned weights or opaque vector stores, core memory is readable text. Developers can inspect exactly what the agent "knows," modify it through the API, and override incorrect information without retraining.
+**Inspectable by developers**: Because core memory is text in a database, developers can read and modify it via API without any special tooling. This makes debugging straightforward: you can see exactly what the agent currently believes about a user and correct errors directly.
 
-**Cross-agent sharing.** In Letta, multiple agents can reference the same block. A researcher agent and a reviewer agent can share a `project_context` block, reading and writing to shared state without message passing.
+**Cross-session continuity**: An agent with well-maintained core memory provides a qualitatively different experience than a stateless one. Users do not repeat themselves. The agent builds on prior context rather than starting fresh.
 
 ## Critical Limitations
 
-**Character limits are a blunt instrument.** Letta enforces per-block character limits, not token limits or information-theoretic relevance. A block at 5,000 characters might consume wildly different token counts depending on content density. More importantly, the limit forces the agent to decide what to drop based on length rather than importance. When a block fills up, the agent must either truncate, reorganize, or lose something — and there is no algorithm ensuring the right thing gets dropped.
+**Bounded by character limits, not relevance**: Core memory does not grow gracefully. Once blocks approach their character limits, the agent must actively consolidate, delete, or reorganize content. This consolidation is itself an LLM call, and lower-capability models may handle it poorly — overwriting important content, creating redundancy, or refusing to delete anything.
 
-**Concrete failure mode:** An agent managing a long user relationship accumulates preferences, constraints, and history in the `human` block. As the block approaches its limit, `core_memory_append` calls fail silently or require the agent to call `rethink_memory`, regenerating the entire block. A model with weak instruction-following may omit important facts during regeneration. Information loss is undetectable — the agent does not know what it forgot, and neither does the developer without comparing block snapshots.
+The specific failure mode: an agent serving a user for months will accumulate outdated preferences, superseded project goals, and stale context in its blocks. Without active maintenance (either by the agent itself or a background [sleeptime agent](../projects/letta.md)), block content drifts toward representing the past rather than the present.
 
-**Unspoken infrastructure assumption:** Core memory in Letta requires PostgreSQL for persistence. The blocks are fetched from the database before every LLM call via `_rebuild_memory_async`. In high-frequency agent deployments, this is a per-turn database read. The documentation does not address connection pooling, read latency under load, or what happens if the database is briefly unavailable mid-conversation. Any infrastructure running Letta at scale inherits this dependency without explicit guidance on managing it.
+**Infrastructure assumption — database persistence**: Core memory only works if blocks are durably stored between sessions. This requires a database (Letta uses PostgreSQL via SQLAlchemy). Any deployment pattern that recreates agent objects without restoring database state silently discards all learned memory. The abstraction looks simple (text blocks), but it depends on a stateful persistence layer that many serverless and ephemeral deployment patterns do not provide.
 
 ## When NOT to Use It
 
-**Don't use core memory for information that changes frequently.** If a fact updates every few turns (current task status, recent search results, running totals), storing it in core memory means the agent repeatedly pays tool-call overhead to update blocks. Use in-context variables or passing data through message content instead.
+**Short-lived or single-session agents**: If the agent will never see the same user twice, the overhead of maintaining and updating core memory blocks adds LLM calls without any benefit. A static system prompt suffices.
 
-**Don't use core memory as a substitute for structured storage.** Core memory stores unstructured text. "What is Alice's relationship to Bob?" requires the agent to parse its own block text on every turn. For applications with many entities and relationships, a knowledge graph (see [Graphiti](../projects/graphiti.md) or [Knowledge Graph](../concepts/knowledge-graph.md)) handles relational queries far more efficiently.
+**High-throughput pipelines**: Core memory blocks are per-agent. In pipelines processing thousands of independent documents or queries, maintaining separate core memory for each run consumes database resources and adds update latency for zero benefit.
 
-**Don't rely on core memory for information that requires temporal reasoning.** Core memory is a static snapshot; it does not inherently track when facts changed or sequence events. If the application needs to reason about "what did the user say last Tuesday versus today," recall memory with timestamp filtering is the right tool.
+**When retrieval precision matters more than latency**: For tasks where the relevant context changes dramatically between turns (e.g., a customer support agent handling different users back-to-back), core memory's always-in-context nature becomes a liability — it injects user-specific content that may be irrelevant or misleading for the current context. Retrieval-on-demand is more precise here.
 
-**Don't use it when context is already scarce.** Each block plus its metadata header consumes tokens on every turn. An agent with five blocks might spend 300+ tokens just on memory scaffolding before any task content. For models with small context windows or tasks with long tool outputs, core memory competes for space that productive reasoning needs.
+**When the agent lacks good judgment**: Core memory self-modification works well only when the agent has the reasoning capability to decide what deserves permanent storage. Models below ~7B parameters tend to write redundant entries, fail to consolidate, or use `rethink_memory` to wholesale replace blocks with summaries that omit critical detail. In these cases, developer-managed blocks (read-only from the agent's perspective) are safer.
 
 ## Unresolved Questions
 
-**How should blocks be sized across different model context windows?** The 5,000-character default per block and 512-token limit in Mem-alpha were chosen for specific models. There is no published guidance on how to calibrate block sizes when switching models with different context windows, or how to detect when block sizes are causing degraded performance.
+**Conflict resolution across agents**: When multiple agents share a block, there is no locking or merge protocol. If Agent A and Agent B both write to a shared block in rapid succession, the last write wins. Letta's documentation describes shared blocks as a coordination mechanism but does not specify how write conflicts are detected or resolved.
 
-**What prevents core memory from becoming a dumping ground?** Without a compression reward (like Mem-alpha's beta parameter), agents trained to be "helpful" may fill core memory with everything they encounter rather than curating for importance. Letta's documentation describes reorganization as a capability, but there is no mechanism that enforces it. Memory hygiene depends entirely on prompt engineering and model quality.
+**Memory quality measurement**: There is no built-in metric for block health. An agent might maintain syntactically valid blocks that are semantically stale, contradictory, or bloated. The mem-alpha research (arXiv:2509.25911) shows that RL-trained agents learn better memory construction strategies, but production deployments have no equivalent feedback loop.
 
-**Governance at scale:** In multi-agent deployments with shared blocks, there is no documented conflict resolution when two agents attempt to update the same block simultaneously. The block system uses database persistence, but the documentation does not address concurrent write behavior, optimistic locking, or what happens when agents diverge in their view of shared state.
+**Cost at scale**: Each core memory update is a full LLM call. For a personal assistant that learns something new on every turn, this could add 10-30% to inference costs. Letta's documentation does not provide per-agent memory maintenance cost estimates.
 
-**Cost at scale:** Every Letta agent turn includes a database read (fetch blocks) and potentially a database write (update blocks). For a deployment with thousands of concurrent agents, the per-turn cost of the block persistence layer is undocumented.
+**Optimal block structure**: Whether to use one large block or many small labeled blocks affects retrieval quality, consolidation behavior, and context overhead. There is no published guidance on optimal block cardinality or character limits for different use cases.
 
 ## Alternatives and Selection Guidance
 
-**Use [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)** when the information volume exceeds what fits in a fixed context block, retrieval accuracy is acceptable, and you can tolerate occasional misses. RAG scales where core memory cannot.
+**Use static system prompts** when memory never needs to change after deployment. Simpler, cheaper, and impossible to corrupt through bad writes.
 
-**Use [Episodic Memory](../concepts/episodic-memory.md)** for time-stamped event storage where recency and sequence matter more than guaranteed presence in every prompt.
+**Use [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)** when the relevant context varies significantly across turns and cannot be predicted in advance. RAG can surface relevant content from millions of documents; core memory cannot.
 
-**Use [Semantic Memory](../concepts/semantic-memory.md)** for large factual knowledge bases where search over many documents is more useful than guaranteed availability of a few facts.
+**Use [Mem0](../projects/mem0.md)** when you want automatic fact extraction without building memory management tools into your agent. Mem0 extracts and structures facts from conversation automatically; core memory requires the agent itself to decide what to write.
 
-**Use [Long-Term Memory](../concepts/long-term-memory.md) systems like [Mem0](../projects/mem0.md) or [Zep](../projects/zep.md)** when you want automatic extraction without requiring the agent to explicitly manage what gets stored. These trade the agent's fine-grained control for operational simplicity.
+**Use [Episodic Memory](../concepts/episodic-memory.md) plus RAG** when conversation history matters but the agent does not need persistent identity across sessions. Episodic stores are queryable and unbounded; core memory is bounded and always-present.
 
-**Use [Graphiti](../projects/graphiti.md)** when the knowledge base contains many entities with relationships and you need structured queries across them. The knowledge graph handles relational reasoning that core memory's unstructured text cannot.
-
-**Use core memory** when a small set of facts must be present on every turn without fail — the user's identity, the agent's persona, critical constraints that should never be absent. Keep it small, keep it stable, and use other memory tiers for everything that retrieval can handle.
+**Use core memory** when the agent needs persistent, always-available identity — user name, long-running project goals, persistent preferences, agent persona — and you can afford the database infrastructure to back it.
 
 ## Related Concepts
 
-- [Agent Memory](../concepts/agent-memory.md) — the broader taxonomy of memory in agent systems
-- [Context Engineering](../concepts/context-engineering.md) — managing what goes into the context window and when
-- [Context Management](../concepts/context-management.md) — strategies for fitting relevant information into fixed context windows
-- [Short-Term Memory](../concepts/short-term-memory.md) — the in-context counterpart; messages and immediate state rather than persistent facts
-- [Procedural Memory](../concepts/procedural-memory.md) — agent skills and behaviors, often stored separately from factual core memory
-- [Memory Evolution](../concepts/memory-evolution.md) — how agent memory changes over time, including core memory updates
+- [Agent Memory](../concepts/agent-memory.md)
+- [Long-Term Memory](../concepts/long-term-memory.md)
+- [Episodic Memory](../concepts/episodic-memory.md)
+- [Semantic Memory](../concepts/semantic-memory.md)
+- [Context Engineering](../concepts/context-engineering.md)
+- [Context Management](../concepts/context-management.md)
+- [CLAUDE.md](../concepts/claude-md.md)
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
+- [Letta](../projects/letta.md)
+- [MemGPT](../projects/memgpt.md)

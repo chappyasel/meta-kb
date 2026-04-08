@@ -112,12 +112,14 @@ async function fetchArxivMetadata(id: string): Promise<ArxivPaper | null> {
 
 interface IngestOptions {
   seen?: Set<string>;
+  force?: boolean;
 }
 
 export async function ingestArxivPapers(
   inputs: string[],
   opts: IngestOptions = {},
 ): Promise<string[]> {
+  const { force = false } = opts;
   const seen = opts.seen ?? (await loadSeen());
   const written: string[] = [];
 
@@ -132,7 +134,7 @@ export async function ingestArxivPapers(
       }
 
       const url = canonicalUrl(id);
-      if (seen.has(normalizeUrl(url))) {
+      if (!force && seen.has(normalizeUrl(url))) {
         console.log(`  skip (already seen): ${id}`);
         continue;
       }
@@ -161,7 +163,7 @@ export async function ingestArxivPapers(
       const lastNameSlug =
         paper.authors[0]?.split(" ").pop()?.toLowerCase() ?? "unknown";
       const slug = slugify(`${lastNameSlug}-${paper.title.slice(0, 50)}`);
-      const filePath = await writeRawSource("papers", slug, frontmatter, body);
+      const filePath = await writeRawSource("papers", slug, frontmatter, body, force);
       written.push(filePath);
 
       // arXiv rate limit: 3 second delay between requests

@@ -3,161 +3,170 @@ entity_id: memento
 type: project
 bucket: agent-memory
 abstract: >-
-  Memento is a case-based reasoning agent framework that improves task
-  performance without updating model weights, storing trajectories in a Case
-  Bank and retrieving them to guide planning — distinguished by a
-  memory-augmented MDP formulation and two-mode CBR inference (parametric and
-  non-parametric).
+  Memento is a dual-project family (research agent + skills framework) enabling
+  LLM agents to improve from experience without weight updates, via case-based
+  reasoning and a read-write skill evolution loop.
 sources:
-  - repos/agent-on-the-fly-memento.md
-  - repos/memento-teams-memento-skills.md
+  - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
   - deep/repos/anthropics-skills.md
   - deep/repos/memento-teams-memento-skills.md
-  - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
+  - repos/agent-on-the-fly-memento.md
+  - repos/memento-teams-memento-skills.md
+  - tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md
 related:
   - agent-skills
-  - model-context-protocol
-  - react
-last_compiled: '2026-04-08T03:00:32.690Z'
+last_compiled: '2026-04-08T23:17:41.789Z'
 ---
 # Memento
 
-## What It Does
+## What It Is
 
-Memento is a continual-learning framework for LLM agents that sidesteps the cost of fine-tuning by treating experience as a retrievable external memory rather than gradient updates. When an agent completes or fails a task, Memento logs the final-step tuple (s_T, a_T, r_T) — state, action, reward — into a Case Bank. On subsequent tasks, a neural case-selection policy retrieves relevant past trajectories and injects them into the planning context, steering the agent toward solutions that have worked before and away from patterns that have failed.
+"Memento" names two related but distinct projects that share a core thesis: LLM agents can accumulate capability through external memory rather than model retraining.
 
-The project exists in two closely related forms: the original **Memento** repository (2,375 stars, MIT license, `Agent-on-the-Fly/Memento`) focused on the CBR-over-MDP research contribution, and **Memento-Skills** (916 stars, `memento-teams/memento-skills`) which extends the same philosophy into a production agent framework with skill self-evolution, GUI, IM integrations, and a cloud skill marketplace. This card covers both, treating the former as the research core and the latter as the deployment extension.
+**Memento (research agent)** ([Agent-on-the-Fly/Memento](../raw/repos/agent-on-the-fly-memento.md)) is an academic system with 2,375 stars implementing case-based reasoning (CBR) for continual learning. It frames agent improvement as memory-augmented reinforcement learning over a memory-augmented MDP. The model parameters stay frozen; all learning accumulates in a Case Bank of trajectories.
+
+**Memento-Skills** ([memento-teams/memento-skills](../raw/deep/repos/memento-teams-memento-skills.md)) is a production framework with 916 stars that operationalizes the same thesis through an evolving skill library. Where the research project focuses on trajectory replay, the skills framework focuses on skill rewriting and the [Agent Skills](../concepts/agent-skills.md) ecosystem around agentskills.io.
+
+Both share a homepage at memento.run. This card covers both, with emphasis on the skills framework since it has richer implementation documentation.
+
+## Architectural Uniqueness
+
+Most agent memory systems treat stored knowledge as read-only at inference time. Mem0, Zep, and Letta write memories but those memories are declarative facts, not executable capabilities. Memento-Skills makes the skill library itself mutable: after each task execution, a reflection phase can rewrite the skill that ran, adjust its utility score, or create an entirely new skill from failure analysis. The agent's tool repertoire changes during deployment without touching model weights.
+
+This implements genuine [Continual Learning](../concepts/continual-learning.md) at the capability layer, not the parameter layer. The comparison the README draws is apt: pre-training and fine-tuning update θ; Memento updates M (external skill memory). The bottleneck shifts from compute budget to skill quality.
 
 ## Core Mechanism
 
-### Memory-Augmented MDP
-
-The foundational contribution is reframing agent learning as online reinforcement learning over a memory-augmented Markov Decision Process. Model parameters θ stay frozen; all adaptation happens in external skill memory M. The formal claim: you can achieve continual learning by optimizing what goes into M and how you read from it, without touching the LLM itself. This inverts the typical RAG paradigm — rather than augmenting retrieval for static inference, it augments the agent's decision-making loop with case-based reasoning as a learned policy.
-
-### Two-Stage Planner–Executor Loop
-
-**Planner** (GPT-4.1 default): Decomposes the incoming query into executable subtasks using case retrieval. Retrieved cases appear in planning context as demonstrations of what to attempt and what to avoid.
-
-**Executor** (o3 or local model via vLLM): Runs each subtask as an [Model Context Protocol](../concepts/model-context-protocol.md) client. Tool calls flow through a unified MCP interface covering web search (SearxNG), document processing (PDF, Office, audio, video), sandboxed code execution, and data analysis.
-
-After execution, outcomes write back into the Case Bank — success cases raise retrieval priority, failure cases lower it or trigger skill rewriting in the Memento-Skills variant.
-
-### Two CBR Inference Modes
-
-**Non-parametric CBR** (released August 2025): Retrieval via embedding similarity over the case store. No learned retrieval policy — closest cases by vector distance inform planning context. Lower setup cost.
-
-**Parametric CBR** (released October 2025): A neural case-selection policy trained to predict case utility given the current state. Requires PyTorch 2.0+ with CUDA. Higher setup cost but better selection on tasks where surface similarity is a poor proxy for case relevance.
-
 ### The Read-Execute-Reflect-Write Loop (Memento-Skills)
 
-The Memento-Skills extension adds a full four-stage pipeline around skills as mutable entities:
+The `core/memento_s/phases/` directory implements a 4+1 stage pipeline:
 
-1. **Read**: `SkillGateway.search()` runs `MultiRecall` — parallel BM25 (keyword), sqlite-vec (semantic), and remote cloud catalog — then reranks with local-first priority.
-2. **Execute**: `SkillExecutor` runs a ReAct loop capped at 30 turns per skill. Three saturation detectors abort early: `LoopDetector` (max 6 consecutive observation tools, min 15% effect ratio in a 10-action window), `InfoSaturationDetector` (similarity_threshold=0.6, entity_overlap_threshold=0.7), `StatefulErrorPatternDetector` (8 predefined error signatures with normalized fingerprinting).
-3. **Reflect**: A `ReflectionDecision` supervisor chooses among CONTINUE, IN_PROGRESS, REPLAN, FINALIZE, or ASK_USER. Per-step React budget is 5 iterations; global replan budget is 2. Budget exhaustion triggers forced decisions rather than infinite retries.
-4. **Write**: Failed executions trigger skill utility score adjustment, prompt rewriting, or new skill creation. The revised skill writes back to the skill store.
+1. **Intent Recognition**: Classifies the message as `DIRECT | INTERRUPT | CONFIRM | AGENTIC`
+2. **Planning**: Decomposes into `PlanStep` objects with explicit `input_from` dependency edges, forming a DAG. The `validate_plan()` function checks no forward references or self-references exist.
+3. **Execution**: A ReAct loop (max 30 turns) per skill. The `ToolBridge` in `tool_bridge/` handles argument validation and result normalization.
+4. **Reflection**: A supervisor that emits one of five decisions: `CONTINUE | IN_PROGRESS | REPLAN | FINALIZE | ASK_USER`. Budget constraints cap this at 5 ReAct iterations per step and 2 replans per run; exhausted budgets force hard overrides to prevent infinite loops.
+5. **Finalize**: Structured result summarization.
 
-Skills are Pydantic `Skill` models with fields for version counter, utility score, allowed_tools whitelist, required API keys, and auto-inferred `ExecutionMode`: KNOWLEDGE (SKILL.md provides instructions) or PLAYBOOK (directory contains executable scripts).
+After reflection, the system writes back: successful skills get utility score increments; failed skills get prompt/code rewrites or replacement. This is the loop that makes the skill library mutable.
 
-### Skill Retrieval Data Structure
+### Case-Based Reasoning (Research Agent)
 
+The research Memento stores final-step tuples `(s_T, a_T, r_T)` in a Case Bank. A CBR-driven Planner retrieves relevant past cases when decomposing new tasks. Two retrieval modes exist: non-parametric (semantic similarity over stored cases) and parametric (a neural case-selection policy that learns which cases transfer well). The parametric variant requires PyTorch with CUDA.
+
+A two-stage architecture separates concerns: a Meta-Planner using GPT-4.1 handles decomposition and case retrieval; an Executor using o3 runs individual subtasks via MCP tools. This lets different models handle different cognitive demands.
+
+### Skill Retrieval
+
+The `skill/retrieval/` module implements `MultiRecall`: parallel search across three strategies that run simultaneously, then merge results with local-first priority.
+
+- `LocalFileRecall`: BM25 keyword search over SKILL.md files on disk
+- `LocalDbRecall`: Semantic vector search via sqlite-vec embeddings
+- `RemoteRecall`: HTTP search against the cloud skill catalogue
+
+If a skill exists locally and in the cloud under the same name, the local version wins. This supports user customization but can block access to improved cloud versions.
+
+### Loop and Saturation Detection
+
+`loop_detector.py` implements four distinct behavioral patterns that abort runaway execution:
+
+- **Observation chain**: Six consecutive "observation" tool calls with no effect actions triggers a RESEARCH LOOP warning
+- **Low effect ratio**: In a 10-action sliding window, effect tools (file creation/modification) below 15% signals information hoarding
+- **Diminishing returns**: Three consecutive observations finding ≤1 new entity each
+- **Repeating sequence**: Exact 2-tool or 3-tool patterns (A-B-A-B or A-B-C-A-B-C) in the last 4-6 calls
+
+`error_recovery.py` normalizes error fingerprints by replacing variable content (line numbers, paths, strings) with placeholders, enabling duplicate detection across different error instances. Eight named error patterns include `stateless_variable_loss`, `syntax_chinese_quotes`, and `infinite_retry_loop`.
+
+### Skill Data Model
+
+Skills are Pydantic models with:
+
+```python
+class Skill(BaseModel):
+    execution_mode: Optional[ExecutionMode]  # KNOWLEDGE or PLAYBOOK
+    version: int                              # Increments on rewrite
+    utility_score: float                      # Updated after execution
+    parameters: Optional[dict]               # OpenAI-compatible schema
+    allowed_tools: list[str]                 # Tool whitelist
+    required_keys: list[str]                 # Required API keys
 ```
-SkillGateway
-  └── MultiRecall
-        ├── LocalFileRecall    (BM25 over SKILL.md files on disk)
-        ├── LocalDbRecall      (sqlite-vec semantic embeddings)
-        └── RemoteRecall       (HTTP API to cloud catalogue)
-```
 
-Local results override cloud results for the same skill name. Candidates rerank and top-k go to the planner. This is [Hybrid Search](../concepts/hybrid-search.md) applied specifically to capability retrieval rather than document retrieval.
+`ExecutionMode` auto-infers from directory structure: if the skill folder contains files beyond SKILL.md, it is a `PLAYBOOK` (executable scripts); otherwise `KNOWLEDGE` (the SKILL.md text provides context). This matters because playbook scripts execute without entering the context window.
 
 ### Context Compaction
 
-`compaction.py` implements two-level compression. Message-level: single messages exceeding a token threshold get LLM-summarized to 800 tokens, prefixed with `[compressed from {role}]`. Conversation-level: total context overflow triggers serialization of all non-system messages into a single summary, with plan execution state (from `AgentRunState`) annotated as "MUST preserve" and scratchpad archival hinted at `$SCRATCHPAD`.
+`compaction.py` implements two-level compression. Single messages exceeding a token threshold get LLM-summarized to 800 tokens. When total context exceeds threshold, all non-system messages merge into one summary that the LLM generates while explicitly preserving plan execution state from `AgentRunState`. A scratchpad stores the full record for retrieval later.
 
 ## Key Numbers
 
 | Metric | Value | Source |
 |--------|-------|--------|
-| Memento repo stars | 2,375 | Self-reported (GitHub badge) |
-| Memento-Skills stars | 916 | Self-reported (GitHub badge) |
-| Max ReAct turns per skill | 30 | Code (`SkillExecutor`) |
-| Max reflections per step | 5 | Code |
+| Research agent stars | 2,375 | GitHub, self-reported |
+| Skills framework stars | 916 | GitHub, self-reported |
+| GAIA benchmark | "Competitive results" | Self-reported, no specific score cited |
+| HLE benchmark | "Improves over rounds" | Self-reported |
+| Built-in skills | 10 | Self-reported |
+| Max ReAct turns per skill | 30 | Code |
 | Max replans per run | 2 | Code |
-| Loop detector window | 10 actions, min 15% effect ratio | Code |
-| Error pattern signatures | 8 predefined | Code |
-| Context compression target | 800 tokens | Code |
-| Built-in skills | 10 | README badge |
 
-Benchmark claims: "competitive results across GAIA, DeepResearcher, SimpleQA, and HLE" (README). The paper shows improvement curves over iterations and OOD generalization gains. All benchmark figures are **self-reported** from the project paper; no independent third-party validation is cited. The learning curves in `Figure/f1_iteration.jpg` and `Figure/f1_ood.jpg` are the primary evidence.
+The GAIA and HLE results appear in the README figures but no specific accuracy numbers are cited in the available documentation. Treat performance claims as self-reported and unverified against independent leaderboard entries.
 
 ## Strengths
 
-**Deployment-time learning without retraining.** The core value proposition is real: skill memory M evolves through live interactions at zero retraining cost. For teams that cannot afford fine-tuning cycles on every task distribution shift, this is a genuine alternative.
+**Mutable skill library**: The write-back loop is the most complete implementation of deployment-time capability evolution in the open-source ecosystem. Skills version, degrade, and improve based on execution outcomes.
 
-**Structured loop detection.** The `LoopDetector` and `StatefulErrorPatternDetector` implementations are unusually concrete — four distinct loop patterns, eight error signatures with normalized fingerprinting to detect duplicates across different error instances, throttled hint injection to prevent recovery spam. Most agent frameworks paper over these failure modes.
+**Safety depth**: Loop detection, saturation detection, eight named error recovery patterns, tool gating, and path validation compose into layered execution safety. Most skill frameworks provide none of this.
 
-**Multi-provider flexibility.** LiteLLM backend supports Anthropic, OpenAI, OpenRouter, Ollama, Kimi, MiniMax, GLM. Local model execution via `agent_local_server.py` with vLLM means air-gapped deployment is possible.
+**Six deployment surfaces**: CLI, desktop GUI (Flet), Feishu, DingTalk, WeCom, and WeChat. AG-UI protocol compatibility enables integration with standard frontends.
 
-**MCP-native tooling.** [Model Context Protocol](../concepts/model-context-protocol.md) as the tool interface means the executor inherits the growing MCP tool ecosystem without custom integration work.
+**Hybrid skill retrieval**: BM25 plus semantic vector search catches both keyword-exact and semantically similar skills that pure embedding search would miss.
 
-**Agentskills.io spec compliance.** Memento-Skills skills follow the canonical SKILL.md format, making them installable in Claude Code and other agentskills.io-compatible runtimes.
+**[agentskills.io](../concepts/agent-skills.md) compliance**: Skills follow the same YAML frontmatter spec as Anthropic's reference implementation, enabling cross-ecosystem skill sharing.
 
 ## Critical Limitations
 
-**Reflection quality is bounded by the base model's analytical ability.** The reflection phase uses the same LLM that just failed a task to diagnose why it failed and generate an improved skill. If the model cannot articulate the failure mode, the rewritten skill is no better than random variation. This is the ceiling the architecture cannot escape: self-evolution quality tracks base model capability, not task complexity.
+**Reflection quality bounded by the base model**: The reflection phase uses the same LLM to diagnose failures and rewrite skills. A model that cannot articulate why a skill failed cannot improve it. Self-evolution quality has a ceiling set by the LLM's analytical capability, not by the framework.
 
-**Unspoken infrastructure assumption**: The cloud skill marketplace (`RemoteRecall`, `SkillMarket`, download via GitHub) assumes outbound HTTP access and trust in remotely downloaded, LLM-generated skill code. The `tool_gate` and `path_validator` policies reduce but do not eliminate the risk that a cloud skill contains adversarial instructions. Air-gapped deployments need to disable remote recall entirely, which the documentation does not prominently flag.
+**Unspoken infrastructure assumption**: The cloud skill marketplace downloads and executes LLM-generated code in a local sandbox. The `tool_gate` and `path_validator` mitigate path traversal and tool misuse, but a skill containing adversarial instructions from the marketplace would pass these controls if the tool calls themselves are permitted. This is a supply chain risk that the documentation does not address.
 
-## When NOT to Use Memento
+**Concrete failure mode**: A skill that fails due to external factors (API rate limit, network timeout) has its utility score penalized as though the skill itself is defective. Repeated transient failures can cause the system to rewrite a perfectly good skill, replacing it with an LLM-generated alternative that may be worse. There is no mechanism to distinguish skill-caused failures from environment-caused failures.
 
-**Don't use it when tasks are well-defined and stable.** If your agent runs the same narrow task class repeatedly and you can afford fine-tuning, parametric adaptation will outperform CBR — a trained policy generalizes better than retrieved cases when the training distribution matches deployment.
+## When NOT to Use It
 
-**Don't use it when you need auditable, deterministic behavior.** Skill rewriting means the agent's behavior can change between runs as the skill library evolves. Regulated or compliance-sensitive applications need frozen, versioned agent behavior. Memento's skill versioning tracks changes but does not prevent them.
+**Don't use Memento-Skills** if you need auditable, stable skill behavior. The write-back loop can silently rewrite skills between runs. If your application requires that a skill behaves identically on Monday and Friday, the mutable skill store is a liability, not a feature.
 
-**Don't use it when your task distribution has low case reuse.** CBR yields returns proportional to how often past cases apply to new tasks. If every task is novel (novel domains, novel tool combinations, novel output formats), the Case Bank stays sparse and retrieval provides little signal above a baseline agent.
+**Don't use the research Memento** if you need low-latency responses. The parametric CBR variant requires PyTorch with CUDA, adds case retrieval overhead before planning, and uses GPT-4.1 for decomposition. For simple query-answer tasks, this architecture adds cost without benefit.
 
-**Don't use it for latency-sensitive pipelines.** The multi-recall skill retrieval (three parallel searches, reranking), 30-turn ReAct loops, and reflection phases add substantial overhead per task. The Memento-Skills README does not publish latency figures.
+**Don't use either** if your team cannot read Chinese. Much of the codebase documentation, comments, and variable naming in Memento-Skills is in Chinese. The code structure is clear, but embedded documentation requires translation for non-Chinese-speaking contributors.
 
 ## Unresolved Questions
 
-**Skill quality over time.** There is no automated test suite gating evolved skills. The system rewrites based on LLM judgment, not measured improvement. Whether evolved skill libraries actually improve over many iterations — or converge to local optima — is not demonstrated beyond the initial learning curves in the paper.
+**Cost at scale**: The cloud skill marketplace has no published pricing. Downloading and executing cloud skills at volume introduces unknown costs and rate limits.
 
-**Cost at scale.** The Case Bank grows with every task. There is no documented policy for case eviction, case deduplication, or utility-score decay over time. A deployment running thousands of tasks will accumulate a large, partially stale Case Bank. How retrieval quality degrades as the bank grows is not addressed.
+**Conflict resolution in multi-user deployments**: The skill store assumes a single agent instance owns the library. Multiple agents writing back to the same skill store simultaneously would create write conflicts. The documentation does not address this.
 
-**Conflict resolution in multi-agent or multi-user deployments.** Multiple agents writing to the same skill store simultaneously is not addressed. The architecture is designed for single-agent operation; the governance pattern for shared skill libraries is absent.
+**Utility score calibration**: The utility score mechanism increments on success and decrements on failure, but the starting value, increment size, and decay function are not documented. There is no guidance on when a skill should be considered "learned" versus still evolving.
 
-**Cloud marketplace trust model.** Who reviews skills in the cloud catalogue? What prevents a malicious skill from being uploaded and downloaded by other users? The `memento verify` command exists but its scope is not documented.
-
-**Chinese-language codebase.** Much of the documentation, inline comments, and variable naming in Memento-Skills is in Chinese. This limits external contribution and audit surface for non-Chinese-speaking teams.
+**Governance of evolved skills**: When the system rewrites a skill, there is no automated test suite validating the new version. The improvement relies entirely on LLM judgment. No mechanism exists for a human operator to review skill rewrites before they take effect.
 
 ## Alternatives
 
-| Project | Choose When |
-|---------|------------|
-| [Mem0](../projects/mem0.md) | You need managed memory with a clean API and don't need skill self-rewriting |
-| [Letta](../projects/letta.md) / [MemGPT](../projects/memgpt.md) | You want a complete memory-augmented agent runtime with formal memory tier management (core, archival, recall) |
-| [Agent Workflow Memory](../projects/agent-workflow-memory.md) | Your bottleneck is workflow reuse rather than case-level reasoning — AWM extracts reusable workflows, not cases |
-| [Voyager](../projects/voyager.md) | You want skill accumulation in a game/simulation environment with executable code skills and no deployment overhead |
-| [Reflexion](../concepts/reflexion.md) | Single-session reflection without persistent case storage — simpler, lower infrastructure cost |
-| [DSPy](../projects/dspy.md) | Your improvement target is prompt optimization rather than trajectory memory |
+| System | Use when |
+|--------|----------|
+| [Mem0](../projects/mem0.md) | You need declarative memory (facts, preferences) not executable skills, with a managed API |
+| [Letta](../projects/letta.md) | You want [MemGPT](../projects/memgpt.md)-style long-term memory with a production API surface |
+| [Voyager](../projects/voyager.md) | You're building in Minecraft or need a reference implementation of skill accumulation via code generation |
+| [Agent Workflow Memory](../projects/agent-workflow-memory.md) | You want workflow-level memory (reusable plans) rather than skill-level memory |
+| [Anthropic Skills repo](../concepts/agent-skills.md) | You want static, auditable skills with marketplace distribution and no write-back mutation |
+| [LangGraph](../projects/langgraph.md) | You need graph-structured agent workflows with production observability, not self-evolving capabilities |
 
-**Use Memento when** your agent encounters repeated task patterns across sessions, you cannot retrain, and you need failure-driven skill improvement rather than just memory retrieval.
+Choose Memento-Skills when the task domain is broad and unpredictable, the agent will run long enough to accumulate meaningful experience (dozens to hundreds of tasks), and you can tolerate non-deterministic skill behavior in exchange for improving success rates over time.
 
 ## Related Concepts
 
-- [Agent Memory](../concepts/agent-memory.md) — the broader category this implements
-- [Episodic Memory](../concepts/episodic-memory.md) — the Case Bank is an episodic store of (state, action, reward) tuples
-- [ReAct](../concepts/react.md) — the reasoning pattern used in the executor loop
-- [Agent Skills](../concepts/agent-skills.md) — Memento-Skills extends this concept with mutable, evolvable skills
-- [Self-Improving Agents](../concepts/self-improving-agents.md) — the broader research program this contributes to
-- [Continual Learning](../concepts/continual-learning.md) — the learning paradigm the MDP formulation targets
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — CBR retrieval is structurally related but operates over trajectories rather than documents
-- [Context Engineering](../concepts/context-engineering.md) — case injection is a form of dynamic context assembly
-
-## Sources
-
-- [Memento repo README](../raw/repos/agent-on-the-fly-memento.md)
-- [Memento-Skills repo README](../raw/repos/memento-teams-memento-skills.md)
-- [Memento-Skills deep analysis](../raw/deep/repos/memento-teams-memento-skills.md)
-- [Context Engineering survey](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md)
+- [Agent Skills](../concepts/agent-skills.md): The agentskills.io spec that Memento-Skills implements
+- [Procedural Memory](../concepts/procedural-memory.md): The memory type that executable skills represent
+- [Agent Memory](../concepts/agent-memory.md): The broader category Memento operates within
+- [Continual Learning](../concepts/continual-learning.md): The learning paradigm Memento implements without weight updates
+- [Self-Improving Agents](../concepts/self-improving-agents.md): The agent class Memento belongs to
+- [ReAct](../concepts/react.md): The reasoning loop Memento-Skills uses in its execution phase
+- [Reflexion](../concepts/reflexion.md): A related approach using verbal reflection for agent improvement

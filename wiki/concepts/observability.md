@@ -3,152 +3,125 @@ entity_id: observability
 type: concept
 bucket: agent-architecture
 abstract: >-
-  Observability for LLM agents is the practice of capturing full execution
-  traces, metrics, and structured feedback to make agent behavior inspectable,
-  debuggable, and improvable in production—differentiated from traditional
-  monitoring by the need to record multi-step reasoning trajectories, not just
-  request/response pairs.
+  Observability for LLM agents captures structured execution records (traces) of
+  every model call, tool use, and decision, enabling systematic debugging and
+  improvement — unlike traditional logging, it makes the runtime behavior of
+  agents inspectable and iterable.
 sources:
+  - articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md
+  - repos/jackchen-me-open-multi-agent.md
+  - repos/orchestra-research-ai-research-skills.md
   - tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md
   - tweets/hwchase17-continual-learning-for-ai-agents.md
-  - repos/orchestra-research-ai-research-skills.md
-  - repos/jackchen-me-open-multi-agent.md
-  - articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md
 related:
-  - claude-code
-  - openclaw
   - claude
-  - context-engineering
-last_compiled: '2026-04-08T03:02:46.136Z'
+  - openclaw
+  - claude-code
+last_compiled: '2026-04-08T23:19:45.597Z'
 ---
-# Observability for LLM Agents
+# Observability
 
 ## What It Is
 
-Observability in LLM agent systems means capturing enough information about an agent's runtime behavior that you can reconstruct *why* it did what it did, not just *what* it did. For traditional software, logs and metrics suffice because the code is the authoritative record of behavior. For agents, the code describes what's *permitted*—the trace records what *happened* with a specific input, in a specific state, under specific conditions.
+In traditional software, code is the authoritative record of system behavior. You read the source, reason about it, and test against it. In agentic systems, the code describes what an agent is allowed to do. Traces describe what it actually did — with this input, in this run, under these conditions.
 
-The gap is significant. An agent might select the wrong tool, hallucinate a fact, or abandon a subtask without any error being thrown. A log line saying "task completed" is useless without the reasoning trajectory, intermediate tool calls, and token-level context that produced that outcome.
+Observability for LLM agents is the practice of capturing, structuring, and reasoning over those traces. A trace records the full execution path of an agent: every model call, every tool invocation, every retrieval step, intermediate outputs, token usage, latency, and the sequence of decisions connecting them. Traces become the raw material for debugging, evaluation, and systematic improvement.
 
-Agent observability therefore centers on **execution traces**: structured records of every LLM call, tool invocation, retrieval step, intermediate output, and the causal chain linking them. Everything else—metrics, dashboards, annotations, automated evaluations—derives from that trace substrate.
+This is architecturally different from traditional application monitoring. APM tools track throughput, error rates, and latency at the service level. LLM observability tracks *what the model chose to do and why* — reasoning chains, tool selection decisions, context window contents, and multi-step trajectories. The failure mode for an agent is rarely a 500 error; it's subtler: the wrong tool called with the right syntax, a correct answer that missed user intent, a reasoning chain that drifted three steps in.
 
-## Why It Matters
+## Why It Matters for Agent Infrastructure
 
-Three problems make observability non-optional for production agents:
+Agents fail in ways that logs alone cannot explain. A coding agent that produces syntactically valid but logically wrong code left no error trace — it completed successfully. A research agent that cited plausible-sounding but fabricated sources returned a 200. Without execution traces, diagnosing these failures requires reproducing the exact run, which is often impossible.
 
-**Debugging is trace-dependent.** When an agent fails at step 7 of a 12-step task, you need to see what the model received at each prior step, what it returned, and how those outputs shaped subsequent inputs. Without traces, you're guessing. With traces, you can pinpoint whether the failure was a bad tool description, a context window overflow, a retrieval miss, or a model reasoning error.
+Traces make three things possible:
 
-**Improvement is trace-driven.** Continual learning at the context, harness, or model layer—all three rely on traces as the raw input. The [LangChain article on agent improvement loops](../raw/articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md) states this directly: "In software, the code documents the app; in AI, the traces do." A coding agent given access to LangSmith traces improved from 17% to 92% on an eval set; the same agent without trace access proposed fixes that looked reasonable but missed the actual failure mode.
+**Debugging with evidence.** When an agent fails, you can inspect the full trajectory: what was in the context at each step, which tool was called, what it returned, and how the model used that information. You work backward from observed behavior rather than forward from hypotheses.
 
-**Regression detection requires baselines.** When you update a prompt, swap a model, or modify orchestration logic, you need to know whether the change improved or degraded behavior. Offline evaluations run against trace-derived datasets provide that measurement.
+**Evaluation at scale.** Individual trace inspection doesn't scale to production volumes. Structured traces feed automated evaluators — LLM-as-judge for qualitative dimensions, code-based checks for deterministic properties — that score every run without human review. [LLM-as-Judge](../concepts/llm-as-judge.md) patterns only work when you have structured execution records to evaluate.
+
+**Systematic improvement.** [Harrison Chase's framing](../raw/articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md): "In software, the code documents the app; in AI, the traces do." The improvement loop — collect traces, enrich with evals, identify patterns, make targeted changes, validate before shipping — depends entirely on traces as its input. Without them, prompt and code changes are hypotheses without evidence.
 
 ## How It Works
 
-### The Trace
+### Trace Structure
 
-A trace captures the full execution path of one agent run:
+A trace is a hierarchical record of an agent run. At the top level: a run with inputs, outputs, start/end time, and token usage. Nested within: spans for each LLM call (with prompt, completion, model, temperature, token counts), tool calls (with name, arguments, and return values), retrieval steps (with query, results, and scores), and child agent invocations in multi-agent systems.
 
-- **Span tree**: each LLM call, tool invocation, retrieval, and sub-agent call as a node with start/end timestamps
-- **Inputs and outputs**: the actual content passed to and returned from each step
-- **Token usage and latency**: per-call and aggregate
-- **Metadata**: model version, agent ID, user/session ID, run ID for correlation
+The critical property is that spans share a `runId` for correlation. In a multi-agent pipeline, you can trace a user request from the orchestrator through each subagent to every model call, connected by a shared identifier. This is what distinguishes observability from logging: structured, correlated, queryable records rather than flat text.
 
-Modern implementations use [OpenTelemetry](https://opentelemetry.io/) as the underlying protocol. Tools like LangSmith and Arize Phoenix emit spans conforming to OpenTelemetry semantics, which means traces can be routed to any compatible backend. Phoenix's skill in the AI Research Skills Library is described as "Open-source AI observability with OpenTelemetry tracing and LLM evaluation"—the OpenTelemetry foundation makes traces portable across observability stacks. [Source](../raw/repos/orchestra-research-ai-research-skills.md)
+### Instrumentation
 
-### Online vs. Offline Evaluation
+Instrumentation happens at the framework layer. [LangChain](../projects/langchain.md) and [LangGraph](../projects/langgraph.md) emit traces automatically to LangSmith. The [OpenAI Agents SDK](../projects/openai-agents-sdk.md) supports OpenTelemetry spans. [Claude](../projects/claude.md) API calls can be traced by wrapping the client. The common pattern: a tracing client intercepts every LLM call and tool execution, records inputs/outputs with timing, and ships structured spans to a collection backend.
 
-**Online evaluators** run automatically on production traces. They score outputs against configurable criteria without human intervention. Two patterns:
+Phoenix uses OpenTelemetry as its wire format — the same standard used for distributed tracing in microservice architectures, adapted for LLM-specific span types. This means Phoenix traces can coexist with existing APM infrastructure rather than requiring a parallel observability stack.
 
-- *LLM-as-judge*: pass the full trajectory to a scoring model that assesses qualitative dimensions—helpfulness, policy adherence, reasoning quality—and returns a score. Useful for anything without a deterministic ground truth.
-- *Code-based checks*: schema validation, format conformity, exact-match conditions, business rule compliance. Faster, cheaper, and more reliable for behaviors with clear right answers.
-
-**Offline evaluations** run controlled experiments on curated datasets before any change ships. The workflow: collect traces from production, annotate ground truth or scoring criteria, build a test dataset, run updated agent versions against it, compare scores. This is the gate before deployment.
-
-Together, online evals surface what's going wrong; offline evals confirm that a proposed fix addresses it. [Source](../raw/articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md)
-
-### Annotation and Human Feedback
-
-Some failures escape automated scoring. A legal agent citing plausible but incorrect precedents, a medical agent giving clinically inappropriate advice, a customer service agent that's technically correct but contextually wrong—these require domain expertise to evaluate.
-
-Annotation queues route selected traces to human reviewers. Traces get filtered in by automated score thresholds, user feedback signals (thumbs down), or feature-area tags. Reviewers attach ratings, corrections, and freeform comments. These annotations serve four distinct purposes:
-
-1. Calibrating LLM-as-judge evaluators (label traces where the automated score disagrees with human judgment)
-2. Creating ground truth for offline datasets (reviewers label the correct output for real production inputs)
-3. Scoring open-ended outputs where no single correct answer exists
-4. Generating natural language feedback that flows into clustering and pattern analysis
-
-### Self-Logging Patterns
-
-Some agent implementations treat observability as a first-class agent behavior rather than external infrastructure. The OpenClaw self-improving agent pattern logs errors to `.learnings/ERRORS.md`, captures corrections to `.learnings/LEARNINGS.md`, and promotes recurring lessons to `AGENTS.md` as permanent memory. The agent reviews these files before major tasks. [Source](../raw/tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md) This is observability embedded in the agent's own context layer—simpler to deploy than a full tracing stack, but also less structured and harder to query at scale.
+LangSmith operates as a managed platform: traces are sent to Langchain's hosted backend, stored, and made queryable through a UI and API. The [LangSmith skill](../raw/repos/orchestra-research-ai-research-skills.md) covers 422 lines of production patterns including trace filtering, online evaluator configuration, and dataset construction from production runs.
 
 ### The Improvement Loop
 
-Traces power all three layers of agent improvement identified by Harrison Chase: [Source](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md)
+The full loop as described in [LangChain's documentation](../raw/articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md):
 
-- **Context layer**: run offline jobs over recent traces to extract insights and update instructions, skills, or memory files. OpenClaw calls this "dreaming."
-- **Harness layer**: give a coding agent access to traces, run it over logged task executions, have it suggest changes to orchestration code. The Meta-Harness pattern does this by storing logs in a filesystem and running a coding agent over them.
-- **Model layer**: collect traces as training data for fine-tuning or RL. Requires the most infrastructure and carries catastrophic forgetting risk.
+1. **Collect traces** — from production, staging, or benchmark runs
+2. **Enrich with evals** — automated evaluators score every trace; human reviewers annotate selected ones via annotation queues
+3. **Surface patterns** — clustering over scored traces reveals failure modes that individual inspection misses (e.g., "the agent consistently selects the wrong tool for queries of type X")
+4. **Make targeted changes** — informed by specific observed failures rather than hypothetical ones
+5. **Validate offline** — run changed agent against a dataset built from real production traces; compare scores before and after
+6. **Ship with a gate** — CI/CD checks that evals pass before deployment; failure modes encoded as permanent regression tests
 
-The context layer offers the fastest feedback cycle and lowest risk. Model-layer changes are the most expensive and hardest to validate.
+This loop connects directly to [Continual Learning](../concepts/continual-learning.md) at the context and harness layers. Traces feed harness optimization (a coding agent reads traces and proposes changes to orchestration code), context learning (distilling trace patterns into updated instructions or skills), and model fine-tuning (traces become SFT or RL training data).
 
-### Infrastructure Pattern: onTrace Callback
+### Online vs. Offline Evaluation
 
-The open-multi-agent framework's approach is representative of how traces get wired into frameworks. An optional `onTrace` callback receives structured spans for every LLM call, tool execution, task, and agent run, carrying timing, token usage, and a shared `runId` for correlation. Zero overhead when not subscribed, zero extra dependencies. [Source](../raw/repos/jackchen-me-open-multi-agent.md) This pattern—opt-in, structured, correlation-ID-based—is now standard across agent frameworks.
+**Online evaluators** run continuously on production traces. They score outputs against configured criteria — helpfulness, format compliance, tool correctness — using LLM-as-judge or deterministic code checks. They catch quality drift and flag traces for human review, but they don't validate changes before they ship.
 
-## Key Tools
+**Offline evaluations** run in development against curated datasets. The dataset is built from production traces: real queries, real failures, labeled with correct outputs or evaluation criteria by human reviewers. Every change runs against this dataset before deployment. Passing evaluations stay in the test suite permanently as regression guards.
 
-**LangSmith** (LangChain): Trace collection, online evaluators, annotation queues, Insights Agent for automated clustering over production traces, CI/CD integration. Tightly coupled to LangChain/LangGraph but works with other frameworks via SDK. Self-reported benchmark improvement from 17% to 92% on coding tasks when traces were made available to Claude Code. [Source](../raw/articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md) Not independently validated.
+The two work together: online evals tell you what's going wrong; offline evals confirm your fix addresses it.
 
-**Phoenix** (Arize): Open-source alternative. OpenTelemetry-native, includes LLM evaluation tooling. Works across frameworks. [Source](../raw/repos/orchestra-research-ai-research-skills.md)
+## Tooling
 
-**Weights & Biases / MLflow / TensorBoard**: Traditional MLOps platforms with LLM-specific extensions. Better for training-time observability than production agent traces.
+**LangSmith** — Langchain's managed observability platform. Tight integration with LangChain/LangGraph; automatic tracing for any chain or agent. Key features: trace storage and querying, online evaluators, annotation queues, dataset construction from traces, offline eval runner, CI/CD integration. The LangSmith CLI + Skills pattern (described in source material) gives coding agents direct terminal access to trace data — on one eval set, Claude Code's performance on trace-analysis tasks jumped from 17% to 92% when equipped with LangSmith Skills (self-reported by Langchain).
 
-## Who Implements This
+**Phoenix (Arize)** — Open-source alternative using OpenTelemetry as the wire format. Supports LLM evaluation alongside tracing. Lower vendor lock-in than LangSmith; requires self-hosting. The [AI Research Skills library](../raw/repos/orchestra-research-ai-research-skills.md) covers both LangSmith and Phoenix as its two observability skills.
 
-- [Claude Code](../projects/claude-code.md) produces traces that LangSmith ingests; the CLI integration lets coding agents query those traces directly
-- [OpenClaw](../projects/openclaw.md) implements agent-side self-logging via structured markdown files, with a "dreaming" background process that synthesizes learnings
-- [LangChain](../projects/langchain.md) / [LangGraph](../projects/langgraph.md) provide the primary tracing infrastructure via LangSmith
-- [Claude](../projects/claude.md) is the model most commonly used as the LLM-as-judge in trace scoring pipelines
+**Weights & Biases** — MLOps-oriented. Better at experiment tracking and training run comparison than production agent tracing, but useful when observability and training are tightly coupled.
 
-## Failure Modes
+**Custom logging + structured spans** — Teams building on raw APIs often implement lightweight tracing by wrapping model clients to log structured JSON. Cheaper, more flexible, but requires building querying and evaluation infrastructure separately.
 
-**Concrete failure mode**: An agent produces subtly wrong outputs at high frequency—plausible-sounding but factually incorrect. Online evaluators score it as passing because the format is correct and the LLM judge rates the tone as appropriate. Without domain-expert annotation or ground-truth datasets built from verified production examples, this failure mode is invisible until users report it. Automated scoring catches egregious failures; systematic subtle degradation requires human annotation at scale.
+## Concrete Failure Mode
 
-**Unspoken infrastructure assumption**: Tracing assumes you control the execution environment enough to instrument it. Agents running inside third-party platforms, browser extensions, or sandboxed environments may not permit the network calls or file writes that tracing requires. The entire improvement loop breaks if traces don't land.
+**The quiet hallucination problem.** An LLM-judge evaluator scores a customer-facing agent's responses highly on "helpfulness" and "tone" — both reasonable dimensions. The agent is also fabricating supporting details in 8% of responses. The evaluator never checks for factual accuracy because no one built that evaluator. Traces exist, but no one built a quality dimension that catches this failure mode. The fix requires domain expertise to define "correct" for this specific use case, then building an evaluator around it. Observability infrastructure makes the fix possible; it doesn't automatically surface the problem.
 
-**The cost problem at scale**: Token usage and latency data accumulates fast. LLM-as-judge evaluation runs additional inference on every production trace (or a sample of them). At high traffic, this becomes a non-trivial line item. Documentation for most tools doesn't address trace storage costs, retention policies, or the economics of 100% vs. sampled online evaluation.
+## Infrastructure Assumption
 
-## When Not to Use Full Trace Infrastructure
+Production trace volumes grow fast. A single agent handling 10,000 requests per day generates tens of thousands of spans — model calls, tool invocations, retrieval steps. LangSmith's pricing and retention policies at this scale are not publicly documented in detail. Teams assume trace storage is cheap; at production volumes with long retention, it may not be. Sampling strategies (trace 10% of runs, score 100% of sampled traces) are standard practice but require deliberate configuration and introduce selection bias in the evaluation data.
 
-- **Early prototyping**: Adding tracing before you have production traffic creates infrastructure overhead before you have anything to improve. Start with logging and move to structured traces when you hit a failure you can't diagnose.
-- **Single-step agents**: If your "agent" is a single LLM call with a fixed prompt, standard request logging is sufficient. Full span-tree tracing adds complexity without insight.
-- **High-security environments**: Traces contain model inputs and outputs verbatim. If inputs include PII, PHI, or confidential content, you need trace redaction pipelines before you can route to a SaaS tracing platform. This is frequently underestimated.
-- **Cost-sensitive production**: If you're paying per-token for LLM-as-judge scoring on every production trace, verify the economics before committing to that architecture.
+## When NOT to Use Full Observability Infrastructure
+
+**Prototypes and early development.** Before you have production traffic, the improvement loop has no input. Investing in LangSmith integration, annotation queues, and offline eval infrastructure before you have real users generating real failures is premature. Console logging and manual inspection is sufficient until you have patterns worth measuring.
+
+**Highly sensitive domains without data governance.** Traces contain the full context window — user inputs, retrieved documents, intermediate reasoning. If user data cannot leave your infrastructure, managed platforms like LangSmith require careful data processing agreements or local alternatives. Phoenix's self-hosted option exists for this reason.
+
+**Simple, stateless agents with deterministic outputs.** If your agent always takes the same three steps and produces outputs you can validate with a regex, traditional testing is cheaper and more reliable than trace-based evaluation infrastructure.
 
 ## Unresolved Questions
 
-**Trace standardization**: OpenTelemetry provides the transport layer, but there's no agreed schema for agent-specific spans (tool call inputs/outputs, reasoning steps, memory reads). Different frameworks emit traces in incompatible formats, which makes cross-framework analysis hard.
+**Trace sampling at scale.** No established guidance on which traces to sample for human review. Random sampling is cheap but misses rare failure modes. Failure-targeted sampling (sample traces with low automated scores) biases the annotation dataset. The tradeoff between coverage and annotation cost is poorly documented.
 
-**Causal attribution**: A trace shows that step 3 produced a bad output, but determining whether the cause was the prompt at step 3, the output from step 2, or a retrieval miss at step 1 requires manual inspection or sophisticated causal analysis. Current tooling surfaces the trajectory but doesn't automate root cause attribution.
+**Multi-agent trace attribution.** When a multi-agent pipeline fails, which agent's decision caused the failure? Traces provide a full record, but attributing blame in a coordinator-subagent architecture is still manual work. Tools for automated attribution don't exist.
 
-**Multi-agent trace correlation**: When one agent calls another (as in [Multi-Agent Systems](../concepts/multi-agent-systems.md)), traces from subagents need to be linked to the parent run. Most frameworks handle this with a shared `runId`, but correlation across different tracing backends (e.g., one agent using LangSmith, another using Phoenix) is not solved.
+**Eval suite maintenance.** Regression tests accumulate. An eval suite built from 18 months of production failures becomes expensive to run and may contain evaluators that test for failure modes no longer relevant to the current agent version. No established practice for pruning or versioning eval suites.
 
-**Governance of annotation data**: Annotated traces containing user inputs and model outputs are valuable training data. Who owns them? What are the retention and deletion obligations? These questions are rarely answered in documentation.
+**Governance of annotated data.** Human reviewers label production traces. Those labels become training data for evaluators and eventually for models. The provenance chain — who labeled what, under what criteria, with what inter-annotator agreement — is rarely tracked in practice.
 
-## Relationship to Adjacent Concepts
+## Related Concepts and Projects
 
-Observability is the data layer that makes most other agent infrastructure concepts measurable:
-
-- [Context Engineering](../concepts/context-engineering.md) decisions (what goes into the prompt) are validated by trace analysis showing where context deficits caused failures
-- [Execution Traces](../concepts/execution-traces.md) are the primary artifact produced
-- [Human-in-the-Loop](../concepts/human-in-the-loop.md) annotation processes are how traces get enriched with ground truth
-- [Self-Improving Agents](../concepts/self-improving-agents.md) consume traces as the input to their improvement cycles
-- [LLM-as-Judge](../concepts/llm-as-judge.md) is the primary automated evaluation mechanism applied to traces
-- [Agent Harness](../concepts/agent-harness.md) optimization (harness-level continual learning) is driven by trace analysis over task runs
-
-
-## Related
-
-- [Claude Code](../projects/claude-code.md) — implements (0.6)
-- [OpenClaw](../projects/openclaw.md) — implements (0.5)
-- [Claude](../projects/claude.md) — implements (0.5)
-- [Context Engineering](../concepts/context-engineering.md) — part_of (0.6)
+- [Execution Traces](../concepts/execution-traces.md) — the underlying data structure observability tools capture
+- [LLM-as-Judge](../concepts/llm-as-judge.md) — evaluation pattern that runs on top of trace data
+- [Human-in-the-Loop](../concepts/human-in-the-loop.md) — annotation queues are a structured form of HITL
+- [Continual Learning](../concepts/continual-learning.md) — traces feed all three layers of the improvement loop (model, harness, context)
+- [Self-Improving Agents](../concepts/self-improving-agents.md) — observability is the prerequisite; without traces, self-improvement has no input signal
+- [LangChain](../projects/langchain.md) — primary framework with native LangSmith integration
+- [LangGraph](../projects/langgraph.md) — graph-based orchestration with built-in tracing hooks
+- [Claude](../projects/claude.md), [Claude Code](../projects/claude-code.md), [OpenClaw](../projects/openclaw.md) — agent implementations where observability enables the `.learnings/` error-logging pattern described in source material
+- [Agent Harness](../concepts/agent-harness.md) — the harness layer that observability data can be used to optimize

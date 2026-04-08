@@ -2,6 +2,14 @@ node_modules/
 build/*
 !build/seen-urls.json
 !build/lessons.md
+!build/incremental-state.json
+!build/eval-cache.json
+!build/source-index.json
+!build/raw-entities.json
+!build/entities.json
+!build/graph.json
+!build/claims.json
+!build/eval-report.json
 .env
 dist/
 *.bun-build

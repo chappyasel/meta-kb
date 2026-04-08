@@ -3,114 +3,130 @@ entity_id: swe-bench
 type: project
 bucket: agent-architecture
 abstract: >-
-  SWE-bench evaluates LLM coding agents on real GitHub issues by measuring
-  whether agents can produce patches that pass the original test suite; its
-  Verified subset filters to 500 human-validated instances for higher signal.
+  SWE-bench is a benchmark of 2,294 real GitHub issues from popular Python
+  repositories, where agents must generate patches that pass the issue's
+  associated test suite; SWE-bench Verified (500 human-validated tasks) is the
+  de facto evaluation standard for coding agents.
 sources:
-  - repos/ayanami1314-swe-pruner.md
-  - repos/maximerobeyns-self-improving-coding-agent.md
-  - papers/xu-agent-skills-for-large-language-models-architectu.md
-  - papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md
   - articles/x-twitter-meta-agent-continual-learning-for-agents.md
-  - deep/repos/maximerobeyns-self-improving-coding-agent.md
   - deep/papers/xu-agent-skills-for-large-language-models-architectu.md
   - deep/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md
-related:
-  - model-context-protocol
-last_compiled: '2026-04-08T02:48:19.799Z'
+  - deep/repos/maximerobeyns-self-improving-coding-agent.md
+  - papers/xu-agent-skills-for-large-language-models-architectu.md
+  - papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md
+  - repos/ayanami1314-swe-pruner.md
+  - repos/maximerobeyns-self-improving-coding-agent.md
+related: []
+last_compiled: '2026-04-08T23:05:48.274Z'
 ---
 # SWE-bench
 
-## What It Is
+## What It Does
 
-SWE-bench is a benchmark for measuring whether LLM-powered coding agents can resolve real software engineering problems. Each instance starts from a GitHub issue and the repository state at the time the issue was filed. The agent must produce a code patch. Success means the patch causes previously failing tests to pass without breaking existing ones — the same bar the original human contributor had to meet.
+SWE-bench evaluates software engineering agents on tasks derived from real-world GitHub repositories. Each task presents an agent with a repository at a specific commit, a natural-language issue description, and a test suite. The agent must produce a code patch that makes the failing tests pass without breaking existing ones. No scaffolding is prescribed — agents can search files, run commands, write and test code however they choose.
 
-The benchmark draws from 12 popular Python repositories including Django, Flask, scikit-learn, and pytest. The full dataset contains 2,294 instances. SWE-bench Verified is a curated subset of 500 instances that human annotators confirmed are unambiguous, have adequate test coverage, and describe genuine bugs rather than feature requests or documentation tasks.
+The benchmark contains 2,294 tasks drawn from 12 popular Python repositories (Django, Flask, scikit-learn, sympy, pytest, and others). A curated subset of 500 tasks, SWE-bench Verified, was validated by human annotators at Anthropic to confirm that each issue is well-specified, the test harness is correct, and the task is solvable. Most serious agent evaluations now use the Verified subset.
+
+The key differentiator from synthetic coding benchmarks like [HumanEval](../projects/humaneval.md) is ecological validity: these are issues that real developers opened, real tests that passed after real patches. The agent must navigate large, messy codebases, understand implicit context, and produce patches that integrate cleanly with existing code conventions.
 
 ## Core Mechanism
 
-Each benchmark instance packages:
+Each SWE-bench instance consists of:
 
-- A repository at a specific commit
-- The GitHub issue text as the problem statement
-- A set of "fail-to-pass" tests (failing before the fix, passing after)
-- A set of "pass-to-pass" tests (must remain passing throughout)
+- **Repository snapshot**: the codebase at the commit before the fix
+- **Issue text**: the natural-language bug report or feature request
+- **Test patch**: a set of tests that the correct fix must pass (held out from the agent)
+- **Gold patch**: the human-written fix (used only for reference, not given to the agent)
 
-Evaluation runs the agent against the repository, applies whatever patch it produces, then executes the test suite. The metric is resolved rate: the fraction of instances where the patch causes fail-to-pass tests to succeed and no pass-to-pass tests regress.
+Evaluation proceeds by applying the agent's generated patch to the repository, running the full test suite, and checking whether the target tests now pass and no previously-passing tests fail. This is a binary pass/fail per instance; the benchmark score is the percentage of instances resolved.
 
-No partial credit. A patch either resolves the issue or it doesn't.
+The `harness/` directory in the SWE-bench repository handles environment setup, patch application, and test execution. Each task runs in a Docker container with the correct Python version and dependencies. Task instances are defined in JSON files specifying the repo, base commit, issue text, and test identifiers.
 
-SWE-bench Lite is a 300-instance subset designed for faster iteration during agent development. SWE-bench Verified is the higher-signal subset for publication-grade results.
+SWE-bench Lite (300 tasks) is a further subset designed for faster iteration during development. SWE-bench Verified is the current standard for published results.
 
 ## Key Numbers
 
-State-of-the-art resolved rates on SWE-bench Verified as of mid-2025:
+**Benchmark scale:**
+- Full SWE-bench: 2,294 tasks across 12 repositories
+- SWE-bench Verified: 500 human-validated tasks
+- SWE-bench Lite: 300 tasks
 
-- Claude Opus 4.6: 79.2% (self-reported by Anthropic)
-- SICA after 14 self-improvement iterations: 53% on a 50-instance subset (self-reported, research paper)
-- Darwin Gödel Machine: 50% on SWE-bench Verified (self-reported)
-- Seed agent before self-improvement: 17-20% across systems
+**Representative scores (as of mid-2025):**
+- Claude Opus 4 (Anthropic): 79.2% on SWE-bench Verified — cited in [Agent Skills survey](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md) as state-of-the-art
+- SICA after 14 self-improvement iterations: 53% on SWE-bench Verified (17% seed) — from [SICA deep analysis](../raw/deep/repos/maximerobeyns-self-improving-coding-agent.md)
+- Darwin Gödel Machine best agent: 50% on SWE-bench Verified (20% seed) — from [DGM paper analysis](../raw/deep/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md)
 
-The jump from seed agents (~17-20%) to top performers (~79%) reflects how much the evaluation surface rewards agent scaffolding quality: file editing tools, codebase navigation, test execution feedback loops. This is both the benchmark's strength and a limitation — scores measure agent-plus-scaffold, not model reasoning in isolation.
+**Credibility assessment:** The benchmark scores for frontier models are largely self-reported by labs or by agent developers. The evaluation harness is public and reproducible, so in principle any score can be verified. Independent reproductions do occur but are not routine. The Verified subset's human validation adds credibility to the task quality, not to the reported scores.
 
-All published numbers are self-reported. The SWE-bench team does not run a centralized leaderboard with independent evaluation infrastructure. Some teams submit patches for independent test execution, but methodology varies across submissions.
+GitHub stars: ~14,000 (SWE-bench/SWE-bench repository). This reflects adoption as the field's primary coding agent benchmark.
+
+## What Makes It Architecturally Significant
+
+SWE-bench operationalizes something most benchmarks avoid: open-ended code navigation in realistic repositories. An agent solving a SWE-bench task must:
+
+1. Locate relevant files across a codebase that may have hundreds of modules
+2. Understand the issue well enough to identify root cause, not just symptoms
+3. Produce a patch that is syntactically correct, semantically appropriate, and consistent with the codebase's style and dependencies
+4. Avoid regressions — changes that fix the target test while breaking others are scored as failures
+
+This means retrieval, reasoning, planning, and editing must all work together. Agents that excel on narrow coding tasks (generate a function from a docstring) often struggle here because the hard part is understanding what to change, not how to write the change.
+
+The benchmark has become the primary driver of investment in [agent harness](../concepts/agent-harness.md) design. The meta-agent work ([meta-agent article](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)) explicitly lists SWE-bench as a planned evaluation target for harness optimization. [SICA](../projects/darwin-godel-machine.md) and [Darwin Gödel Machine](../projects/darwin-godel-machine.md) both use it as the primary fitness signal for self-improvement loops.
 
 ## Strengths
 
-**Ecological validity.** Issues come from real repositories with real test suites written by the original developers. There is no benchmark construction bias in what counts as a correct answer — the tests existed before the benchmark.
+**Ecological validity.** Tasks come from real repositories, real issues, real test suites. Passing a SWE-bench task means the patch would plausibly satisfy the original issue reporter.
 
-**No reward hacking through test generation.** The agent cannot write its own tests to pass. Evaluation runs the repository's pre-existing test suite.
+**Objective evaluation.** Pass/fail against a deterministic test harness removes LLM-as-judge subjectivity. Given the same patch, any evaluation run produces the same result.
 
-**Sensitivity to scaffold quality.** SWE-bench distinguishes between agents with good codebase navigation and file editing tools versus agents that can only write code in context. This makes it useful for measuring agent infrastructure improvements, not just model capability.
+**Broad repository coverage.** Twelve repositories span web frameworks, scientific computing, parsing, testing, and more. A system that scores well across all of them has demonstrated generalization.
 
-**Verified subset.** The 500-instance Verified subset filters out ambiguous problems and instances with inadequate test coverage. This makes Verified the right target for research claims.
+**Self-improvement signal.** Because evaluation is automated and cheap to run, SWE-bench works well as the fitness function for agent self-improvement loops. Both SICA and DGM use it this way.
+
+**Verified subset quality.** Human annotation of the 500-task Verified subset caught tasks with ambiguous issues, flawed test harnesses, and under-specified requirements that the original 2,294-task set contained. For serious evaluation, Verified is substantially more reliable.
 
 ## Critical Limitations
 
-**Infrastructure assumption: Python-centric.** All 12 source repositories are Python projects. Agents built primarily for Python development will score better than general-purpose agents, and scores do not transfer predictably to codebases in other languages. A team evaluating an agent for TypeScript or Rust development is extrapolating from an out-of-domain benchmark.
+**Concrete failure mode: test suite as proxy for correctness.** A patch that passes the associated tests is not necessarily correct. Tests may be incomplete, testing surface behavior rather than the underlying fix. An agent can pass SWE-bench Verified at 79% while producing patches that a code review would reject — they satisfy the test oracle but introduce subtle bugs, ignore edge cases, or use approaches inconsistent with the codebase's design. This is structural to any test-based benchmark and applies with particular force to software tasks where correctness has many dimensions beyond test passage.
 
-**Concrete failure mode: scaffold conflation.** SWE-bench Verified measures resolved rate, which is a joint property of the base model and the agent harness. Two systems using the same model but different file editing tools, context strategies, or test execution loops can produce resolved rates that differ by 15-20 percentage points. This makes cross-system comparisons difficult to interpret: you are comparing agent architectures, not models. The SICA self-improvement work demonstrated this directly — the same underlying model went from 17% to 53% through scaffold-only changes, with no weight updates.
-
-**No partial credit.** An agent that identifies the correct file, writes a nearly-correct fix, but misses one edge case gets zero credit — same as an agent that produces a nonsensical patch. This creates a ceiling effect for evaluating where agents fail, since partial progress is invisible in the metric.
+**Unspoken infrastructure assumption: Python-centric evaluation.** SWE-bench covers only Python repositories. Agents and tools optimized for SWE-bench performance have strong incentives to optimize Python-specific retrieval, parsing, and editing. [Tree-sitter](../projects/tree-sitter.md) integrations and AST-based tools that show up in SICA's self-discovered improvements reflect this. An agent scoring 79% on SWE-bench Verified may perform substantially worse on equivalent tasks in Go, Rust, or Java repositories. The Polyglot benchmark (separate from SWE-bench) addresses this, but SWE-bench itself does not.
 
 ## When NOT to Use It
 
-Do not use SWE-bench as your primary evaluation when:
+**Evaluating non-Python agents.** If your system targets languages other than Python, SWE-bench scores are a poor proxy for expected performance.
 
-- Your agent targets non-Python codebases. The benchmark will not tell you how your agent handles TypeScript generics, Rust lifetimes, or Go interfaces.
-- You need to compare base models rather than agent systems. The benchmark rewards scaffolding quality too heavily for clean model comparisons.
-- You need low-variance signals for rapid iteration. Running 500 instances per evaluation cycle is expensive. Use SWE-bench Lite (300 instances) or a smaller fixed subset for development, then validate on Verified for publication.
-- You are evaluating agents on tasks other than bug fixing: feature development, refactoring, documentation, or multi-repository coordination are not represented.
+**Rapid iteration during early development.** Full SWE-bench evaluation requires Docker infrastructure, per-task environment setup, and meaningful compute. The Lite subset (300 tasks) helps, but even that is slower than unit tests or synthetic benchmarks. For daily iteration, SWE-bench is an end-of-sprint check, not a development loop signal.
+
+**Tasks requiring human judgment beyond test passage.** If you care whether patches are readable, maintainable, or architecturally sound — qualities a code review would assess — SWE-bench's binary metric will not capture that. You need [LLM-as-Judge](../concepts/llm-as-judge.md) evaluation or human review on top of it.
+
+**Comparing agents on non-coding capabilities.** SWE-bench measures one thing: resolving GitHub issues in Python repositories. Using it to rank general agent capability conflates performance on this specific task distribution with broader intelligence.
 
 ## Unresolved Questions
 
-**Independent validation.** There is no centralized independent evaluation infrastructure. Researchers run their own evaluation harnesses and report results. It is not clear whether different teams' harness implementations are equivalent, and there is no auditing process for submitted patches.
+**Score inflation from benchmark contamination.** The repositories in SWE-bench are public, their issues and patches are public, and frontier models are trained on web data that likely includes GitHub content. How much of the performance improvement from GPT-3.5-era baselines (~5%) to current frontier scores (~79%) reflects genuine agent capability versus memorization of patches the model has seen in training is not known. The Verified subset's human annotation addressed task quality, not this concern.
 
-**Data contamination.** The source repositories are public and the issues are public. Models trained after the benchmark release may have seen both the issues and the ground-truth patches in pretraining data. The benchmark does not provide contamination analysis or separate splits by issue date versus model training cutoff.
+**Cost at scale.** Running a full agent evaluation on SWE-bench Verified at frontier model prices is expensive. Labs with API pricing at $15-75 per million tokens, with agents making dozens of tool calls per task, can spend hundreds of dollars per evaluation run. This creates selection pressure: only well-funded labs and projects can afford frequent full evaluations, which may bias the field toward optimizing for the benchmark rather than exploring diverse approaches.
 
-**Test suite adequacy.** The Verified subset filters for instances with adequate test coverage, but "adequate" is a human judgment. Some resolved patches may fix the failing tests while leaving related behavior broken. The benchmark has no mechanism to catch fixes that are too narrow.
+**Governance of the leaderboard.** The SWE-bench leaderboard aggregates self-reported scores from many teams. Verification that a submission follows the rules (no test leakage, no human assistance, correct Docker environment) is voluntary. There is no independent audit mechanism for leaderboard entries.
 
-**Governance of the leaderboard.** The public leaderboard accepts self-reported results. There is no process for challenging or retracting entries, and methodology disclosures vary across submissions.
+**Transfer to production software engineering.** SWE-bench tasks are well-scoped (single issue, associated tests, bounded repository). Real software engineering involves multi-issue projects, unclear requirements, coordination with other developers, and no test suite that perfectly specifies the correct behavior. The relationship between SWE-bench performance and performance on real-world software engineering tasks is asserted but not systematically measured.
 
 ## Alternatives
 
-**[HumanEval](../projects/humaneval.md)**: Function-level code generation from docstrings. Use when you want to evaluate raw code synthesis capability on isolated problems, not agent-level repository navigation. Much faster to run, but poor ecological validity for real engineering tasks.
+**[HumanEval](../projects/humaneval.md):** Synthetic function-completion tasks with docstrings and tests. Faster and cheaper to evaluate, no environment setup required. Use it when you need a quick capability check on code generation. SWE-bench is better when you need to measure real-world issue resolution.
 
-**[Tau-bench](../projects/tau-bench.md)**: Conversational agent evaluation on customer service workflows. Use when your agent operates in multi-turn dialogue with tool use, not code editing.
+**SWE-bench Lite:** 300-task subset of the full benchmark. Use it for faster development iteration when the full Verified evaluation is too expensive for your iteration cycle.
 
-**[AppWorld](../projects/appworld.md)**: Multi-app task completion in a simulated environment. Use when your agent needs to coordinate across multiple software systems rather than fix bugs in one repository.
+**[AppWorld](../projects/appworld.md):** Multi-app agent evaluation covering calendar, email, shopping, and other domains. Use it when you care about tool-use across APIs and structured interfaces rather than code editing. AppWorld tests broader agent capability; SWE-bench tests coding specifically.
 
-**[GAIA](../projects/gaia.md)**: General assistant tasks requiring web search, file manipulation, and multi-step reasoning. Use when you want breadth across task types rather than depth in one domain.
+**[GAIA](../projects/gaia.md):** General agent benchmark across diverse task types. Use it when you want to measure a wider capability profile. SWE-bench and GAIA measure different things and are not substitutes.
 
-**TerminalBench**: Shell-level agent evaluation. Use when your agent operates primarily through terminal commands rather than structured code editing.
+**[Tau-bench](../projects/tau-bench.md):** Customer service agent benchmark with policy compliance evaluation. Use it when your agent targets conversational workflows rather than code editing.
 
-For coding agent development specifically, SWE-bench Verified is the right target for publication-grade results. For rapid iteration, SWE-bench Lite on a fixed random subset is more practical. No alternative benchmark currently matches SWE-bench's ecological validity for Python software engineering.
+**TerminalBench:** Terminal-based agent tasks. Closer to SWE-bench in style but with broader task types. Use it when you want SWE-bench-style evaluation that extends beyond issue resolution.
 
-## Related Concepts and Projects
+## Relationship to Agent Infrastructure
 
-- [Agent Harness](../concepts/agent-harness.md) — the scaffold layer that SWE-bench scores are most sensitive to
-- [Self-Improving Agents](../concepts/self-improving-agents.md) — SICA and DGM both use SWE-bench as their primary evaluation target
-- [Darwin Gödel Machine](../projects/darwin-godel-machine.md) — 20% to 50% on SWE-bench Verified through population-based self-modification
-- [Context Engineering](../concepts/context-engineering.md) — codebase navigation and context management heavily influence resolved rate
-- [Reinforcement Learning](../concepts/reinforcement-learning.md) — test pass/fail provides a binary reward signal suitable for RL-based agent training
-- [Model Context Protocol](../concepts/model-context-protocol.md) — some agent harnesses use MCP for tool connectivity during evaluation
+SWE-bench is the implicit target of much current agent infrastructure work. The [Agent Harness](../concepts/agent-harness.md) concept is defined partly by what it takes to score well here. [Self-Improving Agents](../concepts/self-improving-agents.md) systems like SICA and [Darwin Gödel Machine](../projects/darwin-godel-machine.md) use it as the primary fitness function. [Agent Skills](../concepts/agent-skills.md) research tracks SWE-bench Verified scores as evidence that skill acquisition improves coding capability. [Reinforcement Learning](../concepts/reinforcement-learning.md) fine-tuning for coding agents trains on SWE-bench-style tasks.
+
+The benchmark has shaped the field's tooling preferences: retrieval over code, AST-aware editing, precise diff generation, and test execution all receive outsized investment because they move SWE-bench numbers. Practitioners should account for this when interpreting the literature — improvements attributed to general agent capability advances may be partially benchmark-specific optimizations.

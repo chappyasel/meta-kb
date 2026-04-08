@@ -1,0 +1,4733 @@
+{
+  "version": 1,
+  "compiled_at": "2026-04-08T22:34:13.204Z",
+  "nodes": [
+    {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "andrej-karpathy",
+      "name": "Andrej Karpathy",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "openclaw",
+      "name": "OpenClaw",
+      "type": "project",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "retrieval-augmented-generation",
+      "name": "Retrieval-Augmented Generation",
+      "type": "concept",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "episodic-memory",
+      "name": "Episodic Memory",
+      "type": "concept",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "autoresearch",
+      "name": "AutoResearch",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "claude",
+      "name": "Claude",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "context-engineering",
+      "name": "Context Engineering",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "model-context-protocol",
+      "name": "Model Context Protocol",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "knowledge-graph",
+      "name": "Knowledge Graph",
+      "type": "concept",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "react",
+      "name": "ReAct",
+      "type": "approach",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "semantic-memory",
+      "name": "Semantic Memory",
+      "type": "concept",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "langchain",
+      "name": "LangChain",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "windsurf",
+      "name": "Windsurf",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "codex",
+      "name": "OpenAI Codex",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "agent-memory",
+      "name": "Agent Memory",
+      "type": "concept",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "agent-skills",
+      "name": "Agent Skills",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "graphrag",
+      "name": "GraphRAG",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "progressive-disclosure",
+      "name": "Progressive Disclosure",
+      "type": "approach",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "obsidian",
+      "name": "Obsidian",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "long-term-memory",
+      "name": "Long-Term Memory",
+      "type": "concept",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "locomo",
+      "name": "LoCoMo",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "vllm",
+      "name": "vLLM",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "reflexion",
+      "name": "Reflexion",
+      "type": "approach",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "graphiti",
+      "name": "Graphiti",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "zep",
+      "name": "Zep",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "mem0",
+      "name": "Mem0",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "gemini-cli",
+      "name": "Gemini CLI",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "gepa",
+      "name": "GEPA",
+      "type": "concept",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "letta",
+      "name": "Letta",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "claude-md",
+      "name": "CLAUDE.md",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "grpo",
+      "name": "GRPO",
+      "type": "approach",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "appworld",
+      "name": "AppWorld",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "semantic-search",
+      "name": "Semantic Search",
+      "type": "concept",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "context-management",
+      "name": "Context Management",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "hotpotqa",
+      "name": "HotpotQA",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "procedural-memory",
+      "name": "Procedural Memory",
+      "type": "concept",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "multi-agent-systems",
+      "name": "Multi-Agent Systems",
+      "type": "concept",
+      "bucket": "multi-agent-systems"
+    },
+    {
+      "id": "ace",
+      "name": "ACE",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "vector-database",
+      "name": "Vector Database",
+      "type": "concept",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "swe-bench",
+      "name": "SWE-bench",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "gpt-4",
+      "name": "GPT-4",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "bm25",
+      "name": "BM25",
+      "type": "approach",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "evoagentx",
+      "name": "EvoAgentX",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "agentevolver",
+      "name": "AgentEvolver",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "tree-sitter",
+      "name": "Tree-sitter",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "human-in-the-loop",
+      "name": "Human-in-the-Loop",
+      "type": "approach",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "continual-learning",
+      "name": "Continual Learning",
+      "type": "concept",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "crewai",
+      "name": "CrewAI",
+      "type": "project",
+      "bucket": "multi-agent-systems"
+    },
+    {
+      "id": "metagpt",
+      "name": "MetaGPT",
+      "type": "project",
+      "bucket": "multi-agent-systems"
+    },
+    {
+      "id": "execution-traces",
+      "name": "Execution Traces",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "langgraph",
+      "name": "LangGraph",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "longmemeval",
+      "name": "LongMemEval",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "lost-in-the-middle",
+      "name": "Lost in the Middle",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "self-improving-agents",
+      "name": "Self-Improving Agents",
+      "type": "concept",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "core-memory",
+      "name": "Core Memory",
+      "type": "concept",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "neo4j",
+      "name": "Neo4j",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "chromadb",
+      "name": "ChromaDB",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "github-copilot",
+      "name": "GitHub Copilot",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "litellm",
+      "name": "LiteLLM",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "dspy",
+      "name": "DSPy",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "memgpt",
+      "name": "MemGPT",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "community-detection",
+      "name": "Community Detection",
+      "type": "approach",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "context-graphs",
+      "name": "Context Graphs",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "hyperagents",
+      "name": "HyperAgents",
+      "type": "project",
+      "bucket": "multi-agent-systems"
+    },
+    {
+      "id": "autogen",
+      "name": "AutoGen",
+      "type": "project",
+      "bucket": "multi-agent-systems"
+    },
+    {
+      "id": "memevolve",
+      "name": "MemEvolve",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "context-compression",
+      "name": "Context Compression",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "hipporag",
+      "name": "HippoRAG",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "raptor",
+      "name": "RAPTOR",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "llamaindex",
+      "name": "LlamaIndex",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "cognitive-architecture",
+      "name": "Cognitive Architecture",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "agent-workflow-memory",
+      "name": "Agent Workflow Memory",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "openmemory",
+      "name": "OpenMemory",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "supermemory",
+      "name": "SuperMemory",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "hybrid-search",
+      "name": "Hybrid Search",
+      "type": "approach",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "temporal-reasoning",
+      "name": "Temporal Reasoning",
+      "type": "concept",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "aflow",
+      "name": "AFlow",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "voyager",
+      "name": "Voyager",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "darwin-godel-machine",
+      "name": "Darwin Gödel Machine",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "reinforcement-learning",
+      "name": "Reinforcement Learning",
+      "type": "approach",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "adas",
+      "name": "ADAS",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "textgrad",
+      "name": "TextGrad",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "webarena",
+      "name": "WebArena",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "mind2web",
+      "name": "Mind2Web",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "skill-book",
+      "name": "SkillBook",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "lightrag",
+      "name": "LightRAG",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "memorybank",
+      "name": "MemoryBank",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "skillweaver",
+      "name": "SkillWeaver",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "tau-bench",
+      "name": "Tau-bench",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "chain-of-thought",
+      "name": "Chain-of-Thought",
+      "type": "approach",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "synthetic-data-generation",
+      "name": "Synthetic Data Generation",
+      "type": "approach",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "lilian-weng",
+      "name": "Lilian Weng",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "jeff-clune",
+      "name": "Jeff Clune",
+      "type": "person",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "openai-agents-sdk",
+      "name": "OpenAI Agents SDK",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "zettelkasten",
+      "name": "Zettelkasten",
+      "type": "approach",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "aider",
+      "name": "Aider",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "autogpt",
+      "name": "AutoGPT",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "osworld",
+      "name": "OSWorld",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "ragflow",
+      "name": "RAGFlow",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "elizaos",
+      "name": "ElizaOS",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "cognee",
+      "name": "Cognee",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "memento",
+      "name": "Memento",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "a-mem",
+      "name": "A-MEM",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "prompt-optimization",
+      "name": "Prompt Optimization",
+      "type": "approach",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "organizational-memory",
+      "name": "Organizational Memory",
+      "type": "concept",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "case-based-reasoning",
+      "name": "Case-Based Reasoning",
+      "type": "approach",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "pi",
+      "name": "Pi",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "seagent",
+      "name": "SEAgent",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "workflow-induction",
+      "name": "Workflow Induction",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "incremental-indexing",
+      "name": "Incremental Indexing",
+      "type": "concept",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "short-term-memory",
+      "name": "Short-Term Memory",
+      "type": "concept",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "llm-as-judge",
+      "name": "LLM-as-Judge",
+      "type": "approach",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "personalized-pagerank",
+      "name": "Personalized PageRank",
+      "type": "concept",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "entity-extraction",
+      "name": "Entity Extraction",
+      "type": "approach",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "agent-harness",
+      "name": "Agent Harness",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "docker-sandbox",
+      "name": "Docker Sandbox",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "observability",
+      "name": "Observability",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "memory-evolution",
+      "name": "Memory Evolution",
+      "type": "concept",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "world-model",
+      "name": "World Model",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "composable-skills",
+      "name": "Compositional Skill Synthesis",
+      "type": "approach",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "markdown-wiki",
+      "name": "Markdown Wiki",
+      "type": "concept",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "system-prompt",
+      "name": "System Prompt",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "meta-agent",
+      "name": "Meta-Agent",
+      "type": "concept",
+      "bucket": "multi-agent-systems"
+    },
+    {
+      "id": "tool-registry",
+      "name": "Tool Registry",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "pinatone",
+      "name": "Pinecone",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "structured-output",
+      "name": "Structured Output",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "letta-api",
+      "name": "Letta API",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "gaia",
+      "name": "GAIA",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "humaneval",
+      "name": "HumanEval",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "antigravity",
+      "name": "Antigravity",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "docling",
+      "name": "Docling",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "marp",
+      "name": "MARP",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "agent-zero",
+      "name": "Agent Zero",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "metagpt-agent",
+      "name": "MGX",
+      "type": "project",
+      "bucket": "multi-agent-systems"
+    },
+    {
+      "id": "termination-bench",
+      "name": "TerminalBench",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "memvid",
+      "name": "MemVid",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "mineru",
+      "name": "MinerU",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "cerebra-fusion-memory",
+      "name": "Cerebra Fusion Memory",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "superagi",
+      "name": "SuperAGI",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "abductive-context",
+      "name": "Context Generation",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "agent-mediated-workflows",
+      "name": "Agent-Mediated Workflows",
+      "type": "concept",
+      "bucket": "multi-agent-systems"
+    },
+    {
+      "id": "compound-engineering",
+      "name": "Compound Engineering",
+      "type": "approach",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "reme",
+      "name": "ReMe",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "bounded-context",
+      "name": "Bounded Context",
+      "type": "approach",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "loop-detection",
+      "name": "Loop Detection",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "elastic-search",
+      "name": "Elasticsearch",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "multihop-rag",
+      "name": "Multi-hop RAG",
+      "type": "concept",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "dynamic-cheatsheet",
+      "name": "Dynamic Cheatsheet",
+      "type": "approach",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "continual-rag",
+      "name": "Continual RAG",
+      "type": "concept",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "zero-data-self-evolution",
+      "name": "Zero-Data Self-Evolution",
+      "type": "approach",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "tool-integrated-reasoning",
+      "name": "Tool-Integrated Reasoning",
+      "type": "approach",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "sqlalchemy",
+      "name": "SQLAlchemy",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "coral",
+      "name": "Coral",
+      "type": "project",
+      "bucket": "multi-agent-systems"
+    },
+    {
+      "id": "pydantic",
+      "name": "Pydantic",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "networkx",
+      "name": "NetworkX",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "claude-mem",
+      "name": "Claude-Mem",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "openviking",
+      "name": "OpenViking",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "gstack",
+      "name": "GStack",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "kuzu",
+      "name": "Kuzu",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "sage",
+      "name": "SAGE",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "webshop",
+      "name": "WebShop",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "perplexity",
+      "name": "Perplexity",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "qwen",
+      "name": "Qwen",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "jack-dorsey",
+      "name": "Jack Dorsey",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "jaya-gupta",
+      "name": "Jaya Gupta",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "udit-goenka",
+      "name": "Udit Goenka",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "garry-tan",
+      "name": "Garry Tan",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "tobi-lutke",
+      "name": "Tobi Lütke",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "lossless-context-management",
+      "name": "Lossless Context Management",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "agent-learning",
+      "name": "Agent Learning",
+      "type": "concept",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "hipocampus",
+      "name": "Hipocampus",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "sqlite",
+      "name": "SQLite",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "postgresql",
+      "name": "PostgreSQL",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "redis",
+      "name": "Redis",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "faiss",
+      "name": "FAISS",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "qdrant",
+      "name": "Qdrant",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "lancedb",
+      "name": "LanceDB",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "langsmith",
+      "name": "LangSmith",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "notion",
+      "name": "Notion",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "chatgpt",
+      "name": "ChatGPT",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "groq",
+      "name": "Groq",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "llama-cpp",
+      "name": "llama.cpp",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "financebench",
+      "name": "FinanceBench",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "agentic-rag",
+      "name": "Agentic RAG",
+      "type": "concept",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "cypher",
+      "name": "Cypher",
+      "type": "approach",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "context-database",
+      "name": "Context Database",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "memori",
+      "name": "Memori",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "lightrag-project",
+      "name": "LightRAG",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "block",
+      "name": "Block",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "evolvelab",
+      "name": "EvolveLab",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "supermemory-project",
+      "name": "SuperMemory",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "pinatone-project",
+      "name": "Pinecone",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "agent0",
+      "name": "Agent0",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "seagent-project",
+      "name": "SEAgent",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "docling-project",
+      "name": "Docling",
+      "type": "project",
+      "bucket": "knowledge-substrate"
+    },
+    {
+      "id": "llmlingua",
+      "name": "LLMLingua",
+      "type": "project",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "token-efficiency",
+      "name": "Token Efficiency",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "webshop-bench",
+      "name": "WebShop",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "multi-agent-collaboration",
+      "name": "Multi-Agent Collaboration",
+      "type": "concept",
+      "bucket": "multi-agent-systems"
+    },
+    {
+      "id": "openmementos",
+      "name": "OpenMementos",
+      "type": "project",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "openthoughts-v3",
+      "name": "OpenThoughts-v3",
+      "type": "project",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "qwq-32b",
+      "name": "QwQ-32B",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "ai-frontiers",
+      "name": "AI Frontiers",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "qwen2-5-7b",
+      "name": "Qwen2.5-7B",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "qwen3-8b",
+      "name": "Qwen3-8B",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "qwen3-32b",
+      "name": "Qwen3-32B",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "phi-4-reasoning",
+      "name": "Phi-4-Reasoning",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "olmo3-7b-think",
+      "name": "OLMo3-7B-Think",
+      "type": "project",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "kv-cache",
+      "name": "KV Cache",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "block-masking",
+      "name": "Block Masking",
+      "type": "concept",
+      "bucket": "context-engineering"
+    },
+    {
+      "id": "memento-concept",
+      "name": "Memento (Concept)",
+      "type": "concept",
+      "bucket": "agent-memory"
+    },
+    {
+      "id": "supervised-fine-tuning",
+      "name": "Supervised Fine-Tuning",
+      "type": "approach",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "dynamic-programming",
+      "name": "Dynamic Programming",
+      "type": "approach",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "dimitris-papailiopoulos",
+      "name": "Dimitris Papailiopoulos",
+      "type": "person",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "vasilis-kontonis",
+      "name": "Vasilis Kontonis",
+      "type": "person",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "yuchen-zeng",
+      "name": "Yuchen Zeng",
+      "type": "person",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "shivam-garg",
+      "name": "Shivam Garg",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "lingjiao-chen",
+      "name": "Lingjiao Chen",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "hao-tang",
+      "name": "Hao Tang",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "ziyan-wang",
+      "name": "Ziyan Wang",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "ahmed-awadallah",
+      "name": "Ahmed Awadallah",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "eric-horvitz",
+      "name": "Eric Horvitz",
+      "type": "person",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "john-langford",
+      "name": "John Langford",
+      "type": "person",
+      "bucket": "self-improving"
+    },
+    {
+      "id": "aime26",
+      "name": "AIME 2026",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "gpqa-d",
+      "name": "GPQA-Diamond",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    },
+    {
+      "id": "lcb",
+      "name": "LiveCodeBench",
+      "type": "concept",
+      "bucket": "agent-architecture"
+    }
+  ],
+  "edges": [
+    {
+      "source": "claude-code",
+      "target": "codex",
+      "type": "competes_with",
+      "weight": 0.8,
+      "label": "competing coding agent platforms"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "autoresearch",
+      "type": "created_by",
+      "weight": 0.6,
+      "label": "Karpathy loop pattern inspires AutoResearch"
+    },
+    {
+      "source": "claude-code",
+      "target": "cursor",
+      "type": "competes_with",
+      "weight": 0.85,
+      "label": "competing AI coding assistants"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "semantic-memory",
+      "type": "part_of",
+      "weight": 0.8,
+      "label": "complementary memory types in agent architecture"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "knowledge-graph",
+      "type": "alternative_to",
+      "weight": 0.6,
+      "label": "RAG vs graph-based knowledge retrieval"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "context-management",
+      "type": "part_of",
+      "weight": 0.7,
+      "label": "RAG is a key context management technique"
+    },
+    {
+      "source": "claude-code",
+      "target": "openclaw",
+      "type": "competes_with",
+      "weight": 0.6,
+      "label": "alternative coding agent frameworks"
+    },
+    {
+      "source": "claude-code",
+      "target": "opencode",
+      "type": "competes_with",
+      "weight": 0.7,
+      "label": "competing open-source coding agents"
+    },
+    {
+      "source": "cursor",
+      "target": "windsurf",
+      "type": "competes_with",
+      "weight": 0.85,
+      "label": "competing AI coding IDEs"
+    },
+    {
+      "source": "cursor",
+      "target": "codex",
+      "type": "competes_with",
+      "weight": 0.75,
+      "label": "competing AI coding tools"
+    },
+    {
+      "source": "claude-code",
+      "target": "context-engineering",
+      "type": "implements",
+      "weight": 0.8,
+      "label": "Claude Code applies context engineering"
+    },
+    {
+      "source": "claude-code",
+      "target": "model-context-protocol",
+      "type": "implements",
+      "weight": 0.75,
+      "label": "Claude Code uses MCP"
+    },
+    {
+      "source": "claude-code",
+      "target": "agent-skills",
+      "type": "implements",
+      "weight": 0.8,
+      "label": "Claude Code implements agent skills"
+    },
+    {
+      "source": "cursor",
+      "target": "model-context-protocol",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "Cursor uses MCP"
+    },
+    {
+      "source": "claude-code",
+      "target": "andrej-karpathy",
+      "type": "part_of",
+      "weight": 0.5,
+      "label": "Karpathy influences Claude Code usage patterns"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "model-context-protocol",
+      "type": "alternative_to",
+      "weight": 0.5,
+      "label": "RAG and MCP are complementary retrieval approaches"
+    },
+    {
+      "source": "openai",
+      "target": "anthropic",
+      "type": "competes_with",
+      "weight": 0.9,
+      "label": "competing AI labs"
+    },
+    {
+      "source": "opencode",
+      "target": "codex",
+      "type": "competes_with",
+      "weight": 0.7,
+      "label": "competing coding agent platforms"
+    },
+    {
+      "source": "claude-code",
+      "target": "anthropic",
+      "type": "created_by",
+      "weight": 0.95,
+      "label": "Claude Code created by Anthropic"
+    },
+    {
+      "source": "claude-code",
+      "target": "autoresearch",
+      "type": "part_of",
+      "weight": 0.6,
+      "label": "AutoResearch built on Claude Code"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "claude",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Karpathy uses Claude in research"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "agent-memory",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "RAG implements agent memory retrieval"
+    },
+    {
+      "source": "context-engineering",
+      "target": "agent-memory",
+      "type": "part_of",
+      "weight": 0.75,
+      "label": "context engineering encompasses agent memory"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "knowledge-graph",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "MCP can serve knowledge graph data"
+    },
+    {
+      "source": "claude-code",
+      "target": "knowledge-graph",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Claude Code uses knowledge graphs for code"
+    },
+    {
+      "source": "claude-code",
+      "target": "windsurf",
+      "type": "competes_with",
+      "weight": 0.75,
+      "label": "competing AI coding tools"
+    },
+    {
+      "source": "claude-code",
+      "target": "claude-md",
+      "type": "implements",
+      "weight": 0.85,
+      "label": "Claude Code uses CLAUDE.md for configuration"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "cursor",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Karpathy comments on coding tools"
+    },
+    {
+      "source": "openclaw",
+      "target": "cursor",
+      "type": "competes_with",
+      "weight": 0.5,
+      "label": "alternative agent frameworks"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "openai",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenAI implements RAG in products"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "semantic-search",
+      "type": "implements",
+      "weight": 0.8,
+      "label": "RAG uses semantic search for retrieval"
+    },
+    {
+      "source": "cursor",
+      "target": "claude",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Cursor uses Claude as backend model"
+    },
+    {
+      "source": "cursor",
+      "target": "agent-skills",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Cursor implements agent skills"
+    },
+    {
+      "source": "openai",
+      "target": "claude",
+      "type": "competes_with",
+      "weight": 0.85,
+      "label": "competing AI models"
+    },
+    {
+      "source": "openai",
+      "target": "model-context-protocol",
+      "type": "alternative_to",
+      "weight": 0.5,
+      "label": "OpenAI has competing protocol approaches"
+    },
+    {
+      "source": "openai",
+      "target": "ollama",
+      "type": "alternative_to",
+      "weight": 0.6,
+      "label": "cloud vs local LLM serving"
+    },
+    {
+      "source": "openai",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenAI uses vector databases"
+    },
+    {
+      "source": "autoresearch",
+      "target": "claude",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "AutoResearch uses Claude"
+    },
+    {
+      "source": "claude",
+      "target": "model-context-protocol",
+      "type": "implements",
+      "weight": 0.75,
+      "label": "Claude implements MCP"
+    },
+    {
+      "source": "codex",
+      "target": "agent-skills",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Codex implements agent skills"
+    },
+    {
+      "source": "vector-database",
+      "target": "chromadb",
+      "type": "part_of",
+      "weight": 0.8,
+      "label": "ChromaDB is a vector database implementation"
+    },
+    {
+      "source": "claude-code",
+      "target": "gemini-cli",
+      "type": "competes_with",
+      "weight": 0.75,
+      "label": "competing CLI coding agents"
+    },
+    {
+      "source": "claude-code",
+      "target": "context-management",
+      "type": "implements",
+      "weight": 0.75,
+      "label": "Claude Code manages context"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "context-engineering",
+      "type": "part_of",
+      "weight": 0.6,
+      "label": "Karpathy promotes context engineering concepts"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "codex",
+      "type": "part_of",
+      "weight": 0.5,
+      "label": "Karpathy worked at OpenAI on Codex"
+    },
+    {
+      "source": "openclaw",
+      "target": "retrieval-augmented-generation",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenClaw uses RAG"
+    },
+    {
+      "source": "openclaw",
+      "target": "openai",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenClaw uses OpenAI models"
+    },
+    {
+      "source": "openclaw",
+      "target": "model-context-protocol",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "OpenClaw uses MCP"
+    },
+    {
+      "source": "openclaw",
+      "target": "codex",
+      "type": "competes_with",
+      "weight": 0.5,
+      "label": "competing coding agent frameworks"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "episodic-memory",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "RAG can implement episodic memory retrieval"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "claude",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "RAG used with Claude"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "graphrag",
+      "type": "extends",
+      "weight": 0.75,
+      "label": "GraphRAG extends RAG with graph structure"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "obsidian",
+      "type": "alternative_to",
+      "weight": 0.5,
+      "label": "RAG vs wiki-based knowledge management"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "agentic-rag",
+      "type": "extends",
+      "weight": 0.8,
+      "label": "Agentic RAG extends basic RAG"
+    },
+    {
+      "source": "openai",
+      "target": "langchain",
+      "type": "part_of",
+      "weight": 0.6,
+      "label": "OpenAI models used in LangChain"
+    },
+    {
+      "source": "openai",
+      "target": "agent-memory",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenAI implements agent memory"
+    },
+    {
+      "source": "openai",
+      "target": "vllm",
+      "type": "alternative_to",
+      "weight": 0.6,
+      "label": "cloud vs local model serving"
+    },
+    {
+      "source": "openai",
+      "target": "gemini",
+      "type": "competes_with",
+      "weight": 0.85,
+      "label": "competing AI model providers"
+    },
+    {
+      "source": "anthropic",
+      "target": "context-engineering",
+      "type": "implements",
+      "weight": 0.75,
+      "label": "Anthropic promotes context engineering"
+    },
+    {
+      "source": "anthropic",
+      "target": "model-context-protocol",
+      "type": "created_by",
+      "weight": 0.9,
+      "label": "Anthropic created MCP"
+    },
+    {
+      "source": "anthropic",
+      "target": "agent-skills",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "Anthropic implements agent skills"
+    },
+    {
+      "source": "claude",
+      "target": "context-engineering",
+      "type": "implements",
+      "weight": 0.75,
+      "label": "Claude uses context engineering"
+    },
+    {
+      "source": "claude",
+      "target": "windsurf",
+      "type": "part_of",
+      "weight": 0.5,
+      "label": "Claude used in Windsurf"
+    },
+    {
+      "source": "claude",
+      "target": "gemini",
+      "type": "competes_with",
+      "weight": 0.85,
+      "label": "competing AI assistants"
+    },
+    {
+      "source": "context-engineering",
+      "target": "model-context-protocol",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "MCP implements context engineering"
+    },
+    {
+      "source": "context-engineering",
+      "target": "multi-agent-systems",
+      "type": "part_of",
+      "weight": 0.65,
+      "label": "context engineering is key in multi-agent systems"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "windsurf",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Windsurf uses MCP"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "codex",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Codex uses MCP"
+    },
+    {
+      "source": "codex",
+      "target": "gemini-cli",
+      "type": "competes_with",
+      "weight": 0.75,
+      "label": "competing CLI coding agents"
+    },
+    {
+      "source": "agent-skills",
+      "target": "composable-skills",
+      "type": "implements",
+      "weight": 0.8,
+      "label": "agent skills use compositional synthesis"
+    },
+    {
+      "source": "obsidian",
+      "target": "zettelkasten",
+      "type": "implements",
+      "weight": 0.8,
+      "label": "Obsidian implements Zettelkasten methodology"
+    },
+    {
+      "source": "graphiti",
+      "target": "zep",
+      "type": "part_of",
+      "weight": 0.8,
+      "label": "Graphiti is the engine behind Zep"
+    },
+    {
+      "source": "grpo",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.85,
+      "label": "GRPO is a reinforcement learning algorithm"
+    },
+    {
+      "source": "claude-code",
+      "target": "retrieval-augmented-generation",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude Code can use RAG"
+    },
+    {
+      "source": "claude-code",
+      "target": "claude",
+      "type": "part_of",
+      "weight": 0.85,
+      "label": "Claude Code is built on Claude"
+    },
+    {
+      "source": "claude-code",
+      "target": "multi-agent-systems",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Claude Code supports multi-agent workflows"
+    },
+    {
+      "source": "claude-code",
+      "target": "tree-sitter",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Claude Code uses Tree-sitter for code parsing"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "multi-agent-systems",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Karpathy researches multi-agent systems"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "markdown-wiki",
+      "type": "created_by",
+      "weight": 0.6,
+      "label": "Karpathy advocates markdown wikis"
+    },
+    {
+      "source": "openclaw",
+      "target": "opencode",
+      "type": "competes_with",
+      "weight": 0.5,
+      "label": "competing open coding agent frameworks"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "context-engineering",
+      "type": "part_of",
+      "weight": 0.65,
+      "label": "RAG is a context engineering technique"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "semantic-memory",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "RAG implements semantic memory retrieval"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "long-term-memory",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "RAG enables long-term memory retrieval"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "letta",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Letta uses RAG for memory"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "multi-agent-systems",
+      "type": "part_of",
+      "weight": 0.55,
+      "label": "RAG used in multi-agent systems"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.85,
+      "label": "RAG relies on vector databases"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "longmemeval",
+      "type": "part_of",
+      "weight": 0.6,
+      "label": "LongMemEval benchmarks RAG memory"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "hipporag",
+      "type": "extends",
+      "weight": 0.75,
+      "label": "HippoRAG extends RAG with hippocampal structure"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "markdown-wiki",
+      "type": "alternative_to",
+      "weight": 0.55,
+      "label": "RAG vs markdown wiki for knowledge"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "model-context-protocol",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "MCP can provide episodic memory access"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "letta",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "Letta implements episodic memory"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "procedural-memory",
+      "type": "part_of",
+      "weight": 0.7,
+      "label": "complementary memory types"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "episodic memory stored in vector databases"
+    },
+    {
+      "source": "cursor",
+      "target": "context-engineering",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "Cursor applies context engineering"
+    },
+    {
+      "source": "cursor",
+      "target": "knowledge-graph",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Cursor uses knowledge graphs"
+    },
+    {
+      "source": "cursor",
+      "target": "opencode",
+      "type": "competes_with",
+      "weight": 0.7,
+      "label": "competing coding agents"
+    },
+    {
+      "source": "cursor",
+      "target": "gemini-cli",
+      "type": "competes_with",
+      "weight": 0.7,
+      "label": "competing AI coding tools"
+    },
+    {
+      "source": "cursor",
+      "target": "claude-md",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Cursor uses CLAUDE.md-style configs"
+    },
+    {
+      "source": "openai",
+      "target": "multi-agent-systems",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "OpenAI builds multi-agent systems"
+    },
+    {
+      "source": "openai",
+      "target": "abductive-context",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenAI implements context generation"
+    },
+    {
+      "source": "anthropic",
+      "target": "claude",
+      "type": "created_by",
+      "weight": 0.98,
+      "label": "Anthropic created Claude"
+    },
+    {
+      "source": "anthropic",
+      "target": "vllm",
+      "type": "alternative_to",
+      "weight": 0.5,
+      "label": "cloud vs local serving"
+    },
+    {
+      "source": "anthropic",
+      "target": "ollama",
+      "type": "alternative_to",
+      "weight": 0.5,
+      "label": "cloud vs local model serving"
+    },
+    {
+      "source": "anthropic",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Anthropic products use vector databases"
+    },
+    {
+      "source": "autoresearch",
+      "target": "context-engineering",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "AutoResearch uses context engineering"
+    },
+    {
+      "source": "claude",
+      "target": "agent-skills",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "Claude implements agent skills"
+    },
+    {
+      "source": "claude",
+      "target": "multi-agent-systems",
+      "type": "part_of",
+      "weight": 0.6,
+      "label": "Claude used in multi-agent systems"
+    },
+    {
+      "source": "context-engineering",
+      "target": "knowledge-graph",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "context engineering uses knowledge graphs"
+    },
+    {
+      "source": "context-engineering",
+      "target": "codex",
+      "type": "part_of",
+      "weight": 0.5,
+      "label": "context engineering applied to Codex"
+    },
+    {
+      "source": "context-engineering",
+      "target": "agent-skills",
+      "type": "part_of",
+      "weight": 0.7,
+      "label": "agent skills are part of context engineering"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "agent-memory",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "MCP provides agent memory access"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "ollama",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Ollama supports MCP"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "gemini",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Gemini supports MCP"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.55,
+      "label": "MCP can interface with vector databases"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "tree-sitter",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "MCP can use Tree-sitter for code context"
+    },
+    {
+      "source": "knowledge-graph",
+      "target": "windsurf",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Windsurf uses knowledge graphs"
+    },
+    {
+      "source": "knowledge-graph",
+      "target": "graphrag",
+      "type": "implements",
+      "weight": 0.8,
+      "label": "GraphRAG implements knowledge graphs"
+    },
+    {
+      "source": "knowledge-graph",
+      "target": "tree-sitter",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "knowledge graphs built with Tree-sitter"
+    },
+    {
+      "source": "knowledge-graph",
+      "target": "community-detection",
+      "type": "implements",
+      "weight": 0.75,
+      "label": "knowledge graphs use community detection"
+    },
+    {
+      "source": "knowledge-graph",
+      "target": "hybrid-search",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "knowledge graphs support hybrid search"
+    },
+    {
+      "source": "react",
+      "target": "reflexion",
+      "type": "extends",
+      "weight": 0.7,
+      "label": "Reflexion extends ReAct with self-reflection"
+    },
+    {
+      "source": "semantic-memory",
+      "target": "procedural-memory",
+      "type": "part_of",
+      "weight": 0.7,
+      "label": "complementary memory types"
+    },
+    {
+      "source": "langchain",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.75,
+      "label": "LangChain integrates vector databases"
+    },
+    {
+      "source": "opencode",
+      "target": "agent-skills",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "OpenCode implements agent skills"
+    },
+    {
+      "source": "agent-memory",
+      "target": "context-management",
+      "type": "part_of",
+      "weight": 0.75,
+      "label": "agent memory is central to context management"
+    },
+    {
+      "source": "agent-memory",
+      "target": "multi-agent-systems",
+      "type": "part_of",
+      "weight": 0.65,
+      "label": "agent memory is key for multi-agent systems"
+    },
+    {
+      "source": "agent-skills",
+      "target": "claude-md",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "agent skills defined in CLAUDE.md"
+    },
+    {
+      "source": "agent-skills",
+      "target": "multi-agent-systems",
+      "type": "part_of",
+      "weight": 0.65,
+      "label": "agent skills enable multi-agent systems"
+    },
+    {
+      "source": "long-term-memory",
+      "target": "context-management",
+      "type": "part_of",
+      "weight": 0.7,
+      "label": "long-term memory is part of context management"
+    },
+    {
+      "source": "vllm",
+      "target": "ollama",
+      "type": "competes_with",
+      "weight": 0.7,
+      "label": "competing local model serving systems"
+    },
+    {
+      "source": "vllm",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "vLLM used in RL training pipelines"
+    },
+    {
+      "source": "letta",
+      "target": "memgpt",
+      "type": "supersedes",
+      "weight": 0.85,
+      "label": "Letta is the evolution of MemGPT"
+    },
+    {
+      "source": "claude-md",
+      "target": "skill-book",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "CLAUDE.md references SkillBook concepts"
+    },
+    {
+      "source": "context-management",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "context management uses vector databases"
+    },
+    {
+      "source": "context-management",
+      "target": "context-compression",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "context compression is part of context management"
+    },
+    {
+      "source": "multi-agent-systems",
+      "target": "self-improving-agents",
+      "type": "part_of",
+      "weight": 0.7,
+      "label": "self-improvement is key multi-agent capability"
+    },
+    {
+      "source": "vector-database",
+      "target": "postgresql",
+      "type": "alternative_to",
+      "weight": 0.6,
+      "label": "vector DB vs relational DB for storage"
+    },
+    {
+      "source": "gpt-4",
+      "target": "gpt-4o",
+      "type": "supersedes",
+      "weight": 0.85,
+      "label": "GPT-4o supersedes GPT-4"
+    },
+    {
+      "source": "continual-learning",
+      "target": "continual-rag",
+      "type": "implements",
+      "weight": 0.75,
+      "label": "Continual RAG implements continual learning"
+    },
+    {
+      "source": "execution-traces",
+      "target": "context-graphs",
+      "type": "implements",
+      "weight": 0.8,
+      "label": "context graphs capture execution traces"
+    },
+    {
+      "source": "agent-harness",
+      "target": "termination-bench",
+      "type": "part_of",
+      "weight": 0.6,
+      "label": "TerminalBench evaluates agent harnesses"
+    },
+    {
+      "source": "claude-code",
+      "target": "episodic-memory",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude Code uses episodic memory"
+    },
+    {
+      "source": "claude-code",
+      "target": "langchain",
+      "type": "alternative_to",
+      "weight": 0.5,
+      "label": "competing agent frameworks"
+    },
+    {
+      "source": "claude-code",
+      "target": "agent-memory",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Claude Code implements agent memory"
+    },
+    {
+      "source": "claude-code",
+      "target": "progressive-disclosure",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Claude Code uses progressive disclosure"
+    },
+    {
+      "source": "claude-code",
+      "target": "semantic-search",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude Code uses semantic search"
+    },
+    {
+      "source": "claude-code",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude Code can use vector databases"
+    },
+    {
+      "source": "claude-code",
+      "target": "self-improving-agents",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Claude Code supports self-improvement"
+    },
+    {
+      "source": "claude-code",
+      "target": "chromadb",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code can use ChromaDB"
+    },
+    {
+      "source": "claude-code",
+      "target": "openai-agents-sdk",
+      "type": "competes_with",
+      "weight": 0.6,
+      "label": "competing agent SDKs"
+    },
+    {
+      "source": "claude-code",
+      "target": "antigravity",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Antigravity extends Claude Code"
+    },
+    {
+      "source": "claude-code",
+      "target": "udit-goenka",
+      "type": "created_by",
+      "weight": 0.3,
+      "label": "Udit Goenka builds with Claude Code"
+    },
+    {
+      "source": "claude-code",
+      "target": "sqlite",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code uses SQLite for storage"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "retrieval-augmented-generation",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Karpathy discusses RAG alternatives"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "windsurf",
+      "type": "part_of",
+      "weight": 0.3,
+      "label": "Karpathy comments on coding tools"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "obsidian",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Karpathy uses Obsidian-style wikis"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "synthetic-data-generation",
+      "type": "part_of",
+      "weight": 0.5,
+      "label": "Karpathy works on synthetic data"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "zettelkasten",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Karpathy uses Zettelkasten-style notes"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "pi",
+      "type": "created_by",
+      "weight": 0.5,
+      "label": "Karpathy created Pi-autoresearch"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "marp",
+      "type": "part_of",
+      "weight": 0.3,
+      "label": "Karpathy uses MARP for presentations"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "udit-goenka",
+      "type": "part_of",
+      "weight": 0.3,
+      "label": "Udit Goenka implements Karpathy patterns"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "tobi-lutke",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "shared interest in AI agent patterns"
+    },
+    {
+      "source": "openclaw",
+      "target": "claude",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "OpenClaw uses Claude"
+    },
+    {
+      "source": "openclaw",
+      "target": "knowledge-graph",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenClaw uses knowledge graphs"
+    },
+    {
+      "source": "openclaw",
+      "target": "windsurf",
+      "type": "competes_with",
+      "weight": 0.4,
+      "label": "competing agent frameworks"
+    },
+    {
+      "source": "openclaw",
+      "target": "gemini-cli",
+      "type": "competes_with",
+      "weight": 0.5,
+      "label": "competing agent CLI tools"
+    },
+    {
+      "source": "openclaw",
+      "target": "semantic-search",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenClaw uses semantic search"
+    },
+    {
+      "source": "openclaw",
+      "target": "context-management",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenClaw manages context"
+    },
+    {
+      "source": "openclaw",
+      "target": "abductive-context",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenClaw generates context"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "ollama",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "RAG used with Ollama"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "zep",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Zep extends RAG with temporal graphs"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "mem0",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Mem0 uses RAG for memory"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "claude-md",
+      "type": "alternative_to",
+      "weight": 0.4,
+      "label": "CLAUDE.md as alternative to RAG"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "hotpotqa",
+      "type": "part_of",
+      "weight": 0.5,
+      "label": "HotpotQA benchmarks RAG multi-hop"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "ace",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "ACE uses RAG"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "bm25",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "BM25 is a RAG retrieval method"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "evoagentx",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "EvoAgentX uses RAG"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "langgraph",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "LangGraph implements RAG pipelines"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "lost-in-the-middle",
+      "type": "part_of",
+      "weight": 0.6,
+      "label": "lost-in-the-middle is a RAG failure mode"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "core-memory",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "RAG complements core memory"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "community-detection",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "GraphRAG uses community detection"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "autogen",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "AutoGen uses RAG"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "context-compression",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "context compression improves RAG"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "raptor",
+      "type": "extends",
+      "weight": 0.7,
+      "label": "RAPTOR extends RAG with hierarchical summaries"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "cognitive-architecture",
+      "type": "part_of",
+      "weight": 0.5,
+      "label": "RAG is part of cognitive architecture"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "openmemory",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenMemory uses RAG"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "textgrad",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "TextGrad optimizes RAG prompts"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "lightrag",
+      "type": "extends",
+      "weight": 0.7,
+      "label": "LightRAG extends RAG"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "memorybank",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "MemoryBank uses RAG-like retrieval"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "chain-of-thought",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "chain-of-thought enhances RAG reasoning"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "personalized-pagerank",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "HippoRAG uses personalized PageRank in RAG"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "deepseek",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "DeepSeek uses RAG"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "gaia",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "GAIA benchmarks RAG agents"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "termination-bench",
+      "type": "part_of",
+      "weight": 0.3,
+      "label": "TerminalBench evaluates RAG agents"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "multihop-rag",
+      "type": "extends",
+      "weight": 0.75,
+      "label": "multi-hop RAG extends basic RAG"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "notion",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "RAG over Notion content"
+    },
+    {
+      "source": "retrieval-augmented-generation",
+      "target": "token-efficiency",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "token efficiency improves RAG"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "openai",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenAI products use episodic memory"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "long-term-memory",
+      "type": "part_of",
+      "weight": 0.8,
+      "label": "episodic memory is a form of long-term memory"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "reflexion",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "Reflexion uses episodic memory for self-improvement"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "gpt-4",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "GPT-4 used in episodic memory systems"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "core-memory",
+      "type": "part_of",
+      "weight": 0.6,
+      "label": "core memory complements episodic memory"
+    },
+    {
+      "source": "cursor",
+      "target": "langchain",
+      "type": "alternative_to",
+      "weight": 0.4,
+      "label": "Cursor as alternative to LangChain agents"
+    },
+    {
+      "source": "cursor",
+      "target": "agent-memory",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Cursor implements agent memory"
+    },
+    {
+      "source": "cursor",
+      "target": "github-copilot",
+      "type": "competes_with",
+      "weight": 0.8,
+      "label": "competing AI coding assistants"
+    },
+    {
+      "source": "cursor",
+      "target": "hybrid-search",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Cursor uses hybrid search"
+    },
+    {
+      "source": "cursor",
+      "target": "gstack",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "GStack built on Cursor"
+    },
+    {
+      "source": "cursor",
+      "target": "garry-tan",
+      "type": "part_of",
+      "weight": 0.3,
+      "label": "Garry Tan uses Cursor"
+    },
+    {
+      "source": "cursor",
+      "target": "chatgpt",
+      "type": "competes_with",
+      "weight": 0.5,
+      "label": "competing AI coding assistants"
+    },
+    {
+      "source": "cursor",
+      "target": "token-efficiency",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Cursor optimizes token efficiency"
+    },
+    {
+      "source": "openai",
+      "target": "agent-skills",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenAI implements agent skills"
+    },
+    {
+      "source": "openai",
+      "target": "progressive-disclosure",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenAI uses progressive disclosure"
+    },
+    {
+      "source": "openai",
+      "target": "locomo",
+      "type": "part_of",
+      "weight": 0.3,
+      "label": "OpenAI models used in LoCoMo"
+    },
+    {
+      "source": "openai",
+      "target": "gepa",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenAI uses GEPA-style optimization"
+    },
+    {
+      "source": "openai",
+      "target": "continual-learning",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenAI researches continual learning"
+    },
+    {
+      "source": "openai",
+      "target": "crewai",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "OpenAI models used in CrewAI"
+    },
+    {
+      "source": "openai",
+      "target": "github-copilot",
+      "type": "created_by",
+      "weight": 0.7,
+      "label": "OpenAI powers GitHub Copilot"
+    },
+    {
+      "source": "openai",
+      "target": "community-detection",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "OpenAI uses community detection"
+    },
+    {
+      "source": "openai",
+      "target": "cognitive-architecture",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenAI builds cognitive architectures"
+    },
+    {
+      "source": "openai",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "OpenAI uses reinforcement learning"
+    },
+    {
+      "source": "openai",
+      "target": "synthetic-data-generation",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenAI generates synthetic data"
+    },
+    {
+      "source": "openai",
+      "target": "entity-extraction",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenAI uses entity extraction"
+    },
+    {
+      "source": "openai",
+      "target": "deepseek",
+      "type": "competes_with",
+      "weight": 0.7,
+      "label": "competing AI model providers"
+    },
+    {
+      "source": "openai",
+      "target": "meta-agent",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenAI builds meta-agent systems"
+    },
+    {
+      "source": "openai",
+      "target": "sqlalchemy",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "OpenAI tools use SQLAlchemy"
+    },
+    {
+      "source": "openai",
+      "target": "pydantic",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenAI tools use Pydantic"
+    },
+    {
+      "source": "openai",
+      "target": "postgresql",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "OpenAI tools use PostgreSQL"
+    },
+    {
+      "source": "openai",
+      "target": "redis",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "OpenAI tools use Redis"
+    },
+    {
+      "source": "openai",
+      "target": "faiss",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenAI uses FAISS for similarity search"
+    },
+    {
+      "source": "openai",
+      "target": "qdrant",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "OpenAI integrates with Qdrant"
+    },
+    {
+      "source": "openai",
+      "target": "notion",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "OpenAI tools connect to Notion"
+    },
+    {
+      "source": "openai",
+      "target": "groq",
+      "type": "competes_with",
+      "weight": 0.6,
+      "label": "competing inference providers"
+    },
+    {
+      "source": "openai",
+      "target": "neo4j",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "OpenAI uses Neo4j for graph storage"
+    },
+    {
+      "source": "openai",
+      "target": "chromadb",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenAI tools use ChromaDB"
+    },
+    {
+      "source": "openai",
+      "target": "pinatone",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenAI tools use Pinecone"
+    },
+    {
+      "source": "openai",
+      "target": "mem0",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Mem0 used with OpenAI"
+    },
+    {
+      "source": "openai",
+      "target": "human-in-the-loop",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenAI supports human-in-the-loop"
+    },
+    {
+      "source": "openai",
+      "target": "langgraph",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "LangGraph used with OpenAI"
+    },
+    {
+      "source": "anthropic",
+      "target": "langchain",
+      "type": "part_of",
+      "weight": 0.5,
+      "label": "Anthropic models used in LangChain"
+    },
+    {
+      "source": "anthropic",
+      "target": "codex",
+      "type": "competes_with",
+      "weight": 0.7,
+      "label": "Claude vs Codex as coding tools"
+    },
+    {
+      "source": "anthropic",
+      "target": "progressive-disclosure",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Anthropic uses progressive disclosure"
+    },
+    {
+      "source": "anthropic",
+      "target": "mem0",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Mem0 used with Anthropic models"
+    },
+    {
+      "source": "anthropic",
+      "target": "gemini",
+      "type": "competes_with",
+      "weight": 0.85,
+      "label": "competing AI labs"
+    },
+    {
+      "source": "anthropic",
+      "target": "context-management",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Anthropic implements context management"
+    },
+    {
+      "source": "anthropic",
+      "target": "chromadb",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Anthropic tools use ChromaDB"
+    },
+    {
+      "source": "anthropic",
+      "target": "abductive-context",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Anthropic implements context generation"
+    },
+    {
+      "source": "anthropic",
+      "target": "agent-memory",
+      "type": "implements",
+      "weight": 0.55,
+      "label": "Anthropic implements agent memory"
+    },
+    {
+      "source": "anthropic",
+      "target": "long-term-memory",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Anthropic researches long-term memory"
+    },
+    {
+      "source": "anthropic",
+      "target": "gepa",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Anthropic uses GEPA-style approaches"
+    },
+    {
+      "source": "anthropic",
+      "target": "claude-md",
+      "type": "created_by",
+      "weight": 0.8,
+      "label": "Anthropic created CLAUDE.md convention"
+    },
+    {
+      "source": "anthropic",
+      "target": "neo4j",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Anthropic tools use Neo4j"
+    },
+    {
+      "source": "anthropic",
+      "target": "github-copilot",
+      "type": "competes_with",
+      "weight": 0.6,
+      "label": "Claude Code vs GitHub Copilot"
+    },
+    {
+      "source": "anthropic",
+      "target": "context-compression",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Anthropic implements context compression"
+    },
+    {
+      "source": "anthropic",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Anthropic uses reinforcement learning"
+    },
+    {
+      "source": "anthropic",
+      "target": "synthetic-data-generation",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Anthropic generates synthetic data"
+    },
+    {
+      "source": "anthropic",
+      "target": "openai-agents-sdk",
+      "type": "competes_with",
+      "weight": 0.6,
+      "label": "competing agent SDKs"
+    },
+    {
+      "source": "anthropic",
+      "target": "meta-agent",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Anthropic builds meta-agent systems"
+    },
+    {
+      "source": "anthropic",
+      "target": "sqlalchemy",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Anthropic tools use SQLAlchemy"
+    },
+    {
+      "source": "anthropic",
+      "target": "pydantic",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Anthropic tools use Pydantic"
+    },
+    {
+      "source": "anthropic",
+      "target": "postgresql",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Anthropic tools use PostgreSQL"
+    },
+    {
+      "source": "anthropic",
+      "target": "redis",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Anthropic tools use Redis"
+    },
+    {
+      "source": "anthropic",
+      "target": "groq",
+      "type": "alternative_to",
+      "weight": 0.4,
+      "label": "Anthropic vs Groq for inference"
+    },
+    {
+      "source": "autoresearch",
+      "target": "codex",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "AutoResearch uses Codex"
+    },
+    {
+      "source": "autoresearch",
+      "target": "claude-md",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "AutoResearch uses CLAUDE.md"
+    },
+    {
+      "source": "autoresearch",
+      "target": "multi-agent-systems",
+      "type": "implements",
+      "weight": 0.55,
+      "label": "AutoResearch uses multi-agent systems"
+    },
+    {
+      "source": "autoresearch",
+      "target": "self-improving-agents",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "AutoResearch implements self-improving agents"
+    },
+    {
+      "source": "autoresearch",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "AutoResearch uses RL"
+    },
+    {
+      "source": "claude",
+      "target": "langchain",
+      "type": "part_of",
+      "weight": 0.5,
+      "label": "Claude used in LangChain"
+    },
+    {
+      "source": "claude",
+      "target": "agent-memory",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Claude implements agent memory"
+    },
+    {
+      "source": "claude",
+      "target": "progressive-disclosure",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude uses progressive disclosure"
+    },
+    {
+      "source": "claude",
+      "target": "long-term-memory",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude supports long-term memory"
+    },
+    {
+      "source": "claude",
+      "target": "grpo",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "GRPO used to train Claude-like models"
+    },
+    {
+      "source": "claude",
+      "target": "context-management",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "Claude manages context"
+    },
+    {
+      "source": "claude",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude uses vector databases"
+    },
+    {
+      "source": "claude",
+      "target": "gpt-4",
+      "type": "competes_with",
+      "weight": 0.9,
+      "label": "competing AI models"
+    },
+    {
+      "source": "claude",
+      "target": "human-in-the-loop",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude supports human-in-the-loop"
+    },
+    {
+      "source": "claude",
+      "target": "continual-learning",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude supports continual learning"
+    },
+    {
+      "source": "claude",
+      "target": "github-copilot",
+      "type": "competes_with",
+      "weight": 0.6,
+      "label": "competing coding assistants"
+    },
+    {
+      "source": "claude",
+      "target": "autogen",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Claude used in AutoGen"
+    },
+    {
+      "source": "claude",
+      "target": "temporal-reasoning",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude supports temporal reasoning"
+    },
+    {
+      "source": "claude",
+      "target": "tau-bench",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Claude evaluated on Tau-bench"
+    },
+    {
+      "source": "claude",
+      "target": "prompt-optimization",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude prompts are optimized"
+    },
+    {
+      "source": "claude",
+      "target": "observability",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude supports observability"
+    },
+    {
+      "source": "claude",
+      "target": "system-prompt",
+      "type": "implements",
+      "weight": 0.75,
+      "label": "Claude uses system prompts"
+    },
+    {
+      "source": "claude",
+      "target": "termination-bench",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Claude evaluated on TerminalBench"
+    },
+    {
+      "source": "claude",
+      "target": "abductive-context",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude generates context"
+    },
+    {
+      "source": "claude",
+      "target": "chatgpt",
+      "type": "competes_with",
+      "weight": 0.85,
+      "label": "competing AI assistants"
+    },
+    {
+      "source": "claude",
+      "target": "llama-cpp",
+      "type": "competes_with",
+      "weight": 0.5,
+      "label": "competing model inference"
+    },
+    {
+      "source": "claude",
+      "target": "gepa",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude uses GEPA-style optimization"
+    },
+    {
+      "source": "claude",
+      "target": "meta-agent",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude used as meta-agent"
+    },
+    {
+      "source": "claude",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude trained with RL"
+    },
+    {
+      "source": "context-engineering",
+      "target": "react",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "ReAct is a context engineering pattern"
+    },
+    {
+      "source": "context-engineering",
+      "target": "langchain",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "LangChain implements context engineering"
+    },
+    {
+      "source": "context-engineering",
+      "target": "continual-learning",
+      "type": "implements",
+      "weight": 0.55,
+      "label": "context engineering enables continual learning"
+    },
+    {
+      "source": "context-engineering",
+      "target": "langgraph",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "LangGraph implements context engineering"
+    },
+    {
+      "source": "context-engineering",
+      "target": "cognitive-architecture",
+      "type": "part_of",
+      "weight": 0.6,
+      "label": "context engineering is part of cognitive architecture"
+    },
+    {
+      "source": "context-engineering",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "RL used for context optimization"
+    },
+    {
+      "source": "context-engineering",
+      "target": "gemini",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Gemini uses context engineering"
+    },
+    {
+      "source": "context-engineering",
+      "target": "context-management",
+      "type": "implements",
+      "weight": 0.8,
+      "label": "context management is part of context engineering"
+    },
+    {
+      "source": "context-engineering",
+      "target": "chain-of-thought",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "chain-of-thought is a context engineering technique"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "react",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "ReAct pattern used with MCP"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "langchain",
+      "type": "implements",
+      "weight": 0.55,
+      "label": "LangChain supports MCP"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "agent-skills",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "MCP delivers agent skills"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "semantic-search",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "MCP enables semantic search"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "multi-agent-systems",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "MCP enables multi-agent communication"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "gpt-4",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "GPT-4 uses MCP"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "RL used with MCP systems"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "composable-skills",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "MCP enables compositional skill synthesis"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "networkx",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "MCP uses NetworkX for graph operations"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "notion",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "MCP connects to Notion"
+    },
+    {
+      "source": "model-context-protocol",
+      "target": "token-efficiency",
+      "type": "implements",
+      "weight": 0.55,
+      "label": "MCP improves token efficiency"
+    },
+    {
+      "source": "knowledge-graph",
+      "target": "agent-memory",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "knowledge graphs implement agent memory"
+    },
+    {
+      "source": "knowledge-graph",
+      "target": "semantic-search",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "knowledge graphs enable semantic search"
+    },
+    {
+      "source": "knowledge-graph",
+      "target": "hipporag",
+      "type": "implements",
+      "weight": 0.75,
+      "label": "HippoRAG uses knowledge graphs"
+    },
+    {
+      "source": "react",
+      "target": "gpt-4",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "ReAct implemented with GPT-4"
+    },
+    {
+      "source": "react",
+      "target": "agentic-rag",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Agentic RAG uses ReAct pattern"
+    },
+    {
+      "source": "semantic-memory",
+      "target": "long-term-memory",
+      "type": "part_of",
+      "weight": 0.75,
+      "label": "semantic memory is a form of long-term memory"
+    },
+    {
+      "source": "semantic-memory",
+      "target": "letta",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "Letta implements semantic memory"
+    },
+    {
+      "source": "semantic-memory",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "semantic memory stored in vector databases"
+    },
+    {
+      "source": "semantic-memory",
+      "target": "core-memory",
+      "type": "part_of",
+      "weight": 0.6,
+      "label": "core memory complements semantic memory"
+    },
+    {
+      "source": "langchain",
+      "target": "agent-memory",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "LangChain implements agent memory"
+    },
+    {
+      "source": "langchain",
+      "target": "chromadb",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "LangChain integrates ChromaDB"
+    },
+    {
+      "source": "opencode",
+      "target": "gemini-cli",
+      "type": "competes_with",
+      "weight": 0.65,
+      "label": "competing CLI coding agents"
+    },
+    {
+      "source": "windsurf",
+      "target": "codex",
+      "type": "competes_with",
+      "weight": 0.65,
+      "label": "competing AI coding tools"
+    },
+    {
+      "source": "windsurf",
+      "target": "tree-sitter",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Windsurf uses Tree-sitter"
+    },
+    {
+      "source": "codex",
+      "target": "multi-agent-systems",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Codex used in multi-agent systems"
+    },
+    {
+      "source": "codex",
+      "target": "antigravity",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Antigravity extends Codex"
+    },
+    {
+      "source": "agent-memory",
+      "target": "ace",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "ACE implements agent memory learning"
+    },
+    {
+      "source": "agent-memory",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "agent memory stored in vector databases"
+    },
+    {
+      "source": "agent-memory",
+      "target": "crewai",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "CrewAI uses agent memory"
+    },
+    {
+      "source": "agent-memory",
+      "target": "langgraph",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "LangGraph implements agent memory"
+    },
+    {
+      "source": "agent-memory",
+      "target": "chain-of-thought",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "chain-of-thought supports agent memory"
+    },
+    {
+      "source": "agent-skills",
+      "target": "progressive-disclosure",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "progressive disclosure used for agent skills"
+    },
+    {
+      "source": "agent-skills",
+      "target": "gemini-cli",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Gemini CLI implements agent skills"
+    },
+    {
+      "source": "agent-skills",
+      "target": "letta",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Letta implements agent skills"
+    },
+    {
+      "source": "agent-skills",
+      "target": "skill-book",
+      "type": "implements",
+      "weight": 0.8,
+      "label": "SkillBook organizes agent skills"
+    },
+    {
+      "source": "agent-skills",
+      "target": "memento",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Memento evolves agent skills"
+    },
+    {
+      "source": "agent-skills",
+      "target": "tool-registry",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "tool registry manages agent skills"
+    },
+    {
+      "source": "agent-skills",
+      "target": "antigravity",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Antigravity implements agent skills"
+    },
+    {
+      "source": "agent-skills",
+      "target": "loop-detection",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "loop detection used in agent skills"
+    },
+    {
+      "source": "graphrag",
+      "target": "community-detection",
+      "type": "implements",
+      "weight": 0.8,
+      "label": "GraphRAG uses community detection"
+    },
+    {
+      "source": "graphrag",
+      "target": "raptor",
+      "type": "competes_with",
+      "weight": 0.6,
+      "label": "competing graph-enhanced RAG approaches"
+    },
+    {
+      "source": "obsidian",
+      "target": "synthetic-data-generation",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Obsidian vaults used for synthetic data"
+    },
+    {
+      "source": "obsidian",
+      "target": "markdown-wiki",
+      "type": "implements",
+      "weight": 0.85,
+      "label": "Obsidian implements markdown wiki"
+    },
+    {
+      "source": "obsidian",
+      "target": "marp",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Obsidian content converted with MARP"
+    },
+    {
+      "source": "long-term-memory",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "long-term memory stored in vector databases"
+    },
+    {
+      "source": "ollama",
+      "target": "gemini",
+      "type": "competes_with",
+      "weight": 0.5,
+      "label": "local vs cloud model serving"
+    },
+    {
+      "source": "reflexion",
+      "target": "gpt-4",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "Reflexion implemented with GPT-4"
+    },
+    {
+      "source": "graphiti",
+      "target": "letta",
+      "type": "part_of",
+      "weight": 0.6,
+      "label": "Graphiti integrated with Letta"
+    },
+    {
+      "source": "graphiti",
+      "target": "memgpt",
+      "type": "part_of",
+      "weight": 0.5,
+      "label": "Graphiti used with MemGPT"
+    },
+    {
+      "source": "gemini",
+      "target": "multi-agent-systems",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Gemini supports multi-agent systems"
+    },
+    {
+      "source": "gepa",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "GEPA uses reinforcement learning"
+    },
+    {
+      "source": "gepa",
+      "target": "meta-agent",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "GEPA creates meta-agents"
+    },
+    {
+      "source": "letta",
+      "target": "multi-agent-systems",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "Letta supports multi-agent systems"
+    },
+    {
+      "source": "letta",
+      "target": "letta-api",
+      "type": "part_of",
+      "weight": 0.9,
+      "label": "Letta API is part of Letta"
+    },
+    {
+      "source": "claude-md",
+      "target": "context-management",
+      "type": "implements",
+      "weight": 0.75,
+      "label": "CLAUDE.md manages context"
+    },
+    {
+      "source": "grpo",
+      "target": "gpt-4",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "GRPO compared to GPT-4 approaches"
+    },
+    {
+      "source": "semantic-search",
+      "target": "vector-database",
+      "type": "implements",
+      "weight": 0.8,
+      "label": "semantic search uses vector databases"
+    },
+    {
+      "source": "context-management",
+      "target": "ace",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "ACE implements context management"
+    },
+    {
+      "source": "context-management",
+      "target": "short-term-memory",
+      "type": "part_of",
+      "weight": 0.7,
+      "label": "short-term memory is part of context management"
+    },
+    {
+      "source": "context-management",
+      "target": "token-efficiency",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "token efficiency is key to context management"
+    },
+    {
+      "source": "multi-agent-systems",
+      "target": "human-in-the-loop",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "multi-agent systems use human oversight"
+    },
+    {
+      "source": "multi-agent-systems",
+      "target": "multi-agent-collaboration",
+      "type": "implements",
+      "weight": 0.85,
+      "label": "multi-agent collaboration is core to MAS"
+    },
+    {
+      "source": "vector-database",
+      "target": "openai-agents-sdk",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenAI Agents SDK uses vector databases"
+    },
+    {
+      "source": "vector-database",
+      "target": "pinatone",
+      "type": "part_of",
+      "weight": 0.8,
+      "label": "Pinecone is a vector database"
+    },
+    {
+      "source": "vector-database",
+      "target": "sqlalchemy",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "SQLAlchemy used alongside vector databases"
+    },
+    {
+      "source": "vector-database",
+      "target": "sqlite",
+      "type": "alternative_to",
+      "weight": 0.5,
+      "label": "vector DB vs SQLite for storage"
+    },
+    {
+      "source": "vector-database",
+      "target": "faiss",
+      "type": "part_of",
+      "weight": 0.8,
+      "label": "FAISS is a vector database library"
+    },
+    {
+      "source": "vector-database",
+      "target": "qdrant",
+      "type": "part_of",
+      "weight": 0.8,
+      "label": "Qdrant is a vector database"
+    },
+    {
+      "source": "gpt-4",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "GPT-4 uses RLHF"
+    },
+    {
+      "source": "execution-traces",
+      "target": "jaya-gupta",
+      "type": "created_by",
+      "weight": 0.4,
+      "label": "Jaya Gupta works on execution traces"
+    },
+    {
+      "source": "chromadb",
+      "target": "openai-agents-sdk",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenAI Agents SDK uses ChromaDB"
+    },
+    {
+      "source": "supermemory",
+      "target": "supermemory-project",
+      "type": "part_of",
+      "weight": 0.9,
+      "label": "SuperMemory project implementations"
+    },
+    {
+      "source": "synthetic-data-generation",
+      "target": "zettelkasten",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Zettelkasten generates synthetic training data"
+    },
+    {
+      "source": "synthetic-data-generation",
+      "target": "markdown-wiki",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "markdown wikis used for synthetic data"
+    },
+    {
+      "source": "synthetic-data-generation",
+      "target": "marp",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "MARP used for synthetic data presentations"
+    },
+    {
+      "source": "openai-agents-sdk",
+      "target": "agent-harness",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "OpenAI Agents SDK is an agent harness"
+    },
+    {
+      "source": "zettelkasten",
+      "target": "markdown-wiki",
+      "type": "implements",
+      "weight": 0.8,
+      "label": "Zettelkasten implemented as markdown wiki"
+    },
+    {
+      "source": "zettelkasten",
+      "target": "marp",
+      "type": "part_of",
+      "weight": 0.3,
+      "label": "MARP used with Zettelkasten content"
+    },
+    {
+      "source": "prompt-optimization",
+      "target": "agent-harness",
+      "type": "implements",
+      "weight": 0.7,
+      "label": "prompt optimization is applied to agent harnesses"
+    },
+    {
+      "source": "prompt-optimization",
+      "target": "termination-bench",
+      "type": "part_of",
+      "weight": 0.5,
+      "label": "TerminalBench benchmarks prompt optimization"
+    },
+    {
+      "source": "seagent",
+      "target": "composable-skills",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "SEAgent uses compositional skill synthesis"
+    },
+    {
+      "source": "seagent",
+      "target": "seagent-project",
+      "type": "part_of",
+      "weight": 0.9,
+      "label": "SEAgent project implementations"
+    },
+    {
+      "source": "composable-skills",
+      "target": "seagent",
+      "type": "implements",
+      "weight": 0.65,
+      "label": "SEAgent implements compositional skills"
+    },
+    {
+      "source": "markdown-wiki",
+      "target": "marp",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "MARP renders markdown wikis"
+    },
+    {
+      "source": "docling",
+      "target": "docling-project",
+      "type": "part_of",
+      "weight": 0.9,
+      "label": "Docling project implementations"
+    },
+    {
+      "source": "agent-zero",
+      "target": "agent0",
+      "type": "competes_with",
+      "weight": 0.5,
+      "label": "alternative zero-data agent frameworks"
+    },
+    {
+      "source": "postgresql",
+      "target": "redis",
+      "type": "alternative_to",
+      "weight": 0.6,
+      "label": "PostgreSQL vs Redis for storage"
+    },
+    {
+      "source": "openclaw",
+      "target": "episodic-memory",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenClaw uses episodic memory"
+    },
+    {
+      "source": "openclaw",
+      "target": "anthropic",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "OpenClaw uses Anthropic models"
+    },
+    {
+      "source": "openclaw",
+      "target": "context-engineering",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenClaw applies context engineering"
+    },
+    {
+      "source": "openclaw",
+      "target": "agent-memory",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenClaw implements agent memory"
+    },
+    {
+      "source": "openclaw",
+      "target": "agent-skills",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenClaw implements agent skills"
+    },
+    {
+      "source": "openclaw",
+      "target": "locomo",
+      "type": "part_of",
+      "weight": 0.3,
+      "label": "OpenClaw evaluated on LoCoMo"
+    },
+    {
+      "source": "openclaw",
+      "target": "ollama",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "OpenClaw uses Ollama"
+    },
+    {
+      "source": "openclaw",
+      "target": "claude-md",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenClaw uses CLAUDE.md"
+    },
+    {
+      "source": "openclaw",
+      "target": "continual-learning",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenClaw implements continual learning"
+    },
+    {
+      "source": "openclaw",
+      "target": "self-improving-agents",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenClaw creates self-improving agents"
+    },
+    {
+      "source": "openclaw",
+      "target": "context-graphs",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenClaw uses context graphs"
+    },
+    {
+      "source": "openclaw",
+      "target": "hipporag",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "OpenClaw uses HippoRAG"
+    },
+    {
+      "source": "openclaw",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "OpenClaw uses RL"
+    },
+    {
+      "source": "openclaw",
+      "target": "elizaos",
+      "type": "competes_with",
+      "weight": 0.3,
+      "label": "competing agent frameworks"
+    },
+    {
+      "source": "openclaw",
+      "target": "observability",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenClaw supports observability"
+    },
+    {
+      "source": "openclaw",
+      "target": "markdown-wiki",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenClaw uses markdown wikis"
+    },
+    {
+      "source": "openclaw",
+      "target": "lossless-context-management",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "OpenClaw implements lossless context management"
+    },
+    {
+      "source": "openclaw",
+      "target": "hipocampus",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenClaw uses Hipocampus memory"
+    },
+    {
+      "source": "openclaw",
+      "target": "memori",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "OpenClaw uses Memori"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "openai",
+      "type": "created_by",
+      "weight": 0.7,
+      "label": "Karpathy co-founded and worked at OpenAI"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "model-context-protocol",
+      "type": "part_of",
+      "weight": 0.3,
+      "label": "Karpathy discusses MCP"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "agent-memory",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Karpathy researches agent memory"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "agent-skills",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Karpathy researches agent skills"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "claude-md",
+      "type": "part_of",
+      "weight": 0.3,
+      "label": "Karpathy uses CLAUDE.md"
+    },
+    {
+      "source": "andrej-karpathy",
+      "target": "chatgpt",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "Karpathy comments on ChatGPT"
+    },
+    {
+      "source": "claude-code",
+      "target": "openai",
+      "type": "competes_with",
+      "weight": 0.6,
+      "label": "Claude Code vs OpenAI coding tools"
+    },
+    {
+      "source": "claude-code",
+      "target": "react",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code uses ReAct pattern"
+    },
+    {
+      "source": "claude-code",
+      "target": "graphrag",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code can use GraphRAG"
+    },
+    {
+      "source": "claude-code",
+      "target": "obsidian",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code can work with Obsidian"
+    },
+    {
+      "source": "claude-code",
+      "target": "long-term-memory",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude Code supports long-term memory"
+    },
+    {
+      "source": "claude-code",
+      "target": "mem0",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code uses Mem0"
+    },
+    {
+      "source": "claude-code",
+      "target": "gemini",
+      "type": "competes_with",
+      "weight": 0.6,
+      "label": "competing AI coding assistants"
+    },
+    {
+      "source": "claude-code",
+      "target": "grpo",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "GRPO used in Claude Code improvement"
+    },
+    {
+      "source": "claude-code",
+      "target": "gpt-4",
+      "type": "competes_with",
+      "weight": 0.7,
+      "label": "competing AI models"
+    },
+    {
+      "source": "claude-code",
+      "target": "continual-learning",
+      "type": "implements",
+      "weight": 0.55,
+      "label": "Claude Code supports continual learning"
+    },
+    {
+      "source": "claude-code",
+      "target": "langgraph",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code can use LangGraph"
+    },
+    {
+      "source": "claude-code",
+      "target": "lost-in-the-middle",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "lost-in-the-middle affects Claude Code"
+    },
+    {
+      "source": "claude-code",
+      "target": "github-copilot",
+      "type": "competes_with",
+      "weight": 0.8,
+      "label": "competing AI coding assistants"
+    },
+    {
+      "source": "claude-code",
+      "target": "community-detection",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Claude Code uses community detection"
+    },
+    {
+      "source": "claude-code",
+      "target": "context-compression",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude Code uses context compression"
+    },
+    {
+      "source": "claude-code",
+      "target": "hipporag",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Claude Code can use HippoRAG"
+    },
+    {
+      "source": "claude-code",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "RL used to improve Claude Code"
+    },
+    {
+      "source": "claude-code",
+      "target": "zettelkasten",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Claude Code supports Zettelkasten"
+    },
+    {
+      "source": "claude-code",
+      "target": "observability",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code supports observability"
+    },
+    {
+      "source": "claude-code",
+      "target": "composable-skills",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude Code uses compositional skills"
+    },
+    {
+      "source": "claude-code",
+      "target": "abductive-context",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code generates context"
+    },
+    {
+      "source": "claude-code",
+      "target": "compound-engineering",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code uses compound engineering"
+    },
+    {
+      "source": "claude-code",
+      "target": "loop-detection",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code detects loops"
+    },
+    {
+      "source": "claude-code",
+      "target": "coral",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code implements CORAL"
+    },
+    {
+      "source": "claude-code",
+      "target": "networkx",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Claude Code uses NetworkX"
+    },
+    {
+      "source": "claude-code",
+      "target": "claude-mem",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude-Mem extends Claude Code memory"
+    },
+    {
+      "source": "claude-code",
+      "target": "gstack",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "GStack built with Claude Code"
+    },
+    {
+      "source": "claude-code",
+      "target": "garry-tan",
+      "type": "part_of",
+      "weight": 0.3,
+      "label": "Garry Tan uses Claude Code"
+    },
+    {
+      "source": "claude-code",
+      "target": "hipocampus",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Claude Code uses Hipocampus"
+    },
+    {
+      "source": "claude-code",
+      "target": "token-efficiency",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Claude Code optimizes token efficiency"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "knowledge-graph",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "episodic memory stored in knowledge graphs"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "react",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "ReAct uses episodic memory"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "langchain",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "LangChain implements episodic memory"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "graphrag",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "GraphRAG uses episodic-like memory"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "graphiti",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Graphiti implements episodic memory"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "zep",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Zep implements episodic memory"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "gemini",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Gemini supports episodic memory"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "context-management",
+      "type": "part_of",
+      "weight": 0.6,
+      "label": "episodic memory is part of context management"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "hotpotqa",
+      "type": "part_of",
+      "weight": 0.4,
+      "label": "HotpotQA evaluates episodic memory retrieval"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "neo4j",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Neo4j stores episodic memory"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "community-detection",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "community detection used in episodic memory"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "openmemory",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "OpenMemory implements episodic memory"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "hybrid-search",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "hybrid search used for episodic memory retrieval"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "reinforcement-learning",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "RL used for episodic memory optimization"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "humaneval",
+      "type": "part_of",
+      "weight": 0.3,
+      "label": "HumanEval evaluates episodic memory use"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "cypher",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Cypher queries episodic memory in graphs"
+    },
+    {
+      "source": "episodic-memory",
+      "target": "token-efficiency",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "token efficiency important for episodic memory"
+    },
+    {
+      "source": "cursor",
+      "target": "anthropic",
+      "type": "implements",
+      "weight": 0.5,
+      "label": "Cursor uses Anthropic Claude"
+    },
+    {
+      "source": "cursor",
+      "target": "autoresearch",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "AutoResearch used with Cursor"
+    },
+    {
+      "source": "cursor",
+      "target": "gemini",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Cursor uses Gemini models"
+    },
+    {
+      "source": "cursor",
+      "target": "multi-agent-systems",
+      "type": "implements",
+      "weight": 0.4,
+      "label": "Cursor supports multi-agent systems"
+    },
+    {
+      "source": "cursor",
+      "target": "tree-sitter",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "Cursor uses Tree-sitter"
+    },
+    {
+      "source": "cursor",
+      "target": "antigravity",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "Antigravity extends Cursor"
+    },
+    {
+      "source": "autoresearch",
+      "target": "windsurf",
+      "type": "implements",
+      "weight": 0.3,
+      "label": "AutoResearch used with Windsurf"
+    },
+    {
+      "source": "autoresearch",
+      "target": "pi",
+      "type": "implements",
+      "weight": 0.6,
+      "label": "AutoResearch implemented in Pi"
+    },
+    {
+      "source": "autoresearch",
+      "target": "udit-goenka",
+      "type": "created_by",
+      "weight": 0.4,
+      "label": "Udit Goenka builds AutoResearch"
+    }
+  ],
+  "clusters": {
+    "knowledge-substrate": {
+      "label": "Knowledge Substrate",
+      "node_count": 43,
+      "color": "#e74c3c"
+    },
+    "agent-memory": {
+      "label": "Agent Memory",
+      "node_count": 34,
+      "color": "#3498db"
+    },
+    "context-engineering": {
+      "label": "Context Engineering",
+      "node_count": 19,
+      "color": "#2ecc71"
+    },
+    "agent-architecture": {
+      "label": "Agent Architecture",
+      "node_count": 98,
+      "color": "#f39c12"
+    },
+    "multi-agent-systems": {
+      "label": "Multi-Agent Systems",
+      "node_count": 10,
+      "color": "#1abc9c"
+    },
+    "self-improving": {
+      "label": "Self-Improving Systems",
+      "node_count": 31,
+      "color": "#9b59b6"
+    }
+  }
+}

@@ -128,6 +128,7 @@ function extractMetaTag(html: string, name: string): string | null {
 
 interface IngestOptions {
   seen?: Set<string>;
+  force?: boolean;
   writeOptions?: WriteOptions;
 }
 
@@ -135,13 +136,14 @@ export async function ingestArticles(
   urls: string[],
   opts: IngestOptions = {},
 ): Promise<string[]> {
+  const { force = false } = opts;
   const seen = opts.seen ?? (await loadSeen());
-  const writeOpts = opts.writeOptions ?? {};
+  const writeOpts: import("./utils/markdown-writer.js").WriteOptions = { ...opts.writeOptions, force };
   const written: string[] = [];
 
   for (const url of urls) {
     try {
-      if (seen.has(normalizeUrl(url))) {
+      if (!force && seen.has(normalizeUrl(url))) {
         console.log(`  skip (already seen): ${url}`);
         continue;
       }
@@ -155,7 +157,7 @@ export async function ingestArticles(
           const articleId = extractArticleId(url);
           const tweetUrl = (opts as any).tweetUrl as string | undefined;
           const article = await fetchXArticle(articleId, tweetUrl);
-          markSeen(seen, url);
+          markSeen(seen, url, force);
           const { key_insight, tags } = await generateInsightAndTags(article.bodyText, "article");
           const frontmatter: RawSourceFrontmatter = {
             url,
@@ -177,7 +179,7 @@ export async function ingestArticles(
 
       const meta = await fetchArticle(url);
 
-      markSeen(seen, url);
+      markSeen(seen, url, force);
 
       const { key_insight, tags } = await generateInsightAndTags(
         meta.content,

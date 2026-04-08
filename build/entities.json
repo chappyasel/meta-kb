@@ -1,0 +1,4799 @@
+[
+  {
+    "id": "claude-code",
+    "name": "Claude Code",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "Anthropic's agentic coding assistant that operates in the terminal, capable of reading, writing, and executing code autonomously. One of the most widely discussed AI coding tools in the agent infrastructure space.",
+    "source_refs": [
+      "tweets/pawelhuryn-your-claude-md-is-doing-jobs-that-rules-hooks-an.md",
+      "tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md",
+      "tweets/hwchase17-continual-learning-for-ai-agents.md",
+      "tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md",
+      "repos/memodb-io-acontext.md",
+      "repos/affaan-m-everything-claude-code.md",
+      "repos/snarktank-compound-product.md",
+      "repos/memorilabs-memori.md",
+      "repos/human-agent-society-coral.md",
+      "repos/ayanami1314-swe-pruner.md",
+      "repos/agenticnotetaking-arscontexta.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/safishamsi-graphify.md",
+      "repos/kevin-hs-sohn-hipocampus.md",
+      "repos/anthropics-skills.md",
+      "repos/alirezarezvani-claude-skills.md",
+      "repos/orchestra-research-ai-research-skills.md",
+      "repos/thedotmack-claude-mem.md",
+      "repos/garrytan-gstack.md",
+      "repos/uditgoenka-autoresearch.md",
+      "repos/kepano-obsidian-skills.md",
+      "repos/laurian-context-compression-experiments-2508.md",
+      "repos/matrixorigin-memoria.md",
+      "papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md",
+      "articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md",
+      "articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md",
+      "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md",
+      "articles/martinfowler-com-context-engineering-for-coding-agents.md",
+      "deep/repos/kevin-hs-sohn-hipocampus.md",
+      "deep/repos/snarktank-compound-product.md",
+      "deep/repos/agenticnotetaking-arscontexta.md",
+      "deep/repos/human-agent-society-coral.md",
+      "deep/repos/martian-engineering-lossless-claw.md",
+      "deep/repos/karpathy-autoresearch.md",
+      "deep/repos/garrytan-gstack.md",
+      "deep/repos/affaan-m-everything-claude-code.md",
+      "deep/repos/thedotmack-claude-mem.md",
+      "deep/repos/uditgoenka-autoresearch.md",
+      "deep/repos/kepano-obsidian-skills.md",
+      "deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md",
+      "deep/repos/tirth8205-code-review-graph.md",
+      "repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "claude code",
+      "everything claude code"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.4
+  },
+  {
+    "id": "andrej-karpathy",
+    "name": "Andrej Karpathy",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "AI researcher and educator, formerly at OpenAI and Tesla, known for contributions to deep learning and popularizing concepts like the 'karpathy loop' for agent self-improvement.",
+    "source_refs": [
+      "tweets/hesamation-bro-created-a-skill-inspired-by-karpathy-s-autores.md",
+      "tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md",
+      "tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md",
+      "tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md",
+      "tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md",
+      "tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md",
+      "tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md",
+      "tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md",
+      "tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md",
+      "tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md",
+      "repos/safishamsi-graphify.md",
+      "repos/karpathy-autoresearch.md",
+      "repos/davebcn87-pi-autoresearch.md",
+      "repos/garrytan-gstack.md",
+      "repos/uditgoenka-autoresearch.md",
+      "repos/jmilinovich-goal-md.md",
+      "articles/cameron-westland-autoresearch-is-reward-function-design.md",
+      "articles/ai-by-aakash-the-ultimate-autoresearch-guide.md",
+      "articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md",
+      "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+      "deep/repos/karpathy-autoresearch.md",
+      "deep/repos/davebcn87-pi-autoresearch.md",
+      "deep/repos/uditgoenka-autoresearch.md",
+      "deep/repos/jmilinovich-goal-md.md"
+    ],
+    "aliases": [
+      "andrej karpathy",
+      "karpathy",
+      "karpathy loop"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "openclaw",
+    "name": "OpenClaw",
+    "type": "project",
+    "bucket": "context-engineering",
+    "description": "An open-source project focused on lossless context management for LLM agents, enabling efficient use of context windows without losing information.",
+    "source_refs": [
+      "tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md",
+      "tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md",
+      "tweets/hwchase17-continual-learning-for-ai-agents.md",
+      "tweets/jumperz-took-karpathy-s-wiki-pattern-and-wired-it-into-my.md",
+      "repos/memodb-io-acontext.md",
+      "repos/supermemoryai-supermemory.md",
+      "repos/memorilabs-memori.md",
+      "repos/martian-engineering-lossless-claw.md",
+      "repos/kevin-hs-sohn-hipocampus.md",
+      "repos/alirezarezvani-claude-skills.md",
+      "repos/gustycube-membrane.md",
+      "repos/topoteretes-cognee.md",
+      "repos/greyhaven-ai-autocontext.md",
+      "repos/garrytan-gstack.md",
+      "repos/volcengine-openviking.md",
+      "repos/origintrail-dkg-v9.md",
+      "repos/matrixorigin-memoria.md",
+      "repos/infiniflow-ragflow.md",
+      "articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md",
+      "deep/repos/kevin-hs-sohn-hipocampus.md",
+      "deep/repos/memorilabs-memori.md",
+      "deep/repos/martian-engineering-lossless-claw.md",
+      "deep/repos/origintrail-dkg-v9.md"
+    ],
+    "aliases": [
+      "openclaw",
+      "lossless-claw"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "retrieval-augmented-generation",
+    "name": "Retrieval-Augmented Generation",
+    "type": "concept",
+    "bucket": "knowledge-substrate",
+    "description": "A technique combining retrieval systems with generative models to ground outputs in external knowledge. Includes agentic variants where agents dynamically retrieve information during reasoning.",
+    "source_refs": [
+      "tweets/omarsar0-universal-claude-md-claims-to-cut-claude-output-t.md",
+      "tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md",
+      "repos/getzep-graphiti.md",
+      "tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md",
+      "tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md",
+      "repos/zhongwanjun-memorybank-siliconfriend.md",
+      "repos/aiming-lab-simplemem.md",
+      "repos/supermemoryai-supermemory.md",
+      "repos/osu-nlp-group-hipporag.md",
+      "repos/microsoft-llmlingua.md",
+      "repos/kevin-hs-sohn-hipocampus.md",
+      "repos/mirix-ai-mirix.md",
+      "repos/orchestra-research-ai-research-skills.md",
+      "repos/topoteretes-cognee.md",
+      "repos/volcengine-openviking.md",
+      "repos/caviraoss-openmemory.md",
+      "repos/evoagentx-evoagentx.md",
+      "repos/memvid-memvid.md",
+      "repos/kepano-obsidian-skills.md",
+      "repos/mem0ai-mem0.md",
+      "repos/laurian-context-compression-experiments-2508.md",
+      "papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md",
+      "repos/infiniflow-ragflow.md",
+      "repos/michaelliv-napkin.md",
+      "papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md",
+      "papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+      "papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "articles/fabricio-q-memory-in-agents-episodic-vs-semantic-and-the-h.md",
+      "articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md",
+      "articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md",
+      "articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md",
+      "deep/repos/osu-nlp-group-hipporag.md",
+      "deep/repos/gepa-ai-gepa.md",
+      "deep/repos/caviraoss-openmemory.md",
+      "deep/repos/letta-ai-letta.md",
+      "deep/repos/evoagentx-evoagentx.md",
+      "deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md",
+      "deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "retrieval-augmented generation",
+      "rag",
+      "retrieval augmented generation",
+      "agentic rag"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "episodic-memory",
+    "name": "Episodic Memory",
+    "type": "concept",
+    "bucket": "agent-memory",
+    "description": "A type of agent memory that stores specific past events, interactions, and experiences, enabling agents to recall and learn from prior episodes.",
+    "source_refs": [
+      "repos/mirix-ai-mirix.md",
+      "repos/wangyu-ustc-mem-alpha.md",
+      "repos/gustycube-membrane.md",
+      "repos/caviraoss-openmemory.md",
+      "repos/uditgoenka-autoresearch.md",
+      "repos/nemori-ai-nemori.md",
+      "papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md",
+      "repos/letta-ai-lettabot.md",
+      "articles/fabricio-q-memory-in-agents-episodic-vs-semantic-and-the-h.md",
+      "articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md",
+      "articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md",
+      "deep/repos/supermemoryai-supermemory.md",
+      "deep/repos/kevin-hs-sohn-hipocampus.md",
+      "deep/repos/bingreeky-memevolve.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/repos/caviraoss-openmemory.md",
+      "deep/repos/wangyu-ustc-mem-alpha.md",
+      "deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md",
+      "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "episodic memory"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "cursor",
+    "name": "Cursor",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An AI-powered code editor that integrates LLM capabilities directly into the development workflow, competing with GitHub Copilot and other coding assistants.",
+    "source_refs": [
+      "tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md",
+      "tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md",
+      "repos/affaan-m-everything-claude-code.md",
+      "repos/supermemoryai-supermemory.md",
+      "repos/memorilabs-memori.md",
+      "repos/alirezarezvani-claude-skills.md",
+      "repos/garrytan-gstack.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "repos/jmilinovich-goal-md.md",
+      "repos/matrixorigin-memoria.md",
+      "articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md",
+      "articles/ai-by-aakash-the-ultimate-autoresearch-guide.md",
+      "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md",
+      "articles/martinfowler-com-context-engineering-for-coding-agents.md",
+      "deep/repos/garrytan-gstack.md",
+      "deep/repos/affaan-m-everything-claude-code.md",
+      "deep/repos/jmilinovich-goal-md.md",
+      "deep/repos/kepano-obsidian-skills.md",
+      "deep/repos/tirth8205-code-review-graph.md",
+      "repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "cursor"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "openai",
+    "name": "OpenAI",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "AI research company behind GPT-4, ChatGPT, Codex, and the OpenAI Agents SDK, a major driver of LLM and agent infrastructure development.",
+    "source_refs": [
+      "repos/memodb-io-acontext.md",
+      "repos/transformeroptimus-superagi.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/topoteretes-cognee.md",
+      "repos/greyhaven-ai-autocontext.md",
+      "repos/caviraoss-openmemory.md",
+      "repos/evoagentx-evoagentx.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "repos/agent-on-the-fly-memento.md",
+      "repos/mem0ai-mem0.md",
+      "repos/infiniflow-ragflow.md",
+      "repos/letta-ai-lettabot.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/repos/memodb-io-acontext.md",
+      "deep/repos/memorilabs-memori.md",
+      "deep/repos/greyhaven-ai-autocontext.md",
+      "deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md",
+      "deep/repos/mem0ai-mem0.md"
+    ],
+    "aliases": [
+      "openai"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "anthropic",
+    "name": "Anthropic",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "AI safety company behind the Claude family of models and the Model Context Protocol (MCP), focused on building reliable and interpretable AI systems.",
+    "source_refs": [
+      "repos/helloruru-claude-memory-engine.md",
+      "repos/affaan-m-everything-claude-code.md",
+      "repos/snarktank-compound-product.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/greyhaven-ai-autocontext.md",
+      "repos/thedotmack-claude-mem.md",
+      "articles/effective-context-engineering-for-ai-agents.md",
+      "articles/agent-skills-overview.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md",
+      "articles/martinfowler-com-context-engineering-for-coding-agents.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/repos/memodb-io-acontext.md",
+      "deep/repos/memorilabs-memori.md",
+      "deep/repos/affaan-m-everything-claude-code.md",
+      "deep/repos/anthropics-skills.md",
+      "deep/repos/greyhaven-ai-autocontext.md",
+      "deep/repos/mem0ai-mem0.md"
+    ],
+    "aliases": [
+      "anthropic"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "autoresearch",
+    "name": "AutoResearch",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "An autonomous research system (also known as Pi-AutoResearch) that iteratively generates, tests, and refines research hypotheses using LLM agents.",
+    "source_refs": [
+      "tweets/hesamation-bro-created-a-skill-inspired-by-karpathy-s-autores.md",
+      "tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md",
+      "tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md",
+      "tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md",
+      "tweets/ericosiu-how-to-practically-deploy-jack-dorsey-s-world-int.md",
+      "repos/human-agent-society-coral.md",
+      "repos/karpathy-autoresearch.md",
+      "repos/orchestra-research-ai-research-skills.md",
+      "repos/davebcn87-pi-autoresearch.md",
+      "repos/uditgoenka-autoresearch.md",
+      "repos/jmilinovich-goal-md.md",
+      "articles/cameron-westland-autoresearch-is-reward-function-design.md",
+      "articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md",
+      "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+      "deep/repos/karpathy-autoresearch.md",
+      "deep/repos/davebcn87-pi-autoresearch.md",
+      "deep/repos/uditgoenka-autoresearch.md",
+      "deep/repos/jmilinovich-goal-md.md"
+    ],
+    "aliases": [
+      "autoresearch",
+      "pi-autoresearch",
+      "autores"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "claude",
+    "name": "Claude",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "Anthropic's family of large language models including Claude Sonnet, Haiku, and Opus variants, widely used as the backbone for agentic systems.",
+    "source_refs": [
+      "tweets/hesamation-bro-created-a-skill-inspired-by-karpathy-s-autores.md",
+      "tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md",
+      "tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md",
+      "tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md",
+      "repos/canvas-org-meta-agent.md",
+      "repos/memodb-io-acontext.md",
+      "repos/helloruru-claude-memory-engine.md",
+      "repos/supermemoryai-supermemory.md",
+      "repos/anthropics-skills.md",
+      "repos/orchestra-research-ai-research-skills.md",
+      "repos/greyhaven-ai-autocontext.md",
+      "repos/caviraoss-openmemory.md",
+      "repos/evoagentx-evoagentx.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "repos/jmilinovich-goal-md.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "articles/ai-by-aakash-the-ultimate-autoresearch-guide.md",
+      "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+      "deep/repos/gepa-ai-gepa.md",
+      "deep/repos/anthropics-skills.md",
+      "deep/repos/jmilinovich-goal-md.md"
+    ],
+    "aliases": [
+      "claude",
+      "claude sonnet 4.6",
+      "claude haiku",
+      "claude opus",
+      "claude desktop"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "context-engineering",
+    "name": "Context Engineering",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "The discipline of designing, structuring, and optimizing the information provided to LLMs in their context window, encompassing prompt engineering, prompt architecture, and dynamic context construction.",
+    "source_refs": [
+      "tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md",
+      "tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md",
+      "repos/memodb-io-acontext.md",
+      "repos/agenticnotetaking-arscontexta.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/safishamsi-graphify.md",
+      "repos/wangyu-ustc-mem-alpha.md",
+      "repos/orchestra-research-ai-research-skills.md",
+      "repos/topoteretes-cognee.md",
+      "repos/kayba-ai-agentic-context-engine.md",
+      "repos/aiming-lab-agent0.md",
+      "papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "articles/effective-context-engineering-for-ai-agents.md",
+      "articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md",
+      "articles/ai-by-aakash-the-ultimate-autoresearch-guide.md",
+      "articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md",
+      "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md",
+      "articles/martinfowler-com-context-engineering-for-coding-agents.md",
+      "deep/repos/affaan-m-everything-claude-code.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "context engineering",
+      "prompt engineering",
+      "prompt architecture"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "model-context-protocol",
+    "name": "Model Context Protocol",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "Anthropic's open protocol for standardizing how LLM applications communicate with external tools and data sources, enabling interoperable MCP servers.",
+    "source_refs": [
+      "tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md",
+      "tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md",
+      "repos/aiming-lab-simplemem.md",
+      "repos/affaan-m-everything-claude-code.md",
+      "repos/supermemoryai-supermemory.md",
+      "repos/memorilabs-memori.md",
+      "repos/natebjones-projects-ob1.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/safishamsi-graphify.md",
+      "repos/greyhaven-ai-autocontext.md",
+      "repos/wangziqi06-724-office.md",
+      "repos/caviraoss-openmemory.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "repos/agent-on-the-fly-memento.md",
+      "repos/matrixorigin-memoria.md",
+      "papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "repos/infiniflow-ragflow.md",
+      "articles/effective-context-engineering-for-ai-agents.md",
+      "articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md",
+      "deep/repos/supermemoryai-supermemory.md",
+      "deep/repos/gepa-ai-gepa.md",
+      "deep/repos/affaan-m-everything-claude-code.md",
+      "deep/repos/evoagentx-evoagentx.md",
+      "deep/papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "deep/repos/tirth8205-code-review-graph.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "articles/notion-notion-site-notion-notion-site.md",
+      "repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "model context protocol",
+      "mcp",
+      "mcp server"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.3
+  },
+  {
+    "id": "knowledge-graph",
+    "name": "Knowledge Graph",
+    "type": "concept",
+    "bucket": "knowledge-substrate",
+    "description": "A structured representation of entities and their relationships used as a knowledge substrate for agents, enabling complex reasoning over interconnected information.",
+    "source_refs": [
+      "tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md",
+      "repos/aiming-lab-simplemem.md",
+      "repos/supermemoryai-supermemory.md",
+      "repos/osu-nlp-group-hipporag.md",
+      "repos/agenticnotetaking-arscontexta.md",
+      "repos/safishamsi-graphify.md",
+      "repos/topoteretes-cognee.md",
+      "repos/memvid-memvid.md",
+      "repos/kepano-obsidian-skills.md",
+      "repos/origintrail-dkg-v9.md",
+      "papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md",
+      "articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md",
+      "deep/repos/osu-nlp-group-hipporag.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md",
+      "deep/repos/tirth8205-code-review-graph.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "knowledge graph",
+      "knowledge graphs",
+      "graph database"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "react",
+    "name": "ReAct",
+    "type": "approach",
+    "bucket": "agent-architecture",
+    "description": "Reasoning and Acting framework for LLM agents that interleaves chain-of-thought reasoning with action execution, enabling more reliable task completion.",
+    "source_refs": [
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "articles/lil-log-llm-powered-autonomous-agents.md",
+      "articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md",
+      "articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md",
+      "deep/repos/thedotmack-claude-mem.md",
+      "deep/repos/foundationagents-metagpt.md",
+      "deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "deep/repos/infiniflow-ragflow.md",
+      "deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md",
+      "deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md",
+      "deep/repos/memento-teams-memento-skills.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "react",
+      "ReAct"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "semantic-memory",
+    "name": "Semantic Memory",
+    "type": "concept",
+    "bucket": "agent-memory",
+    "description": "A type of agent memory storing general world knowledge, facts, and concepts, as distinct from episodic or procedural memory.",
+    "source_refs": [
+      "repos/mirix-ai-mirix.md",
+      "repos/wangyu-ustc-mem-alpha.md",
+      "repos/gustycube-membrane.md",
+      "repos/caviraoss-openmemory.md",
+      "repos/letta-ai-lettabot.md",
+      "articles/fabricio-q-memory-in-agents-episodic-vs-semantic-and-the-h.md",
+      "articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md",
+      "deep/repos/supermemoryai-supermemory.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/repos/caviraoss-openmemory.md",
+      "deep/repos/wangyu-ustc-mem-alpha.md",
+      "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md"
+    ],
+    "aliases": [
+      "semantic memory"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "langchain",
+    "name": "LangChain",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A popular framework for building LLM-powered applications and agents, providing abstractions for chains, tools, memory, and retrieval.",
+    "source_refs": [
+      "tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md",
+      "repos/microsoft-llmlingua.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/caviraoss-openmemory.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "repos/langchain-ai-langgraph-reflection.md",
+      "repos/laurian-context-compression-experiments-2508.md",
+      "articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md",
+      "deep/repos/memorilabs-memori.md",
+      "deep/repos/mem0ai-mem0.md"
+    ],
+    "aliases": [
+      "langchain"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "opencode",
+    "name": "OpenCode",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An open-source AI coding agent project providing an alternative to proprietary tools like Claude Code and Cursor.",
+    "source_refs": [
+      "repos/supermemoryai-supermemory.md",
+      "repos/human-agent-society-coral.md",
+      "repos/kevin-hs-sohn-hipocampus.md",
+      "repos/alirezarezvani-claude-skills.md",
+      "repos/kepano-obsidian-skills.md",
+      "papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md",
+      "deep/repos/kevin-hs-sohn-hipocampus.md",
+      "deep/repos/human-agent-society-coral.md",
+      "deep/repos/affaan-m-everything-claude-code.md",
+      "deep/repos/kepano-obsidian-skills.md",
+      "deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md"
+    ],
+    "aliases": [
+      "opencode"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.4
+  },
+  {
+    "id": "windsurf",
+    "name": "Windsurf",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An AI-powered IDE by Codeium that integrates agentic coding capabilities with deep codebase understanding.",
+    "source_refs": [
+      "tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md",
+      "repos/supermemoryai-supermemory.md",
+      "repos/alirezarezvani-claude-skills.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "repos/jmilinovich-goal-md.md",
+      "articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md",
+      "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md",
+      "deep/repos/jmilinovich-goal-md.md",
+      "deep/repos/tirth8205-code-review-graph.md",
+      "repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "windsurf"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "codex",
+    "name": "OpenAI Codex",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "OpenAI's code generation model and CLI tool, the foundation for GitHub Copilot and various coding agent systems.",
+    "source_refs": [
+      "tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md",
+      "tweets/hwchase17-continual-learning-for-ai-agents.md",
+      "tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md",
+      "repos/affaan-m-everything-claude-code.md",
+      "repos/human-agent-society-coral.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/alirezarezvani-claude-skills.md",
+      "repos/garrytan-gstack.md",
+      "repos/kepano-obsidian-skills.md",
+      "repos/matrixorigin-memoria.md",
+      "papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md",
+      "articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md",
+      "articles/ai-by-aakash-the-ultimate-autoresearch-guide.md",
+      "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md",
+      "deep/repos/human-agent-society-coral.md",
+      "deep/repos/affaan-m-everything-claude-code.md",
+      "deep/repos/kepano-obsidian-skills.md",
+      "deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md"
+    ],
+    "aliases": [
+      "codex",
+      "openai codex",
+      "codex cli"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.4
+  },
+  {
+    "id": "agent-memory",
+    "name": "Agent Memory",
+    "type": "concept",
+    "bucket": "agent-memory",
+    "description": "The general capability of AI agents to store, retrieve, and utilize information across interactions, encompassing episodic, semantic, procedural, and core memory types.",
+    "source_refs": [
+      "tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md",
+      "tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md",
+      "tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md",
+      "tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md",
+      "repos/transformeroptimus-superagi.md",
+      "repos/supermemoryai-supermemory.md",
+      "repos/agenticnotetaking-arscontexta.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/kayba-ai-agentic-context-engine.md",
+      "repos/aiming-lab-agent0.md",
+      "repos/mem0ai-mem0.md",
+      "repos/infiniflow-ragflow.md",
+      "papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "deep/repos/mem0ai-mem0.md",
+      "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "repos/agno-agi-dash.md"
+    ],
+    "aliases": [
+      "agent memory",
+      "memory systems",
+      "memory",
+      "memory management"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "agent-skills",
+    "name": "Agent Skills",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "Reusable, composable capabilities that agents can acquire and invoke, including skill libraries, registries, manifests, and composition mechanisms for building capable agent systems.",
+    "source_refs": [
+      "tweets/pawelhuryn-your-claude-md-is-doing-jobs-that-rules-hooks-an.md",
+      "tweets/philschmid-agent-skills-are-powerful-but-they-are-often-ai-ge.md",
+      "repos/memodb-io-acontext.md",
+      "repos/affaan-m-everything-claude-code.md",
+      "repos/anthropics-skills.md",
+      "repos/alirezarezvani-claude-skills.md",
+      "repos/davebcn87-pi-autoresearch.md",
+      "repos/letta-ai-letta-code.md",
+      "repos/letta-ai-letta.md",
+      "repos/kepano-obsidian-skills.md",
+      "repos/memento-teams-memento-skills.md",
+      "repos/letta-ai-lettabot.md",
+      "papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md",
+      "articles/agent-skills-overview.md",
+      "articles/calmops-ai-agent-skills-complete-guide-2026-building-reus.md",
+      "articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md",
+      "articles/ai-by-aakash-the-ultimate-autoresearch-guide.md",
+      "articles/martinfowler-com-context-engineering-for-coding-agents.md",
+      "deep/repos/affaan-m-everything-claude-code.md",
+      "deep/repos/anthropics-skills.md",
+      "deep/repos/kayba-ai-agentic-context-engine.md",
+      "deep/repos/othmanadi-planning-with-files.md",
+      "deep/repos/kepano-obsidian-skills.md",
+      "deep/papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md",
+      "deep/repos/memento-teams-memento-skills.md"
+    ],
+    "aliases": [
+      "agent skills",
+      "skills",
+      "skill",
+      "skill library",
+      "skill registry",
+      "agent skills specification",
+      "skill manifest",
+      "skill composition"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "graphrag",
+    "name": "GraphRAG",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "Microsoft's graph-based retrieval-augmented generation system that uses knowledge graphs to enable more comprehensive document understanding and question answering.",
+    "source_refs": [
+      "repos/osu-nlp-group-hipporag.md",
+      "papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md",
+      "deep/repos/agenticnotetaking-arscontexta.md",
+      "deep/repos/infiniflow-ragflow.md",
+      "deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md",
+      "deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md",
+      "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "graphrag",
+      "GraphRAG"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "progressive-disclosure",
+    "name": "Progressive Disclosure",
+    "type": "approach",
+    "bucket": "context-engineering",
+    "description": "A context engineering strategy that reveals information incrementally based on agent needs, reducing context bloat while maintaining access to relevant details.",
+    "source_refs": [
+      "repos/memodb-io-acontext.md",
+      "repos/thedotmack-claude-mem.md",
+      "repos/michaelliv-napkin.md",
+      "articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md",
+      "deep/repos/agenticnotetaking-arscontexta.md",
+      "deep/repos/memodb-io-acontext.md",
+      "deep/repos/anthropics-skills.md",
+      "deep/repos/michaelliv-napkin.md"
+    ],
+    "aliases": [
+      "progressive disclosure"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "obsidian",
+    "name": "Obsidian",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A markdown-based knowledge management tool used as a personal knowledge base, supporting wikilinks, graph views, and plugins for agent-accessible knowledge storage.",
+    "source_refs": [
+      "tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md",
+      "tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md",
+      "tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md",
+      "repos/kepano-obsidian-skills.md",
+      "repos/michaelliv-napkin.md",
+      "deep/repos/kepano-obsidian-skills.md",
+      "deep/repos/michaelliv-napkin.md"
+    ],
+    "aliases": [
+      "obsidian",
+      "obsidian flavored markdown",
+      "obsidian bases",
+      "obsidian cli"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "long-term-memory",
+    "name": "Long-Term Memory",
+    "type": "concept",
+    "bucket": "agent-memory",
+    "description": "Agent memory that persists across sessions and conversations, enabling continuity of knowledge and personalization over extended time horizons.",
+    "source_refs": [
+      "repos/helloruru-claude-memory-engine.md",
+      "repos/osu-nlp-group-hipporag.md",
+      "repos/kevin-hs-sohn-hipocampus.md",
+      "repos/thedotmack-claude-mem.md",
+      "repos/caviraoss-openmemory.md",
+      "repos/mem0ai-mem0.md",
+      "repos/letta-ai-lettabot.md",
+      "articles/lil-log-llm-powered-autonomous-agents.md",
+      "articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md"
+    ],
+    "aliases": [
+      "long-term memory",
+      "persistent memory"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "locomo",
+    "name": "LoCoMo",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A benchmark and framework for evaluating long-term conversational memory in AI agents across extended multi-session dialogues.",
+    "source_refs": [
+      "repos/supermemoryai-supermemory.md",
+      "repos/nemori-ai-nemori.md",
+      "repos/memvid-memvid.md",
+      "repos/mem0ai-mem0.md",
+      "deep/repos/memorilabs-memori.md",
+      "deep/repos/volcengine-openviking.md",
+      "deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md"
+    ],
+    "aliases": [
+      "locomo",
+      "LoCoMo"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "vllm",
+    "name": "vLLM",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A high-throughput inference engine for LLMs using PagedAttention, enabling efficient serving of large language models for agent systems.",
+    "source_refs": [
+      "repos/bytedtsinghua-sia-memagent.md",
+      "repos/orchestra-research-ai-research-skills.md",
+      "repos/greyhaven-ai-autocontext.md",
+      "repos/agent-on-the-fly-memento.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "deep/repos/greyhaven-ai-autocontext.md",
+      "deep/repos/mem0ai-mem0.md",
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "vllm",
+      "vLLM"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.4
+  },
+  {
+    "id": "ollama",
+    "name": "Ollama",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A tool for running large language models locally, enabling offline and privacy-preserving agent deployments.",
+    "source_refs": [
+      "repos/greyhaven-ai-autocontext.md",
+      "repos/caviraoss-openmemory.md",
+      "repos/infiniflow-ragflow.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "deep/repos/greyhaven-ai-autocontext.md",
+      "deep/repos/mem0ai-mem0.md",
+      "deep/repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "ollama"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.4
+  },
+  {
+    "id": "reflexion",
+    "name": "Reflexion",
+    "type": "approach",
+    "bucket": "self-improving",
+    "description": "A framework for agent self-improvement through verbal reinforcement, where agents reflect on past failures and generate improved strategies stored in memory.",
+    "source_refs": [
+      "papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md",
+      "articles/lil-log-llm-powered-autonomous-agents.md",
+      "deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md",
+      "deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md",
+      "deep/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md",
+      "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "reflexion",
+      "self-reflection"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "graphiti",
+    "name": "Graphiti",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A temporal knowledge graph system designed for agent memory, enabling agents to store and retrieve structured relational knowledge with time-awareness.",
+    "source_refs": [
+      "repos/getzep-graphiti.md",
+      "papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/repos/letta-ai-letta.md",
+      "deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md",
+      "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md"
+    ],
+    "aliases": [
+      "graphiti"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.1
+  },
+  {
+    "id": "zep",
+    "name": "Zep",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A memory platform for AI assistants and agents that provides long-term memory, summarization, and retrieval capabilities for production deployments.",
+    "source_refs": [
+      "repos/getzep-graphiti.md",
+      "repos/memorilabs-memori.md",
+      "papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md",
+      "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md"
+    ],
+    "aliases": [
+      "zep"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.1
+  },
+  {
+    "id": "mem0",
+    "name": "Mem0",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "An open-source memory layer for AI agents that enables personalized, persistent memory across conversations using hybrid vector and graph storage.",
+    "source_refs": [
+      "repos/memorilabs-memori.md",
+      "repos/thedotmack-claude-mem.md",
+      "repos/mem0ai-mem0.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/repos/letta-ai-letta.md",
+      "deep/repos/mem0ai-mem0.md"
+    ],
+    "aliases": [
+      "mem0",
+      "mem0ai/mem0",
+      "Mem0"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "gemini-cli",
+    "name": "Gemini CLI",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "Google's command-line interface for interacting with Gemini models, enabling agentic workflows from the terminal.",
+    "source_refs": [
+      "repos/alirezarezvani-claude-skills.md",
+      "repos/garrytan-gstack.md",
+      "repos/matrixorigin-memoria.md",
+      "articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md",
+      "deep/repos/kepano-obsidian-skills.md",
+      "deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md"
+    ],
+    "aliases": [
+      "gemini cli"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "gemini",
+    "name": "Gemini",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "Google's family of large language models used for agentic applications, available via API and integrated into various Google products.",
+    "source_refs": [
+      "repos/orchestra-research-ai-research-skills.md",
+      "repos/caviraoss-openmemory.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "repos/infiniflow-ragflow.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "articles/ai-by-aakash-the-ultimate-autoresearch-guide.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/repos/affaan-m-everything-claude-code.md"
+    ],
+    "aliases": [
+      "gemini",
+      "google gemini"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "gepa",
+    "name": "GEPA",
+    "type": "concept",
+    "bucket": "self-improving",
+    "description": "Generative Evolutionary Prompt Architecture - a self-improving approach that uses evolutionary algorithms to optimize agent prompts and architectures.",
+    "source_refs": [
+      "repos/greyhaven-ai-autocontext.md",
+      "deep/repos/gepa-ai-gepa.md",
+      "deep/repos/greyhaven-ai-autocontext.md",
+      "deep/repos/jmilinovich-goal-md.md",
+      "deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+    ],
+    "aliases": [
+      "gepa",
+      "GEPA"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.4
+  },
+  {
+    "id": "letta",
+    "name": "Letta",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "An agent framework formerly known as MemGPT that provides stateful agents with long-term memory, self-editing memory blocks, and a managed API for production deployments.",
+    "source_refs": [
+      "tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md",
+      "repos/mirix-ai-mirix.md",
+      "repos/letta-ai-letta-code.md",
+      "repos/letta-ai-letta.md",
+      "repos/letta-ai-lettabot.md",
+      "papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md",
+      "deep/repos/letta-ai-letta.md",
+      "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "letta",
+      "letta api",
+      "letta code",
+      "lettabot",
+      "memgpt",
+      "MemGPT"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.1
+  },
+  {
+    "id": "claude-md",
+    "name": "CLAUDE.md",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "A convention for storing persistent agent instructions, project context, and skill specifications in markdown files that are automatically included in agent context.",
+    "source_refs": [
+      "tweets/pawelhuryn-your-claude-md-is-doing-jobs-that-rules-hooks-an.md",
+      "tweets/omarsar0-universal-claude-md-claims-to-cut-claude-output-t.md",
+      "repos/kevin-hs-sohn-hipocampus.md",
+      "repos/jmilinovich-goal-md.md",
+      "papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "articles/martinfowler-com-context-engineering-for-coding-agents.md",
+      "deep/repos/kevin-hs-sohn-hipocampus.md",
+      "deep/repos/snarktank-compound-product.md",
+      "deep/repos/garrytan-gstack.md",
+      "deep/repos/anthropics-skills.md",
+      "deep/repos/jmilinovich-goal-md.md",
+      "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+    ],
+    "aliases": [
+      "claude.md",
+      "agents.md",
+      "skill.md",
+      "root.md"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "grpo",
+    "name": "GRPO",
+    "type": "approach",
+    "bucket": "self-improving",
+    "description": "Group Relative Policy Optimization, a reinforcement learning algorithm used to fine-tune LLMs through group-based reward comparison without a separate critic model.",
+    "source_refs": [
+      "tweets/hwchase17-continual-learning-for-ai-agents.md",
+      "repos/orchestra-research-ai-research-skills.md",
+      "articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md",
+      "deep/repos/modelscope-agentevolver.md",
+      "deep/repos/gepa-ai-gepa.md"
+    ],
+    "aliases": [
+      "grpo",
+      "GRPO"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.8
+  },
+  {
+    "id": "appworld",
+    "name": "AppWorld",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A benchmark for evaluating LLM agents on complex multi-app tasks, simulating real-world software interactions across multiple connected applications.",
+    "source_refs": [
+      "repos/modelscope-agentevolver.md",
+      "papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "deep/repos/modelscope-agentevolver.md",
+      "deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+    ],
+    "aliases": [
+      "appworld",
+      "AppWorld"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.3
+  },
+  {
+    "id": "semantic-search",
+    "name": "Semantic Search",
+    "type": "concept",
+    "bucket": "knowledge-substrate",
+    "description": "Search techniques that use embedding-based similarity to retrieve semantically relevant content, including vector search and vector store implementations.",
+    "source_refs": [
+      "repos/aiming-lab-simplemem.md",
+      "repos/natebjones-projects-ob1.md",
+      "repos/kevin-hs-sohn-hipocampus.md",
+      "repos/topoteretes-cognee.md",
+      "repos/memvid-memvid.md",
+      "repos/matrixorigin-memoria.md",
+      "deep/repos/caviraoss-openmemory.md",
+      "deep/repos/thedotmack-claude-mem.md",
+      "deep/repos/topoteretes-cognee.md",
+      "deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md"
+    ],
+    "aliases": [
+      "semantic search",
+      "vector search",
+      "vector store"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "context-management",
+    "name": "Context Management",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "Strategies and systems for managing LLM context windows, including compression, pollution prevention, fragmentation handling, and lossless management approaches.",
+    "source_refs": [
+      "tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md",
+      "tweets/omarsar0-universal-claude-md-claims-to-cut-claude-output-t.md",
+      "tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md",
+      "repos/aiming-lab-simplemem.md",
+      "repos/helloruru-claude-memory-engine.md",
+      "repos/transformeroptimus-superagi.md",
+      "repos/martian-engineering-lossless-claw.md",
+      "repos/kevin-hs-sohn-hipocampus.md",
+      "repos/thedotmack-claude-mem.md",
+      "repos/laurian-context-compression-experiments-2508.md",
+      "papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+      "papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "articles/calmops-ai-agent-skills-complete-guide-2026-building-reus.md",
+      "articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md",
+      "articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md",
+      "articles/martinfowler-com-context-engineering-for-coding-agents.md",
+      "articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md",
+      "deep/repos/martian-engineering-lossless-claw.md",
+      "deep/repos/letta-ai-letta.md",
+      "deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "context management",
+      "context window management",
+      "context window",
+      "lossless context management",
+      "context compression",
+      "context pollution",
+      "context collapse",
+      "context fragmentation"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "hotpotqa",
+    "name": "HotpotQA",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A multi-hop question answering benchmark requiring reasoning over multiple documents, commonly used to evaluate RAG and knowledge graph systems.",
+    "source_refs": [
+      "repos/bytedtsinghua-sia-memagent.md",
+      "deep/repos/wangyu-ustc-mem-alpha.md",
+      "deep/repos/evoagentx-evoagentx.md",
+      "deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md",
+      "deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md"
+    ],
+    "aliases": [
+      "hotpotqa",
+      "HotpotQA"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "procedural-memory",
+    "name": "Procedural Memory",
+    "type": "concept",
+    "bucket": "agent-memory",
+    "description": "A type of agent memory encoding how-to knowledge, workflows, and procedures that agents can execute, analogous to implicit skill memory in humans.",
+    "source_refs": [
+      "repos/mirix-ai-mirix.md",
+      "repos/caviraoss-openmemory.md",
+      "articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md",
+      "deep/repos/zorazrw-agent-workflow-memory.md",
+      "deep/repos/caviraoss-openmemory.md"
+    ],
+    "aliases": [
+      "procedural memory"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "multi-agent-systems",
+    "name": "Multi-Agent Systems",
+    "type": "concept",
+    "bucket": "multi-agent-systems",
+    "description": "Systems involving multiple AI agents that collaborate, coordinate, or compete to accomplish tasks, including workflows, orchestration, swarms, and subagent hierarchies.",
+    "source_refs": [
+      "tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md",
+      "tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md",
+      "tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md",
+      "tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md",
+      "repos/transformeroptimus-superagi.md",
+      "repos/safishamsi-graphify.md",
+      "repos/alirezarezvani-claude-skills.md",
+      "repos/orchestra-research-ai-research-skills.md",
+      "repos/evoagentx-evoagentx.md",
+      "repos/letta-ai-letta.md",
+      "repos/letta-ai-lettabot.md",
+      "papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "articles/ai-by-aakash-the-ultimate-autoresearch-guide.md",
+      "deep/repos/jackchen-me-open-multi-agent.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "papers/song-paperorchestra-a-multi-agent-framework-for-automa.md",
+      "articles/notion-notion-site-notion-notion-site.md",
+      "papers/qu-coral-towards-autonomous-multi-agent-evolution-fo.md"
+    ],
+    "aliases": [
+      "multi-agent systems",
+      "multi-agent workflows",
+      "multi-agent collaboration",
+      "open multi-agent",
+      "agent orchestration",
+      "agent swarm",
+      "subagents",
+      "sub-agents",
+      "multi-agent orchestration"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "ace",
+    "name": "ACE",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "Autonomous Cognitive Entity - a layered cognitive architecture framework for building autonomous agents with hierarchical reasoning and planning.",
+    "source_refs": [
+      "repos/kayba-ai-agentic-context-engine.md",
+      "papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+      "papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+    ],
+    "aliases": [
+      "ace",
+      "ACE"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9
+  },
+  {
+    "id": "vector-database",
+    "name": "Vector Database",
+    "type": "concept",
+    "bucket": "knowledge-substrate",
+    "description": "Specialized databases optimized for storing and querying high-dimensional embeddings, including systems like ChromaDB, Pinecone, Qdrant, FAISS, and pgvector.",
+    "source_refs": [
+      "repos/transformeroptimus-superagi.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/thedotmack-claude-mem.md",
+      "repos/wangziqi06-724-office.md",
+      "repos/caviraoss-openmemory.md",
+      "repos/nemori-ai-nemori.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "repos/memvid-memvid.md",
+      "articles/fabricio-q-memory-in-agents-episodic-vs-semantic-and-the-h.md",
+      "articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md",
+      "articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md",
+      "deep/repos/modelscope-agentevolver.md",
+      "deep/repos/memodb-io-acontext.md",
+      "deep/repos/thedotmack-claude-mem.md",
+      "deep/repos/topoteretes-cognee.md",
+      "deep/repos/mem0ai-mem0.md",
+      "tweets/ashpreetbedi-dash-v2-the-multi-agent-data-system-every-company.md"
+    ],
+    "aliases": [
+      "vector database",
+      "chromadb",
+      "pinecone",
+      "qdrant",
+      "faiss",
+      "lancedb",
+      "chroma",
+      "pgvector"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "swe-bench",
+    "name": "SWE-bench",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A benchmark for evaluating software engineering agents on real GitHub issues, with a verified subset for more reliable evaluation.",
+    "source_refs": [
+      "repos/ayanami1314-swe-pruner.md",
+      "repos/maximerobeyns-self-improving-coding-agent.md",
+      "papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+      "deep/repos/maximerobeyns-self-improving-coding-agent.md",
+      "deep/papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "deep/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md"
+    ],
+    "aliases": [
+      "swe-bench",
+      "swe-bench verified",
+      "SWE-bench"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "gpt-4",
+    "name": "GPT-4",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "OpenAI's family of large language models including GPT-4, GPT-4o, GPT-4o-mini, and GPT-5, widely used as backbone models for agent systems.",
+    "source_refs": [
+      "tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md",
+      "repos/orchestra-research-ai-research-skills.md",
+      "papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md",
+      "papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md",
+      "articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md",
+      "deep/repos/microsoft-llmlingua.md",
+      "deep/repos/gepa-ai-gepa.md",
+      "deep/repos/zorazrw-agent-workflow-memory.md",
+      "deep/repos/vectifyai-pageindex.md",
+      "deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md",
+      "deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md",
+      "deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md"
+    ],
+    "aliases": [
+      "gpt-4",
+      "gpt-4o",
+      "gpt-4o-mini",
+      "gpt-5"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.6
+  },
+  {
+    "id": "bm25",
+    "name": "BM25",
+    "type": "approach",
+    "bucket": "knowledge-substrate",
+    "description": "A classical sparse retrieval algorithm used in keyword-based search, often combined with semantic search in hybrid retrieval systems for agents.",
+    "source_refs": [
+      "repos/kevin-hs-sohn-hipocampus.md",
+      "repos/michaelliv-napkin.md",
+      "deep/repos/wangyu-ustc-mem-alpha.md",
+      "deep/repos/memvid-memvid.md",
+      "deep/repos/michaelliv-napkin.md",
+      "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+      "deep/repos/memento-teams-memento-skills.md"
+    ],
+    "aliases": [
+      "bm25",
+      "BM25",
+      "bm25 search"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9
+  },
+  {
+    "id": "evoagentx",
+    "name": "EvoAgentX",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "A framework for evolutionary optimization of agent architectures and workflows, enabling automated discovery of effective agent configurations.",
+    "source_refs": [
+      "tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md",
+      "repos/evoagentx-evoagentx.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md",
+      "deep/repos/evoagentx-evoagentx.md"
+    ],
+    "aliases": [
+      "evoagentx",
+      "EvoAgentX"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "agentevolver",
+    "name": "AgentEvolver",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "A system for automatically evolving and improving agent capabilities through iterative optimization and evaluation cycles.",
+    "source_refs": [
+      "tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md",
+      "repos/modelscope-agentevolver.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md",
+      "deep/repos/modelscope-agentevolver.md"
+    ],
+    "aliases": [
+      "agentevolver",
+      "AgentEvolver"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.8
+  },
+  {
+    "id": "tree-sitter",
+    "name": "Tree-sitter",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A parser generator and incremental parsing library used by coding agents for accurate code understanding and AST manipulation.",
+    "source_refs": [
+      "tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md",
+      "repos/safishamsi-graphify.md",
+      "deep/repos/tirth8205-code-review-graph.md",
+      "repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "tree-sitter"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "human-in-the-loop",
+    "name": "Human-in-the-Loop",
+    "type": "approach",
+    "bucket": "agent-architecture",
+    "description": "An approach where human oversight, feedback, or approval is integrated into agent workflows at critical decision points.",
+    "source_refs": [
+      "tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md",
+      "repos/evoagentx-evoagentx.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md",
+      "articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md",
+      "articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md"
+    ],
+    "aliases": [
+      "human-in-the-loop",
+      "human feedback"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "continual-learning",
+    "name": "Continual Learning",
+    "type": "concept",
+    "bucket": "self-improving",
+    "description": "The ability of agents to continuously learn and adapt from new experiences without catastrophically forgetting previously acquired knowledge.",
+    "source_refs": [
+      "tweets/hwchase17-continual-learning-for-ai-agents.md",
+      "repos/memodb-io-acontext.md",
+      "repos/osu-nlp-group-hipporag.md",
+      "repos/kayba-ai-agentic-context-engine.md",
+      "repos/agent-on-the-fly-memento.md",
+      "papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+    ],
+    "aliases": [
+      "continual learning",
+      "catastrophic forgetting",
+      "agent learning"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "crewai",
+    "name": "CrewAI",
+    "type": "project",
+    "bucket": "multi-agent-systems",
+    "description": "A framework for orchestrating role-playing autonomous AI agents that collaborate as a crew to accomplish complex tasks.",
+    "source_refs": [
+      "tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md",
+      "repos/caviraoss-openmemory.md",
+      "repos/mem0ai-mem0.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "crewai",
+      "CrewAI"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "metagpt",
+    "name": "MetaGPT",
+    "type": "project",
+    "bucket": "multi-agent-systems",
+    "description": "A multi-agent framework assigning different software engineering roles to LLMs to collaboratively solve complex coding and development tasks.",
+    "source_refs": [
+      "tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md",
+      "repos/foundationagents-metagpt.md",
+      "deep/repos/foundationagents-metagpt.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "metagpt",
+      "MetaGPT"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "execution-traces",
+    "name": "Execution Traces",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "Records of agent actions, decisions, and intermediate states during task execution, used for debugging, evaluation, and trace-derived feedback for improvement.",
+    "source_refs": [
+      "tweets/akoratana-context-graphs-will-be-to-the-2030s-what-databases.md",
+      "tweets/jayagup10-google-s-20-year-secret-is-now-available-to-every.md",
+      "tweets/jayagup10-the-trillion-dollar-loop-b2b-never-had.md",
+      "tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md",
+      "repos/canvas-org-meta-agent.md",
+      "papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md",
+      "papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+      "deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md"
+    ],
+    "aliases": [
+      "execution traces",
+      "decision traces",
+      "decision trace",
+      "trace-derived feedback"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "langgraph",
+    "name": "LangGraph",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A library for building stateful, graph-based agent workflows with LangChain, supporting cycles, persistence, and human-in-the-loop patterns.",
+    "source_refs": [
+      "tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md",
+      "repos/memodb-io-acontext.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/mem0ai-mem0.md",
+      "articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md"
+    ],
+    "aliases": [
+      "langgraph",
+      "LangGraph",
+      "langgraph reflection"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "longmemeval",
+    "name": "LongMemEval",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A benchmark for evaluating long-term memory capabilities in conversational AI systems across extended interaction histories.",
+    "source_refs": [
+      "repos/supermemoryai-supermemory.md",
+      "repos/michaelliv-napkin.md",
+      "papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "longmemeval",
+      "LongMemEval"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.1
+  },
+  {
+    "id": "lost-in-the-middle",
+    "name": "Lost in the Middle",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "A phenomenon where LLMs fail to effectively use information placed in the middle of long contexts, motivating research into context organization strategies.",
+    "source_refs": [
+      "repos/microsoft-llmlingua.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md",
+      "articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md"
+    ],
+    "aliases": [
+      "lost in the middle"
+    ],
+    "article_level": "full",
+    "relevance_composite": 7.6
+  },
+  {
+    "id": "self-improving-agents",
+    "name": "Self-Improving Agents",
+    "type": "concept",
+    "bucket": "self-improving",
+    "description": "AI agents that can modify their own behavior, skills, or architecture based on experience, including self-improvement loops and open-ended evolution approaches.",
+    "source_refs": [
+      "tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md",
+      "tweets/jennyzhangzt-introducing-hyperagents-an-ai-system-that-not-onl.md",
+      "tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md",
+      "repos/human-agent-society-coral.md",
+      "repos/alirezarezvani-claude-skills.md",
+      "repos/aiming-lab-agent0.md",
+      "repos/maximerobeyns-self-improving-coding-agent.md",
+      "repos/letta-ai-letta.md",
+      "papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md",
+      "papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md",
+      "deep/repos/karpathy-autoresearch.md",
+      "papers/zweiger-self-adapting-language-models.md",
+      "articles/notion-notion-site-notion-notion-site.md"
+    ],
+    "aliases": [
+      "self-improving agents",
+      "self-improving agent",
+      "self-improvement",
+      "self-improvement loop",
+      "self-improving loop",
+      "open-ended self-improvement",
+      "agent evolution"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.4
+  },
+  {
+    "id": "core-memory",
+    "name": "Core Memory",
+    "type": "concept",
+    "bucket": "agent-memory",
+    "description": "A persistent, always-in-context memory block for agents containing essential information about the agent and user, shared across agent instances.",
+    "source_refs": [
+      "repos/mirix-ai-mirix.md",
+      "repos/wangyu-ustc-mem-alpha.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "deep/repos/wangyu-ustc-mem-alpha.md",
+      "deep/repos/jackchen-me-open-multi-agent.md",
+      "deep/repos/letta-ai-letta.md"
+    ],
+    "aliases": [
+      "core memory",
+      "shared memory"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "neo4j",
+    "name": "Neo4j",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A leading graph database used for storing and querying knowledge graphs in agent memory and RAG systems.",
+    "source_refs": [
+      "repos/topoteretes-cognee.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/repos/mem0ai-mem0.md",
+      "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md"
+    ],
+    "aliases": [
+      "neo4j",
+      "Neo4j"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "chromadb",
+    "name": "ChromaDB",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "An open-source embedding database for storing and retrieving vector embeddings, commonly used in agent RAG pipelines.",
+    "source_refs": [
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/thedotmack-claude-mem.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "deep/repos/modelscope-agentevolver.md",
+      "deep/repos/thedotmack-claude-mem.md",
+      "deep/repos/mem0ai-mem0.md"
+    ],
+    "aliases": [
+      "chromadb",
+      "chroma",
+      "ChromaDB"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.8
+  },
+  {
+    "id": "github-copilot",
+    "name": "GitHub Copilot",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "GitHub's AI coding assistant powered by OpenAI Codex and GPT-4, integrated into IDEs for code completion and generation.",
+    "source_refs": [
+      "repos/caviraoss-openmemory.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "articles/martinfowler-com-context-engineering-for-coding-agents.md",
+      "deep/repos/kepano-obsidian-skills.md"
+    ],
+    "aliases": [
+      "github copilot",
+      "GitHub Copilot"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "litellm",
+    "name": "LiteLLM",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A unified Python SDK for calling 100+ LLM APIs using the OpenAI format, simplifying model switching in agent systems.",
+    "source_refs": [
+      "repos/evoagentx-evoagentx.md",
+      "deep/repos/vectifyai-pageindex.md",
+      "deep/repos/topoteretes-cognee.md",
+      "deep/repos/memento-teams-memento-skills.md"
+    ],
+    "aliases": [
+      "litellm",
+      "LiteLLM"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "dspy",
+    "name": "DSPy",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "A framework for programming with foundation models that automatically optimizes LLM pipelines through compiled prompt and weight optimization.",
+    "source_refs": [
+      "repos/laurian-context-compression-experiments-2508.md",
+      "deep/repos/osu-nlp-group-hipporag.md",
+      "deep/repos/gepa-ai-gepa.md",
+      "deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md"
+    ],
+    "aliases": [
+      "dspy",
+      "DSPy"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "memgpt",
+    "name": "MemGPT",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "The original research system (now evolved into Letta) that introduced virtual context management for LLMs, enabling infinite memory through hierarchical storage.",
+    "source_refs": [
+      "papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "deep/repos/letta-ai-letta.md",
+      "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "memgpt",
+      "MemGPT"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.1
+  },
+  {
+    "id": "community-detection",
+    "name": "Community Detection",
+    "type": "approach",
+    "bucket": "knowledge-substrate",
+    "description": "Graph algorithms for identifying clusters of related entities in knowledge graphs, including the Leiden algorithm used in GraphRAG for community summarization.",
+    "source_refs": [
+      "repos/safishamsi-graphify.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md",
+      "deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md",
+      "deep/repos/tirth8205-code-review-graph.md",
+      "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md"
+    ],
+    "aliases": [
+      "community detection",
+      "leiden algorithm"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "context-graphs",
+    "name": "Context Graphs",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "Graph-based representations of contextual information and agent computation flows, enabling structured context management and agentic computation graphs.",
+    "source_refs": [
+      "tweets/akoratana-context-graphs-will-be-to-the-2030s-what-databases.md",
+      "tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md",
+      "tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md",
+      "tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md",
+      "repos/origintrail-dkg-v9.md",
+      "papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md",
+      "deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md"
+    ],
+    "aliases": [
+      "context graphs",
+      "context graph",
+      "agentic computation graphs"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "hyperagents",
+    "name": "HyperAgents",
+    "type": "project",
+    "bucket": "multi-agent-systems",
+    "description": "A multi-agent system framework enabling hyperscale agent coordination and collaboration across distributed environments.",
+    "source_refs": [
+      "tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md",
+      "tweets/jennyzhangzt-introducing-hyperagents-an-ai-system-that-not-onl.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md"
+    ],
+    "aliases": [
+      "hyperagents",
+      "HyperAgents"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "autogen",
+    "name": "AutoGen",
+    "type": "project",
+    "bucket": "multi-agent-systems",
+    "description": "Microsoft's framework for building multi-agent conversational systems where agents can collaborate, critique, and coordinate to solve complex tasks.",
+    "source_refs": [
+      "tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md",
+      "repos/caviraoss-openmemory.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "autogen",
+      "AutoGen"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "memevolve",
+    "name": "MemEvolve",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "A system for evolving agent memory structures and retrieval strategies through automated optimization and evaluation.",
+    "source_refs": [
+      "repos/bingreeky-memevolve.md",
+      "deep/repos/bingreeky-memevolve.md",
+      "deep/repos/zorazrw-agent-workflow-memory.md"
+    ],
+    "aliases": [
+      "memevolve",
+      "MemEvolve"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "context-compression",
+    "name": "Context Compression",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "Techniques for reducing context window usage while preserving essential information, including prompt compression methods like LLMLingua and LongLLMLingua.",
+    "source_refs": [
+      "repos/helloruru-claude-memory-engine.md",
+      "repos/microsoft-llmlingua.md",
+      "repos/thedotmack-claude-mem.md",
+      "repos/laurian-context-compression-experiments-2508.md",
+      "deep/repos/microsoft-llmlingua.md",
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "context compression",
+      "prompt compression",
+      "llmlingua",
+      "longllmlingua",
+      "llmlingua-2"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "hipporag",
+    "name": "HippoRAG",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A RAG framework inspired by the hippocampal memory indexing theory, using knowledge graphs for more human-like associative retrieval.",
+    "source_refs": [
+      "repos/osu-nlp-group-hipporag.md",
+      "repos/kevin-hs-sohn-hipocampus.md",
+      "deep/repos/kevin-hs-sohn-hipocampus.md",
+      "deep/repos/osu-nlp-group-hipporag.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "hipporag",
+      "HippoRAG",
+      "hipocampus"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "raptor",
+    "name": "RAPTOR",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "Recursive Abstractive Processing for Tree-Organized Retrieval - a hierarchical document indexing approach for improved multi-level retrieval in RAG systems.",
+    "source_refs": [
+      "repos/osu-nlp-group-hipporag.md",
+      "deep/repos/infiniflow-ragflow.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "raptor",
+      "RAPTOR"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "llamaindex",
+    "name": "LlamaIndex",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A data framework for connecting LLMs with external data sources through indexing, retrieval, and query engines for RAG applications.",
+    "source_refs": [
+      "repos/microsoft-llmlingua.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "deep/repos/infiniflow-ragflow.md"
+    ],
+    "aliases": [
+      "llamaindex",
+      "LlamaIndex"
+    ],
+    "article_level": "full",
+    "relevance_composite": 7.7
+  },
+  {
+    "id": "cognitive-architecture",
+    "name": "Cognitive Architecture",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "The structural organization of an AI agent's cognitive components including perception, memory, reasoning, and action, inspired by cognitive science models.",
+    "source_refs": [
+      "tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md",
+      "repos/agenticnotetaking-arscontexta.md",
+      "repos/topoteretes-cognee.md",
+      "repos/caviraoss-openmemory.md"
+    ],
+    "aliases": [
+      "cognitive architecture",
+      "agent architecture"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "agent-workflow-memory",
+    "name": "Agent Workflow Memory",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A system for storing and retrieving successful agent workflows as reusable memory, enabling agents to learn from past task executions.",
+    "source_refs": [
+      "repos/zorazrw-agent-workflow-memory.md",
+      "deep/repos/bingreeky-memevolve.md",
+      "deep/repos/zorazrw-agent-workflow-memory.md"
+    ],
+    "aliases": [
+      "agent workflow memory"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "openmemory",
+    "name": "OpenMemory",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "An open-source memory layer for AI agents providing persistent, queryable memory storage across different agent frameworks and deployments.",
+    "source_refs": [
+      "repos/thedotmack-claude-mem.md",
+      "repos/caviraoss-openmemory.md",
+      "deep/repos/caviraoss-openmemory.md"
+    ],
+    "aliases": [
+      "openmemory",
+      "OpenMemory"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "supermemory",
+    "name": "SuperMemory",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A memory system for AI agents that aggregates and makes searchable content from various sources for personalized agent memory.",
+    "source_refs": [
+      "repos/supermemoryai-supermemory.md",
+      "repos/thedotmack-claude-mem.md",
+      "deep/repos/supermemoryai-supermemory.md"
+    ],
+    "aliases": [
+      "supermemory",
+      "SuperMemory"
+    ],
+    "article_level": "full",
+    "relevance_composite": 7.9
+  },
+  {
+    "id": "hybrid-search",
+    "name": "Hybrid Search",
+    "type": "approach",
+    "bucket": "knowledge-substrate",
+    "description": "A retrieval approach combining dense semantic search with sparse keyword search, often using reciprocal rank fusion to merge results for better coverage.",
+    "source_refs": [
+      "repos/getzep-graphiti.md",
+      "repos/supermemoryai-supermemory.md",
+      "articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md",
+      "articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/repos/memvid-memvid.md",
+      "deep/repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "hybrid search",
+      "hybrid retrieval",
+      "reciprocal rank fusion"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "temporal-reasoning",
+    "name": "Temporal Reasoning",
+    "type": "concept",
+    "bucket": "agent-memory",
+    "description": "The ability of agents to reason about time-ordered events, temporal relationships, and the evolution of knowledge over time in memory systems.",
+    "source_refs": [
+      "repos/supermemoryai-supermemory.md",
+      "repos/caviraoss-openmemory.md",
+      "papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md"
+    ],
+    "aliases": [
+      "temporal reasoning"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.1
+  },
+  {
+    "id": "aflow",
+    "name": "AFlow",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "An automated workflow optimization framework that uses Monte Carlo Tree Search to discover and refine effective agent workflow patterns.",
+    "source_refs": [
+      "repos/foundationagents-metagpt.md",
+      "deep/repos/evoagentx-evoagentx.md",
+      "deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md"
+    ],
+    "aliases": [
+      "aflow",
+      "AFlow"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "voyager",
+    "name": "Voyager",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "An open-ended embodied agent in Minecraft that continuously explores, learns skills, and improves through self-directed curriculum and skill library growth.",
+    "source_refs": [
+      "papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md",
+      "deep/repos/bingreeky-memevolve.md",
+      "deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md"
+    ],
+    "aliases": [
+      "voyager",
+      "Voyager"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "darwin-godel-machine",
+    "name": "Darwin Gödel Machine",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "A self-improving agent system that applies evolutionary and Gödelian self-modification principles to continuously improve its own code and capabilities.",
+    "source_refs": [
+      "tweets/jennyzhangzt-introducing-hyperagents-an-ai-system-that-not-onl.md",
+      "papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md",
+      "deep/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md"
+    ],
+    "aliases": [
+      "darwin godel machine",
+      "darwin gödel machine",
+      "godel machine"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "reinforcement-learning",
+    "name": "Reinforcement Learning",
+    "type": "approach",
+    "bucket": "self-improving",
+    "description": "A machine learning paradigm where agents learn through reward signals, applied to agent self-improvement including GRPO, reward hacking mitigation, and credit assignment.",
+    "source_refs": [
+      "tweets/hwchase17-continual-learning-for-ai-agents.md",
+      "repos/wangyu-ustc-mem-alpha.md",
+      "repos/orchestra-research-ai-research-skills.md",
+      "repos/greyhaven-ai-autocontext.md",
+      "articles/cameron-westland-autoresearch-is-reward-function-design.md",
+      "articles/lil-log-reward-hacking-in-reinforcement-learning.md",
+      "articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md",
+      "deep/repos/modelscope-agentevolver.md",
+      "deep/repos/gepa-ai-gepa.md",
+      "deep/repos/greyhaven-ai-autocontext.md",
+      "papers/zweiger-self-adapting-language-models.md",
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "reinforcement learning",
+      "grpo",
+      "reward hacking",
+      "credit assignment"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.4
+  },
+  {
+    "id": "adas",
+    "name": "ADAS",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "Automated Design of Agentic Systems - a meta-agent framework that automatically discovers and improves agent designs through code-based search.",
+    "source_refs": [
+      "repos/shengranhu-adas.md",
+      "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+    ],
+    "aliases": [
+      "adas",
+      "ADAS"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 9.1
+  },
+  {
+    "id": "textgrad",
+    "name": "TextGrad",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "A framework for automatic differentiation through text, enabling gradient-based optimization of LLM pipelines using textual feedback as gradients.",
+    "source_refs": [
+      "repos/laurian-context-compression-experiments-2508.md",
+      "deep/repos/evoagentx-evoagentx.md"
+    ],
+    "aliases": [
+      "textgrad",
+      "TextGrad"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "webarena",
+    "name": "WebArena",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A realistic web environment benchmark for evaluating autonomous agents on complex web-based tasks across multiple websites.",
+    "source_refs": [
+      "repos/zorazrw-agent-workflow-memory.md",
+      "deep/repos/zorazrw-agent-workflow-memory.md"
+    ],
+    "aliases": [
+      "webarena",
+      "WebArena"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.7
+  },
+  {
+    "id": "mind2web",
+    "name": "Mind2Web",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A benchmark for generalist web agents that tests task completion across diverse real-world websites and user instructions.",
+    "source_refs": [
+      "repos/zorazrw-agent-workflow-memory.md",
+      "deep/repos/zorazrw-agent-workflow-memory.md"
+    ],
+    "aliases": [
+      "mind2web",
+      "Mind2Web"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.7
+  },
+  {
+    "id": "skill-book",
+    "name": "SkillBook",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "A structured registry or book of agent skills and their specifications, including SkillManager systems for organizing and accessing agent capabilities.",
+    "source_refs": [
+      "repos/kayba-ai-agentic-context-engine.md",
+      "papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "deep/repos/garrytan-gstack.md",
+      "deep/repos/anthropics-skills.md",
+      "deep/repos/kayba-ai-agentic-context-engine.md",
+      "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+    ],
+    "aliases": [
+      "skillbook",
+      "skillmanager",
+      "skill.md"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "lightrag",
+    "name": "LightRAG",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A lightweight graph-based RAG system that integrates entity and relationship extraction into retrieval for improved contextual responses.",
+    "source_refs": [
+      "repos/osu-nlp-group-hipporag.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "lightrag",
+      "LightRAG"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "memorybank",
+    "name": "MemoryBank",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A long-term memory mechanism for LLMs that stores and retrieves memories based on Ebbinghaus forgetting curve principles for more human-like memory management.",
+    "source_refs": [
+      "repos/zhongwanjun-memorybank-siliconfriend.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "memorybank",
+      "MemoryBank"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "skillweaver",
+    "name": "SkillWeaver",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A system for automated skill synthesis and composition in agents, enabling learning and weaving together new skills from experience.",
+    "source_refs": [
+      "repos/bingreeky-memevolve.md",
+      "deep/repos/bingreeky-memevolve.md"
+    ],
+    "aliases": [
+      "skillweaver",
+      "SkillWeaver"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "tau-bench",
+    "name": "Tau-bench",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A benchmark for evaluating LLM agents on complex tool-augmented tasks, including Tau3 for multi-step reasoning evaluation.",
+    "source_refs": [
+      "tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md",
+      "repos/canvas-org-meta-agent.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+    ],
+    "aliases": [
+      "tau-bench",
+      "tau3"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "chain-of-thought",
+    "name": "Chain-of-Thought",
+    "type": "approach",
+    "bucket": "context-engineering",
+    "description": "A prompting technique that elicits step-by-step reasoning from LLMs, including tool-integrated reasoning variants where reasoning is interleaved with tool calls.",
+    "source_refs": [
+      "repos/aiming-lab-agent0.md",
+      "papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "chain-of-thought",
+      "CoT",
+      "tool-integrated reasoning"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "synthetic-data-generation",
+    "name": "Synthetic Data Generation",
+    "type": "approach",
+    "bucket": "self-improving",
+    "description": "Techniques for creating artificial training data for agent improvement, including frontier-to-local distillation where larger models generate data for smaller ones.",
+    "source_refs": [
+      "tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md",
+      "tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md",
+      "tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md",
+      "repos/greyhaven-ai-autocontext.md",
+      "deep/repos/greyhaven-ai-autocontext.md"
+    ],
+    "aliases": [
+      "synthetic data generation",
+      "frontier-to-local distillation"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "lilian-weng",
+    "name": "Lilian Weng",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "OpenAI researcher and author of influential blog posts on LLM agents, memory systems, and agent architectures.",
+    "source_refs": [
+      "articles/lil-log-llm-powered-autonomous-agents.md",
+      "articles/lil-log-reward-hacking-in-reinforcement-learning.md"
+    ],
+    "aliases": [
+      "lilian weng"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 5.7
+  },
+  {
+    "id": "jeff-clune",
+    "name": "Jeff Clune",
+    "type": "person",
+    "bucket": "self-improving",
+    "description": "AI researcher known for work on open-ended learning, quality-diversity algorithms, and self-improving AI systems.",
+    "source_refs": [
+      "tweets/jennyzhangzt-introducing-hyperagents-an-ai-system-that-not-onl.md",
+      "repos/shengranhu-adas.md",
+      "papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md"
+    ],
+    "aliases": [
+      "jeff clune"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "openai-agents-sdk",
+    "name": "OpenAI Agents SDK",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "OpenAI's SDK for building production-ready agentic applications, providing abstractions for tools, handoffs, and agent coordination, merged with Claude Agent SDK concepts.",
+    "source_refs": [
+      "tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/thedotmack-claude-mem.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+      "deep/repos/thedotmack-claude-mem.md"
+    ],
+    "aliases": [
+      "openai agents sdk",
+      "claude agent sdk"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "zettelkasten",
+    "name": "Zettelkasten",
+    "type": "approach",
+    "bucket": "knowledge-substrate",
+    "description": "A note-taking and knowledge management methodology using atomic linked notes, adapted for agent knowledge bases through markdown wikis and wikilinks.",
+    "source_refs": [
+      "tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md",
+      "tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md",
+      "tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md",
+      "papers/xu-a-mem-agentic-memory-for-llm-agents.md",
+      "deep/repos/agenticnotetaking-arscontexta.md",
+      "deep/repos/kepano-obsidian-skills.md",
+      "deep/repos/michaelliv-napkin.md",
+      "deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md"
+    ],
+    "aliases": [
+      "zettelkasten",
+      "markdown wiki",
+      "wikilinks",
+      "backlinks"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "aider",
+    "name": "Aider",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An open-source AI pair programming tool that enables LLMs to collaboratively edit code in local git repositories via the command line.",
+    "source_refs": [
+      "repos/alirezarezvani-claude-skills.md",
+      "deep/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md"
+    ],
+    "aliases": [
+      "aider"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "autogpt",
+    "name": "AutoGPT",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "One of the first widely-adopted autonomous agent frameworks, enabling LLMs to decompose and pursue long-horizon goals with tool use.",
+    "source_refs": [
+      "articles/lil-log-llm-powered-autonomous-agents.md",
+      "deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md"
+    ],
+    "aliases": [
+      "autogpt",
+      "AutoGPT"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.2
+  },
+  {
+    "id": "osworld",
+    "name": "OSWorld",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A benchmark for evaluating computer-use agents on real-world OS tasks across multiple operating system environments.",
+    "source_refs": [
+      "papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+    ],
+    "aliases": [
+      "osworld",
+      "OSWorld"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 9.3
+  },
+  {
+    "id": "ragflow",
+    "name": "RAGFlow",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "An open-source RAG engine with deep document understanding capabilities for building enterprise knowledge retrieval systems.",
+    "source_refs": [
+      "repos/infiniflow-ragflow.md",
+      "deep/repos/infiniflow-ragflow.md"
+    ],
+    "aliases": [
+      "ragflow",
+      "RAGFlow"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.3
+  },
+  {
+    "id": "elizaos",
+    "name": "ElizaOS",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An open-source framework for building conversational AI agents with persistent memory, multi-platform support, and plugin architecture.",
+    "source_refs": [
+      "repos/origintrail-dkg-v9.md",
+      "deep/repos/origintrail-dkg-v9.md"
+    ],
+    "aliases": [
+      "elizaos",
+      "ElizaOS"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "cognee",
+    "name": "Cognee",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A knowledge graph construction and retrieval system for AI agents that transforms unstructured data into queryable semantic networks.",
+    "source_refs": [
+      "repos/topoteretes-cognee.md",
+      "deep/repos/topoteretes-cognee.md"
+    ],
+    "aliases": [
+      "cognee"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "memento",
+    "name": "Memento",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A memory and skills management system for AI agents combining persistent storage with skill tracking capabilities.",
+    "source_refs": [
+      "repos/agent-on-the-fly-memento.md",
+      "repos/memento-teams-memento-skills.md",
+      "deep/repos/anthropics-skills.md",
+      "deep/repos/memento-teams-memento-skills.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "memento",
+      "memento-skills"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "a-mem",
+    "name": "A-MEM",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "An agentic memory system that autonomously organizes and evolves memory structures based on agent interaction patterns.",
+    "source_refs": [
+      "papers/xu-a-mem-agentic-memory-for-llm-agents.md",
+      "deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md"
+    ],
+    "aliases": [
+      "a-mem",
+      "A-MEM"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.6
+  },
+  {
+    "id": "prompt-optimization",
+    "name": "Prompt Optimization",
+    "type": "approach",
+    "bucket": "self-improving",
+    "description": "Automated techniques for improving prompt quality and agent harness configurations, including meta-prompt optimization and automated harness optimization.",
+    "source_refs": [
+      "repos/canvas-org-meta-agent.md",
+      "papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+      "articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+      "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+    ],
+    "aliases": [
+      "prompt optimization",
+      "harness optimization"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "organizational-memory",
+    "name": "Organizational Memory",
+    "type": "concept",
+    "bucket": "agent-memory",
+    "description": "Knowledge and information that persists within organizations or agent systems beyond individual interactions, including institutional memory and organizational judgment.",
+    "source_refs": [
+      "tweets/akoratana-context-graphs-will-be-to-the-2030s-what-databases.md",
+      "tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md",
+      "tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md",
+      "deep/repos/mem0ai-mem0.md"
+    ],
+    "aliases": [
+      "organizational memory",
+      "institutional memory",
+      "organizational judgment"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "case-based-reasoning",
+    "name": "Case-Based Reasoning",
+    "type": "approach",
+    "bucket": "agent-memory",
+    "description": "A problem-solving approach that uses experiences from similar past cases to inform new decisions, applicable to agent memory and retrieval systems.",
+    "source_refs": [
+      "repos/agent-on-the-fly-memento.md",
+      "deep/repos/memento-teams-memento-skills.md"
+    ],
+    "aliases": [
+      "case-based reasoning"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "pi",
+    "name": "Pi",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A personal AI assistant project focused on natural conversation and emotional intelligence, referenced in agent infrastructure discussions.",
+    "source_refs": [
+      "repos/davebcn87-pi-autoresearch.md",
+      "repos/greyhaven-ai-autocontext.md",
+      "articles/cameron-westland-autoresearch-is-reward-function-design.md",
+      "deep/repos/davebcn87-pi-autoresearch.md"
+    ],
+    "aliases": [
+      "pi"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.4
+  },
+  {
+    "id": "seagent",
+    "name": "SEAgent",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "A self-evolving agent system that iteratively improves its capabilities through automated evaluation and optimization cycles.",
+    "source_refs": [
+      "papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "deep/papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md"
+    ],
+    "aliases": [
+      "seagent",
+      "SEAgent"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.3
+  },
+  {
+    "id": "workflow-induction",
+    "name": "Workflow Induction",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "The process of automatically inferring or learning effective agent workflows from demonstrations, traces, or experience.",
+    "source_refs": [
+      "repos/zorazrw-agent-workflow-memory.md",
+      "deep/repos/zorazrw-agent-workflow-memory.md"
+    ],
+    "aliases": [
+      "workflow induction"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.7
+  },
+  {
+    "id": "incremental-indexing",
+    "name": "Incremental Indexing",
+    "type": "concept",
+    "bucket": "knowledge-substrate",
+    "description": "A knowledge base maintenance strategy that updates indexes progressively as new information arrives, avoiding full reindexing overhead.",
+    "source_refs": [
+      "deep/repos/osu-nlp-group-hipporag.md",
+      "repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "incremental indexing"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.2
+  },
+  {
+    "id": "short-term-memory",
+    "name": "Short-Term Memory",
+    "type": "concept",
+    "bucket": "agent-memory",
+    "description": "In-context memory available during a single agent session, including mechanisms for context retrieval and context reuse within the active window.",
+    "source_refs": [
+      "tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md",
+      "tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md",
+      "papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "articles/lil-log-llm-powered-autonomous-agents.md",
+      "articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md"
+    ],
+    "aliases": [
+      "short-term memory",
+      "context retrieval",
+      "context reuse"
+    ],
+    "article_level": "full",
+    "relevance_composite": 7.8
+  },
+  {
+    "id": "llm-as-judge",
+    "name": "LLM-as-Judge",
+    "type": "approach",
+    "bucket": "self-improving",
+    "description": "Using LLMs as automated evaluators to score or rank agent outputs, enabling scalable evaluation functions for self-improvement pipelines.",
+    "source_refs": [
+      "tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md",
+      "tweets/philschmid-agent-skills-are-powerful-but-they-are-often-ai-ge.md",
+      "articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md"
+    ],
+    "aliases": [
+      "llm-as-judge",
+      "evaluation function"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "personalized-pagerank",
+    "name": "Personalized PageRank",
+    "type": "concept",
+    "bucket": "knowledge-substrate",
+    "description": "A graph algorithm variant used in knowledge graph retrieval to find relevant nodes by propagating relevance scores from query entities.",
+    "source_refs": [
+      "repos/osu-nlp-group-hipporag.md",
+      "deep/repos/osu-nlp-group-hipporag.md"
+    ],
+    "aliases": [
+      "personalized pagerank"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "entity-extraction",
+    "name": "Entity Extraction",
+    "type": "approach",
+    "bucket": "knowledge-substrate",
+    "description": "NLP technique for identifying and extracting named entities and relationships from text, foundational to knowledge graph construction for agent memory.",
+    "source_refs": [
+      "deep/repos/getzep-graphiti.md",
+      "deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md"
+    ],
+    "aliases": [
+      "entity extraction"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "agent-harness",
+    "name": "Agent Harness",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "The scaffolding and evaluation infrastructure surrounding an agent, including meta-harness configurations, model harnesses, and agentic evaluation frameworks.",
+    "source_refs": [
+      "tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md",
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "repos/letta-ai-letta-code.md",
+      "papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+      "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+    ],
+    "aliases": [
+      "agent harness",
+      "agentic harness",
+      "meta-harness",
+      "model harness",
+      "agent evaluation"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "docker-sandbox",
+    "name": "Docker Sandbox",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "Containerized execution environments providing safe, isolated sandboxes for agents to run code and system commands.",
+    "source_refs": [
+      "repos/maximerobeyns-self-improving-coding-agent.md",
+      "deep/repos/maximerobeyns-self-improving-coding-agent.md"
+    ],
+    "aliases": [
+      "docker sandbox"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 9.1
+  },
+  {
+    "id": "observability",
+    "name": "Observability",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "Systems for monitoring, tracing, and debugging agent behavior in production, including tools like LangSmith and error logging infrastructure.",
+    "source_refs": [
+      "tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md",
+      "tweets/hwchase17-continual-learning-for-ai-agents.md",
+      "repos/orchestra-research-ai-research-skills.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md"
+    ],
+    "aliases": [
+      "observability",
+      "langsmith",
+      "error logging"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "memory-evolution",
+    "name": "Memory Evolution",
+    "type": "concept",
+    "bucket": "agent-memory",
+    "description": "The process by which agent memory systems adapt, reorganize, and improve over time through experience and automated optimization.",
+    "source_refs": [
+      "repos/mem0ai-mem0.md",
+      "papers/xu-a-mem-agentic-memory-for-llm-agents.md",
+      "deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md",
+      "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+    ],
+    "aliases": [
+      "memory evolution",
+      "memory management"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "world-model",
+    "name": "World Model",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "An agent's internal representation of the environment, entities, and their relationships, used for planning and decision-making.",
+    "source_refs": [
+      "tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md",
+      "tweets/ericosiu-how-to-practically-deploy-jack-dorsey-s-world-int.md"
+    ],
+    "aliases": [
+      "world model"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.4
+  },
+  {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A Chinese AI lab's family of open-source language models including DeepSeek-R1, widely adopted for agent applications due to strong reasoning capabilities.",
+    "source_refs": [
+      "repos/evoagentx-evoagentx.md",
+      "repos/infiniflow-ragflow.md"
+    ],
+    "aliases": [
+      "deepseek",
+      "DeepSeek"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.3
+  },
+  {
+    "id": "composable-skills",
+    "name": "Compositional Skill Synthesis",
+    "type": "approach",
+    "bucket": "agent-architecture",
+    "description": "An approach to building agent capabilities by composing and synthesizing skills from simpler primitives, including automatic curriculum generation for skill acquisition.",
+    "source_refs": [
+      "repos/memodb-io-acontext.md",
+      "repos/affaan-m-everything-claude-code.md",
+      "papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md",
+      "deep/papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md"
+    ],
+    "aliases": [
+      "compositional skill synthesis",
+      "skill composition",
+      "automatic curriculum"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.3
+  },
+  {
+    "id": "markdown-wiki",
+    "name": "Markdown Wiki",
+    "type": "concept",
+    "bucket": "knowledge-substrate",
+    "description": "A knowledge base format using interconnected markdown files as a lightweight, human-readable knowledge substrate for agents and teams.",
+    "source_refs": [
+      "tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md",
+      "tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md",
+      "tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md",
+      "repos/memvid-memvid.md",
+      "repos/origintrail-dkg-v9.md",
+      "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md",
+      "deep/repos/origintrail-dkg-v9.md",
+      "repos/agno-agi-dash.md"
+    ],
+    "aliases": [
+      "markdown wiki",
+      "knowledge base",
+      "knowledge asset"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "system-prompt",
+    "name": "System Prompt",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "The initial instruction context provided to LLMs that defines agent behavior, persona, and constraints before user interaction begins.",
+    "source_refs": [
+      "repos/canvas-org-meta-agent.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+    ],
+    "aliases": [
+      "system prompt"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "meta-agent",
+    "name": "Meta-Agent",
+    "type": "concept",
+    "bucket": "multi-agent-systems",
+    "description": "A higher-level agent that oversees, coordinates, or improves other agents, taking on roles such as architect, curator, or reflector in multi-agent systems.",
+    "source_refs": [
+      "repos/canvas-org-meta-agent.md",
+      "repos/greyhaven-ai-autocontext.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+      "deep/repos/greyhaven-ai-autocontext.md",
+      "deep/repos/kayba-ai-agentic-context-engine.md",
+      "deep/repos/foundationagents-metagpt.md",
+      "deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md"
+    ],
+    "aliases": [
+      "meta-agent",
+      "architect",
+      "curator",
+      "reflector"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "tool-registry",
+    "name": "Tool Registry",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "A catalog of available tools and their specifications that agents can query and use, enabling dynamic tool discovery and selection.",
+    "source_refs": [
+      "articles/calmops-ai-agent-skills-complete-guide-2026-building-reus.md",
+      "articles/martinfowler-com-context-engineering-for-coding-agents.md",
+      "deep/repos/jackchen-me-open-multi-agent.md",
+      "deep/papers/xu-agent-skills-for-large-language-models-architectu.md"
+    ],
+    "aliases": [
+      "tool registry",
+      "tool search tool"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.3
+  },
+  {
+    "id": "pinatone",
+    "name": "Pinecone",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A managed vector database service widely used for storing and querying embeddings in production RAG and agent memory systems.",
+    "source_refs": [
+      "repos/transformeroptimus-superagi.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "deep/repos/mem0ai-mem0.md"
+    ],
+    "aliases": [
+      "pinecone",
+      "Pinecone"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "structured-output",
+    "name": "Structured Output",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "Techniques for constraining LLM outputs to follow specific schemas or formats, enabling reliable parsing and downstream processing in agent pipelines.",
+    "source_refs": [
+      "repos/jackchen-me-open-multi-agent.md",
+      "deep/repos/jackchen-me-open-multi-agent.md"
+    ],
+    "aliases": [
+      "structured output"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "letta-api",
+    "name": "Letta API",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "The managed API layer of the Letta platform providing hosted stateful agent memory services for production deployments.",
+    "source_refs": [
+      "repos/letta-ai-letta-code.md",
+      "repos/letta-ai-letta.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md"
+    ],
+    "aliases": [
+      "letta api"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.3
+  },
+  {
+    "id": "gaia",
+    "name": "GAIA",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A benchmark for evaluating general AI assistants on real-world tasks requiring multi-step reasoning, tool use, and information retrieval.",
+    "source_refs": [
+      "repos/bingreeky-memevolve.md",
+      "deep/repos/evoagentx-evoagentx.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "gaia",
+      "GAIA"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "humaneval",
+    "name": "HumanEval",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A benchmark for evaluating code generation capabilities of LLMs, often used alongside MBPP for assessing coding agent performance.",
+    "source_refs": [
+      "papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md",
+      "deep/repos/evoagentx-evoagentx.md",
+      "deep/repos/maximerobeyns-self-improving-coding-agent.md",
+      "deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md"
+    ],
+    "aliases": [
+      "humaneval",
+      "HumanEval",
+      "mbpp"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.1
+  },
+  {
+    "id": "antigravity",
+    "name": "Antigravity",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An agent infrastructure project referenced in the context of agent architecture and tool development.",
+    "source_refs": [
+      "repos/alirezarezvani-claude-skills.md",
+      "articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md",
+      "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md",
+      "deep/repos/affaan-m-everything-claude-code.md"
+    ],
+    "aliases": [
+      "antigravity"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "docling",
+    "name": "Docling",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "IBM's document parsing library for converting PDFs and other document formats into structured data suitable for RAG and knowledge bases.",
+    "source_refs": [
+      "repos/infiniflow-ragflow.md",
+      "deep/repos/topoteretes-cognee.md",
+      "deep/repos/infiniflow-ragflow.md"
+    ],
+    "aliases": [
+      "docling"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.3
+  },
+  {
+    "id": "marp",
+    "name": "MARP",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "Markdown Presentation Ecosystem for creating presentations from markdown, used in knowledge management and documentation workflows.",
+    "source_refs": [
+      "tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md",
+      "tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md",
+      "tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md"
+    ],
+    "aliases": [
+      "marp",
+      "MARP"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.5
+  },
+  {
+    "id": "agent-zero",
+    "name": "Agent Zero",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A general-purpose autonomous agent framework that uses a zero-shot approach to task decomposition and execution with minimal predefined structure.",
+    "source_refs": [
+      "tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md",
+      "repos/aiming-lab-agent0.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md"
+    ],
+    "aliases": [
+      "agent zero",
+      "agent0"
+    ],
+    "article_level": "full",
+    "relevance_composite": 7.5
+  },
+  {
+    "id": "metagpt-agent",
+    "name": "MGX",
+    "type": "project",
+    "bucket": "multi-agent-systems",
+    "description": "MetaGPT's multi-agent collaboration platform enabling team-based AI workflows for complex software and product development tasks.",
+    "source_refs": [
+      "repos/foundationagents-metagpt.md",
+      "deep/repos/foundationagents-metagpt.md"
+    ],
+    "aliases": [
+      "mgx",
+      "MGX"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "termination-bench",
+    "name": "TerminalBench",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A benchmark for evaluating terminal-based agent capabilities on complex command-line tasks, with TerminalBench-2 as an updated version.",
+    "source_refs": [
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md",
+      "deep/repos/gepa-ai-gepa.md",
+      "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md"
+    ],
+    "aliases": [
+      "terminalbench",
+      "terminalbench-2"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "memvid",
+    "name": "MemVid",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A video-based memory system for agents that encodes memories as video frames for compact, retrievable long-term storage.",
+    "source_refs": [
+      "repos/memvid-memvid.md",
+      "deep/repos/memvid-memvid.md"
+    ],
+    "aliases": [
+      "memvid"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.7
+  },
+  {
+    "id": "mineru",
+    "name": "MinerU",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "An open-source document extraction tool for converting PDFs and web pages into structured markdown for knowledge base ingestion.",
+    "source_refs": [
+      "repos/infiniflow-ragflow.md",
+      "deep/repos/infiniflow-ragflow.md"
+    ],
+    "aliases": [
+      "mineru",
+      "MinerU"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.3
+  },
+  {
+    "id": "cerebra-fusion-memory",
+    "name": "Cerebra Fusion Memory",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A memory fusion system for agents that combines multiple memory modalities for more comprehensive and accessible agent memory.",
+    "source_refs": [
+      "repos/bingreeky-memevolve.md",
+      "deep/repos/bingreeky-memevolve.md"
+    ],
+    "aliases": [
+      "cerebra fusion memory"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "superagi",
+    "name": "SuperAGI",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An open-source autonomous AI agent framework with a graphical interface for building, managing, and running multiple concurrent agents.",
+    "source_refs": [
+      "tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md",
+      "repos/transformeroptimus-superagi.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md"
+    ],
+    "aliases": [
+      "superagi",
+      "SuperAGI"
+    ],
+    "article_level": "full",
+    "relevance_composite": 7.5
+  },
+  {
+    "id": "abductive-context",
+    "name": "Context Generation",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "The process of dynamically generating relevant context for agents through autocontext and acontext systems that identify and surface pertinent information.",
+    "source_refs": [
+      "tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md",
+      "repos/memodb-io-acontext.md",
+      "repos/greyhaven-ai-autocontext.md",
+      "papers/mei-a-survey-of-context-engineering-for-large-language.md",
+      "deep/repos/memodb-io-acontext.md",
+      "deep/repos/greyhaven-ai-autocontext.md",
+      "deep/repos/thedotmack-claude-mem.md"
+    ],
+    "aliases": [
+      "context generation",
+      "context discovery",
+      "autocontext",
+      "acontext"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.4
+  },
+  {
+    "id": "agent-mediated-workflows",
+    "name": "Agent-Mediated Workflows",
+    "type": "concept",
+    "bucket": "multi-agent-systems",
+    "description": "Business and technical processes orchestrated by AI agents, replacing or augmenting traditional automated workflows with adaptive agentic execution.",
+    "source_refs": [
+      "tweets/jayagup10-google-s-20-year-secret-is-now-available-to-every.md",
+      "tweets/omarsar0-universal-claude-md-claims-to-cut-claude-output-t.md",
+      "tweets/jayagup10-the-trillion-dollar-loop-b2b-never-had.md"
+    ],
+    "aliases": [
+      "agent-mediated workflows",
+      "agentic workflows"
+    ],
+    "article_level": "full",
+    "relevance_composite": 7
+  },
+  {
+    "id": "compound-engineering",
+    "name": "Compound Engineering",
+    "type": "approach",
+    "bucket": "agent-architecture",
+    "description": "An engineering approach that builds AI systems as compound products combining multiple models, tools, and services rather than relying on a single model.",
+    "source_refs": [
+      "repos/snarktank-compound-product.md",
+      "deep/repos/snarktank-compound-product.md"
+    ],
+    "aliases": [
+      "compound engineering",
+      "compound product"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "reme",
+    "name": "ReMe",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A retrieval-enhanced memory system for conversational agents that improves recall through structured memory organization and retrieval.",
+    "source_refs": [
+      "repos/modelscope-agentevolver.md",
+      "deep/repos/modelscope-agentevolver.md"
+    ],
+    "aliases": [
+      "reme",
+      "ReMe"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.8
+  },
+  {
+    "id": "bounded-context",
+    "name": "Bounded Context",
+    "type": "approach",
+    "bucket": "context-engineering",
+    "description": "A domain-driven design principle applied to agent context management, limiting context scope to relevant domain boundaries for efficiency.",
+    "source_refs": [
+      "repos/memento-teams-memento-skills.md",
+      "deep/repos/memento-teams-memento-skills.md"
+    ],
+    "aliases": [
+      "bounded context"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "loop-detection",
+    "name": "Loop Detection",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "Mechanisms for detecting and breaking infinite loops or unproductive cycles in agent execution, including lifecycle hooks for intervention.",
+    "source_refs": [
+      "tweets/pawelhuryn-your-claude-md-is-doing-jobs-that-rules-hooks-an.md",
+      "repos/agenticnotetaking-arscontexta.md",
+      "repos/memento-teams-memento-skills.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "deep/repos/othmanadi-planning-with-files.md"
+    ],
+    "aliases": [
+      "loop detection",
+      "lifecycle hooks",
+      "hooks"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "elastic-search",
+    "name": "Elasticsearch",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A distributed search and analytics engine used for full-text and hybrid search in agent knowledge retrieval systems.",
+    "source_refs": [
+      "articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md",
+      "deep/repos/infiniflow-ragflow.md"
+    ],
+    "aliases": [
+      "elasticsearch",
+      "Elasticsearch"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.3
+  },
+  {
+    "id": "multihop-rag",
+    "name": "Multi-hop RAG",
+    "type": "concept",
+    "bucket": "knowledge-substrate",
+    "description": "RAG approaches requiring multiple retrieval steps to answer complex questions, chaining retrievals across documents to build complete answers.",
+    "source_refs": [
+      "deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md",
+      "deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md"
+    ],
+    "aliases": [
+      "multihop-rag",
+      "multi-hop rag"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.3
+  },
+  {
+    "id": "dynamic-cheatsheet",
+    "name": "Dynamic Cheatsheet",
+    "type": "approach",
+    "bucket": "agent-memory",
+    "description": "An adaptive reference document that agents maintain and update with learned heuristics, patterns, and useful information during task execution.",
+    "source_refs": [
+      "deep/repos/bingreeky-memevolve.md",
+      "deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md"
+    ],
+    "aliases": [
+      "dynamic cheatsheet"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "continual-rag",
+    "name": "Continual RAG",
+    "type": "concept",
+    "bucket": "knowledge-substrate",
+    "description": "RAG systems that continuously update their knowledge bases with new information while maintaining retrieval performance without full reindexing.",
+    "source_refs": [
+      "tweets/hwchase17-continual-learning-for-ai-agents.md",
+      "repos/osu-nlp-group-hipporag.md",
+      "repos/agent-on-the-fly-memento.md",
+      "articles/x-twitter-meta-agent-continual-learning-for-agents.md"
+    ],
+    "aliases": [
+      "continual learning"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.7
+  },
+  {
+    "id": "zero-data-self-evolution",
+    "name": "Zero-Data Self-Evolution",
+    "type": "approach",
+    "bucket": "self-improving",
+    "description": "A self-improvement approach where agents evolve their capabilities without external training data, relying on self-generated experience and evaluation.",
+    "source_refs": [
+      "repos/aiming-lab-agent0.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md"
+    ],
+    "aliases": [
+      "zero-data self-evolution"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.5
+  },
+  {
+    "id": "tool-integrated-reasoning",
+    "name": "Tool-Integrated Reasoning",
+    "type": "approach",
+    "bucket": "agent-architecture",
+    "description": "A reasoning paradigm where LLM agents interleave reasoning steps with tool calls, enabling grounded and verifiable problem solving.",
+    "source_refs": [
+      "repos/aiming-lab-agent0.md",
+      "papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "tool-integrated reasoning"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.7
+  },
+  {
+    "id": "sqlalchemy",
+    "name": "SQLAlchemy",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A Python SQL toolkit and ORM used in agent infrastructure for structured data storage and retrieval.",
+    "source_refs": [
+      "deep/repos/memodb-io-acontext.md",
+      "deep/repos/memorilabs-memori.md",
+      "deep/repos/topoteretes-cognee.md",
+      "deep/repos/memento-teams-memento-skills.md",
+      "tweets/ashpreetbedi-dash-v2-the-multi-agent-data-system-every-company.md"
+    ],
+    "aliases": [
+      "sqlalchemy",
+      "SQLAlchemy"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "coral",
+    "name": "Coral",
+    "type": "project",
+    "bucket": "multi-agent-systems",
+    "description": "A multi-agent collaboration platform enabling structured agent-to-agent communication and workflow coordination.",
+    "source_refs": [
+      "repos/human-agent-society-coral.md",
+      "deep/repos/human-agent-society-coral.md",
+      "papers/qu-coral-towards-autonomous-multi-agent-evolution-fo.md"
+    ],
+    "aliases": [
+      "coral"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.4
+  },
+  {
+    "id": "pydantic",
+    "name": "Pydantic",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A Python data validation library widely used in agent systems for defining and validating structured tool inputs and outputs.",
+    "source_refs": [
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "deep/repos/getzep-graphiti.md",
+      "deep/repos/evoagentx-evoagentx.md"
+    ],
+    "aliases": [
+      "pydantic"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "networkx",
+    "name": "NetworkX",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A Python library for creating and analyzing graphs, used in knowledge graph construction and community detection for agent memory systems.",
+    "source_refs": [
+      "repos/safishamsi-graphify.md",
+      "deep/repos/evoagentx-evoagentx.md",
+      "deep/repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "networkx",
+      "NetworkX"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "claude-mem",
+    "name": "Claude-Mem",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A memory extension system for Claude that provides persistent memory capabilities across Claude conversations and sessions.",
+    "source_refs": [
+      "repos/thedotmack-claude-mem.md",
+      "deep/repos/thedotmack-claude-mem.md"
+    ],
+    "aliases": [
+      "claude-mem"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.9
+  },
+  {
+    "id": "openviking",
+    "name": "OpenViking",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An open-source agent project contributing to the agent infrastructure ecosystem.",
+    "source_refs": [
+      "repos/volcengine-openviking.md",
+      "deep/repos/volcengine-openviking.md"
+    ],
+    "aliases": [
+      "openviking"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.3
+  },
+  {
+    "id": "gstack",
+    "name": "GStack",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An agent infrastructure stack project for building and deploying AI agent systems.",
+    "source_refs": [
+      "repos/garrytan-gstack.md",
+      "deep/repos/garrytan-gstack.md",
+      "deep/repos/memento-teams-memento-skills.md"
+    ],
+    "aliases": [
+      "gstack"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "kuzu",
+    "name": "Kuzu",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "An embeddable property graph database designed for high-performance graph queries in agent knowledge systems.",
+    "source_refs": [
+      "deep/repos/getzep-graphiti.md",
+      "deep/repos/topoteretes-cognee.md"
+    ],
+    "aliases": [
+      "kuzu"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "sage",
+    "name": "SAGE",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A structured agent execution framework for building reliable and observable agentic pipelines.",
+    "source_refs": [
+      "deep/papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md"
+    ],
+    "aliases": [
+      "sage"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 9.3
+  },
+  {
+    "id": "webshop",
+    "name": "WebShop",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A simulated e-commerce environment for training and evaluating web-based shopping agents on product search and selection tasks.",
+    "source_refs": [
+      "deep/repos/modelscope-agentevolver.md",
+      "deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md"
+    ],
+    "aliases": [
+      "webshop"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.8
+  },
+  {
+    "id": "perplexity",
+    "name": "Perplexity",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An AI-powered search engine that combines LLM generation with real-time web retrieval, serving as both a product and a benchmark reference.",
+    "source_refs": [
+      "tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md",
+      "deep/repos/vectifyai-pageindex.md"
+    ],
+    "aliases": [
+      "perplexity"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8
+  },
+  {
+    "id": "qwen",
+    "name": "Qwen",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "Alibaba's family of open-source large language models including Qwen2.5, used as backbone models for various agent applications.",
+    "source_refs": [
+      "repos/modelscope-agentevolver.md",
+      "repos/evoagentx-evoagentx.md",
+      "deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md"
+    ],
+    "aliases": [
+      "qwen2.5"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.6
+  },
+  {
+    "id": "jack-dorsey",
+    "name": "Jack Dorsey",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "Co-founder of Twitter and Square, referenced in discussions about AI agents in enterprise and product contexts.",
+    "source_refs": [
+      "tweets/akoratana-context-graphs-will-be-to-the-2030s-what-databases.md",
+      "tweets/ericosiu-how-to-practically-deploy-jack-dorsey-s-world-int.md"
+    ],
+    "aliases": [
+      "jack dorsey"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.4
+  },
+  {
+    "id": "jaya-gupta",
+    "name": "Jaya Gupta",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "Contributor and researcher in the agent infrastructure and memory systems space.",
+    "source_refs": [
+      "tweets/jayagup10-google-s-20-year-secret-is-now-available-to-every.md",
+      "tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md",
+      "tweets/jayagup10-the-trillion-dollar-loop-b2b-never-had.md",
+      "tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md"
+    ],
+    "aliases": [
+      "jaya gupta",
+      "jay gup"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8
+  },
+  {
+    "id": "udit-goenka",
+    "name": "Udit Goenka",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "Builder and contributor in the AI agent ecosystem, referenced in agent infrastructure discussions.",
+    "source_refs": [
+      "repos/uditgoenka-autoresearch.md",
+      "deep/repos/karpathy-autoresearch.md",
+      "deep/repos/uditgoenka-autoresearch.md"
+    ],
+    "aliases": [
+      "udit goenka"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "garry-tan",
+    "name": "Garry Tan",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "President and CEO of Y Combinator, referenced in discussions about AI agent adoption in startups.",
+    "source_refs": [
+      "repos/garrytan-gstack.md",
+      "deep/repos/garrytan-gstack.md"
+    ],
+    "aliases": [
+      "garry tan"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "tobi-lutke",
+    "name": "Tobi Lütke",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "CEO of Shopify, known for early adoption of AI agents in enterprise workflows and advocacy for agent-first product development.",
+    "source_refs": [
+      "tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md",
+      "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md",
+      "deep/repos/davebcn87-pi-autoresearch.md"
+    ],
+    "aliases": [
+      "tobi lutke"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.4
+  },
+  {
+    "id": "lossless-context-management",
+    "name": "Lossless Context Management",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "A context management approach that preserves all relevant information when handling long contexts, avoiding information loss through intelligent summarization and retrieval.",
+    "source_refs": [
+      "repos/martian-engineering-lossless-claw.md",
+      "deep/repos/martian-engineering-lossless-claw.md"
+    ],
+    "aliases": [
+      "lossless context management"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.6
+  },
+  {
+    "id": "agent-learning",
+    "name": "Agent Learning",
+    "type": "concept",
+    "bucket": "self-improving",
+    "description": "The processes by which agents acquire new knowledge and capabilities through interaction, feedback, and experience, including in-context and parametric learning approaches.",
+    "source_refs": [
+      "repos/memodb-io-acontext.md",
+      "repos/kayba-ai-agentic-context-engine.md"
+    ],
+    "aliases": [
+      "agent learning"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "hipocampus",
+    "name": "Hipocampus",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A memory system project inspired by the hippocampus, providing associative memory retrieval capabilities for AI agents.",
+    "source_refs": [
+      "repos/kevin-hs-sohn-hipocampus.md",
+      "deep/repos/kevin-hs-sohn-hipocampus.md"
+    ],
+    "aliases": [
+      "hipocampus"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "sqlite",
+    "name": "SQLite",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A lightweight embedded relational database widely used in agent systems for local structured data storage and retrieval.",
+    "source_refs": [
+      "repos/thedotmack-claude-mem.md",
+      "repos/caviraoss-openmemory.md",
+      "deep/repos/thedotmack-claude-mem.md",
+      "deep/repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "sqlite",
+      "SQLite"
+    ],
+    "article_level": "full",
+    "relevance_composite": 7.9
+  },
+  {
+    "id": "postgresql",
+    "name": "PostgreSQL",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A powerful open-source relational database used in agent infrastructure for structured data storage, often with pgvector for embedding support.",
+    "source_refs": [
+      "repos/nemori-ai-nemori.md",
+      "deep/repos/memodb-io-acontext.md",
+      "deep/repos/infiniflow-ragflow.md",
+      "deep/repos/mem0ai-mem0.md",
+      "tweets/ashpreetbedi-dash-v2-the-multi-agent-data-system-every-company.md"
+    ],
+    "aliases": [
+      "postgresql",
+      "PostgreSQL",
+      "pgvector"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "redis",
+    "name": "Redis",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An in-memory data structure store used in agent systems for caching, pub/sub messaging, and fast key-value storage.",
+    "source_refs": [
+      "deep/repos/memodb-io-acontext.md",
+      "deep/repos/infiniflow-ragflow.md",
+      "deep/repos/mem0ai-mem0.md"
+    ],
+    "aliases": [
+      "redis",
+      "Redis"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "faiss",
+    "name": "FAISS",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "Facebook AI Similarity Search - a library for efficient similarity search and clustering of dense vectors, used in agent memory retrieval systems.",
+    "source_refs": [
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "repos/memvid-memvid.md",
+      "deep/repos/mem0ai-mem0.md"
+    ],
+    "aliases": [
+      "faiss",
+      "FAISS"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "qdrant",
+    "name": "Qdrant",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "An open-source vector similarity search engine designed for production-scale agent memory and RAG applications.",
+    "source_refs": [
+      "repos/nemori-ai-nemori.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "deep/repos/mem0ai-mem0.md"
+    ],
+    "aliases": [
+      "qdrant",
+      "Qdrant"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "lancedb",
+    "name": "LanceDB",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "An embedded vector database built on the Lance columnar format, optimized for multimodal AI applications and agent memory.",
+    "source_refs": [
+      "repos/wangziqi06-724-office.md",
+      "deep/repos/topoteretes-cognee.md"
+    ],
+    "aliases": [
+      "lancedb",
+      "LanceDB"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.3
+  },
+  {
+    "id": "langsmith",
+    "name": "LangSmith",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "LangChain's observability and evaluation platform for monitoring, debugging, and testing LLM agent applications in production.",
+    "source_refs": [
+      "tweets/hwchase17-continual-learning-for-ai-agents.md",
+      "articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md"
+    ],
+    "aliases": [
+      "langsmith",
+      "LangSmith"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "gpt-4o",
+    "name": "GPT-4o",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "OpenAI's omni model variant of GPT-4 with improved multimodal capabilities, widely used as an agent backbone.",
+    "source_refs": [
+      "tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md",
+      "deep/repos/zorazrw-agent-workflow-memory.md",
+      "deep/repos/vectifyai-pageindex.md",
+      "deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md"
+    ],
+    "aliases": [
+      "gpt-4o",
+      "gpt-4o-mini"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.6
+  },
+  {
+    "id": "notion",
+    "name": "Notion",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A collaborative workspace tool used as a knowledge base and documentation platform in agent-assisted workflows.",
+    "source_refs": [
+      "repos/caviraoss-openmemory.md",
+      "repos/infiniflow-ragflow.md",
+      "articles/notion-notion-site-notion-notion-site.md"
+    ],
+    "aliases": [
+      "notion",
+      "Notion"
+    ],
+    "article_level": "full",
+    "relevance_composite": 7.6
+  },
+  {
+    "id": "chatgpt",
+    "name": "ChatGPT",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "OpenAI's conversational AI product built on GPT-4, widely referenced as a baseline for agent capability comparisons.",
+    "source_refs": [
+      "repos/zhongwanjun-memorybank-siliconfriend.md",
+      "articles/ai-by-aakash-the-ultimate-autoresearch-guide.md",
+      "articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md"
+    ],
+    "aliases": [
+      "chatgpt",
+      "ChatGPT"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "groq",
+    "name": "Groq",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A hardware and inference company providing ultra-fast LLM inference using LPU chips, used in latency-sensitive agent applications.",
+    "source_refs": [
+      "deep/repos/getzep-graphiti.md",
+      "deep/repos/mem0ai-mem0.md"
+    ],
+    "aliases": [
+      "groq",
+      "Groq"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "llama-cpp",
+    "name": "llama.cpp",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A C++ implementation of LLaMA inference enabling efficient local LLM execution for edge agent deployments.",
+    "source_refs": [
+      "repos/orchestra-research-ai-research-skills.md",
+      "repos/jackchen-me-open-multi-agent.md"
+    ],
+    "aliases": [
+      "llama.cpp"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.7
+  },
+  {
+    "id": "financebench",
+    "name": "FinanceBench",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A benchmark for evaluating LLM and RAG systems on financial document question answering tasks.",
+    "source_refs": [
+      "deep/repos/vectifyai-pageindex.md",
+      "deep/repos/volcengine-openviking.md"
+    ],
+    "aliases": [
+      "financebench",
+      "FinanceBench"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8
+  },
+  {
+    "id": "agentic-rag",
+    "name": "Agentic RAG",
+    "type": "concept",
+    "bucket": "knowledge-substrate",
+    "description": "A RAG variant where agents dynamically plan and execute multi-step retrieval strategies, adapting queries based on intermediate results.",
+    "source_refs": [
+      "repos/volcengine-openviking.md",
+      "articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md",
+      "articles/towards-data-science-agentic-rag-failure-modes-retrieval-thrash-tool.md",
+      "articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "agentic rag"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "cypher",
+    "name": "Cypher",
+    "type": "approach",
+    "bucket": "knowledge-substrate",
+    "description": "A declarative graph query language used with Neo4j and other graph databases for querying knowledge graphs in agent memory systems.",
+    "source_refs": [
+      "deep/repos/getzep-graphiti.md",
+      "deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md"
+    ],
+    "aliases": [
+      "cypher",
+      "Cypher"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.9
+  },
+  {
+    "id": "context-database",
+    "name": "Context Database",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "A specialized database for storing and retrieving agent context, enabling persistent and queryable context management across sessions.",
+    "source_refs": [
+      "repos/volcengine-openviking.md",
+      "deep/repos/volcengine-openviking.md"
+    ],
+    "aliases": [
+      "context database"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.3
+  },
+  {
+    "id": "memori",
+    "name": "Memori",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A memory service for AI agents providing cloud-based persistent memory storage and retrieval capabilities.",
+    "source_refs": [
+      "repos/memorilabs-memori.md",
+      "deep/repos/memorilabs-memori.md"
+    ],
+    "aliases": [
+      "memori",
+      "memori cloud"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.3
+  },
+  {
+    "id": "lightrag-project",
+    "name": "LightRAG",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A lightweight graph-enhanced RAG framework combining entity extraction with dual-level retrieval for improved knowledge graph-based responses.",
+    "source_refs": [
+      "repos/osu-nlp-group-hipporag.md",
+      "deep/papers/mei-a-survey-of-context-engineering-for-large-language.md"
+    ],
+    "aliases": [
+      "lightrag"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "block",
+    "name": "Block",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "Jack Dorsey's financial technology company (formerly Square), referenced in enterprise AI agent adoption discussions.",
+    "source_refs": [
+      "tweets/akoratana-context-graphs-will-be-to-the-2030s-what-databases.md",
+      "tweets/jack-from-hierarchy-to-intelligence.md",
+      "tweets/ericosiu-how-to-practically-deploy-jack-dorsey-s-world-int.md"
+    ],
+    "aliases": [
+      "block",
+      "Block"
+    ],
+    "article_level": "full",
+    "relevance_composite": 7.4
+  },
+  {
+    "id": "evolvelab",
+    "name": "EvolveLab",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "A research project or lab focused on evolutionary approaches to improving AI agent capabilities and architectures.",
+    "source_refs": [
+      "repos/bingreeky-memevolve.md",
+      "deep/repos/bingreeky-memevolve.md"
+    ],
+    "aliases": [
+      "evolvelab",
+      "EvolveLab"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "supermemory-project",
+    "name": "SuperMemory",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A universal memory layer for AI systems aggregating bookmarks, documents, and web content into a searchable agent memory store.",
+    "source_refs": [
+      "repos/supermemoryai-supermemory.md",
+      "repos/thedotmack-claude-mem.md",
+      "deep/repos/supermemoryai-supermemory.md"
+    ],
+    "aliases": [
+      "supermemory"
+    ],
+    "article_level": "full",
+    "relevance_composite": 7.9
+  },
+  {
+    "id": "pinatone-project",
+    "name": "Pinecone",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "A fully managed vector database for ML applications, commonly used for semantic search and agent long-term memory.",
+    "source_refs": [
+      "repos/transformeroptimus-superagi.md",
+      "repos/yusufkaraaslan-skill-seekers.md",
+      "deep/repos/mem0ai-mem0.md"
+    ],
+    "aliases": [
+      "pinecone"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "agent0",
+    "name": "Agent0",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An agent framework or baseline system referenced in agent architecture comparisons and evaluations.",
+    "source_refs": [
+      "tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md",
+      "repos/aiming-lab-agent0.md",
+      "articles/turing-post-9-open-agents-that-improve-themselves.md"
+    ],
+    "aliases": [
+      "agent0"
+    ],
+    "article_level": "full",
+    "relevance_composite": 7.5
+  },
+  {
+    "id": "seagent-project",
+    "name": "SEAgent",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "A self-evolving agent framework that uses automated evaluation loops to continuously improve agent performance on target tasks.",
+    "source_refs": [
+      "papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "deep/papers/xu-agent-skills-for-large-language-models-architectu.md",
+      "deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md"
+    ],
+    "aliases": [
+      "seagent"
+    ],
+    "article_level": "full",
+    "relevance_composite": 9.3
+  },
+  {
+    "id": "docling-project",
+    "name": "Docling",
+    "type": "project",
+    "bucket": "knowledge-substrate",
+    "description": "An open-source document parsing tool by IBM for converting complex documents into structured formats for RAG pipelines.",
+    "source_refs": [
+      "repos/infiniflow-ragflow.md",
+      "deep/repos/topoteretes-cognee.md",
+      "deep/repos/infiniflow-ragflow.md"
+    ],
+    "aliases": [
+      "docling"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.3
+  },
+  {
+    "id": "llmlingua",
+    "name": "LLMLingua",
+    "type": "project",
+    "bucket": "context-engineering",
+    "description": "A prompt compression framework from Microsoft that uses smaller LLMs to compress prompts while preserving semantic meaning for more efficient inference.",
+    "source_refs": [
+      "repos/microsoft-llmlingua.md",
+      "deep/repos/microsoft-llmlingua.md"
+    ],
+    "aliases": [
+      "llmlingua",
+      "longllmlingua",
+      "llmlingua-2",
+      "LLMLingua"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 7.6
+  },
+  {
+    "id": "token-efficiency",
+    "name": "Token Efficiency",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "Strategies and metrics for minimizing token usage in agent interactions while maintaining task performance, including attention budget management.",
+    "source_refs": [
+      "articles/effective-context-engineering-for-ai-agents.md",
+      "papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md",
+      "articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md",
+      "deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md",
+      "repos/tirth8205-code-review-graph.md"
+    ],
+    "aliases": [
+      "token efficiency",
+      "attention budget",
+      "brevity bias"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.4
+  },
+  {
+    "id": "webshop-bench",
+    "name": "WebShop",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An interactive web shopping benchmark environment for evaluating agent task completion in simulated e-commerce settings.",
+    "source_refs": [
+      "deep/repos/modelscope-agentevolver.md",
+      "deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md"
+    ],
+    "aliases": [
+      "webshop"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.8
+  },
+  {
+    "id": "multi-agent-collaboration",
+    "name": "Multi-Agent Collaboration",
+    "type": "concept",
+    "bucket": "multi-agent-systems",
+    "description": "Patterns and protocols for multiple AI agents working together, sharing information, and coordinating actions toward common goals.",
+    "source_refs": [
+      "tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md",
+      "repos/jackchen-me-open-multi-agent.md",
+      "papers/qu-coral-towards-autonomous-multi-agent-evolution-fo.md"
+    ],
+    "aliases": [
+      "multi-agent collaboration"
+    ],
+    "article_level": "full",
+    "relevance_composite": 8.7
+  },
+  {
+    "id": "openmementos",
+    "name": "OpenMementos",
+    "type": "project",
+    "bucket": "agent-memory",
+    "description": "A project related to agent memory management, likely inspired by or extending the Memento concept for tracking and retrieving past agent states or interactions.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "openmementos"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "openthoughts-v3",
+    "name": "OpenThoughts-v3",
+    "type": "project",
+    "bucket": "self-improving",
+    "description": "An open-source dataset or model focused on reasoning and chain-of-thought capabilities, representing the third iteration of the OpenThoughts series.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "openthoughts-v3",
+      "openthoughts v3"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "qwq-32b",
+    "name": "QwQ-32B",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A 32-billion parameter reasoning-focused language model from the Qwen family, designed for extended chain-of-thought reasoning tasks.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "qwq-32b",
+      "qwq 32b"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "ai-frontiers",
+    "name": "AI Frontiers",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A research initiative or conference focused on frontier AI research and development.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "ai frontiers"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "qwen2-5-7b",
+    "name": "Qwen2.5-7B",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A 7-billion parameter language model from Alibaba's Qwen2.5 series, used as a base or fine-tuned model for various agent and reasoning tasks.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "qwen2.5-7b",
+      "qwen 2.5 7b"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "qwen3-8b",
+    "name": "Qwen3-8B",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "An 8-billion parameter language model from Alibaba's Qwen3 series, part of the third generation of Qwen models.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "qwen3-8b",
+      "qwen 3 8b"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "qwen3-32b",
+    "name": "Qwen3-32B",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A 32-billion parameter language model from Alibaba's Qwen3 series, offering stronger reasoning and instruction-following capabilities.",
+    "source_refs": [
+      "deep/repos/wangyu-ustc-mem-alpha.md",
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "qwen3-32b",
+      "qwen 3 32b"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.3
+  },
+  {
+    "id": "phi-4-reasoning",
+    "name": "Phi-4-Reasoning",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "Microsoft's Phi-4 model variant fine-tuned specifically for reasoning tasks, part of the Phi small language model family.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "phi-4-reasoning",
+      "phi 4 reasoning"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "olmo3-7b-think",
+    "name": "OLMo3-7B-Think",
+    "type": "project",
+    "bucket": "agent-architecture",
+    "description": "A 7-billion parameter thinking-oriented variant of Allen AI's OLMo3 open language model, designed for extended reasoning.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "olmo3-7b-think",
+      "olmo 3 7b think"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "kv-cache",
+    "name": "KV Cache",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "Key-Value cache used in transformer inference to store intermediate attention computations, enabling faster generation by avoiding redundant computation for previously processed tokens.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "kv cache",
+      "key-value cache",
+      "kv caching"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "block-masking",
+    "name": "Block Masking",
+    "type": "concept",
+    "bucket": "context-engineering",
+    "description": "A technique in transformer attention that selectively masks entire blocks of tokens, used for efficient context management or training objectives like memory segmentation.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "block masking"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "memento-concept",
+    "name": "Memento (Concept)",
+    "type": "concept",
+    "bucket": "agent-memory",
+    "description": "A conceptual framework for agent memory inspired by the film Memento, emphasizing backward-chaining recall and the use of external memory artifacts to compensate for limited in-context memory.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "memento concept",
+      "memento (concept)"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "supervised-fine-tuning",
+    "name": "Supervised Fine-Tuning",
+    "type": "approach",
+    "bucket": "self-improving",
+    "description": "A training approach where a pre-trained language model is further trained on labeled examples to improve performance on specific tasks or domains.",
+    "source_refs": [
+      "tweets/hwchase17-continual-learning-for-ai-agents.md",
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "supervised fine-tuning",
+      "sft"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.5
+  },
+  {
+    "id": "dynamic-programming",
+    "name": "Dynamic Programming",
+    "type": "approach",
+    "bucket": "agent-architecture",
+    "description": "An algorithmic optimization technique that solves complex problems by breaking them into overlapping subproblems and storing solutions, applied in agent planning and memory retrieval optimization.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "dynamic programming",
+      "dp"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "dimitris-papailiopoulos",
+    "name": "Dimitris Papailiopoulos",
+    "type": "person",
+    "bucket": "self-improving",
+    "description": "Researcher working on machine learning and AI, known for contributions to memory systems and self-improving agents.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "dimitris papailiopoulos"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "vasilis-kontonis",
+    "name": "Vasilis Kontonis",
+    "type": "person",
+    "bucket": "self-improving",
+    "description": "Researcher in machine learning and AI systems.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "vasilis kontonis"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "yuchen-zeng",
+    "name": "Yuchen Zeng",
+    "type": "person",
+    "bucket": "self-improving",
+    "description": "Researcher contributing to LLM agent and memory systems research.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "yuchen zeng"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "shivam-garg",
+    "name": "Shivam Garg",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "Researcher in machine learning and AI systems.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "shivam garg"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "lingjiao-chen",
+    "name": "Lingjiao Chen",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "Researcher working on AI systems and language model infrastructure.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "lingjiao chen"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "hao-tang",
+    "name": "Hao Tang",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "Researcher contributing to AI and language model systems research.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "hao tang"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "ziyan-wang",
+    "name": "Ziyan Wang",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "Researcher in AI systems and language model development.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "ziyan wang"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "ahmed-awadallah",
+    "name": "Ahmed Awadallah",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "Senior researcher at Microsoft Research working on natural language processing and AI systems.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "ahmed awadallah"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "eric-horvitz",
+    "name": "Eric Horvitz",
+    "type": "person",
+    "bucket": "agent-architecture",
+    "description": "Chief Scientific Officer at Microsoft, known for foundational work in AI decision-making, probabilistic reasoning, and human-AI interaction.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "eric horvitz"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "john-langford",
+    "name": "John Langford",
+    "type": "person",
+    "bucket": "self-improving",
+    "description": "Machine learning researcher at Microsoft Research known for contributions to reinforcement learning and online learning algorithms.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "john langford"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "aime26",
+    "name": "AIME 2026",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "The 2026 American Invitational Mathematics Examination, used as a benchmark for evaluating mathematical reasoning capabilities of language models.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "aime26",
+      "aime 2026"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "gpqa-d",
+    "name": "GPQA-Diamond",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "The Diamond subset of the Graduate-Level Google-Proof Q&A benchmark, consisting of extremely challenging expert-level science questions used to evaluate frontier model reasoning.",
+    "source_refs": [
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "gpqa-d",
+      "gpqa diamond",
+      "gpqa-diamond"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 8.1
+  },
+  {
+    "id": "lcb",
+    "name": "LiveCodeBench",
+    "type": "concept",
+    "bucket": "agent-architecture",
+    "description": "A benchmark for evaluating code generation capabilities of language models using live, continuously updated coding problems to prevent data contamination.",
+    "source_refs": [
+      "deep/repos/maximerobeyns-self-improving-coding-agent.md",
+      "tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md"
+    ],
+    "aliases": [
+      "lcb",
+      "livecodebench",
+      "live code bench"
+    ],
+    "article_level": "stub",
+    "relevance_composite": 9.1
+  }
+]

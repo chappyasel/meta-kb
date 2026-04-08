@@ -3,30 +3,30 @@ entity_id: codex
 type: project
 bucket: agent-architecture
 abstract: >-
-  OpenAI Codex: code-generation model family (underlying GitHub Copilot) plus a
-  CLI coding agent for terminal-based autonomous development; unique for tight
-  integration with OpenAI's model ecosystem and AGENTS.md-based permission
-  model.
+  OpenAI's Codex covers two distinct things: a code-generation model family
+  (2021) that powered GitHub Copilot, and a 2025 cloud-based coding agent that
+  operates in sandboxed environments using o3/o4-mini. The differentiator is the
+  agent's asynchronous, parallelizable task execution model.
 sources:
-  - tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md
-  - tweets/hwchase17-continual-learning-for-ai-agents.md
-  - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
-  - repos/affaan-m-everything-claude-code.md
-  - repos/human-agent-society-coral.md
-  - tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md
-  - repos/alirezarezvani-claude-skills.md
-  - repos/garrytan-gstack.md
-  - repos/kepano-obsidian-skills.md
-  - repos/matrixorigin-memoria.md
-  - papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
-  - articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md
   - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
+  - articles/gustycube-an-annoyed-computer-scientist-markdown-is-not-memory.md
   - >-
     articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md
-  - deep/repos/human-agent-society-coral.md
-  - deep/repos/affaan-m-everything-claude-code.md
-  - deep/repos/kepano-obsidian-skills.md
   - deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
+  - deep/repos/affaan-m-everything-claude-code.md
+  - deep/repos/human-agent-society-coral.md
+  - deep/repos/kepano-obsidian-skills.md
+  - papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
+  - repos/affaan-m-everything-claude-code.md
+  - repos/alirezarezvani-claude-skills.md
+  - repos/garrytan-gstack.md
+  - repos/human-agent-society-coral.md
+  - repos/kepano-obsidian-skills.md
+  - repos/matrixorigin-memoria.md
+  - tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md
+  - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
+  - tweets/hwchase17-continual-learning-for-ai-agents.md
+  - tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md
 related:
   - claude-code
   - cursor
@@ -38,131 +38,163 @@ related:
   - gemini-cli
   - context-engineering
   - anthropic
-  - claude
-  - windsurf
-  - multi-agent-systems
-  - antigravity
   - autoresearch
-  - langchain
   - windsurf
   - multi-agent-systems
   - antigravity
-last_compiled: '2026-04-08T02:41:15.055Z'
+last_compiled: '2026-04-08T22:58:28.250Z'
 ---
 # OpenAI Codex
 
 ## What It Is
 
-OpenAI Codex refers to two distinct but related things that share a name. The original Codex was a code-generation model family (2021–2023) that powered GitHub Copilot and dominated HumanEval benchmarks before being deprecated in favor of GPT-3.5 and GPT-4. The current Codex is a CLI coding agent released in 2025, analogous to [Claude Code](../projects/claude-code.md) but built on OpenAI's model stack, designed for autonomous terminal-based software development.
+OpenAI Codex refers to two related but distinct things that share a name and lineage.
 
-This reference covers the CLI agent, which is the active product. The original model is historical context.
+**Codex (2021 model):** A GPT-3-based model fine-tuned on ~54 million public GitHub repositories, introduced in the paper *Evaluating Large Language Models Trained on Code* (Chen et al., 2021). It powered GitHub Copilot at launch and established the benchmark ([HumanEval](../projects/humaneval.md)) that the field still uses. The API was deprecated in March 2023 as GPT-3.5/4 surpassed it.
 
-The CLI agent runs as a subprocess in the user's terminal, reads an `AGENTS.md` instruction file (analogous to [CLAUDE.md](../concepts/claude-md.md)), executes shell commands, reads and writes files, and iterates on code toward a stated goal. It targets the same use case as Claude Code: a developer describes a task, the agent handles implementation across multiple tool calls without continuous human oversight.
+**Codex (2025 agent):** A cloud-based [multi-agent](../concepts/multi-agent-systems.md) coding assistant released in April 2025, built on o3/o4-mini reasoning models. It runs tasks in isolated cloud sandboxes, operates asynchronously (multiple tasks in parallel), and integrates directly with GitHub repositories. This is the active product as of 2026.
 
-[OpenAI](../projects/openai.md) positions Codex as the coding-specific surface of its agent platform, sitting alongside the [OpenAI Agents SDK](../projects/openai-agents-sdk.md) for orchestration.
+This card covers both, with emphasis on the 2025 agent since that is what users encounter today.
 
-## Core Mechanism
+---
 
-### AGENTS.md Instruction System
+## The 2021 Model: Foundation and Architecture
 
-Codex reads `AGENTS.md` at startup, which serves the same role as CLAUDE.md: persistent instructions encoding project conventions, coding standards, testing requirements, and behavioral constraints. The file is project-local (or user-global at `~/.codex/AGENTS.md`) and gets injected into every session.
+The original Codex fine-tuned GPT-3 on a filtered corpus of public GitHub code. The paper reported two primary variants: `code-cushman-001` (12B parameters) and `code-davinci-002` (believed ~175B). Key results:
 
-Unlike Claude Code's `settings.json` permission model, Codex uses a simpler configuration:
+- `code-davinci-002` solved 72% of HumanEval problems (pass@1 with temperature 0) — self-reported in the original paper, later independently reproduced across the community in benchmark comparisons
+- The dataset filtering removed files over 1MB, files with >90% non-alphanumeric characters, and auto-generated code
 
-```json
-{
-  "approval_policy": "never",
-  "sandbox_mode": "danger-full-access"
-}
-```
+The HumanEval benchmark was published alongside the model: 164 hand-written Python problems with unit tests. It became the de facto standard for evaluating code generation, used in comparisons for [Claude](../projects/claude.md), [Gemini](../projects/gemini.md), and every subsequent code model.
 
-For autonomous operation, `approval_policy: "never"` disables confirmation prompts. `sandbox_mode: "danger-full-access"` grants unrestricted filesystem and shell access. This is the configuration [CORAL](../projects/autoresearch.md) uses when spawning Codex agents in multi-agent optimization runs.
+GitHub Copilot launched June 2021 using this model. At peak, Copilot had ~1.8 million paid subscribers (GitHub's reported figures, 2023). The underlying model was replaced incrementally with GPT-4 Turbo derivatives by 2023.
 
-### Sandbox Architecture
+---
 
-Codex supports multiple sandbox configurations ranging from interactive approval on each tool call to fully autonomous execution. The sandbox model is coarser than Claude Code's per-tool `Allow`/`Deny` lists but simpler to configure for automated pipelines.
+## The 2025 Agent: Architecture
 
-In CORAL's multi-agent system, Codex runs with full access inside isolated git worktrees, with the orchestrator owning git operations (agents cannot run `git *` directly). The permission model is enforced at the orchestrator level rather than within Codex itself.
+### Core Mechanism
 
-### Multi-Runtime Compatibility
+The 2025 Codex agent runs inside ephemeral cloud containers provisioned per task. Each container gets a fresh clone of the user's GitHub repository, an internet-disconnected execution environment (configurable), and preinstalled dependencies from the `setup.sh` pattern documented in the agent's AGENTS.md specification.
 
-The AGENTS.md format has become a de facto standard for agent instruction files across multiple runtimes. CORAL's `AgentRuntime` protocol abstracts over Claude Code, Codex, and OpenCode, with each runtime providing its own instruction filename:
+The execution model is fundamentally different from [Claude Code](../projects/claude-code.md), [Cursor](../projects/cursor.md), or [Gemini CLI](../projects/gemini-cli.md): Codex runs **asynchronously**. Users submit tasks and receive results — often 15-30 minutes later for complex requests. Multiple tasks run in parallel. This suits batch workflows but is a poor fit for interactive sessions.
 
-- Claude Code: `CLAUDE.md`
-- Codex: `AGENTS.md`
-- OpenCode: per its own convention
+The agent uses `o3` by default with `o4-mini` available for faster/cheaper tasks. The reasoning models provide more reliable multi-step planning than earlier GPT-4 variants.
 
-This means AGENTS.md-compatible skills and instructions written for Codex work in contexts that understand the format, though hook execution (pre/post tool triggers) is not supported in Codex the way it is in Claude Code.
+### AGENTS.md
 
-### Agent Skills Integration
+Codex reads `AGENTS.md` from the repository root, analogous to [CLAUDE.md](../concepts/claude-md.md) for Claude Code. This file encodes:
 
-Codex participates in the emerging [Agent Skills](../concepts/agent-skills.md) ecosystem. The `agentskills.io` specification (SKILL.md format with YAML frontmatter) is supported by Codex alongside Claude Code, Cursor, Gemini CLI, and GitHub Copilot. Skills deploy to `~/.codex/skills/` following standard agent path conventions.
+- Repository structure orientation
+- Build/test commands
+- Constraints on what the agent should and shouldn't modify
+- Style conventions
 
-[Everything Claude Code](https://github.com/affaan-m/everything-claude-code) includes Codex support via AGENTS.md format with a codex-specific installer, though with reduced capability: no hook execution, instruction-based support only. This creates a capability gap relative to Claude Code's 38 agents, 8 hook event types, and runtime permission controls.
+AGENTS.md became the instruction format adopted by [CORAL](../projects/coral.md) and [Everything Claude Code](../projects/antigravity.md) for multi-runtime compatibility — when systems need to support both Claude Code and Codex, AGENTS.md provides a common denominator. [OpenCode](../projects/opencode.md) also supports this format.
 
-## Key Numbers
+### Sandboxing Model
 
-**HumanEval (original Codex model, 2021):** 28.8% pass@1 at the time of release, improving to 72% with nucleus sampling (self-reported by OpenAI). This was the benchmark that established HumanEval as the standard evaluation for code generation. Numbers are from OpenAI's own paper and have not been independently replicated under identical conditions since the model was deprecated.
+Each task runs in a container with:
+- Full read/write access to the cloned repository
+- Configurable network access (default: restricted)
+- Shell execution with no interactive prompts
 
-**Current CLI agent:** No published benchmark numbers for the CLI agent specifically on [SWE-bench](../projects/swe-bench.md) or [HumanEval](../projects/humaneval.md) as of this writing. OpenAI's benchmark reporting focuses on model-level scores (GPT-4o, o3) rather than agent-level scores for Codex CLI specifically.
+The container persists for the duration of a task, then is destroyed. There is no persistent filesystem across tasks — state lives entirely in git commits. Codex outputs a pull request or diff that the user reviews.
 
-**GitHub Stars (CLI repo):** 47,000+ stars. This reflects the OpenAI brand and the pent-up demand for an open CLI alternative to GitHub Copilot, not necessarily active daily usage.
+This is an explicit design choice: the agent produces code changes for human review rather than deploying autonomously. It sits in a different trust tier than fully autonomous agents.
+
+### Multi-Agent Coordination
+
+Codex supports parallel task dispatch. A user can submit 5-10 coding tasks simultaneously, and they run in separate containers concurrently. This is the clearest operational difference from Claude Code, which operates in a single session. For large refactors decomposed into independent subtasks, the parallel model can reduce wall-clock time substantially.
+
+CORAL explicitly supports Codex as a runtime alongside Claude Code and OpenCode. In CORAL's architecture (`coral/agent/runtime.py`), the `AgentRuntime` protocol abstracts across runtimes, with Codex's configuration using `approval_policy = "never"` and `sandbox_mode = "danger-full-access"` for autonomous operation in CORAL's own sandboxed worktrees.
+
+---
+
+## Benchmarks
+
+**2021 model (HumanEval, self-reported in Chen et al. 2021):**
+- `code-cushman-001`: 33% pass@1
+- `code-davinci-002`: 72% pass@1 (with repeated sampling)
+
+These numbers are from OpenAI's own paper. Third-party evaluations at the time largely confirmed the relative ranking but often measured different temperature/sampling settings.
+
+**2025 agent (SWE-bench Verified):**
+OpenAI reported ~49.2% on [SWE-bench](../projects/swe-bench.md) Verified with o3 in April 2025. This is self-reported. Independent evaluations on SWE-bench from the community have generally placed Codex in the competitive range with Claude Code (which Anthropic reported at ~72% on SWE-bench Verified in mid-2025), but direct head-to-head comparisons on identical task sets under controlled conditions are sparse. Treat all SWE-bench numbers with appropriate skepticism — benchmark conditions (harness version, problem selection, temperature) vary enough that comparisons across organizations are unreliable.
+
+---
 
 ## Strengths
 
-**OpenAI ecosystem integration.** Codex connects directly to OpenAI's model stack, including o1/o3 reasoning models. For teams already using OpenAI APIs, Codex adds no new authentication or vendor relationships.
+**Asynchronous batch execution.** For workflows where a developer wants to parallelize 10 independent tasks — writing tests, adding type annotations, refactoring a module, updating documentation — Codex's model fits naturally. Submitting tasks and reviewing PRs later matches existing code review workflows.
 
-**AGENTS.md portability.** The instruction file format is simple enough that it has been adopted as a cross-runtime standard. Instructions written for Codex transfer to other runtimes that read AGENTS.md.
+**GitHub-native integration.** Codex connects directly to GitHub repos and outputs pull requests. No local installation. For teams already centered on GitHub, this is genuinely lower friction than running a local agent.
 
-**Multi-agent pipeline participation.** CORAL's benchmarks show Codex functioning as a drop-in alternative to Claude Code within multi-agent optimization loops. The `AgentRuntime` protocol makes runtime substitution trivial for automated research pipelines.
+**Reasoning model backbone.** o3/o4-mini provide more reliable multi-step task decomposition than earlier models. Complex refactors that require consistent edits across 20+ files perform better with reasoning models.
 
-**LiteLLM gateway compatibility.** Through CORAL's gateway pattern and LiteLLM's proxy, Codex can be routed through custom model endpoints, enabling model substitution without changing agent configuration. This is valuable for cost management across long autonomous runs.
+**Broad agent ecosystem compatibility.** AGENTS.md is now read by Claude Code, OpenCode, Gemini CLI, and CORAL. Code written to the AGENTS.md convention works across runtimes.
 
-## Critical Limitations
+---
 
-**No hook execution.** Claude Code supports six hook event types (PreToolUse, PostToolUse, UserPromptSubmit, Stop, PreCompact, Notification) enabling deterministic automation of quality gates, session persistence, and continuous learning. Codex has no equivalent hook system. Everything Claude Code's 20+ hook automations, AgentShield security scanning, and the instinct-based continuous learning system are unavailable in Codex. This is the single largest capability gap.
+## Limitations
 
-**Unspoken infrastructure assumption.** Codex in autonomous mode (`approval_policy: "never"`, `sandbox_mode: "danger-full-access"`) assumes the execution environment is already isolated. The agent will execute arbitrary shell commands without confirmation. Teams running Codex inside production environments, shared systems, or without container isolation face real risk. CORAL addresses this by running agents in git worktrees with explicit filesystem restrictions, but Codex itself provides no containment.
+**Concrete failure mode: context loss on large repositories.** Codex clones the full repository into the container, but the model's context window does not scale with repository size. On large codebases (>100k LOC), the agent frequently misses relevant files — it does not retrieve semantically related code, it reads files it explicitly navigates to. A refactor touching 30 files in a 500-file codebase will miss dependencies the agent didn't explicitly seek out. Claude Code with MCP-based semantic search ([Model Context Protocol](../concepts/model-context-protocol.md)) handles this more gracefully because it can query the codebase rather than only browsing it.
 
-## When NOT to Use It
+**Unspoken infrastructure assumption: GitHub as the source of truth.** Codex is designed for GitHub-hosted repositories. GitLab, Bitbucket, self-hosted git, or monorepos with non-standard CI pipelines are second-class. The pull request workflow assumes GitHub's PR model. Teams using other systems can work around this with manual setup, but the integrations are not maintained.
 
-**When you need deterministic quality gates.** If your workflow requires automated security scanning, test enforcement before commits, or session-state persistence between runs, Claude Code's hook system gives you this. Codex does not.
+**Asynchronous model as a limitation.** Interactive debugging, exploratory sessions ("what's wrong with this test, let's figure it out together"), and tasks requiring multiple rounds of clarification are ill-suited to Codex's async model. You submit, wait, review — you can't steer mid-task. Claude Code, Cursor, and Gemini CLI all support interactive back-and-forth.
 
-**When you need per-tool permission scoping.** Claude Code allows rules like `Bash(git *)` as deny patterns and `Edit(/path/*)` as allow patterns per agent. Codex's sandbox model is binary: approve everything or approve nothing. For multi-agent systems where agents should have read access to sibling worktrees but write access only to their own, Codex requires external enforcement.
+**No persistent memory across tasks.** Each container starts fresh. Unlike [Mem0](../projects/mem0.md) integrations or CLAUDE.md approaches that accumulate preferences, Codex has no mechanism to learn user conventions over time beyond what's in AGENTS.md.
 
-**When cross-platform skill compatibility matters more than OpenAI model access.** The Agent Skills ecosystem and SKILL.md format work across Claude Code, Cursor, Copilot, and Gemini CLI with richer runtime support. If your workflow depends on skills with hook triggers, resource loading, or progressive disclosure, Claude Code has deeper integration.
+**Cost at scale is unresolved.** OpenAI prices Codex per task rather than per token in the agent interface. For high task volume (CI-integrated automatic PR generation, large teams using parallel tasks), the cost structure is not transparently documented. Teams scaling to hundreds of tasks per day should model costs carefully before committing.
 
-**When you need session resumption across machines.** CORAL's session resumption mechanism uses Claude Code's `--resume {session_id}` flag with saved session IDs. Codex has no equivalent documented session recovery mechanism. Long-running multi-agent experiments that may need to resume after failure work more reliably with Claude Code.
+---
+
+## When NOT to Use Codex
+
+**Interactive debugging sessions.** If you need to explore a bug with a model — running a test, seeing the failure, asking follow-up questions, adjusting — use Claude Code or Gemini CLI. Async task submission doesn't support this pattern.
+
+**Non-GitHub environments.** GitLab, Bitbucket, or self-hosted git requires custom integration work that isn't officially supported.
+
+**Tasks requiring real-time tool access.** If the task needs web search, database queries, or live API calls during execution, Codex's sandboxed containers restrict this by default. [Claude Code](../projects/claude-code.md) with MCP tool integrations handles this better.
+
+**Workflows requiring continuous agent memory.** If you want the agent to remember preferences, past decisions, and project conventions across many sessions, you need either a system that maintains explicit memory (AGENTS.md updated manually, or systems like [Letta](../projects/letta.md) with managed memory) or a local agent with context persistence.
+
+---
 
 ## Unresolved Questions
 
-**Benchmark parity with Claude Code.** OpenAI has not published SWE-bench results for Codex CLI comparable to Anthropic's Claude Code numbers. Without independent evaluation under identical conditions, claims about relative coding agent capability are marketing, not engineering guidance.
+**Governance of training data.** The 2021 model was trained on ~54M public GitHub repositories, raising copyright questions that remain in litigation (GitHub Copilot lawsuits). It's unresolved whether output from models trained on public code creates derivative works obligations.
 
-**Cost at scale.** Autonomous multi-agent runs with Codex on premium models (o1, o3) accumulate costs faster than Claude Code on Sonnet. CORAL's gateway enables per-agent cost tracking, but there is no published analysis of Codex cost profiles for long-running research optimization tasks.
+**Conflict resolution in parallel tasks.** When multiple parallel Codex tasks modify overlapping files, the output is multiple PRs with potentially conflicting diffs. Codex does not coordinate across parallel tasks — the user resolves conflicts during review. For tasks that touch the same modules, this is a significant operational overhead that isn't documented prominently.
 
-**Hook roadmap.** Whether OpenAI plans to add hook execution to Codex CLI is undocumented. The capability gap is significant enough that teams building automated pipelines must either use Claude Code or build hook-equivalent logic externally.
+**SWE-bench benchmark conditions.** OpenAI's self-reported SWE-bench Verified numbers don't fully specify the harness configuration, temperature, retry budget, or whether the model received additional scaffolding. Comparing against Anthropic's Claude Code or Google's Gemini numbers requires knowing these parameters. They aren't published.
 
-**AGENTS.md governance.** The format is used by multiple projects but has no formal specification body. Anthropic publishes CLAUDE.md conventions; OpenAI uses AGENTS.md; the agentskills.io spec covers SKILL.md. Behavior when all three are present in the same directory is not formally specified.
+**Container resource limits.** The documentation doesn't specify container CPU/memory limits or what happens when a task exceeds them. Long-running builds (Rust, C++, ML training) that require substantial compute may hit undocumented limits.
+
+---
 
 ## Alternatives
 
-**[Claude Code](../projects/claude-code.md)** — Use when you need hook execution, granular per-tool permissions, marketplace skill distribution, or Anthropic model access. The more mature ecosystem for automated agent pipelines.
+**[Claude Code](../projects/claude-code.md)** — Use when you need interactive sessions, semantic codebase search, MCP tool integrations, or higher SWE-bench performance on complex tasks. Claude Code's 72% SWE-bench Verified (Anthropic self-reported, mid-2025) vs. Codex's ~49% reflects substantive capability difference on real repository tasks.
 
-**[Cursor](../projects/cursor.md)** — Use when your workflow is IDE-centric rather than terminal-centric. Cursor's inline editing and multi-file diff UI is better for interactive development; Codex CLI is better for autonomous scripted runs.
+**[Cursor](../projects/cursor.md)** — Use when you want IDE-integrated assistance with real-time completions and inline edits. Cursor's advantage is the tight editor loop; Codex's is batch parallelism.
 
-**[OpenCode](../projects/opencode.md)** — Use when you want an open-source terminal agent with no vendor lock-in. OpenCode supports SKILL.md, AGENTS.md, and custom tools via `opencode.json`, and integrates with CORAL's multi-agent system.
+**[Gemini CLI](../projects/gemini-cli.md)** — Use when you need large context windows (Gemini 2.5's 1M token context handles large codebase ingestion better than Codex's container-browse approach) or Google ecosystem integration.
 
-**[Gemini CLI](../projects/gemini-cli.md)** — Use when you need Google model access or Gemini's longer context windows for large-codebase tasks.
+**[OpenCode](../projects/opencode.md)** — Use when you want a self-hosted, open-source terminal agent compatible with AGENTS.md. Lower cost, more control, less polish.
 
-**[GitHub Copilot](../projects/github-copilot.md)** — Use when you want code completion integrated into VS Code or JetBrains without leaving the IDE. Copilot is the production surface for the original Codex model's capabilities, now running on GPT-4o.
+**[CORAL](../projects/coral.md)** — Use when you want multi-agent parallel optimization against a scoring function. CORAL can run Codex as one of its agent runtimes alongside Claude Code and OpenCode, giving you the parallel exploration benefit with shared knowledge across agents.
 
-**[CORAL](../projects/autoresearch.md)** — Use when you want to run Codex (or Claude Code, or OpenCode) inside a multi-agent optimization loop with shared knowledge, graded evaluation, and evolutionary search. CORAL is the orchestration layer above any individual coding agent.
+---
 
-## Relationship to Adjacent Concepts
+## Relationship to Broader Ecosystem
 
-Codex implements [Agent Skills](../concepts/agent-skills.md) via the SKILL.md format and contributes to [Multi-Agent Systems](../concepts/multi-agent-systems.md) as one of three supported runtimes in CORAL. The AGENTS.md instruction system is a form of [Context Engineering](../concepts/context-engineering.md): encoding project knowledge, constraints, and workflow procedures into persistent context that shapes agent behavior across sessions.
+The 2021 Codex model is the direct ancestor of [GitHub Copilot](../projects/github-copilot.md), which branched off as a Microsoft/GitHub product. The HumanEval benchmark it introduced remains the standard reference for code generation capability comparisons.
 
-The original Codex model's contribution to [Agent Memory](../concepts/agent-memory.md) research was indirect: by establishing HumanEval as a benchmark and demonstrating that large-scale code pretraining produced qualitatively different code generation capabilities, it set the empirical baseline that subsequent work on coding agents has tried to exceed.
+The 2025 agent implements [agent skills](../concepts/agent-skills.md) via the AGENTS.md format and operates as a node in [multi-agent systems](../concepts/multi-agent-systems.md) when composed with orchestrators like CORAL. Its sandbox model reflects a specific point in the [human-in-the-loop](../concepts/human-in-the-loop.md) design space: autonomous execution, human review of outputs.
+
+[Context engineering](../concepts/context-engineering.md) in Codex is primarily managed through AGENTS.md rather than dynamic retrieval. The agent reads static instructions rather than constructing context from semantic search — a simpler but less adaptive approach than RAG-augmented alternatives.
 
 
 ## Related
@@ -172,17 +204,12 @@ The original Codex model's contribution to [Agent Memory](../concepts/agent-memo
 - [OpenCode](../projects/opencode.md) — competes_with (0.7)
 - [Agent Skills](../concepts/agent-skills.md) — implements (0.6)
 - [Andrej Karpathy](../concepts/andrej-karpathy.md) — part_of (0.5)
-- [OpenClaw](../projects/openclaw.md) — alternative_to (0.6)
-- [Model Context Protocol](../concepts/model-context-protocol.md) — implements (0.7)
+- [OpenClaw](../projects/openclaw.md) — competes_with (0.5)
+- [Model Context Protocol](../concepts/model-context-protocol.md) — implements (0.6)
 - [Gemini CLI](../projects/gemini-cli.md) — competes_with (0.8)
 - [Context Engineering](../concepts/context-engineering.md) — part_of (0.5)
 - [Anthropic](../projects/anthropic.md) — competes_with (0.7)
-- [Claude](../projects/claude.md) — competes_with (0.8)
+- [AutoResearch](../projects/autoresearch.md) — implements (0.4)
 - [Windsurf](../projects/windsurf.md) — competes_with (0.7)
-- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — part_of (0.5)
-- [Antigravity](../projects/antigravity.md) — alternative_to (0.5)
-- [AutoResearch](../projects/autoresearch.md) — implements (0.5)
-- [LangChain](../projects/langchain.md) — part_of (0.5)
-- [Windsurf](../projects/windsurf.md) — competes_with (0.7)
-- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — part_of (0.5)
-- [Antigravity](../projects/antigravity.md) — alternative_to (0.5)
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — implements (0.4)
+- [Antigravity](../projects/antigravity.md) — part_of (0.4)

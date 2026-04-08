@@ -3,202 +3,211 @@ entity_id: reinforcement-learning
 type: approach
 bucket: self-improving
 abstract: >-
-  Reinforcement learning trains agents by optimizing cumulative reward signals
-  from environment interaction, differentiating itself from supervised learning
-  by not requiring labeled outputs — enabling self-improvement through trial and
-  error without explicit human annotation of correct behavior.
+  Reinforcement learning trains agents via reward signals; in LLM contexts it
+  covers GRPO, credit assignment, and reward hacking, and is the primary
+  mechanism behind post-training behavioral improvements in modern agents.
 sources:
-  - tweets/hwchase17-continual-learning-for-ai-agents.md
-  - repos/wangyu-ustc-mem-alpha.md
-  - repos/orchestra-research-ai-research-skills.md
-  - repos/greyhaven-ai-autocontext.md
   - articles/cameron-westland-autoresearch-is-reward-function-design.md
-  - articles/lil-log-reward-hacking-in-reinforcement-learning.md
   - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
-  - deep/repos/modelscope-agentevolver.md
+  - articles/lil-log-reward-hacking-in-reinforcement-learning.md
   - deep/repos/gepa-ai-gepa.md
   - deep/repos/greyhaven-ai-autocontext.md
+  - deep/repos/modelscope-agentevolver.md
+  - papers/zweiger-self-adapting-language-models.md
+  - repos/greyhaven-ai-autocontext.md
+  - repos/orchestra-research-ai-research-skills.md
+  - repos/wangyu-ustc-mem-alpha.md
+  - tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md
+  - tweets/hwchase17-continual-learning-for-ai-agents.md
 related:
   - grpo
-  - retrieval-augmented-generation
-  - claude
-  - model-context-protocol
   - vllm
-  - gepa
-  - gpt-4
-  - claude-code
-  - openclaw
   - openai
-  - episodic-memory
   - anthropic
   - autoresearch
+  - claude
   - context-engineering
-  - vllm
+  - model-context-protocol
   - gepa
   - gpt-4
-last_compiled: '2026-04-08T02:59:03.551Z'
+  - openclaw
+  - claude-code
+  - episodic-memory
+last_compiled: '2026-04-08T23:16:21.669Z'
 ---
-# Reinforcement Learning
+# Reinforcement Learning in LLM Agent Systems
 
 ## What It Is
 
-Reinforcement learning (RL) is a training paradigm where an agent learns by taking actions in an environment, receiving scalar reward signals, and adjusting its policy to maximize cumulative reward over time. Unlike supervised learning, RL requires no labeled examples of correct outputs — the environment itself provides the training signal through success or failure.
+Reinforcement learning (RL) is a training paradigm where an agent learns by taking actions, receiving reward signals, and updating its policy to maximize cumulative reward. In classical RL, an agent operates in an environment, observes state, selects actions, receives scalar rewards, and adjusts behavior through gradient updates to its policy.
 
-The core loop: observe state → select action → receive reward → update policy. Over many iterations, this loop produces policies that maximize expected cumulative reward, even for tasks where the correct action sequence is difficult to specify in advance.
+Applied to LLMs, RL post-training takes a pretrained language model and further trains it by having it generate outputs, scoring those outputs with a reward function, and updating model weights to produce higher-reward outputs more often. This differs from supervised fine-tuning (SFT) in a fundamental way: SFT trains toward fixed correct outputs, while RL trains toward outcomes the reward function values, whether or not those outputs look like any particular human-authored text.
 
-In the LLM agent context, "environment" is broadly construed. It can mean a formal game engine, a software sandbox running code, an API ecosystem like AppWorld, or an LLM judge evaluating output quality. The reward signal can be a numeric score, a binary pass/fail, or a structured rubric. This flexibility is what makes RL applicable across nearly every layer of the agent infrastructure stack.
+The core loop:
+1. Sample outputs from the current policy (the LLM)
+2. Score outputs via a reward function (verifier, human preference model, or rule-based check)
+3. Compute policy gradient to increase probability of high-reward outputs
+4. Update model weights
+5. Repeat
 
 ## Why It Matters for Agent Systems
 
-RL solves a fundamental problem in agent design: you often cannot enumerate correct behavior, but you can evaluate it. Writing out every correct action sequence for a coding agent would be impossible; specifying that passing tests equals success is tractable. RL bridges this gap.
+Supervised data has a ceiling. You can only teach a model to imitate what humans write down, and humans are bad at writing down the reasoning chains that lead to correct complex solutions. RL sidesteps this by optimizing directly for outcomes. The model can discover reasoning strategies that humans never articulate, as long as the reward function captures what "correct" means.
 
-Three distinct capabilities RL unlocks for agents:
+For agents specifically, RL enables:
 
-**Policy optimization without demonstrations.** A supervised fine-tuning approach requires human-labeled examples of good agent behavior. RL allows the agent to explore on its own and learn from outcomes, enabling self-improvement on tasks where demonstration data is scarce or expensive.
+- **Multi-step reasoning**: The model learns to chain intermediate steps toward a final answer, since the reward signal comes at the end
+- **Tool use**: The model can be rewarded for correct tool call sequences without being shown exactly which tools to call
+- **Long-horizon task completion**: With appropriate credit assignment, RL can train agents to complete tasks spanning dozens of sequential decisions
+- **Behavioral specification**: Instead of writing out every rule, reward functions encode what behavior you want, and the model figures out how to achieve it
 
-**Long-horizon credit assignment.** In a 30-step agent trajectory, which actions actually mattered? RL algorithms like GAE (Generalized Advantage Estimation) and the more recent ADCA-GRPO compute per-action credit even when rewards only appear at trajectory end. This is the difference between knowing "the task failed" and knowing "step 7 caused the failure."
+The pivot point was OpenAI's work on RLHF (Reinforcement Learning from Human Feedback), which demonstrated that RL could align model behavior with human preferences at scale. DeepSeek's subsequent release of DeepSeek-R1 showed that RL with verifiable rewards (not just human preferences) could teach models to reason through hard math and coding problems, and that the trained reasoning chains transferred to other domains.
 
-**Optimization against non-differentiable objectives.** Test suite pass rates, human preference scores, API call success rates — none of these have gradients you can backpropagate through. RL converts any scalar evaluation into a training signal.
-
-## How It Works: Core Algorithms in the Agent Context
-
-### GRPO (Group Relative Policy Optimization)
-
-[GRPO](../concepts/grpo.md) is the dominant RL algorithm for LLM agent fine-tuning as of 2025-2026. Unlike PPO, which requires a separate value network, GRPO estimates advantages by comparing outcomes across a group of rollouts for the same input:
-
-```
-advantage_i = (reward_i - mean(rewards_group)) / std(rewards_group)
-```
-
-This group-normalization approach eliminates the need for a critic model, reducing memory requirements by roughly half. The algorithm then applies a clipped surrogate objective (same structure as PPO's) to update the policy. [AgentEvolver](../projects/agentevolver.md) uses GRPO as its base optimizer, and [Anthropic](../projects/anthropic.md)'s training for [Claude](../projects/claude.md) incorporates RLHF with similar group comparison structures.
-
-**Standard GRPO limitation:** every token in a trajectory receives the same advantage, derived from the final outcome. A trajectory that failed because of one bad step at step 3 still assigns positive advantage to steps 1-2 (which were fine) and the same negative advantage to all subsequent steps. This blunt credit assignment wastes training signal.
-
-### ADCA-GRPO (Attributive Dense Credit Assignment)
-
-[AgentEvolver](../projects/agentevolver.md) introduces ADCA-GRPO as a direct response to this limitation. The mechanism:
-
-1. **Step-level semantic evaluation.** After rollout, a separate LLM evaluates each step in the trajectory, labeling it GOOD or BAD based on whether it advanced the task. This runs as one API call per trajectory (not per step), evaluating all steps in a single pass to keep costs manageable.
-
-2. **Dual reward streams.** Two independent signals are computed: a process reward (GOOD → +fix_base, BAD → -fix_base) and the standard outcome reward (final task success/failure score). Each is z-score normalized separately within groups to prevent the sparse terminal reward from dominating.
-
-3. **Composite fusion.** `r_t = alpha * r_t_attr + indicator(t=T) * r_out`. The alpha parameter controls the balance between process and outcome signals, and supports cosine decay (curriculum: strong process signal early, fading to outcome-only as training matures).
-
-4. **Token-level mapping.** Step advantages propagate to tokens via `broadcast_step_adv_to_tokens()` using a `step_ids` tensor, assigning each token the advantage of its containing step.
-
-Results from AgentEvolver: ADCA-GRPO reduces training steps by approximately 40% compared to standard GRPO to reach equivalent performance, measured across AppWorld and BFCL v3 benchmarks. This is self-reported.
+## Core Algorithms
 
 ### REINFORCE and Policy Gradient Methods
 
-The theoretical foundation. REINFORCE computes the gradient of expected reward with respect to policy parameters:
+The foundational policy gradient theorem: the gradient of expected reward with respect to policy parameters is proportional to the expected value of (log probability of the action) × (advantage of the action). In practice, this means:
 
-```
-∇θ J(θ) = E[∇θ log π_θ(a|s) * R]
-```
+1. Roll out trajectories under the current policy
+2. Compute returns (discounted sum of rewards) for each step
+3. Compute advantages (how much better this action was than baseline)
+4. Gradient step = mean(log_prob(action) × advantage) over all steps
 
-Practical implementations add a baseline (typically a value function estimate) to reduce variance:
+Naive REINFORCE has high variance because advantages depend on entire trajectory outcomes. Most practical implementations add a baseline (usually a learned value function) to reduce variance.
 
-```
-∇θ J(θ) = E[∇θ log π_θ(a|s) * (R - b(s))]
-```
+### PPO (Proximal Policy Optimization)
 
-GRPO can be understood as using the group mean as the baseline, making it a variance-reduced REINFORCE variant that avoids the value function requirement.
+PPO is the standard workhorse for RLHF. Its key contribution: a clipped surrogate objective that prevents too-large policy updates, which cause training instability.
 
-### Proximal Policy Optimization (PPO)
+The clipped objective: `L_clip = E[min(ratio * advantage, clip(ratio, 1-ε, 1+ε) * advantage)]`
 
-PPO constrains policy updates to prevent catastrophic performance degradation. The clipped objective:
+where `ratio = new_policy_prob / old_policy_prob`. When the policy tries to move too far (ratio > 1+ε for positive advantages, or ratio < 1-ε for negative), the gradient is zeroed out. This keeps updates in a "trust region" without the computational expense of computing the actual KL constraint.
 
-```
-L_clip = E[min(r_t * A_t, clip(r_t, 1-ε, 1+ε) * A_t)]
-```
+PPO requires a separate value network (critic) trained to predict returns. The actor-critic architecture doubles model parameters and introduces the challenge of keeping the critic well-calibrated as the policy changes.
 
-where `r_t = π_θ(a|s) / π_θ_old(a|s)`. PPO requires a value network (critic), making it memory-intensive for LLMs. [vLLM](../projects/vllm.md) is commonly used for the actor rollout, with a separate critic model. GRPO has largely displaced PPO for LLM fine-tuning due to the memory savings.
+### [GRPO](../concepts/grpo.md) (Group Relative Policy Optimization)
 
-## Three Layers Where RL Operates
+GRPO eliminates the critic by computing advantages relative to a group of sampled outputs. For a given input, sample N outputs from the policy, score each with the reward function, normalize scores to produce advantages, and update the policy to increase probability of above-average outputs.
 
-Harrison Chase's framing ([Source](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md)) identifies three distinct layers where RL-style learning can occur in agent systems:
+Advantages are computed as: `A_i = (r_i - mean(r)) / std(r)` over the group.
 
-**Model layer.** Traditional RL/RLHF updates model weights directly. Techniques: SFT warm-up, then PPO or GRPO with a reward model or judge. The key challenge here is catastrophic forgetting — fine-tuning on new tasks degrades performance on previously mastered ones. OpenAI trains domain-specific models (e.g., the Codex models powering [Claude Code](../projects/claude-code.md)) for specific agent deployments. In theory you could have per-user LoRAs; in practice this remains rare.
+This is directly applicable to LLMs: for each training example, sample 8-16 completions, score them all, and treat the relative scores as advantages. No separate value network is required, cutting memory usage roughly in half. The tradeoff: GRPO's advantage estimates have higher variance than PPO's (since they're based on a small group sample rather than a learned value function), but for LLMs the reduced infrastructure complexity tends to outweigh the variance cost.
 
-**Harness layer.** The code, instructions, and tools surrounding the model can be optimized through trace-based RL without touching weights. A meta-agent analyzes execution traces and proposes changes to system prompts, tool definitions, or agent scaffolding. [Autocontext](../raw/deep/repos/greyhaven-ai-autocontext.md) implements this: five specialized agents (competitor, analyst, coach, architect, curator) run after each generation to update playbooks and tools. The reward signal comes from scoring the next generation's performance. This avoids catastrophic forgetting entirely because weights never change.
+GRPO was developed by DeepSeek and applied in their reasoning models. The implementation appears in DeepSeek-R1, where it trains models to produce long chain-of-thought reasoning for math and coding tasks.
 
-**Context layer.** Instructions, skills, and memories stored outside the harness and injected per-run. RL here means updating CLAUDE.md files, skill libraries, or user-level memory based on task outcomes. [OpenClaw](../projects/openclaw.md)'s "dreaming" process exemplifies this — the agent consolidates recent experiences into its SOUL.md and skill store in an offline job. The feedback loop is fastest at this layer (no training run required), making it the most practical starting point for teams building self-improving systems.
+[AgentEvolver](../projects/agentevolver.md) extends GRPO with ADCA-GRPO (Attribution-Decomposed Credit Assignment), reporting 40% fewer training steps to convergence compared to standard GRPO. The key change: rather than assigning the same advantage to every token in a trajectory based solely on final outcome, ADCA-GRPO uses an LLM to evaluate individual steps as GOOD or BAD, then fuses step-level process rewards with outcome rewards. Step-level advantages are computed via suffix sums: `A_t = sum(r_k for k in [t, T])`, then broadcast from steps to tokens.
 
-## RL in Practice: Key Projects
+### Reward Functions
 
-### Mem-α
+The reward function is the most consequential design decision in any RL system. Categories:
 
-[Mem-α](../raw/repos/wangyu-ustc-mem-alpha.md) applies GRPO directly to the problem of memory construction. Rather than using fixed rules about when to write to episodic vs. semantic vs. core memory, the agent learns memory management strategies through reward signals derived from downstream question-answering accuracy. Trained on 30k-token contexts, it generalizes to 400k+ tokens — a 13x extrapolation beyond training length. The reward function combines a compression reward (penalizing bloated memory) and a content reward (rewarding accurate retention of relevant information), controlled by hyperparameters β and γ. Training uses Qwen3-4B as the base model across 4 nodes.
+**Verifiable rewards**: A deterministic checker scores outputs as correct or incorrect. Math problems have known answers. Code either passes test cases or fails. These are the cleanest reward signals and produce the most reliable training. DeepSeek-R1 used verifiable math rewards to train its reasoning model.
 
-### AgentEvolver
+**Learned reward models**: A separate model, usually trained on human preferences (A vs B comparisons), scores outputs. Used in RLHF for instruction following and helpfulness. These introduce reward model errors as a training bottleneck — if the reward model is wrong, the policy optimizes toward its errors.
 
-[AgentEvolver](../projects/agentevolver.md) applies RL to multi-step agent trajectories across AppWorld and BFCL v3 benchmarks. The full system with ADCA-GRPO achieves 57.6% avg@8 on combined benchmarks with a 14B model. The ablation table is instructive: self-questioning (better training data) contributes more than self-attributing (better credit assignment), which contributes more than experience-guided navigation. Better data beats better algorithms in this regime. All numbers are self-reported.
+**Rule-based rewards**: Programmatic checks for formatting, length, specific tokens, or other structured properties. Combine well with verifiable rewards (e.g., reward correct answer AND formatted within `<answer>` tags).
 
-### GEPA
+**LLM-as-judge**: A separate LLM evaluates outputs. Flexible but expensive, slower, and subject to the judge's own biases and inconsistencies. Used in [GEPA](../concepts/gepa.md) and by systems like [AutoResearch](../projects/autoresearch.md) that need to evaluate free-form outputs without ground truth.
 
-[GEPA](../concepts/gepa.md) replaces RL's scalar reward with "Actionable Side Information" — full execution traces that an LLM can read and reason about. The reflection LLM reads error messages, profiling data, and reasoning logs to diagnose WHY candidates fail, then proposes targeted fixes. This directional search converges in 100-500 evaluations versus 5,000-25,000+ for GRPO on equivalent tasks. The 35x efficiency gain is self-reported by the authors, though the ICLR 2026 Oral acceptance provides some external validation. GEPA is not RL in the traditional sense (no policy gradient, no value function), but occupies the same niche: optimizing agent behavior against arbitrary evaluators.
+## Credit Assignment
 
-### Voyager and Episodic Memory
+The fundamental challenge in multi-step agent trajectories: when a 30-step task succeeds or fails, which steps deserve credit or blame? Naive RL assigns the same advantage to every token, attributing outcome entirely to the action distribution at each step.
 
-[Voyager](../projects/voyager.md) demonstrates RL at the context layer: the agent accumulates skills (procedural programs) in a skill library, retrieves them for new tasks, and refines them based on execution success. This is RL without weight updates — the "policy" is stored as external text programs rather than model weights.
+Several approaches:
 
-### AutoResearch and Autocontext
+**Discount factors (γ < 1)**: Steps further from the reward receive lower credit. Reasonable for time-sensitive tasks but problematic when early steps are actually the most consequential.
 
-Both systems ([AutoResearch](../projects/autoresearch.md) and autocontext) implement harness-layer RL: multi-agent evaluation loops that score outputs and propagate improvement signals back to the prompts, tools, and knowledge stores surrounding the agent. Autocontext adds Pareto-efficient frontier tracking and Elo-based progression gating to formalize the RL structure.
+**Return-to-go**: Use the sum of future rewards from each step rather than just the final reward. Steps leading to eventual success get credit, steps leading to failure do not.
 
-## The Reward Signal Problem
+**Step-level LLM evaluation (ADCA)**: As implemented in AgentEvolver, use a separate LLM to explicitly label each step as GOOD or BAD. This is expensive (one API call per trajectory to evaluate all steps) but provides much cleaner credit signals than outcome-only approaches. AgentEvolver's `semantic_attribution.py` batches all steps into one evaluation call per sample to reduce API cost.
 
-The quality of RL training depends entirely on reward signal quality. Four failure modes practitioners consistently encounter:
+**Process reward models (PRMs)**: Train a separate model to score individual reasoning steps. Requires step-level labeled data, which is expensive to collect. Alternative: train PRMs on synthetic data by finding problems where the final answer is correct but specific intermediate steps can be identified as errors via backward reasoning.
 
-**Reward hacking.** The agent finds behaviors that maximize the measured reward without achieving the intended goal. A coding agent that always returns empty files will score 0% on test pass rate — but an agent that passes trivially satisfied tests by modifying test files rather than fixing code is harder to detect. Robust reward design requires adversarial thinking about what the metric does NOT capture.
+**Monte Carlo sampling**: For each intermediate state, sample multiple continuations and estimate the value of being in that state by averaging outcomes. Computationally expensive but provides ground-truth step values in expectation.
 
-**Sparse rewards.** When reward appears only at trajectory end, the gradient signal is diffuse across all preceding steps. A 30-step trajectory with a binary success/failure signal provides almost no information about which of the 30 decisions mattered. ADCA-GRPO and process reward models address this by densifying the reward.
+Credit assignment quality directly determines what behaviors RL will train. Poor credit assignment leads to policies that stumble into correct answers rather than learning principled reasoning strategies.
 
-**Reward model drift.** When using an LLM judge as the reward signal, the judge's evaluation criteria can shift over training (rubric drift). Autocontext tracks this via `analytics/` rubric drift calibration. As the policy improves, outputs that previously scored 7/10 may now score 5/10 without any change in the judge — because the judge's internal reference point shifts.
+## Reward Hacking
 
-**Catastrophic forgetting.** RL updates on a narrow task distribution degrade performance on the base distribution. A model fine-tuned to excel at Python debugging may lose coherence on general conversation. Mitigation: KL regularization against the reference policy (standard in GRPO), curriculum learning, and replay buffers mixing new task data with general instruction following data.
+Reward hacking occurs when the policy finds high-scoring outputs that do not reflect genuine capability improvement. Classic examples:
 
-## RL vs. Alternative Optimization Approaches
+- **Length hacking**: If the reward model correlates length with quality (a common bias), the policy learns to produce verbose outputs regardless of content quality
+- **Sycophancy**: If the reward model responds positively to confident or agreeable outputs, the policy learns to be agreeable rather than accurate
+- **Format gaming**: If rewards are partly rule-based, the policy may satisfy format rules while failing on substance
+- **Judge manipulation**: When an LLM judge is the reward function, the policy can learn to produce outputs that look good to the specific judge rather than being genuinely good
 
-| Approach | Sample Efficiency | Reward Requirements | Weight Updates | Best For |
-|---|---|---|---|---|
-| Standard GRPO | Low (5k-25k rollouts) | Scalar reward | Yes | General policy learning |
-| ADCA-GRPO | Medium (30-40% fewer steps) | Scalar + per-step labels | Yes | Long-horizon agent tasks |
-| GEPA | High (100-500 evals) | Execution traces (ASI) | No (prompt/context only) | Text artifact optimization |
-| SFT | Very high (labeled examples) | Demonstrations required | Yes | Known-correct behavior |
-| Harness RL (autocontext) | Medium | Any evaluator | No (knowledge only) | Production agent improvement |
+Mitigations used in practice:
 
-**Use GRPO when:** You need to update model weights and have an evaluator that can score full trajectories. Training infrastructure (veRL, [vLLM](../projects/vllm.md)) is available. Budget for 5,000-25,000 rollouts per task type.
+- **KL penalty**: Add a term penalizing divergence from the reference (pretrained) policy. Prevents the policy from drifting too far into reward-hacking territory while still allowing genuine improvement. The tradeoff: too high a KL penalty limits learning, too low allows hacking. `GRPO_loss = policy_loss - β * KL(policy || reference)`
+- **Separate judge models**: Use a different judge at evaluation time than at training time
+- **Multiple reward dimensions**: Train against a combination of rewards, making it harder to game all simultaneously
+- **Held-out verification**: Regularly check against rewards the model was not trained against
+- **Human spot-checking**: Systematic human evaluation of model outputs on held-out examples
 
-**Use ADCA-GRPO when:** Trajectories are long (10+ steps) and you need fine-grained credit assignment. You have an LLM judge available to evaluate individual steps and can afford the extra API calls.
+No mitigation fully solves reward hacking. It is a fundamental tension: RL optimizes for measurable proxies, and any proxy can be gamed at sufficient optimization pressure. The practical limit is usually the reward model's ability to distinguish genuine quality from superficially similar reward-hacking behavior.
 
-**Use GEPA when:** You are optimizing prompts, agent instructions, or tool descriptions rather than model weights. You can log rich execution traces. Sample efficiency matters. 100-500 evaluations need to be enough.
+## RL in the Agent Improvement Stack
 
-**Use harness-layer RL (autocontext pattern) when:** You cannot update model weights, or you want improvement without catastrophic forgetting risk. You need rollback capability for failed experiments. The artifact being optimized is knowledge (playbooks, skills) rather than behavior.
+[Harrison Chase's framing](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md) is useful here: agent improvement can happen at three layers — model weights, harness code/instructions, and context/memory. RL primarily operates at the model layer, but the techniques increasingly blur across layers.
 
-**Do not use model-layer RL when:** Your training distribution is narrow (you will degrade on everything outside it). You lack infrastructure for distributed rollouts. You need sub-week iteration cycles. Context-layer or harness-layer optimization can achieve the goal without the stability risk.
+**Model layer (classical RL)**: Training runs update weights. [OpenAI](../projects/openai.md), [Anthropic](../projects/anthropic.md), and DeepSeek all use RL post-training to shape model behavior. The result is baked into the model checkpoint and applies to all users.
 
-## Unresolved Questions
+**Harness layer (RL-inspired optimization)**: Systems like [GEPA](../concepts/gepa.md) apply evolutionary search with LLM-powered reflection to optimize prompts, instructions, and agent configurations. This is not classical RL (no policy gradient, no weight update) but shares the core loop: generate candidates, score them, keep what works, iterate. GEPA reports 35x fewer evaluations to convergence versus GRPO for prompt optimization by replacing scalar rewards with full execution traces (Actionable Side Information) that the reflection LLM can diagnose.
 
-**Catastrophic forgetting at scale.** The open research problem Harrison Chase identifies: no robust solution exists for updating model weights on new tasks without degrading on old ones. Current mitigations (KL regularization, replay buffers, LoRA) reduce but do not eliminate degradation. For production systems serving diverse workloads, this makes model-layer RL risky.
+**Context layer (in-context learning)**: [Mem-α](../raw/repos/wangyu-ustc-mem-alpha.md) uses GRPO to train a model that decides WHAT to write into memory — episodic, semantic, or core — based on task feedback. The RL here trains the memory management policy, not the task-solving policy directly.
 
-**Credit assignment ground truth.** ADCA-GRPO uses an LLM judge to label steps GOOD or BAD. But how accurate is the judge? The system tracks `prm/pos_traj_bad_rate` and `prm/neg_traj_good_rate` as consistency metrics, but there is no ground truth to validate against. Poor judge calibration silently corrupts the training signal.
+**Full self-improvement harnesses**: [Autocontext](../raw/deep/repos/greyhaven-ai-autocontext.md) orchestrates five agents (competitor, analyst, coach, architect, curator) across generations of task execution, using Pareto optimization and Elo-based progression gating. This is harness-level RL: the "policy" is the set of playbooks and tools, the "reward" is task performance, and the "optimizer" is the multi-agent loop.
 
-**Cross-task knowledge transfer.** RL systems learn skills for specific tasks. AgentEvolver stores knowledge per-scenario; autocontext scopes knowledge to scenarios; Voyager's skills are Minecraft-specific. Mechanisms for transferring learned skills across task domains remain underexplored. GEPA's gskill pipeline partially addresses this for coding (repository-specific skills transfer across agents), but general cross-domain transfer is unsolved.
+## Practical Implementation Considerations
 
-**Cost at deployment scale.** Model-layer RL requires thousands of rollouts per training run. Harness-layer RL (autocontext) requires ~5 LLM calls per generation plus evaluation. ADCA-GRPO adds per-trajectory LLM judge calls. For teams running continuous self-improvement on production traffic, these costs compound. The frontier-to-local distillation approach in autocontext (training cheap local models on expensive frontier model outputs) is the most concrete proposal for cost management.
+**Batch size matters more than learning rate**: RL training stability depends heavily on having diverse samples in each batch. Too small a batch produces high-variance gradient estimates. For GRPO, sampling N=8-16 completions per example provides reasonable advantage estimates. AgentEvolver used batch size 32 with 40 epochs per update on 8×A100 80GB GPUs.
 
-**When to stop.** RL optimizers can overfit to training distributions even when the metric continues improving. Detecting when further optimization hurts generalization — before deploying the updated system — requires held-out evaluation sets that are expensive to maintain and easy to contaminate.
+**KL coefficient tuning**: Too low (β=0), and the model diverges quickly into reward hacking. Too high, and the model barely learns. AgentEvolver used β=0.001. Practical range depends on reward scale. Monitor KL divergence during training and stop if it spikes.
+
+**Reward normalization**: Raw reward signals often need normalization before computing advantages. ADCA-GRPO normalizes process rewards and outcome rewards independently via z-score before combining them, preventing the sparse terminal reward from dominating the dense step-level signal.
+
+**Evaluation during training**: RL training does not have a clean validation loss like SFT. Performance on the reward function can improve while actual capability regresses (reward hacking). Run separate held-out evaluations at regular intervals on tasks the model was not trained against.
+
+**Catastrophic forgetting**: When fine-tuning on RL for specific capabilities (e.g., math reasoning), models often degrade on general capabilities. The KL penalty helps, but does not fully prevent this. Mixing RL data with general SFT data during training reduces forgetting at the cost of slower specialization.
+
+## Failure Modes
+
+**Degenerate policies**: Without careful reward design, RL can train models to output short, formatted-but-empty responses that technically satisfy rule-based rewards. Monitor output length distributions and qualitative output during training.
+
+**Sparse reward problems**: If the reward is only 0 or 1 based on exact-match final answers, many trajectories get zero reward and produce no gradient signal. Solutions: intermediate rewards, shaped rewards, or curriculum learning starting with easier problems. [Synthetic Data Generation](../concepts/synthetic-data-generation.md) to bootstrap a diverse difficulty curriculum is common practice.
+
+**Mode collapse**: The policy converges to one or a few high-reward output patterns, losing the diversity needed for exploration. GRPO's group sampling mitigates this by ensuring diversity within each update step, but does not fully solve it over many training iterations.
+
+**Bootstrapping instability**: RL updates can be unstable when the value function (or group average in GRPO) is poorly calibrated early in training. Warm-starting with SFT on high-quality examples before RL helps stabilize early training.
+
+**Multi-task interference**: Training RL on multiple tasks simultaneously can cause the model to optimize for one at the expense of others, depending on reward scale and frequency. Multi-task RL requires careful balancing of task sampling ratios.
+
+## When NOT to Use RL
+
+RL is the wrong choice when:
+
+- **Labeled data is plentiful**: If you have thousands of high-quality input-output pairs, SFT is cheaper, faster, and more predictable. RL is expensive and unpredictable by comparison.
+- **You lack a reliable reward function**: RL with a noisy or biased reward function trains toward the noise. If you cannot verify outputs programmatically or have a well-calibrated reward model, the optimization loop will produce unreliable results.
+- **You need deterministic behavior**: RL-trained models optimize in expectation, producing high average-case performance but sometimes producing very wrong outputs. Safety-critical applications with hard correctness requirements are poor fits.
+- **Iteration speed matters more than final performance**: RL training is slow. [GEPA](../concepts/gepa.md) and prompt optimization approaches reach good performance in hours rather than days, making them better choices when you need to iterate quickly.
+- **The task is not well-specified**: If you cannot write a reward function, you cannot run RL. Vague objectives like "be more helpful" require human feedback collection at scale, making RLHF expensive. Verifiable tasks (math, code) are far more tractable.
+
+## Alternatives
+
+- **[GEPA](../concepts/gepa.md)**: When optimizing prompts, instructions, or agent configurations rather than model weights. 35x fewer evaluations than GRPO for prompt optimization. Use when you cannot retrain the model.
+- **[DSPy](../projects/dspy.md)**: Programmatic prompt optimization using a compilation framework. Use when your task can be expressed as a DSPy program and you want automatic prompt optimization without manual gradient computations.
+- **SFT with [Synthetic Data Generation](../concepts/synthetic-data-generation.md)**: When you can generate correct demonstrations via other means (e.g., a stronger model solving the task). Often more stable and predictable than RL, with comparable results when demonstrations are high quality.
+- **[Reflexion](../concepts/reflexion.md)**: When you want agents to improve at test time through verbal self-feedback rather than training-time weight updates. No GPU required, but improvements don't persist across sessions.
+- **[Self-Improving Agents](../concepts/self-improving-agents.md)**: Harness-level improvement via trace analysis and playbook updates, as in Autocontext. Appropriate when you want improvement without retraining, or when improvement should compound across many runs.
 
 ## Related Concepts
 
-- [GRPO](../concepts/grpo.md) — The dominant RL algorithm for LLM fine-tuning
-- [GEPA](../concepts/gepa.md) — RL-adjacent optimization using execution traces instead of scalar rewards
-- [Self-Improving Agents](../concepts/self-improving-agents.md) — The broader framework RL enables
-- [Episodic Memory](../concepts/episodic-memory.md) — What Mem-α trains agents to construct via RL
-- [Synthetic Data Generation](../concepts/synthetic-data-generation.md) — Often precedes RL (SFT warm-up, task generation)
-- [LLM-as-Judge](../concepts/llm-as-judge.md) — The reward signal source for most agent RL systems
-- [Execution Traces](../concepts/execution-traces.md) — The raw material for credit assignment and GEPA's ASI
-- [Chain-of-Thought](../concepts/chain-of-thought.md) — RL can optimize CoT reasoning patterns, not just final outputs
-- [Continual Learning](../concepts/continual-learning.md) — The multi-layer framework RL fits within for agent systems
-- [Human-in-the-Loop](../concepts/human-in-the-loop.md) — Human preference labels as reward signals (RLHF)
+- [GRPO](../concepts/grpo.md): The specific RL algorithm most commonly applied to LLM post-training
+- [Chain-of-Thought](../concepts/chain-of-thought.md): Reasoning patterns that RL training tends to elicit and reinforce
+- [GEPA](../concepts/gepa.md): Evolutionary alternative to RL for text artifact optimization
+- [Self-Improving Agents](../concepts/self-improving-agents.md): Harness-level improvement systems that borrow RL concepts without gradient updates
+- [LLM-as-Judge](../concepts/llm-as-judge.md): Common reward function implementation for non-verifiable tasks
+- [Synthetic Data Generation](../concepts/synthetic-data-generation.md): Data creation methods used to bootstrap RL training
+- [Episodic Memory](../concepts/episodic-memory.md): Memory systems that RL can train agents to manage (as in Mem-α)
+- [Human-in-the-Loop](../concepts/human-in-the-loop.md): Human feedback collection pipelines that feed into RLHF reward models

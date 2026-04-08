@@ -3,109 +3,121 @@ entity_id: autogen
 type: project
 bucket: multi-agent-systems
 abstract: >-
-  AutoGen is Microsoft's open-source multi-agent framework enabling
-  conversational AI workflows between autonomous and human-in-the-loop agents;
-  distinguishes itself through flexible conversation patterns and a layered API
-  for composing agent teams.
+  AutoGen is Microsoft's multi-agent conversation framework where autonomous
+  agents collaborate via structured message passing; its key differentiator is a
+  flexible two-agent and group-chat model that supports human-in-the-loop at any
+  point.
 sources:
-  - tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md
-  - repos/caviraoss-openmemory.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
+  - repos/caviraoss-openmemory.md
+  - tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md
 related:
   - retrieval-augmented-generation
   - claude
-  - model-context-protocol
-last_compiled: '2026-04-08T02:54:55.381Z'
+last_compiled: '2026-04-08T23:12:06.128Z'
 ---
 # AutoGen
 
 ## What It Does
 
-AutoGen is Microsoft's open-source framework for building applications where multiple LLM-powered agents converse with each other, with humans, and with tools to complete tasks. Released in 2023, it lets developers define agents with different capabilities and then wire them into conversation topologies: two-agent back-and-forth, group chats, nested hierarchies, or custom orchestration logic.
+AutoGen is Microsoft's open-source framework for building systems where multiple LLM-backed agents converse with each other to solve tasks. Rather than a single agent calling tools in a loop, AutoGen orchestrates dialogue between agents, each of which can generate responses, execute code, call functions, or route to a human. The core bet is that agent conversation, critique, and iteration produces better results than single-agent prompting.
 
-The core insight is that complex tasks decompose better when different agents specialize and critique each other's outputs than when a single agent tries to do everything. A coding agent writes Python, an executor runs it, a critic reviews the result, and they iterate until the task is done or a human intervenes.
+The framework has gone through significant architectural revision. AutoGen 0.2 (the widely-cited version) was a monolithic library centered on `ConversableAgent`. AutoGen 0.4 introduced a complete rewrite around an asynchronous, actor-based model with `autogen-agentchat`, `autogen-core`, and `autogen-ext` as separate packages. The two versions are not compatible and have different APIs, which causes significant friction for users migrating or following tutorials.
 
-As of AutoGen v0.4 (a near-complete rewrite), the framework splits into two layers: a low-level `Core` API built on async message passing, and `AgentChat`, a higher-level API for common multi-agent patterns. The rewrite was motivated by production feedback showing that v0.2's tight coupling made custom orchestration difficult.
+GitHub stars: ~43,000 (as of mid-2025, self-reported in repository metrics). This figure reflects cumulative interest, not active deployments.
 
 ## Core Mechanism
 
-**Agent model:** Each agent in AutoGen is a `ConversableAgent` (v0.2) or a `BaseChatAgent` subclass (v0.4). Agents maintain their own message history and respond to messages via a `generate_reply` method. The `AssistantAgent` wraps an LLM call; the `UserProxyAgent` wraps human input or code execution.
+**Agent Abstraction**
 
-**Conversation patterns:** AutoGen implements several built-in topologies in `autogen/agentchat/`:
-- `TwoAgentChat`: the simplest loop, two agents alternating messages until a termination condition
-- `GroupChat` / `GroupChatManager`: a mediator agent routes messages to the appropriate participant based on a speaker selection policy (round-robin, LLM-based, or custom)
-- `Swarm`: agents hand off control explicitly via tool calls that transfer the active speaker role
+The base unit is `ConversableAgent` (0.2) or `BaseChatAgent` (0.4). Each agent holds a system prompt, an LLM configuration, and a set of registered functions or tools. Agents communicate by passing `Message` objects containing role/content pairs that mirror the OpenAI chat format.
 
-**Message routing in v0.4:** The `Core` layer uses a publish-subscribe model over typed messages. Agents subscribe to message topics, and the runtime delivers messages asynchronously. This decouples agents from needing to know about each other directly, enabling distributed deployment. The relevant code lives in `python/packages/autogen-core/src/autogen_core/`.
+**Two-Agent Conversation**
 
-**Tool use:** Tools are Python functions decorated with type annotations. AutoGen generates JSON schemas from the function signatures and passes them to the LLM. When the LLM calls a tool, the framework executes it (in a `UserProxyAgent` or a `ToolAgent`) and feeds results back as a message.
+The simplest pattern: `UserProxyAgent` initiates, `AssistantAgent` responds. The `UserProxyAgent` can execute code automatically (in a Docker sandbox or local process) and feed stdout back into the conversation. This loop continues until a termination condition fires, typically a string sentinel like `"TERMINATE"` appearing in a message. The termination mechanism is a known fragility point: it relies on LLMs reliably emitting a specific string, which they frequently fail to do under paraphrasing pressure.
 
-**Human-in-the-loop:** The `UserProxyAgent` can be configured with `human_input_mode` set to `ALWAYS`, `NEVER`, or `TERMINATE`. In `ALWAYS` mode, a human must approve or override every agent action. The framework supports asynchronous handoffs, so the human doesn't block the entire agent loop.
+**GroupChat**
 
-**Code execution:** AutoGen includes Docker-based and local sandboxed code execution environments. The `DockerCommandLineCodeExecutor` runs generated code in an isolated container, capturing stdout/stderr and returning it as an agent message. This is the mechanism behind its software engineering benchmarks.
+`GroupChatManager` brokers conversations among three or more agents. The manager selects the next speaker via one of several strategies: `auto` (an LLM selects based on conversation history), `round_robin`, `random`, or a custom callable. The `auto` strategy calls an LLM on every turn to decide speaker selection, adding latency and cost that scales with group size and conversation length.
 
-**[Model Context Protocol](../concepts/model-context-protocol.md) support:** v0.4 adds MCP server integration, allowing agents to consume tools defined in external MCP servers without AutoGen-specific wrappers.
+**Human-in-the-Loop Integration**
+
+`UserProxyAgent` has a `human_input_mode` parameter: `ALWAYS` (block on every message), `NEVER` (fully autonomous), or `TERMINATE` (only ask when the conversation would end). This is one of AutoGen's genuine strengths, allowing human oversight to be dialed in at a workflow level rather than baked into individual agents. See [Human-in-the-Loop](../concepts/human-in-the-loop.md).
+
+**Code Execution**
+
+The `execute_code_blocks` function in `autogen/code_utils.py` handles extraction and execution. It parses code blocks from markdown responses, runs them in the configured executor (local shell, Docker container, or Jupyter kernel), and returns stdout/stderr. The Docker executor is the safer path for production, but requires a running Docker daemon, which most cloud deployment environments complicate.
+
+**0.4 Actor Model**
+
+The 0.4 rewrite introduces `autogen-core` with an event-driven runtime. Agents become actors that communicate via typed messages over a message bus. `SingleThreadedAgentRuntime` runs locally; a distributed runtime is under development. The motivation is supporting truly concurrent, distributed agent systems rather than the sequential turn-taking of 0.2. However, 0.4 adds substantial boilerplate (explicit message type registration, async throughout) and the ecosystem of examples and integrations is thinner than 0.2's.
 
 ## Key Numbers
 
-- **GitHub stars:** ~43,000 (as of mid-2025, self-reported by repo; independently observable on GitHub)
-- **SWE-bench performance:** AutoGen-based agents have been reported in the 30-40% range on SWE-bench Lite depending on configuration (self-reported in blog posts; independently validated benchmarks from the [SWE-bench](../projects/swe-bench.md) leaderboard partially confirm this range for tool-augmented agents)
-- **Languages supported:** Python primarily; .NET SDK exists but lags behind Python
-- **Supported LLM backends:** OpenAI, Azure OpenAI, Anthropic ([Claude](../projects/claude.md)), Gemini, and any OpenAI-compatible endpoint via [LiteLLM](../projects/litellm.md)
+| Metric | Value | Note |
+|--------|-------|-------|
+| GitHub Stars | ~43,000 | Self-reported; accumulated since 2023 |
+| HumanEval (with GPT-4, code execution loop) | ~90%+ | Self-reported in early papers; independently reproduced on HumanEval specifically |
+| MATH benchmark improvement vs. single agent | +15–20% | From original AutoGen paper; GPT-4 base |
+| Overhead per GroupChat turn (speaker selection) | +1 LLM call | Structural, not optimized away |
 
-A large-scale coordination study (MIPT, 25,000 tasks) found that protocol choice explains ~44% of quality variation in multi-agent systems while model choice explains ~14%. AutoGen's group chat and swarm patterns correspond to different points in this protocol space. [Source](../raw/tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md)
+The MIPT coordination study (25,000 tasks, 8 models) found that protocol choice accounts for 44% of quality variation versus 14% for model choice, and that sequential coordination without pre-assigned roles outperformed role-based systems like AutoGen's GroupChat by ~14% ([Source](../raw/tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md)). This finding is directionally credible though not yet replicated independently.
 
 ## Strengths
 
-**Flexible conversation topology.** AutoGen doesn't assume a fixed pipeline. Developers can compose round-robin group chats, LLM-driven speaker selection, hierarchical nested chats, or fully custom routing. This covers more task structures than frameworks that only support linear chains.
+**Flexible human oversight placement.** The `human_input_mode` API makes it easy to prototype fully autonomous pipelines and then add human checkpoints without restructuring agent code. Most frameworks force an either/or choice.
 
-**Human-in-the-loop is a first-class citizen.** The `UserProxyAgent` abstraction makes it straightforward to insert human review at configurable granularity, from approving every LLM output to only intervening on termination. Most competing frameworks treat human input as an edge case.
+**Code execution loop is mature.** The 0.2 `UserProxyAgent` + `AssistantAgent` pattern for code generation, execution, and feedback is well-tested with extensive community examples. For tasks that decompose into write-code, run-code, fix-code cycles, this loop works reliably.
 
-**Code execution built in.** The sandboxed executor removes a common integration headache. Agents that generate and run code get a complete feedback loop without additional plumbing.
+**Broad LLM compatibility.** AutoGen wraps the OpenAI client interface and supports local models via LiteLLM or direct Ollama endpoints. Swapping models requires changing a config dict, not restructuring agent logic. See [LiteLLM](../projects/litellm.md) and [Ollama](../projects/ollama.md).
 
-**Active ecosystem and Microsoft backing.** AutoGen Studio provides a no-code UI for building agent workflows. The v0.4 rewrite shows sustained investment. Community extensions cover memory, RAG integration, and domain-specific agents.
+**Integration ecosystem.** Third-party integrations exist for memory (OpenMemory supports AutoGen directly, as noted in its AutoGen integration pattern), vector stores, and tools. The 0.2 API's stability made this ecosystem buildable.
 
 ## Critical Limitations
 
-**Failure mode: non-terminating group chats.** AutoGen's group chat relies on a termination condition, usually a string match (e.g., "TERMINATE" in the agent's reply) or a max-turn count. When an LLM agent generates subtly incorrect outputs that don't trigger the termination string but also don't make progress, the group chat loops until it hits the turn limit. There is no built-in progress detection. In production this manifests as expensive, silent failures that exhaust token budgets without completing tasks.
+**Concrete failure mode: runaway conversations with no termination.** When the `"TERMINATE"` sentinel approach fails, conversations loop until token limits or API cost caps interrupt them. There is no built-in maximum turn count enforced at the framework level by default, and no automatic detection of circular reasoning. Production deployments consistently report needing to wrap GroupChat in external watchdog logic. See [Loop Detection](../concepts/loop-detection.md).
 
-**Unspoken infrastructure assumption:** AutoGen assumes low-latency access to LLM APIs with generous rate limits. Its conversation loops can trigger dozens of sequential API calls for a single task. Teams running on restricted API tiers or self-hosted inference will hit rate limits or latency budgets that make multi-agent workflows impractical. The framework has no built-in request throttling or cost budget enforcement.
+**Unspoken infrastructure assumption: synchronous, single-process execution.** The 0.2 GroupChat is fundamentally sequential. Each agent takes a turn; the next agent waits. For tasks that could parallelize naturally (running tests while another agent analyzes requirements), the architecture provides no native parallelism. The 0.4 rewrite addresses this, but with a different API surface that breaks 0.2 compatibility. Mixing versions in a production system is unsupported.
 
-## When NOT to Use AutoGen
+**Coordination overhead at scale.** The GroupChat `auto` speaker selection adds one LLM call per turn. At 8 agents with complex tasks running 20+ turns, this means 20+ extra LLM calls purely for orchestration, none of which produce task-relevant output.
 
-**Simple single-agent tasks.** If your use case is one agent calling a few tools and returning a result, AutoGen's overhead adds complexity without benefit. [LangChain](../projects/langchain.md) or [OpenAI Agents SDK](../projects/openai-agents-sdk.md) are lighter.
+## When NOT to Use It
 
-**Latency-critical production paths.** Multi-agent conversation loops are inherently sequential (each agent waits for the prior message). A task requiring five agent turns at 2-3 seconds per call takes 10-15 seconds minimum. Real-time user-facing applications won't tolerate this.
+**Latency-sensitive pipelines.** GroupChat's per-turn LLM overhead makes it inappropriate for real-time applications. A 6-agent group solving a task over 30 turns may generate 30+ speaker-selection LLM calls before producing output.
 
-**Teams without Python expertise.** The .NET SDK lags significantly. Non-Python shops will fight the framework rather than use it.
+**Workflows that need deterministic routing.** If you know at design time which agent should handle which message type, AutoGen's LLM-based speaker selection adds cost and nondeterminism for no benefit. [LangGraph](../projects/langgraph.md) or a simple state machine is more appropriate.
 
-**Workflows requiring strict state machines.** AutoGen's conversation model is flexible but not formally verifiable. If you need guaranteed execution order, rollback on failure, or audit trails, [LangGraph](../projects/langgraph.md)'s graph-based execution model with explicit state gives you more control.
+**Teams preferring a role-based, process-oriented framework.** If your domain maps cleanly to organizational roles (product manager, engineer, QA), [MetaGPT](../projects/metagpt.md) encodes that structure explicitly and provides document-passing conventions. [CrewAI](../projects/crewai.md) similarly provides role-first abstractions. AutoGen's more general conversation model means you must build that structure yourself.
 
-**Weaker models as orchestrators.** Research shows that self-organization in multi-agent systems degrades with less capable models. The MIPT study found that models below a capability threshold (insufficient self-reflection and instruction following) performed worse with autonomous coordination than with rigid role assignment. AutoGen's LLM-driven speaker selection and role negotiation assume model capability that smaller or older models lack. [Source](../raw/tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md)
+**Production deployments requiring version stability.** The 0.2-to-0.4 migration broke API compatibility entirely. If you built on 0.2 following documentation from 2023 or early 2024, upgrading requires rewriting agent definitions. The 0.4 ecosystem is less mature, with fewer tested examples.
 
 ## Unresolved Questions
 
-**Cost at scale:** AutoGen has no native token budget enforcement. Large group chats with many agents can generate enormous context windows as message history accumulates. The documentation doesn't explain how to cap costs without custom termination logic.
+**Conflict resolution in GroupChat.** When multiple agents produce contradictory outputs, there is no built-in mechanism to detect or adjudicate the contradiction. The LLM speaker selector picks who speaks next, but does not arbitrate correctness. The framework documentation does not address this.
 
-**Conflict resolution in group chat:** When the LLM-based speaker selector disagrees with the agents' own tool call outputs about who should speak next, the framework's behavior is undefined. The `GroupChatManager` implementation handles some edge cases but the resolution policy is not documented.
+**Cost at scale.** GroupChat with LLM-based speaker selection has unbounded cost for long-running tasks. Microsoft's documentation does not provide guidance on estimating or capping API spend for production deployments. Users report discovering cost problems after deployment.
 
-**Memory across sessions:** AutoGen agents maintain in-context message history only. There is no built-in persistent memory. Community integrations with [Mem0](../projects/mem0.md) and similar tools exist but are not officially maintained. For production systems needing cross-session memory, teams must build their own persistence layer.
+**Governance of the 0.4 migration.** The decision to break API compatibility between 0.2 and 0.4 is not explained in terms of migration support, timeline for deprecating 0.2, or which features will backport. Significant community usage remains on 0.2 with no clear sunset path published.
 
-**v0.2 to v0.4 migration:** The v0.4 rewrite broke API compatibility with v0.2. A large ecosystem of community extensions and tutorials targets v0.2. Microsoft has not committed to a deprecation timeline, leaving teams uncertain about which version to invest in.
+**Memory architecture.** AutoGen has no native cross-session memory. Agent state resets on each run. Integrating persistent memory (via [Mem0](../projects/mem0.md), [Zep](../projects/zep.md), or [OpenMemory](../projects/openmemory.md)) requires custom wiring. The framework provides no opinionated pattern for this. See [Agent Memory](../concepts/agent-memory.md).
 
 ## Alternatives
 
-- **[LangGraph](../projects/langgraph.md):** Use when you need deterministic execution order, explicit state management, or graph-based workflow visualization. Better for production pipelines where you need to reason about control flow formally.
-- **[CrewAI](../projects/crewai.md):** Use when you want a simpler, role-first abstraction with less configuration overhead. Less flexible than AutoGen but faster to get working for standard hierarchical agent patterns.
-- **[MetaGPT](../projects/metagpt.md):** Use for software engineering workflows specifically, with structured role assignments (PM, architect, engineer). More opinionated than AutoGen.
-- **[OpenAI Agents SDK](../projects/openai-agents-sdk.md):** Use when your stack is OpenAI-only and you want a lightweight, officially supported alternative without the multi-provider complexity.
-- **[DSPy](../projects/dspy.md):** Use when your goal is optimizing prompts and agent behavior through compilation rather than manually engineering conversation patterns.
+**Use [LangGraph](../projects/langgraph.md) when** you need deterministic, stateful workflows with explicit graph-defined routing. LangGraph gives you control over every state transition; AutoGen gives you flexibility at the cost of predictability.
+
+**Use [CrewAI](../projects/crewai.md) when** your problem maps to human-style team roles and you want a framework that encodes role-based task delegation as a first-class concept, with simpler setup than AutoGen's GroupChat.
+
+**Use [MetaGPT](../projects/metagpt.md) when** your workflow is software development specifically, and you want structured document passing (PRDs, design docs, code reviews) between role-specialized agents.
+
+**Use [OpenAI Agents SDK](../projects/openai-agents-sdk.md) when** you're OpenAI-native and want a leaner abstraction without GroupChat overhead. Handoffs between agents are explicit rather than LLM-selected.
+
+**Use raw [ReAct](../concepts/react.md) loops when** your task is single-agent and tool-calling. AutoGen's conversation overhead is unnecessary if one agent can solve the task.
 
 ## Related Concepts
 
 - [Multi-Agent Systems](../concepts/multi-agent-systems.md)
+- [Multi-Agent Collaboration](../concepts/multi-agent-collaboration.md)
 - [Human-in-the-Loop](../concepts/human-in-the-loop.md)
-- [Context Engineering](../concepts/context-engineering.md)
-- [Agent Skills](../concepts/agent-skills.md)
 - [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
-- [Model Context Protocol](../concepts/model-context-protocol.md)
+- [Context Engineering](../concepts/context-engineering.md)
+- [Loop Detection](../concepts/loop-detection.md)

@@ -3,235 +3,184 @@ entity_id: tool-registry
 type: concept
 bucket: agent-architecture
 abstract: >-
-  A catalog of available tools and their specifications that agents can query to
-  discover and invoke capabilities dynamically — distinguished by combining
-  metadata indexing, semantic retrieval, and runtime schema validation into a
-  structured intermediary between agents and their executable capabilities.
+  A Tool Registry catalogs available tools with their specifications so agents
+  can discover and select tools at runtime, enabling dynamic capability
+  expansion without hardcoding tool lists into agent prompts.
 sources:
   - articles/calmops-ai-agent-skills-complete-guide-2026-building-reus.md
   - articles/martinfowler-com-context-engineering-for-coding-agents.md
-  - deep/repos/jackchen-me-open-multi-agent.md
   - deep/papers/xu-agent-skills-for-large-language-models-architectu.md
+  - deep/repos/jackchen-me-open-multi-agent.md
 related:
   - agent-skills
-last_compiled: '2026-04-08T03:04:17.178Z'
+last_compiled: '2026-04-08T23:20:57.890Z'
 ---
 # Tool Registry
 
 ## What It Is
 
-A tool registry is the layer between an agent and the things it can do. At its simplest, it's a searchable catalog: each entry maps a tool name to its description, input schema, output format, authentication requirements, and invocation endpoint. At runtime, an agent queries the registry to discover what tools exist, retrieves the schema for a tool it wants to use, validates its parameters, and executes the call.
+A Tool Registry is a queryable catalog of tools an agent can invoke. It stores each tool's name, description, input/output schema, and metadata (version, permissions, cost, latency). At runtime, an agent queries the registry to discover which tools exist and what they do, then selects the appropriate ones for the current task.
 
-The registry pattern exists because a flat list of tool definitions injected into every prompt does not scale. Once you have more than 20-30 tools, prompt space fills up, the model's attention distributes poorly across all definitions, and selection accuracy drops. The registry solves this by keeping most tool definitions off the context window until they're needed.
-
-This is distinct from a simple tool list in three ways:
-
-1. **Discovery is separate from invocation.** The agent asks "what tools exist?" before asking "call this tool." A static list collapses these.
-2. **Schemas are fetched on demand.** Only the tools relevant to the current task get their full definitions loaded.
-3. **The registry is a runtime artifact.** It can be queried, filtered, updated, and versioned — it's not just configuration.
-
-Tool registries are part of the broader [Agent Skills](../concepts/agent-skills.md) infrastructure, which extends this pattern to full procedural packages. Where a tool registry tracks atomic function calls (inputs → outputs), a skill packages tools together with the instructions, decision logic, and context shaping needed to use them for a domain-specific task.
-
----
+The core distinction from a static tool list: tools registered at runtime, loaded selectively, not dumped wholesale into the agent's context. This matters because context space is finite, and forcing an agent to reason over 200 tool descriptions simultaneously degrades selection accuracy and burns tokens.
 
 ## Why It Matters
 
-The scale problem is empirical. Anthropic's Claude Code "Tool Search Tool" reduces token overhead for tool lookup by up to 85% compared to injecting all tool schemas at once. Tool selection accuracy jumps from 79.5% to 88.1% when agents query a registry to retrieve relevant tools rather than scanning full lists. Both figures come from Anthropic engineering reports (self-reported).
+Without a registry, tool management degrades as capability grows. A flat list injected into every prompt has three failure modes:
 
-The conceptual shift matters too. When tools live in a registry, they become first-class objects with lifecycle management: versioning, access control, health checks, usage metrics, and deprecation. This is the difference between a coding project with functions in a single file and one with a proper module system.
+1. **Context bloat**: Every tool description consumes tokens, whether or not that tool is relevant to the task
+2. **Selection degradation**: Agent accuracy choosing among tools drops significantly past roughly 20-30 options in context simultaneously
+3. **Brittleness**: Adding tools requires prompt edits, not config changes
 
----
+A registry shifts tool management from a prompt engineering problem to a data management problem. The agent asks the registry what's available; the registry returns what's relevant.
 
-## How It Works
+## Core Mechanism
 
-### Core Data Model
+### Storage
 
-Each registry entry needs at minimum:
+The registry stores tool entries. A minimal entry contains:
 
-```json
-{
-  "tool_id": "web_search",
-  "name": "web_search",
-  "description": "Search the web for current information. Use when you need facts from after your training cutoff or need to verify recent events.",
-  "version": "2.1.0",
-  "input_schema": {
-    "type": "object",
-    "properties": {
-      "query": { "type": "string", "description": "Search query" },
-      "num_results": { "type": "integer", "default": 5 }
-    },
-    "required": ["query"]
-  },
-  "output_schema": {
-    "type": "array",
-    "items": { "type": "object", "properties": { "url": {}, "snippet": {} } }
-  },
-  "tags": ["search", "web", "information"],
-  "capabilities": ["retrieval"],
-  "auth": { "type": "api_key", "env_var": "SEARCH_API_KEY" },
-  "endpoint": "https://api.example.com/search",
-  "cost_per_call": 0.001,
-  "latency_p50_ms": 400
-}
-```
+- **Name**: unique identifier (`web_search`, `execute_python`)
+- **Description**: natural-language explanation the LLM uses for selection
+- **Input schema**: typically JSON Schema or a Zod definition specifying parameter names, types, required fields
+- **Output schema**: what the tool returns
+- **Metadata**: version, permission tier, estimated latency, cost-per-call, tags
 
-The description field carries disproportionate weight. The agent uses it for routing — whether the tool gets selected depends almost entirely on whether the description matches the task. Vague descriptions produce poor selection even with accurate schemas.
+Backends range from a simple Python dict or JSON file to SQLite for persistence to a vector database for semantic retrieval.
 
-### Three-Level Progressive Disclosure
+### Registration
 
-The architecture from the [Agent Skills](../concepts/agent-skills.md) survey applies directly to registry entries:
-
-**Level 1 — Metadata (~10-15 tokens):** Name + one-line description. Always available. The agent scans these to decide which tools are candidates.
-
-**Level 2 — Schema (full input/output spec):** Loaded when a tool triggers. Injected into context for the relevant turn only.
-
-**Level 3 — Extended docs (examples, edge cases, rate limits):** Loaded on demand within tool execution when the agent needs clarification on behavior.
-
-This staging lets a registry hold hundreds of tools at Level 1 cost while only paying full schema cost for the 2-4 tools actually being used.
-
-### Discovery: How Agents Find Tools
-
-**Exact lookup:** Agent knows the tool name, fetches schema directly. Fastest path, zero ambiguity.
-
-**Semantic search:** Agent describes what it needs in natural language; the registry returns the top-k matches by embedding similarity. The registry embeds tool descriptions at registration time; queries run cosine similarity against that index. Quality depends heavily on description quality and embedding model choice. [Semantic Search](../concepts/semantic-search.md) and [Vector Database](../concepts/vector-database.md) infrastructure underlie this.
-
-**Keyword/capability filter:** Agent specifies a capability tag (`"retrieval"`, `"code_execution"`, `"file_write"`) and gets all matching tools. Useful when the agent knows the domain but not the specific tool.
-
-**Hybrid:** Filter by capability, then rank by semantic similarity within that subset. This is the pattern recommended by frameworks like [LangChain](../projects/langchain.md) and [LangGraph](../projects/langgraph.md) for medium-scale registries (50-200 tools). See [Hybrid Search](../concepts/hybrid-search.md).
-
-Frameworks like Open Multi-Agent (described in the deep analysis source) implement this via a `ToolRegistry` class that prevents duplicate registration, validates Zod schemas, and exposes filtered access by tool name set or preset capability tier.
-
-### Schema Validation
-
-Before execution, inputs get validated against the registered schema. This catches type errors, missing required fields, and out-of-range values before they reach the tool. The validation layer serves two purposes:
-
-1. **Safety:** Prevents malformed calls from hitting external APIs.
-2. **Error feedback:** When validation fails, the error message goes back to the model as a structured correction prompt rather than an exception trace.
-
-In practice (as seen in Open Multi-Agent's `ToolExecutor`): tool failures return `ToolResult(isError: true)` rather than throwing — this keeps validation failures inside the conversation loop rather than crashing the agent run. The model receives the error, self-corrects its parameters, and retries.
-
-### The Tool Search Tool Pattern
-
-Anthropic's implementation treats tool discovery itself as a tool. The agent calls `tool_search(query="what tools can read files?")` and receives a ranked list of matching tool summaries. This is cleaner than special-casing discovery in the prompt — the model uses the same `call a tool → get a result` mental model for registry queries that it uses for everything else.
-
-This approach shows up in the [Model Context Protocol](../concepts/model-context-protocol.md), which defines a `tools/list` endpoint that servers expose. MCP-compatible registries implement this endpoint; agents query it to enumerate available tools before choosing which to call. MCP separates "what tools exist and what are their schemas" (registry function) from "how to connect to the server exposing them" (protocol function).
-
-### Access Control and Tiering
-
-Production registries scope tool access by agent role:
+Tools register themselves (or are registered by the system at startup):
 
 ```python
-TOOL_PRESETS = {
-    "readonly":  {"file_read", "web_search", "code_read"},
-    "readwrite": {"file_read", "file_write", "web_search", "code_read", "code_run"},
-    "full":      ALL_TOOLS
-}
+registry.register(
+    name="web_search",
+    description="Search the web for current information. Use when the user asks about recent events or needs up-to-date data.",
+    input_schema={"query": "string", "num_results": "int"},
+    output_schema={"results": "list[SearchResult]"},
+    execute=web_search_fn,
+    tags=["information_retrieval", "network"],
+    permission_tier="read_only"
+)
 ```
 
-A reviewer agent gets `readonly`. A developer agent gets `readwrite`. This prevents a misconfigured prompt from giving a summarization agent write access to the filesystem. The Open Multi-Agent framework implements this as a three-layer filter: preset → allowlist → denylist → safety rails. Runtime-added tools via `agent.addTool()` bypass this filtering, which is a known gap.
+The description quality is critical. The agent uses descriptions to decide which tool to call. Vague or overlapping descriptions cause incorrect selection.
 
----
+### Discovery
 
-## Relationship to Adjacent Concepts
+Agents query the registry before execution. Discovery modes:
 
-**Tools vs. Skills:** Tools are atomic (input → output). Skills package tools together with procedural context. The registry tracks tools; a skill registry (like the SKILL.md ecosystem) tracks skills. They compose: a skill entry in a skill registry might reference several tool IDs that the tool registry must contain for the skill to function. [Agent Skills](../concepts/agent-skills.md) covers the skill layer.
+**Semantic search**: embed the task description, retrieve the N most similar tool descriptions by cosine similarity. Effective for large registries. Requires a [Vector Database](../concepts/vector-database.md) or embedding index alongside the registry.
 
-**Registry vs. MCP Server:** An MCP server exposes tools over a protocol. A registry catalogs them. An agent can discover that a tool exists via a registry, then invoke it via an MCP server. Some implementations collapse these — the MCP server IS the registry, since `tools/list` gives you discovery. But for multi-server setups, a registry that aggregates across servers is valuable. See [Model Context Protocol](../concepts/model-context-protocol.md).
+**Keyword/BM25**: token-overlap matching against tool names and descriptions. Cheaper than embedding, works well for registries with distinct tool names. See [BM25](../concepts/bm25.md).
 
-**Registry vs. Context Engineering:** The registry is one mechanism within [Context Engineering](../concepts/context-engineering.md). Loading only relevant tool schemas is context curation — the same principle that governs what code snippets, memory summaries, or documentation chunks go into a prompt. The registry operationalizes "don't show the model what it doesn't need right now."
+**Hybrid**: semantic retrieval reranked by keyword overlap. Best precision for large, heterogeneous tool sets. See [Hybrid Search](../concepts/hybrid-search.md).
 
-**Registry vs. Skill Book:** [SkillBook](../concepts/skill-book.md) is a specific pattern for storing and retrieving procedural skills learned from experience. A tool registry is more static — it catalogs available capabilities rather than tracking what an agent has learned to do with them.
+**Tag filtering**: the agent or orchestrator pre-filters by capability tags (`["file_system", "read_only"]`) before semantic ranking. Reduces the candidate set before the expensive embedding step.
 
----
+**Tool Search Tool**: Anthropic's implementation in Claude Code embeds a `search_tools` tool that the agent can call to query its own tool registry. This is the meta-tool pattern: the agent actively queries for capability rather than receiving it passively. Their engineering notes report up to 85% token reduction by serving only relevant tool descriptions instead of the full list.
 
-## Implementation Patterns
+### Selection and Loading
 
-### Flat Registry (Small-Scale)
+After discovery returns candidates, the registry produces a filtered list the agent receives in its prompt. Implementations differ on what gets injected:
 
-For 5-20 tools: store all schemas in a dict or file, inject all descriptions at turn start, inject schemas on demand. No search infrastructure needed.
+- **Full schema**: every parameter with types and constraints
+- **Compressed schema**: name and description only, parameters fetched on demand
+- **Progressive disclosure**: name → description → parameters → examples, staged across context levels
 
-```python
-class SimpleToolRegistry:
-    def __init__(self):
-        self._tools: dict[str, ToolDefinition] = {}
+The [Agent Skills](../concepts/agent-skills.md) architecture formalizes this as three-level loading: Level 1 metadata (~dozen tokens) always present, Level 2 full specification loaded on trigger, Level 3 resources (examples, scripts) fetched on demand. This mirrors what a Tool Registry does for tools.
 
-    def register(self, tool: ToolDefinition):
-        if tool.name in self._tools:
-            raise ValueError(f"Duplicate tool: {tool.name}")
-        self._tools[tool.name] = tool
+### Execution
 
-    def get_descriptions(self) -> str:
-        return "\n".join(f"- {t.name}: {t.description}" 
-                         for t in self._tools.values())
+The registry often doubles as a dispatcher. When the agent selects a tool and provides parameters:
 
-    def get_schema(self, name: str) -> ToolDefinition:
-        return self._tools[name]
-```
+1. Registry validates parameters against the stored schema (Zod, JSON Schema, or Pydantic depending on implementation)
+2. Routes the call to the registered `execute` function
+3. Returns structured output or a typed error
+4. Logs the call for observability
 
-### Semantic Registry (Medium-Scale)
+Schema validation before execution is not optional in production. Without it, a misformatted LLM output silently reaches the tool and produces confusing errors.
 
-For 20-200 tools: embed descriptions at registration, run similarity search on queries. LlamaIndex, LangChain's tool retrieval, or a lightweight [ChromaDB](../projects/chromadb.md) instance handle this. The registry exposes `search(query, k=5)` instead of dumping all descriptions.
+## The Phase Transition Problem
 
-### Hierarchical Registry (Large-Scale)
+The xu-agent-skills survey documents a critical empirical finding: past a critical library size, agent ability to select the correct tool from a flat list degrades sharply. This is the phase transition. The threshold depends on description quality and model capability, but it consistently appears.
 
-Past ~200 tools, flat semantic search degrades. The agent can't reliably distinguish between 15 similar tools from embedding distance alone. Organize by capability category, then search within categories. A meta-tool (`list_categories`, `search_in_category`) gives the agent a two-step path: pick the category, then pick the tool. This mirrors how humans navigate large APIs through documentation trees rather than full-text search.
+The implication: flat registries do not scale. A registry with 200 tools in a flat list will have worse selection accuracy than one with 20 tools, even if the 200-tool registry technically has the right tool for every task.
 
-The phase transition finding from the [Agent Skills](../concepts/agent-skills.md) research applies here: beyond a critical library size, routing accuracy collapses. Hierarchical organization is not optional at scale.
+The architectural response is hierarchical routing: categories → subcategories → individual tools, with the agent navigating the tree rather than scanning the leaf list. A meta-layer (sometimes called a [Meta-Agent](../concepts/meta-agent.md) or tool router) handles category selection; only the relevant category's tools get injected into the agent's working context.
 
----
+## Implementations
 
-## Failure Modes
+**Open Multi-Agent** (TypeScript): `ToolRegistry` in `framework.ts` uses a name-to-tool map, prevents duplicate registration (throws on collision), validates Zod schemas before execution, supports parallel batch execution via a semaphore (default max 4 concurrent tool calls). The `defineTool()` helper converts Zod schemas to JSON Schema via `zodToJsonSchema()` for LLM consumption.
 
-**Description drift.** A tool's behavior changes but its description doesn't. The agent selects the tool based on the old description, calls it with valid parameters, and gets unexpected results. No schema validation catches this — the inputs are structurally correct, the semantics are wrong. Fix: treat description as code; review it whenever tool behavior changes.
+**[LangChain](../projects/langchain.md)**: `ToolRegistry` or `BaseTool` list passed to agents. Tools defined as classes inheriting `BaseTool`. Selection handled by agent logic, not a dedicated registry query step. Works but doesn't solve context bloat for large tool sets.
 
-**Context injection on all tool calls.** Some implementations inject the full schema for every tool into every turn rather than fetching on demand. At 30+ tools this fills the context window, degrades attention, and increases cost. The fix is demand-loading, but many frameworks default to eager injection for simplicity. Check your framework's default behavior.
+**[LangGraph](../projects/langgraph.md)**: Tools attached to nodes or passed to `ToolNode`. Graph structure partially substitutes for dynamic discovery: the graph topology determines which tools are available at each node, reducing the selection problem to within-node scope.
 
-**Duplicate registration in multi-agent setups.** When multiple agents share a registry, concurrent registration of the same tool (e.g., during initialization) produces conflicts. The Open Multi-Agent `ToolRegistry` throws on duplicate names. Distributed registries need idempotent registration with version-based conflict resolution.
+**[Claude Code](../projects/claude-code.md)**: Implements the Tool Search Tool pattern. The `/context` command shows context consumption by component, enabling developers to see which tools consume how much space. Skills (`.claude/skills/`) extend this by providing on-demand loading of tool configurations alongside instructions.
 
-**Silent fallback on discovery failure.** If semantic search returns no results, some registries return an empty list and the agent proceeds without tools, silently degrading. Better behavior: return an error or a "no match found" message that the agent can surface rather than silently proceeding.
+**[Model Context Protocol](../concepts/model-context-protocol.md)**: Defines a standard wire format for tool registration and discovery across agent-to-server boundaries. An MCP server exposes a `list_tools` endpoint; clients query it to discover available tools. MCP handles the connectivity layer; a registry handles the selection and routing layer. They are complementary.
 
-**Trust boundary collapse.** In [Multi-Agent Systems](../concepts/multi-agent-systems.md), sub-agents sharing a tool registry can access tools their role shouldn't permit if access control is applied at the agent level rather than the registry level. A compromised sub-agent or prompt injection can escalate to tools outside its intended scope. The registry must enforce access tiers, not just trust agent-level configuration.
+**[OpenAI Agents SDK](../projects/openai-agents-sdk.md)**: Tools passed as a list to `Agent()`. No built-in dynamic discovery, but the architecture supports wrapping with a registry layer that filters the list per task.
 
----
+## Integration with Related Concepts
 
-## When Not to Use a Registry
+**[Agent Skills](../concepts/agent-skills.md)**: Skills and tool registries are related but distinct. A skill is a knowledge package that tells an agent *how* to use a set of tools for a domain. The registry tells an agent *what tools exist*. A skill might instruct the agent to query the registry for tools matching specific tags, then explains how to interpret their outputs.
 
-**Single-agent, fixed-tool workflows.** If your agent always uses the same 5 tools and the workflow is static, a registry adds indirection with no benefit. Hardcode the schemas.
+**[Context Engineering](../concepts/context-engineering.md)**: Tool registry design is a context engineering problem. Which tool descriptions to inject, at what level of detail, in what order affects agent performance significantly. The registry is infrastructure; context engineering determines how to use it.
 
-**Latency-critical paths.** Registry queries add a round-trip (or at minimum a local lookup + embedding comparison) before tool use. For sub-100ms response requirements, this overhead matters.
+**[Progressive Disclosure](../concepts/progressive-disclosure.md)**: The three-level staged loading (metadata → specification → resources) directly applies to tool registries. Load description-level summaries at planning time; load full schemas only when the tool is selected.
 
-**Untrusted tool submission.** The 26.1% vulnerability rate in community skill/tool ecosystems (from the [Agent Skills](../concepts/agent-skills.md) survey) means open registries require security gates before production use. If you can't run static analysis and semantic classification on submitted tools, don't open registration to external contributors. Data exfiltration patterns appear in 13.3% of community tools; privilege escalation in 11.8%.
+**[Multi-Agent Systems](../concepts/multi-agent-systems.md)**: Different agents in a multi-agent system need different tool subsets. A registry with permission tiers or agent-specific views handles this. The Open Multi-Agent `resolveTools()` method applies preset → allowlist → denylist filters to give each agent its appropriate tool subset.
 
----
+**[Semantic Search](../concepts/semantic-search.md)**: Large registries require semantic retrieval over descriptions. The registry description quality directly determines retrieval accuracy.
+
+## Strengths
+
+**Dynamic capability extension**: New tools register without prompt edits. Useful in systems where tool availability changes (new API credentials, user-specific integrations, environment-specific tools).
+
+**Context control**: Serving only relevant tool descriptions keeps prompts compact. Systems with hundreds of tools can operate efficiently because agents never see the full list simultaneously.
+
+**Centralized governance**: Schema validation, permission checks, rate limiting, and logging live in one place. Every tool call routes through the registry, making it the natural enforcement point.
+
+**Composability in multi-agent systems**: Each agent queries the same registry with different filters, getting role-appropriate tool subsets from shared infrastructure.
+
+## Limitations
+
+**Description quality bottleneck**: Registry effectiveness is entirely dependent on description quality. Two tools with similar descriptions cause the agent to select randomly between them. There is no automated way to detect description overlap or ambiguity.
+
+**Concrete failure mode**: In a flat registry with 50+ tools, a coding agent asked to "check if a file exists" might select `read_file`, `list_directory`, or `execute_bash` depending on which description embeds nearest to "check if file exists." All three can accomplish the task; only one is idiomatic. The agent picks based on embedding similarity against ambiguous descriptions. This produces correct-but-inefficient tool use that's invisible without execution trace analysis.
+
+**Infrastructure assumption**: Semantic discovery requires an embedding model and vector store at query time. In offline or latency-critical environments, you need a keyword fallback or pre-computed embedding indexes. The registry cannot simply be a static dict if semantic search is the primary discovery mechanism.
+
+**Schema drift**: Tool behavior can change without schema updates. The registry stores what the tool accepts and returns, not what it does. If the underlying function behavior changes but the schema doesn't, the agent receives incorrect guidance that produces valid calls with wrong results.
+
+## When Not to Use It
+
+A tool registry is overhead when the agent uses three to five well-defined tools that never change. Static tool lists injected directly into the system prompt are simpler, faster, and easier to debug for small, stable tool sets. The registry pattern pays off when: (1) tool count exceeds roughly 10-15 and selective injection is needed, or (2) tool availability changes at runtime, or (3) different agents need different tool subsets from shared infrastructure.
 
 ## Unresolved Questions
 
-**Cross-platform portability.** Tools registered for one LLM provider often have provider-specific schema conventions (Anthropic's tool_use blocks vs. OpenAI's function_calling format vs. Gemini's). Universal tool schemas don't exist. You typically maintain provider-specific serializers or use an abstraction layer like [LiteLLM](../projects/litellm.md).
+**Description authoring**: There is no standard methodology or automated tooling for writing tool descriptions that reliably produce correct selection. The field treats this as a manual craft problem.
 
-**Version conflict resolution in live systems.** When tool v2.0 breaks compatibility with v1.x and agents are mid-task, which version do they get? Most registries lack a coherent answer. Semantic versioning norms (major = breaking) are underimplemented.
+**Phase transition threshold**: The empirical finding that selection accuracy degrades past a critical registry size lacks a precise characterization. The threshold varies by model, description quality, and task distribution. No published methodology exists for determining the threshold for a specific registry.
 
-**Cost accounting.** Per-call cost metadata exists in schema specs but most registries don't enforce budgets. An agent that discovers a tool with a high `cost_per_call` has no mechanism to decline it based on budget constraints.
+**Cross-agent tool sharing**: In multi-agent systems where agents run in separate processes or machines, a centralized registry requires network access. Consistency guarantees, versioning across agents, and handling of tool updates mid-execution are architectural problems that individual framework implementations resolve differently with no emerging consensus.
 
-**Federated registries.** When registries span organizations (team A's tools, team B's tools), access control, namespace conflicts, and trust delegation become hard. No standard protocol exists for federated tool discovery beyond MCP's per-server `tools/list`.
+**Cost attribution**: When tools have per-call costs (API fees, compute), the registry is the natural place to track and enforce budgets. Few implementations include this. The question of who pays when a tool call fails after incurring cost is typically unaddressed.
 
----
+## Alternatives
 
-## Alternatives and Selection Guidance
+**Static tool list**: Inject all tool descriptions into every prompt. Simpler, works well under ~15 tools, no infrastructure required. Fails at scale due to context bloat and selection degradation.
 
-| Approach | Use when |
-|---|---|
-| Static tool list in system prompt | Fewer than 15 tools, fixed workflow |
-| Flat registry with exact lookup | 15-30 tools, agents know tool names in advance |
-| Semantic registry (embedding search) | 30-150 tools, agent needs to discover by description |
-| Hierarchical registry with meta-tools | 150+ tools, multiple domains, degraded selection at scale |
-| MCP server as registry | Tools are remote services; you want protocol-level standardization |
-| Skill registry with tool references | Tools group into procedural domains; skills, not atoms, are the right unit |
+**[Model Context Protocol](../concepts/model-context-protocol.md)**: Standardizes tool discovery over a network protocol. Use when tools live on separate servers and interoperability across agent frameworks matters. MCP handles the transport; you still need selection logic.
 
-For agent coding tools specifically ([Claude Code](../projects/claude-code.md), [Cursor](../projects/cursor.md), [Windsurf](../projects/windsurf.md)): these implement their own registry patterns internally, and the MCP integration layer is the practical interface. You configure which MCP servers expose tools; the coding agent handles discovery internally.
+**Hardcoded agent specialization**: Give each agent a fixed, small tool set appropriate to its role. Eliminates discovery overhead. Use when agent roles are stable and the tool set per role is small. Breaks when agents need to dynamically expand capabilities.
 
-For custom agent builds with [LangGraph](../projects/langgraph.md) or [OpenAI Agents SDK](../projects/openai-agents-sdk.md): both provide tool registration primitives. LangGraph's tool node handles schema validation; OpenAI's SDK handles function_calling format translation. Neither provides built-in semantic search — you add that layer with a vector store if needed.
+**[Agent Skills](../concepts/agent-skills.md)**: Use when tools need to be bundled with usage instructions and domain context, not just schemas. Skills solve "how to use this tool correctly" alongside "what tools exist."
+
+Select a Tool Registry when tool count exceeds 10-15, tool availability varies by context or user, or multiple agents with different permission levels share infrastructure.
 
 
 ## Related
 
-- [Agent Skills](../concepts/agent-skills.md) — part_of (0.7)
+- [Agent Skills](../concepts/agent-skills.md) — implements (0.7)

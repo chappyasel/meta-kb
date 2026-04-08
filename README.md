@@ -107,11 +107,11 @@ Both paths produce the same output structure. Run both for a comparison diff bet
 <!-- stats:start (auto-updated by bun run compile) -->
 ## Stats
 
-- **Sources:** 135 curated (29 tweets, 70 repos, 13 papers, 23 articles) + 57 deep research files
+- **Sources:** 142 curated (31 tweets, 71 repos, 16 papers, 24 articles) + 57 deep research files
 - **Taxonomy:** 6 buckets (knowledge substrate, agent memory, context engineering, agent architecture, multi-agent systems, self-improving systems)
-- **Wiki:** 129 articles (6 synthesis, 67 project cards, 55 concept explainers, field map, indexes)
+- **Wiki:** 155 articles (6 synthesis, 87 project cards, 61 concept explainers, field map, indexes)
 - **Deep research:** 157K words of source-code-level analysis
-- **Self-eval:** 263 atomic claims extracted, sampled and verified against sources each compilation
+- **Self-eval:** 268 atomic claims extracted, sampled and verified against sources each compilation
 - **Compilation:** Script pipeline (`bun run compile`) or agent skill graph (`.claude/skills/compile-wiki/`)
 <!-- stats:end -->
 

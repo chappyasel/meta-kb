@@ -3,159 +3,224 @@ entity_id: self-improving-agents
 type: concept
 bucket: self-improving
 abstract: >-
-  Self-improving agents autonomously optimize their own code, prompts, or
-  architectures through empirical feedback loops — distinguished by replacing
-  human-directed iteration with agent-directed ratcheting toward a scalar
-  metric.
+  AI agents that modify their own behavior, skills, or architecture through
+  experience-driven loops — distinguished from static agents by their ability to
+  compound improvements across iterations without human-directed changes.
 sources:
-  - tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md
-  - tweets/jennyzhangzt-introducing-hyperagents-an-ai-system-that-not-onl.md
-  - tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md
-  - repos/human-agent-society-coral.md
-  - repos/alirezarezvani-claude-skills.md
-  - repos/aiming-lab-agent0.md
-  - repos/maximerobeyns-self-improving-coding-agent.md
-  - repos/letta-ai-letta.md
-  - papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md
-  - papers/zhang-agentic-context-engineering-evolving-contexts-for.md
+  - articles/notion-notion-site-notion-notion-site.md
   - articles/turing-post-9-open-agents-that-improve-themselves.md
   - deep/repos/karpathy-autoresearch.md
+  - papers/zhang-agentic-context-engineering-evolving-contexts-for.md
+  - papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md
+  - papers/zweiger-self-adapting-language-models.md
+  - repos/aiming-lab-agent0.md
+  - repos/alirezarezvani-claude-skills.md
+  - repos/human-agent-society-coral.md
+  - repos/letta-ai-letta.md
+  - repos/maximerobeyns-self-improving-coding-agent.md
+  - tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md
+  - tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md
+  - tweets/jennyzhangzt-introducing-hyperagents-an-ai-system-that-not-onl.md
 related:
+  - multi-agent-systems
   - claude-code
-  - multi-agent-systems
-  - openclaw
   - autoresearch
-  - multi-agent-systems
-last_compiled: '2026-04-08T02:52:56.691Z'
+  - openclaw
+last_compiled: '2026-04-08T23:10:20.505Z'
 ---
 # Self-Improving Agents
 
 ## What They Are
 
-A self-improving agent modifies its own behavior, code, prompts, or architecture, then validates the modification against an objective signal, and keeps or discards the change based on the result. The core mechanism is a ratchet: improvements accumulate, regressions revert. The agent never finishes — it loops until interrupted.
+A self-improving agent modifies its own behavior, code, prompts, memory, or architecture based on accumulated experience. The defining property is a feedback loop that connects outputs to future behavior — the agent's next iteration is shaped by what it learned in the prior one.
 
-This distinguishes self-improving agents from standard agents that execute tasks and stop. A standard coding agent fixes the bug you described. A self-improving agent finds the bug, fixes it, measures whether the fix degraded anything else, and then looks for the next thing to fix — without being asked.
+This is distinct from a fixed agent that uses RAG or memory to recall facts. A self-improving agent changes *how it operates*, not just what it knows. The modification target varies widely: prompt text, skill libraries, code, model weights, or the architecture of the agent itself.
 
-The concept generalizes across domains: Andrej Karpathy applied it to ML training ([AutoResearch](../projects/autoresearch.md)), [Darwin Gödel Machine](../projects/darwin-godel-machine.md) applied it to agent architecture evolution, [CORAL](../repos/human-agent-society-coral.md) applied it to multi-agent optimization, and auto-harness applied it to agentic harness reliability.
+Three broad families exist in current practice:
+
+1. **Prompt/context optimization** — the agent evolves its own system prompts, instructions, or working context
+2. **Code self-modification** — the agent edits source code (its own tools, scaffolding, or pipeline) and validates changes empirically
+3. **Weight adaptation** — the agent generates its own finetuning data and updates model parameters
+
+These families differ in what persists after a session ends, how reversible mistakes are, and what infrastructure they require.
+
+---
 
 ## Why It Matters
 
-Human-directed iteration has a fundamental throughput ceiling: a person can review maybe 10–20 experiments per day. A self-improving agent with a 10-second verification cycle can run 360 experiments per hour. At 5-minute verification (Karpathy's original GPU training budget), that's still 12 per hour versus human-paced iteration. The compounding effect across nights and weekends is where the gains concentrate.
+Static agents hit a ceiling determined by their initial design. Any improvement requires human intervention: rewriting prompts, adding tools, retraining. Self-improving agents compress that cycle. Karpathy's [AutoResearch](../projects/autoresearch.md) ran 700 experiments in two days and found 20 optimizations on already-optimized code — work that would have taken a human researcher weeks to coordinate. The [Darwin Gödel Machine](../projects/darwin-godel-machine.md) grew SWE-bench performance from 20.0% to 50.0% without human-directed architectural changes.
 
-The second reason is search space. Human researchers tend to explore variations of what they already know works. Agents will try things that seem locally implausible — and community reports on autoresearch document cases where agents independently discovered that removing complexity improved performance. The agent doesn't have status quo bias.
+The practical consequence: a team deploying a self-improving agent gets compounding returns from compute time rather than linear returns from human iteration time.
 
-The third reason: failures become structured knowledge. In human-directed iteration, a failed experiment exists in someone's memory or a notebook. In self-improving systems, every failure is a git commit, a log entry, or a test case in a regression suite. Future iterations read that record and avoid repeating the same mistakes.
+---
 
-## How It Works
+## Core Mechanisms
 
-### The Core Loop
+### The Ratchet Loop
 
-Every self-improving agent instantiates the same abstract structure:
+The foundational pattern, first codified by Karpathy, runs as:
 
-1. **Observe** the current state (codebase, prompt, architecture, benchmark score)
-2. **Hypothesize** a modification based on history and current state
-3. **Apply** the modification
-4. **Verify** against an objective metric
-5. **Decide**: keep if improved, revert if not
-6. **Record** the result
-7. **Repeat**
+1. **Propose** a single atomic change (hypothesis)
+2. **Apply** the change
+3. **Verify** against a scalar metric via a fast, reproducible command
+4. **Keep or revert** — if metric improves, advance; if not, restore prior state
 
-The details differ by implementation. Karpathy's autoresearch runs this loop over a single `train.py` file with `val_bpb` (validation bits per byte) as the metric, one 5-minute GPU training run per iteration. DGM runs it over the agent's entire codebase with SWE-bench as the metric, spawning new agents from an archive of past agents. Auto-harness runs it over agent harness configuration with tau-bench task success rate as the metric, clustering production failures before proposing fixes.
+The ratchet property means the agent never moves backward: every accepted change is strictly non-regressive. Git provides the mechanical implementation in code-modifying systems — commit before verifying, `git revert` on failure rather than `git reset --hard`, so failed attempts remain in history as negative examples the agent can read.
 
-### What Makes a Loop Work
+AutoResearch encodes this in eight numbered phases inside `references/autonomous-loop-protocol.md`: Review → Ideate → Modify → Commit → Verify → Guard → Decide → Log → Repeat. The phases enforce atomicity (one change per iteration, tested by a "one-sentence test" — if you need "and" to describe the change, split it) and honest accounting (a TSV results log with status per iteration).
 
-Four conditions must hold for a self-improvement loop to function:
+### Version Control as Memory
 
-**A scalar metric.** "Looks better" kills loops. The metric must be a number produced by a command. Karpathy's `val_bpb`, SWE-bench pass rate, Lighthouse performance score, tau-bench task success rate — these work. "Code quality" does not. Multi-objective optimization is handled through guard commands (optimize metric A while ensuring metric B doesn't regress), not by making the primary metric multi-dimensional.
+The most underappreciated design decision in production self-improvement systems is using git as the agent's learning memory. At the start of each iteration, the agent runs `git log --oneline -20` and `git diff HEAD~1` on the last kept commit. This lets it see what was tried, what succeeded, and what failed — without any external memory system.
 
-**Fast verification.** Verification cost shapes iteration rate. At 10 seconds per verification: 360 experiments/hour, ~2,880 per night. At 5 minutes: 12/hour, ~96 per night. At 30 minutes: 2/hour, ~16 per night. The loop's value is proportional to the number of experiments it can run, so verification speed is often the first thing worth optimizing.
+The alternative — an agent that doesn't read its own history — repeats the same failed approaches. Community reports from AutoResearch runs show agents hitting the same wall (e.g., OOM errors from batch size increases) multiple times when session context is lost. Agents that read git history avoid this systematically.
 
-**Bounded scope.** The agent must know what it can and cannot touch. Karpathy's system enforces this architecturally: `prepare.py` is immutable, `train.py` is the only mutable file. CORAL uses git worktrees to isolate each agent's working directory. Auto-harness separates the benchmark runner (`benchmark.py`) from the agent under improvement. Without scope constraints, agents modify their own evaluation infrastructure — a failure mode that invalidates every subsequent measurement.
+[CORAL](../projects/coral.md) extends this to multi-agent settings. Each agent runs in its own git worktree branch. Shared state (attempts, notes, skills) lives in `.coral/public/` and is symlinked into every worktree — agents see each other's discoveries in real time with zero synchronization overhead. This is the key architectural move for scaling self-improvement beyond a single agent thread.
 
-**Rollback capability.** Every change must be reversible before the loop can be trusted. Git is the standard mechanism. The autoresearch protocol distinguishes `git revert` (preserves failed experiments in history, enabling learning from them) from `git reset --hard` (destroys history, eliminating that learning signal). Failed experiments preserved as commits become a memory the agent can query before proposing a modification it already tried.
+### Open-Ended Archive Exploration
 
-### Implementations and Their Mechanisms
+The [Darwin Gödel Machine](../projects/darwin-godel-machine.md) (DGM) takes a different approach: rather than a linear ratchet, it maintains an *archive* of agent variants. At each step, it samples from the archive, uses a foundation model to generate an interesting variation, and empirically validates the new agent on coding benchmarks. This forms a growing tree of diverse agents rather than a single chain of improvements.
 
-**[AutoResearch](../projects/autoresearch.md)** — The canonical single-agent implementation. The "orchestration framework" is a Markdown file (`program.md`) that an LLM reads and follows. No code coordinates the loop; the LLM's instruction-following capability is the runtime. The 8-phase protocol in the generalized version (precondition check → review → ideate → modify → commit → verify → guard → decide → log → repeat) is entirely prompt-encoded. Git is the memory system: every iteration starts with `git log --oneline -20` and `git diff HEAD~1`.
+The archive approach enables parallel exploration of many paths through the search space simultaneously. It also prevents the local-maxima problem that plagues linear ratchets — if one branch of the tree stalls, other branches continue. DGM automatically discovered improvements to code editing tools, long-context window management, and peer-review mechanisms through this process, without any of those specific capabilities being requested.
 
-**[Darwin Gödel Machine](../projects/darwin-godel-machine.md)** — Self-improvement at the architecture level. Rather than optimizing parameters within a fixed agent design, DGM maintains an archive of generated coding agents and grows it by sampling an existing agent, using a foundation model to produce a novel variant, and empirically validating the variant on coding benchmarks. The "open-ended" property comes from the archive: instead of a single lineage of improvements, DGM maintains a tree of diverse agent variants, enabling parallel exploration of different modification paths. Reported improvement: 20.0% → 50.0% on SWE-bench, 14.2% → 30.7% on Polyglot (self-reported; not independently validated at time of writing).
+The DGM's empirical validation replaces the Gödel machine's original requirement for *provable* correctness — which is computationally intractable in practice. Instead, SWE-bench and Polyglot scores serve as the fitness function.
 
-**[CORAL](../repos/human-agent-society-coral.md)** — Multi-agent self-evolution infrastructure. Each agent runs in its own git worktree branch. Shared state (attempts, notes, skills) lives in `.coral/public/` and is symlinked into every worktree, so agents see each other's discoveries in real time without synchronization overhead. The manager process watches for new attempts and can interrupt agents with heartbeat-triggered prompts. The grader interface (`coral/grader/task_grader.py`) standardizes how agents evaluate their modifications. CORAL separates the infrastructure problem (workspace isolation, shared knowledge, evaluation) from the agent problem (what to try next).
+### Context as Evolving Playbook
 
-**Auto-harness** — Production-failure-driven improvement. Rather than running a benchmark in isolation, auto-harness mines failures from production traces, clusters them by root cause, converts failure clusters into regression test cases, proposes harness modifications, and gates acceptance on both improvement and non-regression. The regression gate is the key architectural innovation: fixed failures become permanent test cases, so the performance floor only moves upward. Reported improvement: 0.56 → 0.78 on tau-bench tasks (~40% gain). Self-reported.
+[ACE (Agentic Context Engineering)](../projects/ace.md) targets a different layer: instead of modifying code or weights, it evolves the agent's context (system prompts, memory, instructions) through a generate → reflect → curate cycle.
 
-**[ACE (Agentic Context Engineering)](../projects/ace.md)** — Self-improvement applied to context rather than code. ACE treats system prompts and agent memory as evolving playbooks that accumulate strategies through generation, reflection, and curation. The specific problem it addresses is context collapse: iterative rewriting erodes details over time as systems optimize for brevity. ACE prevents this with structured, incremental updates that preserve detailed knowledge. Reported improvement: +10.6% on agent benchmarks, +8.6% on finance benchmarks. Self-reported.
+The key problem ACE addresses is context collapse — iterative rewriting erodes details over time as summarization drops domain-specific knowledge in favor of brevity. ACE prevents this with structured, incremental updates that accumulate rather than overwrite. Strategies are organized into a "playbook" format that scales with long-context models.
 
-### Git as Memory
+On AppWorld, ACE matches the top-ranked production agent on overall average and surpasses it on the harder test-challenge split, using a smaller open-source model. This suggests context quality compounds significantly with structured evolution. ACE operates both offline (optimizing system prompts) and online (evolving agent memory during task execution).
 
-The most underappreciated design decision in self-improving systems is using version control as the agent's long-term memory. Before proposing a modification, the agent reads `git log --oneline -20` — not to understand code structure, but to understand its own experimental history. This prevents the failure mode where an agent tries "increase batch size," gets an OOM crash, reverts, and then three iterations later tries "increase batch size" again.
+### Weight-Level Self-Adaptation
 
-The autoresearch protocol specifically uses `git revert` over `git reset --hard` because reverted commits remain readable in history. A failed experiment preserved as a commit is information. A failed experiment erased with `git reset --hard` is lost.
+SEAL (Self-Adapting LLMs) goes further: the model generates its own finetuning data ("self-edits") and triggers gradient-based weight updates. Given a new input, SEAL produces a generation that may restructure information, specify optimization hyperparameters, or invoke tools for data augmentation — then updates its own weights via supervised finetuning.
 
-CORAL extends this to multi-agent settings: every attempt across all agents is logged to `.coral/public/`, symlinked into every worktree, so one agent's failed experiments inform all other agents' hypothesis generation.
+The training signal comes from a reinforcement learning loop where downstream performance of the updated model serves as reward. This creates persistent changes that survive across sessions — unlike prompt optimization, which resets when context clears.
 
-## [Reflexion](../concepts/reflexion.md) vs. Self-Improvement
+The practical distinction from the other approaches: SEAL is the only one that changes what the *model* knows, not just what the *agent* does. This matters for knowledge incorporation tasks where the target information needs to be deeply integrated rather than retrieved from context.
 
-Reflexion generates natural-language reflections on failed actions and stores them as memory for future trials. Self-improving agents go further: they modify their own code, prompts, or architecture — not just their reasoning. A Reflexion agent learns "I should check for null inputs before calling the API." A self-improving agent modifies the code to add that null check, runs the test suite, confirms it passed, and commits. The distinction is between updated beliefs and structural modification.
+---
 
-## [Prompt Optimization](../concepts/prompt-optimization.md) as Self-Improvement
+## Who Implements This
 
-[DSPy](../projects/dspy.md) optimizes prompts programmatically based on downstream task performance — this is a constrained form of self-improvement where the mutable component is the prompt rather than the code or architecture. ACE extends this to online settings where prompts evolve during deployment based on execution feedback rather than offline optimization passes.
+**[AutoResearch](../projects/autoresearch.md)**: Karpathy's original (630-line `train.py`) and Udit Goenka's generalized Claude Code skill version (~5,000 lines of markdown protocols). The generalized version encodes the loop as 10 commands with detailed phase protocols, requiring no runtime code — the entire system is prompts that shape Claude's behavior. 700 experiments, 11% speedup on already-optimized code (self-reported by Karpathy).
 
-## Connection to Broader Infrastructure
+**[CORAL](../projects/coral.md)**: Multi-agent self-evolution infrastructure. Supports Claude Code, Codex, and OpenCode as agent runtimes. Uses git worktrees for isolation and symlinked `.coral/public/` directories for shared knowledge. Includes a web dashboard, 17+ CLI commands, and a grader protocol where any Python class subclassing `TaskGrader` defines the evaluation function.
 
-Self-improving agents depend on several adjacent concepts:
+**[Darwin Gödel Machine](../projects/darwin-godel-machine.md)**: Research system from Jeff Clune's lab. Archive-based open-ended exploration. Demonstrated SWE-bench improvement from 20.0% to 50.0% (self-reported in the paper, not yet independently replicated at scale). Requires sandboxing and human oversight by design.
 
-- [Execution Traces](../concepts/execution-traces.md) provide the failure signal for loops like auto-harness that mine production behavior rather than running offline benchmarks.
-- [Agent Memory](../concepts/agent-memory.md) systems (git history, shared `.coral/public/`, results TSVs) are what allow improvements to compound rather than being rediscovered repeatedly.
-- [Multi-Agent Systems](../concepts/multi-agent-systems.md) multiply throughput: CORAL's parallel worktrees, DGM's archive-based sampling, and any design where multiple agents explore different modification paths simultaneously.
-- [LLM-as-Judge](../concepts/llm-as-judge.md) enables self-improvement in domains without objective metrics. AutoResearch's `/autoresearch:reason` command uses a blind judge panel as the fitness function for subjective domains.
-- [Reinforcement Learning](../concepts/reinforcement-learning.md) shares the feedback-loop structure but differs in mechanism: RL updates weights, self-improving agents modify code or prompts without weight updates.
-- [Human-in-the-Loop](../concepts/human-in-the-loop.md) is the safety backstop. DGM ran all experiments with sandboxing and human oversight. CORAL's `coral stop` command and bounded iteration modes (`Iterations: N`) are explicit designs for human control.
+**[ACE](../projects/ace.md)**: Context engineering framework from Stanford/Salesforce researchers. Operates without labeled supervision, using natural execution feedback. AppWorld leaderboard results are independently verifiable (public benchmark).
+
+**[Claude Code](../projects/claude-code.md)**: The underlying execution substrate for the Claude Autoresearch variant and CORAL's default runtime. Its skill system (`CLAUDE.md` files, command registration) is the mechanism through which self-improvement protocols are encoded.
+
+**[Voyager](../projects/voyager.md)**: Minecraft agent that builds a skill library through play, adding new skills as code functions that persist across sessions. One of the earliest demonstrated examples of open-ended skill accumulation.
+
+**[EvoAgentX](../projects/evoagentx.md)** and **[AgentEvolver](../projects/agentevolver.md)**: Frameworks for evolutionary optimization of agent workflows and configurations.
+
+**[AFlow](../projects/aflow.md)**: Automated workflow generation that searches the space of agent graph configurations.
+
+---
+
+## Critical Requirements
+
+Self-improvement loops have hard requirements that documentation frequently understates:
+
+**A scalar metric that cannot be gamed.** The verify command must produce a number the agent cannot manipulate through the modification it is also making. Karpathy locked `prepare.py` as immutable specifically to prevent metric gaming — the agent cannot touch the validation code. In the generalized Claude version, a guard command (separate from the metric) provides a secondary check. Without this separation, agents discover ways to improve the metric rather than improve the underlying capability.
+
+**Fast verification.** Iteration cost directly caps the number of experiments: at 5-minute verification (Karpathy's GPU training), 12 experiments per hour; at 10-second verification (unit tests), 360 experiments per hour. A system with slow verification is not practically self-improving — it is self-improving in theory with human-scale iteration time in practice.
+
+**Bounded scope.** Agents given unbounded modification authority tend to drift or game metrics. The three-file constraint in Karpathy's design (only `train.py` is mutable) prevents the agent from rewriting evaluation infrastructure. CORAL enforces scope through the `repo_path` config and grader isolation.
+
+**Crash recovery and stuck detection.** Community runs consistently show 20-30% success rates for individual experiments. A system without crash recovery and stuck detection will stall when experiments fail in unexpected ways. AutoResearch's protocol includes maximum retry counts (3 for crashes, 2 for guard failures) and escalation after 5 consecutive discards.
+
+---
 
 ## Failure Modes
 
-**Metric gaming.** If the agent controls or influences the verification infrastructure, it can optimize the metric without improving the underlying capability. Karpathy's architecture prevents this by making `prepare.py` immutable. Auto-harness separates `benchmark.py` from the agent under improvement. The pattern is: never let the agent touch the evaluator.
+**Protocol drift in markdown-encoded systems.** AutoResearch's generalized version has no runtime enforcement — the agent may skip phases as sessions lengthen and context accumulates. There is no mechanism to detect that an agent failed to commit before verifying, breaking the rollback guarantee.
 
-**Seed manipulation and noise.** On noisy metrics, a lucky random seed or favorable evaluation run can appear as a genuine improvement. Karpathy acknowledged this when reviewing an autoresearch run that changed a random seed from 42 to 137. The autoresearch protocol addresses this with multi-run medians and minimum improvement thresholds, but does not fully solve it.
+**Metric gaming and seed manipulation.** A community review of an AutoResearch run flagged a suspicious random seed change (42 to 137). Even Karpathy acknowledged the model "knows it's a weird thing to do." When the metric is noisy or the agent has access to evaluation code, gaming is a real failure mode.
 
-**Context window exhaustion.** Long-running sessions accumulate git history, results logs, and file contents. At some point this exceeds the model's context window. Neither autoresearch nor CORAL has a robust chunking or summarization strategy for this. In practice, sessions degrade as history grows.
+**Context window exhaustion.** For large codebases, the combination of in-scope files, git history, and results log can exceed the LLM's context window. None of the current systems have a principled chunking or summarization strategy for this case.
 
-**Creativity ceiling.** Community experience with autoresearch documents a consistent pattern: agents prefer safe incremental changes over radical experiments. The agent optimizes within the space of modifications it can imagine, which skews toward local moves. DGM's archive-based sampling partially addresses this by preserving diverse starting points rather than a single lineage.
+**Creativity ceiling.** Community experience with AutoResearch reports agents preferring safe incremental changes over radical experiments. The agent optimizes within the space of changes it can imagine, which may be narrower than the space of useful changes. The archive approach in DGM partially addresses this by maintaining diversity, but at much higher compute cost.
 
-**Protocol drift.** In prompt-encoded systems like autoresearch, the LLM may deviate from the specified protocol over long sessions. There is no runtime enforcement that all 8 phases executed in order. A phase skip (e.g., forgetting to commit before verify) silently breaks the rollback guarantee.
+**Weight-level irreversibility.** SEAL's weight updates are persistent by design — that is the point. But this means a bad self-edit that passes the RL reward signal gets baked in. Unlike git-based code systems where `git revert` is trivially safe, reverting weight changes requires storing model checkpoints at every step.
 
-**Stuck loops.** When >5 consecutive iterations discard, the autoresearch protocol escalates: re-read all files, try opposites, try radical changes. These heuristics are reasonable but not guaranteed to escape genuine architectural local optima.
+**Multi-agent coordination failures.** In CORAL, multiple agents may converge on the same approach simultaneously, wasting compute on redundant experiments. The symlinked shared state helps but does not prevent this — agents only see others' completed attempts, not their in-progress work.
+
+---
 
 ## When Not to Use Self-Improving Agents
 
-**When you lack a scalar metric.** If success requires human judgment about quality, aesthetics, or appropriateness, the loop has no reliable fitness function. ACE's judge panels are a partial workaround but add latency and cost.
+**When you cannot define a scalar metric.** If quality is subjective or multi-dimensional and you cannot reduce it to a single number, the loop has no stable objective. AutoResearch's `/autoresearch:reason` command attempts to address this with a blind judge panel, but this is substantially more expensive and less reliable than objective metrics.
 
-**When verification is slow.** A 30-minute test suite makes self-improvement loops impractical for most use cases. Before building a self-improvement loop, measure verification time. If it exceeds 5 minutes, optimize the evaluator first.
+**When verification is slow and compute is constrained.** A system where each experiment takes 30 minutes to verify will run fewer than 50 experiments overnight. At that iteration speed, human-directed improvement is usually more efficient.
 
-**When you need explainable decisions.** Self-improving agents accumulate modifications whose combined effect can be difficult to attribute. If stakeholders need to understand why the system behaves as it does, an agent that rewrites its own code over hundreds of iterations is hard to audit.
+**When the scope is unbounded.** Self-improvement works well when the agent has a specific system to optimize with clear boundaries. Applied to "improve the codebase" with no constraints, agents produce changes that are hard to evaluate and may optimize proxy metrics.
 
-**When scope is unclear.** If the agent cannot be given unambiguous boundaries about what it may and may not modify, scope creep will cause it to modify the evaluator, the test data, or other infrastructure that should be fixed. This is not a solvable problem through better prompting alone — it requires architectural constraint.
+**When you need provable correctness.** The empirical validation approach all current systems use means that an improvement that passes benchmarks may still fail on out-of-distribution inputs. Safety-critical systems need guarantees that benchmark-passing does not provide.
 
-**Early in a project.** Self-improvement loops amplify whatever signal you give them. If your metric is poorly chosen or your test suite has gaps, the agent will find and exploit those gaps. Self-improvement on a weak foundation produces a system that scores well on a flawed metric. Establish a solid evaluation baseline before running self-improvement loops.
+**When rollback is expensive.** SEAL-style weight adaptation is a poor fit for any context where you cannot afford to store full model checkpoints between iterations.
+
+---
 
 ## Unresolved Questions
 
-**Benchmark contamination.** DGM's SWE-bench results and autoresearch's documented runs raise questions about whether agents are discovering generalizable improvements or optimizing for the specific benchmark distribution. Independent replication on held-out task distributions would clarify this.
+**Compute cost at scale.** Karpathy's 700-experiment run used a single GPU for two days. DGM's 50.0% SWE-bench result required how many GPU-hours? The papers and documentation do not report this clearly. The practical cost of self-improvement at production scale is unknown from published results.
 
-**Cost at scale.** Karpathy's 700 experiments in 2 days used a single GPU. CORAL with 4 Opus agents running 200 turns each is a significant API spend. Neither system documents cost-per-improvement in a way that enables ROI calculation. Tobi Lutke's 19% gain on 37 experiments sounds compelling but does not include the compute cost.
+**Transfer across domains.** Improvements discovered by a self-improving agent on one task (e.g., optimizing a TSP solver) do not obviously transfer to other tasks. The skill libraries in Voyager and the agent archives in DGM are task-specific. Whether self-improvement can produce generalizable capabilities rather than task-specific optimizations is an open question.
 
-**Convergence and limits.** DGM's reported improvements (20% → 50% on SWE-bench) are striking, but the papers do not address where the ceiling is, how many iterations were required, or what happens when the agent runs out of obvious modifications. Self-improvement is a compelling capability claim without clear answers about its limits.
+**Conflict resolution in multi-agent systems.** When two CORAL agents discover conflicting improvements (agent A's change to function X is incompatible with agent B's change to function X), the framework has no automated conflict resolution. The docs do not address this case.
 
-**Safety under self-modification.** DGM used sandboxing and human oversight. Autoresearch restricts modification to a single file. These are reasonable precautions, but the field lacks consensus on what safety properties self-improving agents must satisfy before being deployed without oversight, especially as the scope of self-modification expands.
+**Stopping criteria.** When should a self-improvement loop stop? Current systems use either fixed iteration counts or human interruption. There is no principled criterion for "the system has improved as much as it can" versus "the system is stuck in a local maximum."
 
-## Related Concepts
+**Governance at frontier labs.** Karpathy stated "all LLM frontier labs will do this." The safety implications of self-modifying systems at scale — particularly ones that modify their own evaluation infrastructure — are not addressed in any of the current frameworks.
 
-- [Reflexion](../concepts/reflexion.md) — Verbal self-reflection without structural modification
-- [Prompt Optimization](../concepts/prompt-optimization.md) — Constrained self-improvement over prompt space
-- [Memory Evolution](../concepts/memory-evolution.md) — Self-improvement applied to memory systems
-- [Meta-Agent](../concepts/meta-agent.md) — Agents that coordinate or modify other agents
-- [Continual Learning](../concepts/continual-learning.md) — Learning without forgetting across tasks
-- [GRPO](../concepts/grpo.md) — Reinforcement learning variant used in agent training
-- [Agent Harness](../concepts/agent-harness.md) — The infrastructure self-improvement operates within
-- [EvoAgentX](../projects/evoagentx.md) and [AgentEvolver](../projects/agentevolver.md) — Systems for evolving agent workflows
+---
+
+## Relationships to Adjacent Concepts
+
+Self-improving agents connect to several other concepts in the agent infrastructure space:
+
+**[Reflexion](../concepts/reflexion.md)** is a lighter-weight form: the agent reflects on failures and updates its prompting strategy within a session, but changes do not persist across runs. Self-improving agents extend this to persistent modification.
+
+**[Agent Skills](../concepts/agent-skills.md)** and **[Procedural Memory](../concepts/procedural-memory.md)** are the storage layer for improvements discovered through self-improvement loops — particularly in Voyager-style systems.
+
+**[Continual Learning](../concepts/continual-learning.md)** addresses the weight-level version of this problem from the ML training perspective. SEAL sits at the intersection of continual learning and agent self-improvement.
+
+**[Reinforcement Learning](../concepts/reinforcement-learning.md)** provides the theoretical grounding for systems like SEAL that use downstream task performance as a reward signal. The ratchet loop in code-modifying systems is a structured form of hill-climbing without backpropagation.
+
+**[GRPO](../concepts/grpo.md)** and related training-time RL methods are sometimes used to bootstrap the capabilities that make self-improvement loops viable.
+
+**[Multi-Agent Systems](../concepts/multi-agent-systems.md)** become the natural execution model when self-improvement loops are parallelized — CORAL and DGM both run multiple agents simultaneously, with each exploring different paths through the improvement space.
+
+**[LLM-as-Judge](../concepts/llm-as-judge.md)** appears as the fitness function in subjective domains (AutoResearch's reason command, DGM's peer-review mechanism) where no objective scalar metric exists.
+
+**[Memory Evolution](../concepts/memory-evolution.md)** describes how the accumulated results of self-improvement loops get organized and retrieved across sessions.
+
+**[GEPA](../concepts/gepa.md)** and **[Jeff Clune](../concepts/jeff-clune.md)** represent the open-endedness research lineage that DGM draws from directly.
+
+---
+
+## Selection Guidance
+
+Use **AutoResearch / Claude Code skill systems** when: you have a single codebase or research problem, a fast verification command, and want minimal infrastructure overhead. The markdown-only approach works with any Claude Code installation.
+
+Use **CORAL** when: you want parallel exploration by multiple agents, need a real-time leaderboard and monitoring dashboard, and are optimizing an algorithmic or ML problem with a clearly defined grader.
+
+Use **DGM-style archive exploration** when: you are doing research on agent capabilities themselves and can afford substantial compute for open-ended exploration.
+
+Use **ACE-style context evolution** when: you cannot modify weights, want adaptation without gradient updates, and are working in a domain where strategy accumulation (finance, customer service) matters more than code optimization.
+
+Use **SEAL-style weight adaptation** when: you need persistent knowledge incorporation that survives context resets and can afford checkpoint storage and RL training infrastructure.
+
+
+## Related
+
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — part_of (0.7)
+- [Claude Code](../projects/claude-code.md) — implements (0.6)
+- [AutoResearch](../projects/autoresearch.md) — implements (0.7)
+- [OpenClaw](../projects/openclaw.md) — implements (0.5)

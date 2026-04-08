@@ -3,114 +3,119 @@ entity_id: termination-bench
 type: project
 bucket: agent-architecture
 abstract: >-
-  TerminalBench is a benchmark suite for evaluating LLM agents on real
-  terminal/command-line tasks; its key differentiator is that harness
-  engineering alone (not model weights) moves scores by 20+ ranking positions.
+  TerminalBench is a benchmark for evaluating LLM agents on real command-line
+  tasks; its key differentiator is measuring full end-to-end agentic capability
+  in a live terminal environment, not code generation in isolation.
 sources:
-  - tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md
-  - papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
   - articles/x-twitter-meta-agent-continual-learning-for-agents.md
-  - deep/repos/gepa-ai-gepa.md
   - deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
+  - deep/repos/gepa-ai-gepa.md
+  - papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
+  - tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md
 related:
   - agent-harness
-  - prompt-optimization
   - retrieval-augmented-generation
   - claude
-  - model-context-protocol
-last_compiled: '2026-04-08T03:05:37.337Z'
+  - prompt-optimization
+last_compiled: '2026-04-08T23:22:53.180Z'
 ---
 # TerminalBench
 
 ## What It Is
 
-TerminalBench is a benchmark for measuring LLM agent performance on terminal-based task completion. The core version tests general command-line competence; TerminalBench-2 targets harder challenges. The benchmark gained traction in early 2026 as a proving ground for agent harness engineering, after LangChain's team showed that changing only the infrastructure wrapping their model (same weights, same API) moved them from outside the top 30 to rank 5.
+TerminalBench is a benchmark for measuring how well LLM agents perform on complex, real-world command-line tasks. Where benchmarks like [SWE-bench](../projects/swe-bench.md) focus on repository-level code changes evaluated against test suites, TerminalBench puts agents in a live terminal environment and scores them on whether they complete tasks end-to-end: running commands, navigating filesystems, managing dependencies, debugging failures, and recovering from errors.
 
-The benchmark is listed on an active leaderboard, and published scores are self-reported by teams submitting harnesses. No independent replication authority validates the numbers. Treat comparisons between teams carefully.
+TerminalBench-2 is the updated version referenced across recent harness optimization research. The benchmark has 89 tasks covering software engineering workflows that require multi-step tool use, environment awareness, and error recovery.
 
-## Why It Matters
+The benchmark gained prominence as a stress test for [agent harness](../concepts/agent-harness.md) engineering. A widely-cited finding: vanilla Claude Code with Claude Haiku 4.5 scores 27.5% on TerminalBench-2, while a hand-engineered harness on the same model reaches 35.5%, with no fine-tuning. Automated harness optimization (Meta-Harness) reached 76.4% with Claude Opus 4.6 and 37.6% with Haiku 4.5. [Source](../raw/deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md)
 
-TerminalBench sits at the intersection of two debates: whether harness engineering matters as much as model selection, and whether automated harness search can beat hand-tuned systems. The evidence from 2026 results is strong on both counts.
+## Core Mechanism: What Gets Measured
 
-The key finding across multiple papers: harness changes alone produce up to 6x performance gaps on the same benchmark with identical model weights. This makes TerminalBench-2 one of the few benchmarks where the experimental variable is explicitly the infrastructure surrounding the model, not the model itself.
+Tasks in TerminalBench-2 are evaluated against pass/fail criteria, though the exact evaluation harness internals are not fully documented in available sources. Tasks span dependency management, compilation and build failures, filesystem operations, shell scripting, and multi-step debugging workflows.
 
-## Benchmark Structure
+The benchmark functions as an open leaderboard. Published scores come from multiple agent systems:
 
-TerminalBench-2 contains 89 tasks grounded in real command-line workflows. Tasks require agents to complete dependency-heavy operations, navigate file systems, run scripts, and recover from failures. The harness receives a task description and terminal access; success is measured by a verifiable outcome (file state, command output, test pass/fail).
-
-The benchmark is used in two modes: as a competitive leaderboard where teams submit harnesses, and as a research evaluation suite where papers report pass rates on the 89-task set. Several papers that use TerminalBench-2 as a research benchmark search on the same 89 tasks they evaluate on, without a held-out split, which creates an overfitting risk.
-
-## Reported Numbers (Self-Reported, Not Independently Validated)
-
-| Agent / Harness | Model | Score |
+| Agent | Model | Score |
 |---|---|---|
 | ForgeCode | Claude Opus 4.6 | 81.8% |
 | Meta-Harness | Claude Opus 4.6 | 76.4% |
 | Terminus-KIRA | Claude Opus 4.6 | 74.7% |
-| meta-agent (LLM-judge search) | Claude Haiku 4.5 | 37.6% |
-| Goose (best Haiku-class) | Claude Haiku 4.5 | 35.5% |
-| Vanilla Claude Code (baseline) | Claude Haiku 4.5 | 27.5% |
+| Goose | Haiku 4.5 | 35.5% |
+| Meta-Harness | Haiku 4.5 | 37.6% |
+| Terminus-KIRA | Haiku 4.5 | 33.7% |
+| Vanilla Claude Code | Haiku 4.5 | 27.5% |
 
-The 27.5% to 37.6% gap (Haiku 4.5, baseline vs. best harness) is harness-only; no fine-tuning is involved. The gap from 27.5% to 35.5% (vanilla to Goose) is roughly 8 points from hand-engineered infrastructure changes.
+These numbers come from Meta-Harness paper (Lee et al. 2026) and the meta-agent Twitter thread, both of which are self-reported. Independent validation of the full leaderboard is not confirmed in available sources.
 
-All numbers above come from team self-reports in papers and blog posts. The benchmark leaderboard does not describe a third-party evaluation protocol.
+## Architectural Significance for Agent Research
 
-## How Harness Optimization Works Here
+TerminalBench-2 has become the canonical stress test for [agent harness](../concepts/agent-harness.md) optimization work because its tasks expose the full stack of harness decisions: what to put in the system prompt, how to bootstrap environment state, when to stop, and how to handle cascading failures.
 
-Three published systems used TerminalBench-2 as their primary agentic coding evaluation. Each reveals something different about what the benchmark actually tests.
+The Meta-Harness paper ran 89 tasks, with search and evaluation on the same set (no held-out split). This limits what can be concluded about generalization. The specific improvement they found was environment bootstrapping: injecting an OS snapshot (available tools, languages, package managers, memory state) before the agent loop begins, which reduced 3-5 wasted exploration turns on dependency-heavy tasks. [Source](../raw/deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md)
 
-**Meta-Harness** ([Lee et al., 2026](../raw/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md)) ran 89 tasks through an automated search loop. The key discovery: adding an environment bootstrapping step before the agent loop (collect OS info, available languages, package managers, memory state) eliminated 3-5 wasted exploration turns on dependency-heavy tasks. The proposer (Claude Code with Opus 4.6) identified this pattern by reading raw execution traces from failed runs, observing that agents repeatedly failed first tool calls because they had no knowledge of the environment. Meta-Harness reached 76.4% on Opus 4.6 (ranked #2) and 37.6% on Haiku 4.5 (ranked #1).
+LangChain's jump "from outside the top 30 to rank 5" on TerminalBench-2 by changing only harness infrastructure (same model, same weights) is cited repeatedly in harness engineering discourse. [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
 
-**meta-agent** ([canvas-org](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)) focused on tau-bench but cites TerminalBench-2 as planned evaluation territory. Its approach uses an LLM judge to score unlabeled traces, enabling harness optimization without ground-truth labels.
+The meta-agent project (canvas-org) lists TerminalBench-2 as a planned future evaluation target alongside [SWE-bench](../projects/swe-bench.md). [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
 
-**GEPA** ([gepa-ai](../raw/deep/repos/gepa-ai-gepa.md)) provides a TerminalBench adapter in `src/gepa/adapters/`. It treats the benchmark as a multi-task search problem where Pareto-frontier management prevents single-task overfitting.
+[GEPA](../concepts/gepa.md) includes a TerminalBench adapter in its `adapters/` directory, used as one of the optimization targets in published experiments. [Source](../raw/deep/repos/gepa-ai-gepa.md)
 
-## What the Benchmark Is Actually Testing
+## Key Numbers
 
-Terminal task completion rewards three specific capabilities:
+- **89 tasks** in TerminalBench-2 (per Meta-Harness paper)
+- **27.5% → 35.5%** gap between vanilla Claude Code and best hand-engineered harness, Haiku 4.5 (self-reported)
+- **27.5% → 37.6%** gap between vanilla Claude Code and Meta-Harness automated optimization, Haiku 4.5 (self-reported)
+- LangChain ranking jump (top 30 → rank 5) is cited without a specific date or run configuration
 
-1. **Environment awareness** — knowing what tools, languages, and packages are available before starting
-2. **Error recovery** — reading command output and adjusting rather than retrying blindly
-3. **Context management** — not filling the context window with stale terminal output before the task completes
+All performance numbers across the leaderboard are self-reported by the teams running evaluations. The benchmark provides a shared evaluation surface but does not appear to have independent auditing infrastructure documented in available sources.
 
-The Meta-Harness paper's analysis of TerminalBench-2 failures documents a concrete regression pattern: the proposer tried combining structural changes with prompt changes, saw two consecutive regressions, eventually diagnosed that "prompt template changes caused the agent to delete necessary state before task completion," and pivoted to purely additive modifications. This is useful evidence about what makes the benchmark hard: it penalizes agents that corrupt or prematurely drop state.
+## Strengths
 
-## Connection to [Agent Harness](../concepts/agent-harness.md)
+**Terminal-native task coverage.** Most coding benchmarks evaluate code generation divorced from execution. TerminalBench-2 requires agents to actually run commands, recover from failures, and complete tasks in a real shell environment. This makes it sensitive to harness decisions that standard benchmarks ignore: environment bootstrapping, error handling hooks, stop conditions.
 
-TerminalBench-2 became the canonical demonstration that harness engineering produces measurable outcomes. The [Agent Harness](../concepts/agent-harness.md) concept formalizes this: the harness is everything around the model (orchestration loop, tools, memory, context management, error handling). TerminalBench-2 is where harness claims get tested.
+**Model-harness sensitivity.** The 27.5% → 37.6% range across different harnesses on the same model is a useful signal. It quantifies what harness engineering is worth on tasks that require multi-step terminal operation.
 
-LangChain's jump from outside top 30 to rank 5 by changing only infrastructure is the most-cited single data point in harness engineering discussions. That example originates from TerminalBench-2 results.
+**Leaderboard traction.** Multiple agent frameworks (LangChain, Goose, ForgeCode, Terminus-KIRA) publish results, giving practitioners a cross-framework comparison that self-contained evaluations cannot provide.
 
-## Key Limitation: Same-Set Evaluation
+## Critical Limitations
 
-Several teams using TerminalBench-2 as a research benchmark (including Meta-Harness on its coding results) optimize on the same 89 tasks they evaluate on. This creates real overfitting risk. The environment bootstrapping pattern discovered by Meta-Harness is plausibly general, but the benchmark doesn't provide the statistical separation needed to verify transfer. Contrast this with the Meta-Harness math results, which explicitly used held-out models to validate that the discovered harness generalized.
+**No train/test split in published optimization work.** The Meta-Harness experiments optimized and evaluated on the same 89 tasks. The discovered improvement (environment bootstrapping) is likely general, but the evaluation design cannot rule out task-specific overfitting. This is the most important caveat when interpreting the reported numbers.
 
-The benchmark's 89-task size is also small enough that single-run variance matters. Teams publishing results without variance estimates should be read cautiously.
+**Infrastructure dependency.** TerminalBench-2 requires running agents in a real terminal environment, which means evaluation cost scales with task complexity. Agents that hit long-running commands, large dependency installs, or recursive loops are expensive to evaluate. Teams with limited compute may run fewer iterations or truncate long-running tasks, which would not show up in reported scores.
 
-## Unresolved Questions
-
-- **Who maintains the leaderboard and validates submissions?** The submission protocol is not publicly documented. There is no clear description of whether submitted harnesses are re-evaluated by an independent party or self-reported.
-- **How are tasks updated?** If TerminalBench-2's 89 tasks are static, future systems can implicitly overfit to them through the published failure analyses that now exist in papers.
-- **Correlation with production performance.** It is unclear how well TerminalBench-2 scores predict real-world terminal agent performance, given its 89-task scope and the fact that most high-scoring systems were specifically optimized against it.
+**Leaderboard governance is opaque.** Available sources do not explain who maintains the leaderboard, what submission requirements exist, how task descriptions are versioned, or whether score normalization is applied across different execution environments. This matters because terminal task performance is environment-sensitive: available packages, OS version, and network access all affect what passes.
 
 ## When NOT to Use It
 
-- As the sole evaluation for a production agent: 89 tasks with self-reported numbers and no held-out test split is not a substitute for task-specific evaluation on your actual workload.
-- To compare models rather than harnesses: the benchmark was designed to isolate harness effects. Model comparisons require controlling for harness quality, which is hard to do.
-- As a proxy for general coding ability: [SWE-bench](../projects/swe-bench.md) tests repository-level code changes; TerminalBench-2 tests command-line task execution. These are related but distinct capabilities.
+Do not use TerminalBench-2 as the primary signal for pure code generation capability. Its tasks require terminal-native reasoning, environment awareness, and error recovery. A model that generates correct code but cannot navigate a real shell environment will score poorly even if its code quality is high. For code generation, [SWE-bench](../projects/swe-bench.md) or [HumanEval](../projects/humaneval.md) are better fits.
+
+Do not treat single-run TerminalBench-2 scores as stable estimates. The meta-agent paper notes explicitly that their tau-bench results are single-run with no variance estimates. TerminalBench-2 tasks likely have similar variance, especially at the 27-40% range where small absolute changes span many tasks.
+
+## Unresolved Questions
+
+**Evaluation environment standardization.** What does the execution environment look like? Available sources do not document the container or VM configuration, pre-installed packages, network access, or time limits. Score portability across different execution setups is unknown.
+
+**Task versioning.** TerminalBench-2 is an update to an earlier TerminalBench. The sources do not document what changed between versions, making it difficult to compare scores across the two versions or assess whether improvements reflect genuine capability gains or task set changes.
+
+**Leaderboard submission process.** No sources describe submission requirements, reproducibility standards, or who validates entries before they appear on the leaderboard.
+
+**Cost at scale.** Running 89 terminal tasks with a capable agent and full execution traces (as Meta-Harness does) is expensive. The paper does not report total API spend for a TerminalBench-2 optimization run. For teams considering automated harness search on this benchmark, cost is a real constraint with no published estimate.
 
 ## Alternatives
 
-- **[SWE-bench](../projects/swe-bench.md)**: Use when evaluating agents on real GitHub issues requiring code changes. More established, independently validated, larger task set.
-- **[AppWorld](../projects/appworld.md)**: Use when evaluating agents on multi-app task completion with APIs rather than terminal access.
-- **[tau-bench](../projects/tau-bench.md)**: Use when evaluating conversational task completion with verifiable outcomes in specific domains (airline, retail).
+**[SWE-bench](../projects/swe-bench.md)** — Use when you want to evaluate repository-level code editing with test-validated correctness. Better-documented evaluation infrastructure and independent validation. Does not test terminal navigation or environment bootstrapping.
 
-Use TerminalBench-2 when the specific question is: how much does harness engineering affect terminal agent performance on a known task distribution?
+**[AppWorld](../projects/appworld.md)** — Use when the target domain involves API-mediated workflows and multi-app coordination rather than low-level terminal operations.
 
-## Related Concepts
+**[Tau-bench](../projects/tau-bench.md)** — Use when the target domain is conversational customer service agents following policy constraints. The meta-agent project uses this as its primary evaluation target.
 
-- [Agent Harness](../concepts/agent-harness.md) — the infrastructure TerminalBench measures
-- [Prompt Optimization](../concepts/prompt-optimization.md) — one mechanism for improving harness performance
-- [Context Engineering](../concepts/context-engineering.md) — context management is one of the three capabilities the benchmark tests
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — relevant for harnesses that retrieve environment state or documentation
-- [Model Context Protocol](../concepts/model-context-protocol.md) — standardized tool interfaces tested by the benchmark's tool execution tasks
+**[GAIA](../projects/gaia.md)** — Use when the goal is general-purpose tool-using capability across a broader task distribution, with independently audited evaluation.
+
+## Related Concepts and Projects
+
+- [Agent Harness](../concepts/agent-harness.md) — TerminalBench-2 is the primary benchmark driving harness optimization research
+- [Prompt Optimization](../concepts/prompt-optimization.md) — [GEPA](../concepts/gepa.md) includes a TerminalBench adapter as an optimization target
+- [Claude](../projects/claude.md) — Most published TerminalBench-2 results use Claude models as the base
+- [Claude Code](../projects/claude-code.md) — The baseline agent whose vanilla score (27.5% Haiku 4.5) sets the floor for harness engineering comparisons
+- [AutoResearch](../projects/autoresearch.md) — Cited alongside Meta-Harness as a system demonstrating iterative harness improvement
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — Relevant because harness design choices (what context to inject) directly affect TerminalBench performance
+- [Context Engineering](../concepts/context-engineering.md) — Environment bootstrapping (the key TerminalBench-2 discovery) is a context engineering intervention

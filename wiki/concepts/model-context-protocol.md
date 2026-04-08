@@ -3,192 +3,200 @@ entity_id: model-context-protocol
 type: concept
 bucket: context-engineering
 abstract: >-
-  Model Context Protocol (MCP) is Anthropic's open standard for how LLM
-  applications connect to external tools and data sources, providing a universal
-  interface that replaces per-application custom integrations with a single
-  client-server protocol.
+  Model Context Protocol (MCP) is Anthropic's open standard for connecting LLM
+  applications to external tools and data sources via a client-server
+  architecture, enabling any compliant host to use any compliant server without
+  custom integration code.
 sources:
-  - tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md
-  - tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md
-  - repos/aiming-lab-simplemem.md
-  - repos/affaan-m-everything-claude-code.md
-  - repos/supermemoryai-supermemory.md
-  - repos/memorilabs-memori.md
-  - repos/natebjones-projects-ob1.md
-  - tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md
-  - repos/safishamsi-graphify.md
-  - repos/greyhaven-ai-autocontext.md
-  - repos/wangziqi06-724-office.md
-  - repos/caviraoss-openmemory.md
-  - repos/yusufkaraaslan-skill-seekers.md
-  - repos/tirth8205-code-review-graph.md
-  - repos/agent-on-the-fly-memento.md
-  - repos/matrixorigin-memoria.md
-  - papers/xu-agent-skills-for-large-language-models-architectu.md
-  - repos/infiniflow-ragflow.md
   - articles/effective-context-engineering-for-ai-agents.md
   - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
-  - deep/repos/supermemoryai-supermemory.md
-  - deep/repos/gepa-ai-gepa.md
+  - articles/notion-notion-site-notion-notion-site.md
+  - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
+  - deep/papers/xu-agent-skills-for-large-language-models-architectu.md
   - deep/repos/affaan-m-everything-claude-code.md
   - deep/repos/evoagentx-evoagentx.md
-  - deep/papers/xu-agent-skills-for-large-language-models-architectu.md
+  - deep/repos/gepa-ai-gepa.md
+  - deep/repos/supermemoryai-supermemory.md
   - deep/repos/tirth8205-code-review-graph.md
-  - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
+  - papers/xu-agent-skills-for-large-language-models-architectu.md
+  - repos/affaan-m-everything-claude-code.md
+  - repos/agent-on-the-fly-memento.md
+  - repos/aiming-lab-simplemem.md
+  - repos/caviraoss-openmemory.md
+  - repos/greyhaven-ai-autocontext.md
+  - repos/infiniflow-ragflow.md
+  - repos/matrixorigin-memoria.md
+  - repos/memorilabs-memori.md
+  - repos/natebjones-projects-ob1.md
+  - repos/safishamsi-graphify.md
+  - repos/supermemoryai-supermemory.md
+  - repos/tirth8205-code-review-graph.md
+  - repos/wangziqi06-724-office.md
+  - repos/yusufkaraaslan-skill-seekers.md
+  - tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md
+  - tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md
+  - tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md
 related:
   - claude-code
   - cursor
   - retrieval-augmented-generation
+  - knowledge-graph
   - openai
   - claude
-  - knowledge-graph
   - openclaw
   - anthropic
   - context-engineering
   - windsurf
   - codex
+  - episodic-memory
   - agent-memory
   - ollama
   - gemini
   - vector-database
   - tree-sitter
-  - episodic-memory
   - react
   - langchain
   - agent-skills
   - semantic-search
+  - multi-agent-systems
   - gpt-4
   - reinforcement-learning
   - composable-skills
+  - networkx
+  - notion
+  - token-efficiency
   - andrej-karpathy
-  - semantic-memory
-  - opencode
-  - graphrag
-  - vllm
-  - gepa
-  - claude-md
-  - grpo
-  - context-management
-  - multi-agent-systems
-  - swe-bench
-  - crewai
-  - longmemeval
-  - chromadb
-  - community-detection
-  - autogen
-  - supermemory
-  - hybrid-search
-  - temporal-reasoning
-  - skill-book
-  - osworld
-  - memento
-  - seagent
-  - gaia
-  - termination-bench
-last_compiled: '2026-04-08T02:39:29.845Z'
+last_compiled: '2026-04-08T22:56:17.664Z'
 ---
 # Model Context Protocol (MCP)
 
 ## What It Is
 
-Model Context Protocol is an open protocol specifying how LLM applications connect to external tools, data sources, and services. Anthropic released it in November 2024. Before MCP, each AI application built its own integration layer: Claude needed one connector for a database, Cursor built a different one for the same database, and a third application built yet another. MCP replaces this with a standard where any MCP-compliant client connects to any MCP-compliant server.
+Model Context Protocol is an open protocol that standardizes communication between LLM applications (hosts) and external tools, data sources, and services (servers). Before MCP, every integration required custom glue code: a Claude plugin connecting to a database needed different wiring than a Cursor plugin connecting to the same database. MCP provides the shared vocabulary so one server works with any compliant host.
 
-The analogy the documentation uses is USB-C: one port for everything. The practical claim is that tool builders write one MCP server and every compliant agent framework can use it, while agent frameworks write one MCP client and gain access to every compliant server.
-
-As of mid-2026, MCP has achieved broad adoption: [Claude](../projects/claude.md), [Claude Code](../projects/claude-code.md), [Cursor](../projects/cursor.md), [Windsurf](../projects/windsurf.md), [OpenCode](../projects/opencode.md), [LangChain](../projects/langchain.md), [AutoGen](../projects/autogen.md), [CrewAI](../projects/crewai.md), [Ollama](../projects/ollama.md), [vLLM](../projects/vllm.md), and [Gemini](../projects/gemini.md) all implement it. [OpenAI](../projects/openai.md) announced MCP support across its products in March 2025.
+Anthropic published MCP in November 2024. By mid-2025, it had become the de facto standard for LLM tool connectivity, with implementations spanning [Claude](../projects/claude.md), [Claude Code](../projects/claude-code.md), [Cursor](../projects/cursor.md), [Windsurf](../projects/windsurf.md), [OpenAI Codex](../projects/codex.md), [Gemini](../projects/gemini.md), [Ollama](../projects/ollama.md), and [LangChain](../projects/langchain.md). The protocol's adoption curve is unusually steep for an infrastructure standard, driven primarily by Claude Code's default MCP integration making server development immediately rewarding.
 
 ## Architecture
 
-MCP uses a client-server model with three components:
+MCP defines three layers:
 
-**Hosts** are LLM applications (Claude Desktop, an IDE, a custom agent). They embed MCP clients and manage connections to servers.
+**Transport.** Servers communicate over stdio (local subprocess) or HTTP with Server-Sent Events (remote). The stdio transport runs the server as a child process of the host, which keeps local integrations simple and secure. HTTP+SSE enables hosted servers accessible to multiple clients simultaneously.
 
-**Clients** maintain one-to-one connections with servers, handling the protocol handshake, capability negotiation, and message transport.
+**Protocol.** JSON-RPC 2.0 over the transport layer. Every message is either a request (with `id`, `method`, and `params`) or a response (with matching `id` and either `result` or `error`). The protocol is stateful: clients and servers maintain a session with negotiated capabilities declared during the `initialize` handshake. The handshake exchanges protocol versions and capability flags, allowing servers to advertise which primitives they support.
 
-**Servers** expose capabilities to clients: tools (functions the model can invoke), resources (data the model can read), and prompts (pre-structured templates).
+**Primitives.** Three core primitives define what servers can expose:
 
-The transport layer supports two modes: stdio (local servers communicate via standard input/output, common for CLI tools and local processes) and HTTP with Server-Sent Events (remote servers, enabling network-accessible MCP services). The protocol itself uses JSON-RPC 2.0 as its message format.
+- **Tools** — Functions the LLM can call. Each tool has a name, description, and JSON Schema input definition. The host presents the tool list to the model; the model decides when to call them. Tools are the primary primitive for taking actions (running queries, writing files, calling APIs).
 
-The capability negotiation happens at connection time. A server advertises what it can do; a client requests what it needs. This means capability discovery is part of the protocol, not an out-of-band concern.
+- **Resources** — Data the host can read. A resource has a URI and MIME type. Unlike tools, resources don't require the model to trigger them — the host can subscribe to resource changes and proactively inject updated content into context. A file system server might expose `file:///project/src/main.py` as a resource that updates whenever the file changes.
 
-## Relationship to Context Engineering
+- **Prompts** — Reusable prompt templates with arguments. Servers define named prompts (e.g., `review-code`) that hosts can invoke to construct structured messages. Less commonly implemented than tools, but useful for standardizing interaction patterns.
 
-MCP sits at the tool-connectivity layer of [Context Engineering](../concepts/context-engineering.md). The survey paper's six-component model of context (c_instr, c_know, c_tools, c_mem, c_state, c_query) maps directly: MCP primarily handles c_tools and can contribute to c_know by connecting to external data sources. [Source](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md)
+A fourth primitive, **Sampling**, inverts the flow: servers can request the host's LLM to generate text as part of server-side logic. This enables server-side agents that leverage the host's model without needing their own API keys.
 
-MCP does not decide what gets put into the context window. It handles the plumbing that makes tool results available. The assembly decisions — which tools to call, how to format results, when to retrieve vs. recall — remain the agent framework's responsibility.
+## How Context Engineering Fits In
 
-## Relationship to Agent Skills
+MCP sits at the boundary between [Context Engineering](../concepts/context-engineering.md) and tool connectivity. The formal context decomposition `C = A(c_instr, c_know, c_tools, c_mem, c_state, c_query)` maps onto MCP primitives directly: tools populate `c_tools`, resources populate `c_know`, and prompts contribute to `c_instr`. The protocol handles the *transport* of these components; context engineering handles *what* to include and *when*.
 
-The agent skills survey describes MCP and skills as complementary layers, not competing alternatives: skills provide "what to do" (procedural knowledge, instructions, context), while MCP provides "how to connect" (tool endpoints, data access). A skill might instruct an agent to use a specific MCP server, define how to interpret its outputs, and specify fallback strategies when that server is unavailable. [Source](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md)
+The token economics matter here. As analyzed in the agent skills survey, each MCP tool definition consumes 2-5K tokens from the context window. A host connecting to 20 MCP servers might spend 40-100K tokens just on tool definitions — half a 200K context window. Production deployments cap active MCP connections (Claude Code's recommended limit is 10 servers per project) and use tool discovery mechanisms to load definitions on demand rather than all at once.
 
-The SKILL.md progressive disclosure architecture uses MCP connectivity as an assumed substrate. At Level 2 (full procedural instructions), a skill may specify which MCP servers to call and in what order. The skill shapes understanding; MCP handles the connection.
+[Agent Skills](../concepts/agent-skills.md) and MCP are complementary rather than competing. Skills (SKILL.md files) provide procedural knowledge — *what to do* and *how to interpret results*. MCP provides connectivity — *how to reach* the tools the skills describe. A skill for database analysis would instruct the agent on query strategy and result interpretation; MCP would provide the actual database connection.
 
-## Relationship to Agent Harnesses
+## Relationship to Memory and Knowledge Systems
 
-Production agent harnesses like Everything Claude Code treat MCP server selection as a resource allocation problem. With a 200K token context window, each MCP tool definition costs 2-5K tokens. The practical recommendation is to enable no more than 10 MCP servers per project to preserve roughly 70K tokens for actual task execution. This is not a protocol limitation — it is a context budget constraint that MCP makes concrete and measurable. [Source](../raw/deep/repos/affaan-m-everything-claude-code.md)
+MCP servers wrap virtually every storage and knowledge system in the agent infrastructure ecosystem:
 
-[CLAUDE.md](../concepts/claude-md.md) files often specify which MCP servers should be active for a given project, functioning as persistent MCP configuration alongside behavioral instructions.
+- [Vector Database](../concepts/vector-database.md) servers expose semantic search over embeddings, enabling MCP-connected RAG
+- [Knowledge Graph](../concepts/knowledge-graph.md) servers built on [NetworkX](../projects/networkx.md) or [Neo4j](../projects/neo4j.md) expose graph traversal as tool calls
+- [Notion](../projects/notion.md) servers treat pages as resources, letting agents read and write structured documents
+- Memory systems like [Mem0](../projects/mem0.md) and [Zep](../projects/zep.md) expose recall and storage as tools
 
-## What MCP Enables
+The [GEPA](../concepts/gepa.md) framework includes a dedicated MCP adapter in `adapters/`, which lets GEPA optimize the tool descriptions in MCP server definitions — essentially using evolutionary search to improve how servers describe their capabilities to models, which affects how reliably models invoke them correctly.
 
-**Tool standardization:** A `filesystem` MCP server written once works with any compliant client. A `postgres` MCP server works with Claude Code, Cursor, and a custom LangChain agent without modification.
+## Comparison to Alternatives
 
-**Capability discovery:** Agents can query what tools are available rather than having tools hardcoded. The `Tool Search Tool` pattern described in the agent skills survey — programmatic discovery from large tool registries, reducing token overhead by up to 85% — becomes possible with MCP's standard discovery interface. [Source](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md)
+**OpenAI Responses API / function calling.** OpenAI's native tool use is schema-compatible with MCP (both use JSON Schema for tool definitions) but lacks the server abstraction. Each integration remains custom code; there is no standard for a reusable, deployable tool server. OpenAI has adopted MCP as a supported protocol in their agents SDK rather than competing with it directly.
 
-**[Multi-Agent Systems](../concepts/multi-agent-systems.md) coordination:** MCP provides a standard communication layer for agent-to-agent tool calls. Sub-agents expose capabilities as MCP servers; orchestrators discover and invoke them through the client interface. The survey on context engineering identifies MCP among the communication protocols (alongside KQML and FIPA ACL) enabling multi-agent coordination. [Source](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md)
+**[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md).** RAG retrieves documents into context at inference time; MCP provides the connectivity layer through which RAG calls happen. An MCP server can implement a RAG pipeline, making RAG and MCP complementary at different abstraction levels. MCP-connected RAG lets multiple hosts share the same retrieval infrastructure without duplicating it.
 
-**[Agent Memory](../concepts/agent-memory.md) backends:** Memory systems like [ChromaDB](../projects/chromadb.md) and [SuperMemory](../projects/supermemory.md) implement MCP servers, making memory retrieval a standard tool call rather than a custom integration. Similarly, [GraphRAG](../projects/graphrag.md) and [Knowledge Graph](../concepts/knowledge-graph.md) systems expose query interfaces through MCP.
+**[LangChain](../projects/langchain.md) tools.** LangChain's tool abstraction predates MCP and solves a similar problem within the LangChain ecosystem. LangChain added MCP integration (the `langchain-mcp-adapters` package) to bridge the two, allowing LangChain tools to be exposed as MCP servers and MCP servers to be used as LangChain tools. The key difference: LangChain tools are Python objects within a specific framework; MCP servers are processes accessible to any compliant host.
 
-**Optimization infrastructure:** GEPA's optimize_anything API integrates with MCP for tool descriptions, treating MCP tool definitions as optimizable text artifacts. When an agent's MCP tool descriptions are poorly written, GEPA can evolve them to maximize task performance — the protocol's text-based format makes tool definitions directly accessible to LLM-powered optimization. [Source](../raw/deep/repos/gepa-ai-gepa.md)
+## Strengths
 
-## Critical Limitations
+**Interoperability without negotiation.** A PostgreSQL MCP server built once works with Claude, Cursor, Gemini, and any future compliant host. The ecosystem network effect compounds: server authors benefit from every new host implementation without additional work.
 
-**Context budget consumption is unbounded by the protocol.** MCP has no mechanism for signaling which tools are more or less expensive to expose. A naive implementation that connects to every available MCP server can exhaust the context window before any user query arrives. The protocol does not help agents prioritize or prune tool availability.
+**Security boundary enforcement.** The stdio transport model runs servers as separate processes. A compromised or malicious server cannot directly access the host process's memory or credentials. The capability handshake lets hosts declare exactly which primitives they'll accept, preventing servers from overstepping.
 
-**Security governance is absent.** MCP standardizes connectivity but not trust. The agent skills security analysis found 26.1% vulnerability rates in community skill packages, many of which specify MCP server usage. A malicious MCP server that an agent connects to can receive sensitive data passed as tool arguments. MCP has no built-in authentication standard, no server verification mechanism, and no sandboxing. Each host application must implement its own security layer. [Source](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md)
+**Incremental adoption.** Existing APIs and tools can be wrapped as MCP servers without rewriting them. The [Tree-sitter](../projects/tree-sitter.md) integration in code agents, for example, wraps the existing tree-sitter parsing library behind a standard tool interface.
 
-**The unspoken infrastructure assumption:** MCP assumes stable, low-latency connections to servers. In practice, remote MCP servers introduce network latency into the agent's tool-call loop. A multi-step reasoning chain that calls five tools may wait on network round-trips at each step. Local stdio servers avoid this but require local process management. Production deployments need to decide which servers run locally vs. remotely based on call frequency and latency tolerance — MCP provides no guidance on this.
+**Real-time context updates.** Resource subscriptions let servers push updates to hosts when underlying data changes. This closes a gap in static RAG approaches where context becomes stale between retrievals.
 
-**One concrete failure mode:** An agent using MCP for [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) calls a vector database MCP server that times out mid-conversation. JSON-RPC 2.0 error handling returns an error object, but the agent's behavior on receiving that error depends entirely on the host implementation. MCP defines the error format; it does not define recovery behavior. Agents that lack explicit error handling for MCP failures can stall or produce hallucinated tool results.
+## Limitations
+
+**One concrete failure mode: tool count vs. context budget.** The protocol has no native mechanism for partial tool loading. When a host connects to an MCP server, it receives all tool definitions in the initialization response. A large MCP server exposing 50+ specialized tools can consume significant context before any user query. The workaround — separate specialized servers and connect only what's needed per task — pushes management complexity to the operator.
+
+**One unspoken infrastructure assumption: server lifecycle management.** The protocol defines communication but not deployment. Running 10 MCP servers per project (Claude Code's recommended limit) means 10 processes to start, monitor, restart on failure, and update independently. Production deployments need service management infrastructure (systemd, Docker Compose, Kubernetes) that the protocol specification does not address. This is obvious to infrastructure engineers and invisible in the documentation.
+
+**Authorization is underspecified.** The protocol transmits tool calls and results but provides no standard mechanism for the server to verify the host's identity or for per-user permission scoping. OAuth 2.0 integration is defined for HTTP+SSE transport in the 2025 spec revision, but stdio servers have no standard auth mechanism. A server that provides sensitive data access must implement its own authorization logic.
+
+**Prompt injection via resources.** Resources inject text directly into context with the same trust level as the host's system prompt from the model's perspective. A malicious or compromised resource could inject adversarial instructions. This is the MCP-specific instance of the general [Agent Skills](../concepts/agent-skills.md) security concern — the 26.1% vulnerability rate in community skills has a direct analogue in community MCP servers, where server descriptions and resource content can carry prompt injection payloads.
 
 ## When NOT to Use MCP
 
-**When you have one tool and one client.** If your system has a single external integration and a single agent framework, MCP's standardization overhead (server process management, JSON-RPC parsing, capability negotiation) adds complexity with no interoperability benefit. Write a direct function call.
+**When latency is the primary constraint.** MCP adds round-trip overhead: the host serializes a JSON-RPC request, the subprocess deserializes it, executes the tool, serializes a response, and the host deserializes the result. For high-frequency tool calls (hundreds per second), this overhead accumulates. Direct function calls within the same process are faster.
 
-**When latency is critical.** Each MCP tool invocation crosses a process boundary (stdio) or network boundary (HTTP/SSE). For high-frequency tool calls (thousands per minute), this overhead compounds. Direct function calls within the same process are substantially faster.
+**When you control both ends and only one LLM host will ever use the integration.** If you're building a single-purpose agent that will only ever connect to your specific data source, the abstraction overhead of MCP provides no benefit. The protocol earns its cost when multiple hosts share the same server or when you expect the server to outlast your current host implementation.
 
-**When you need complex tool composition.** MCP tools are atomic: one call, one response. If your tool requires stateful multi-turn interaction, streaming intermediate results, or coordination between multiple tool calls as a unit, MCP's request-response model is the wrong abstraction.
-
-**When security requirements are strict and resources are limited.** Building proper security on top of MCP (authentication, input validation, output sanitization, server verification) is not trivial. If your team cannot invest in this layer, MCP's openness becomes a liability.
+**When you need complex stateful tool orchestration.** MCP tools are stateless from the protocol's perspective — each tool call is independent. Workflows requiring sequential tool calls with shared state across calls (maintaining a transaction, holding a file lock, iterating a cursor) require the server to manage state internally with session-scoped context, which is possible but awkward in the protocol's model.
 
 ## Unresolved Questions
 
-**Governance:** Who decides which MCP servers are trustworthy? There is no MCP certification, no security audit process, and no revocation mechanism. The ecosystem is currently open-append.
+**Governance at scale.** Anthropic publishes the specification and maintains reference implementations, but there is no independent standards body. If Anthropic changes the protocol in ways that break existing servers, the ecosystem has no recourse mechanism. The v1.0 to current spec already introduced breaking changes in the capability negotiation format.
 
-**Versioning and compatibility:** When an MCP server updates its tool signatures, clients that cached the old signatures may break. The protocol has version negotiation at connection time but no mechanism for rolling updates or backward compatibility guarantees at the tool level.
+**Cost attribution in shared server deployments.** When a hosted MCP server serves multiple LLM hosts, the server operator bears the compute cost of serving tool calls without a standard billing mechanism. This creates a free-rider problem that has slowed the development of public hosted MCP infrastructure relative to local server adoption.
 
-**Cost at scale:** Each MCP server connection adds token overhead. At what point does a large MCP tool registry require hierarchical routing (meta-servers that expose subsets of tools based on query context)? The agent skills research found a phase transition where routing accuracy collapses past a critical skill library size — the same dynamic likely applies to large MCP tool registries.
+**Discovery and registry.** There is no standard protocol for discovering available MCP servers or verifying their authenticity. Server discovery currently happens through documentation, word-of-mouth, and platform-specific marketplaces (e.g., Claude's integrations directory). A compromised server that impersonates a legitimate one (say, a fake GitHub MCP server) has no technical barrier to adoption by unsuspecting users.
 
-**State management:** MCP servers are supposed to be stateless from the client's perspective, but real integrations often involve stateful external systems (databases with transactions, sessions with authentication tokens). How state management should be handled within MCP sessions is underspecified.
+**Conflict resolution between servers.** When two connected MCP servers both expose a `search` tool with different behaviors, the host must resolve the ambiguity. The protocol provides no standard for namespace management or capability negotiation between servers. Hosts handle this differently, creating inconsistent behavior across implementations.
 
-## Alternatives and Selection Guidance
+## Connections
 
-**Direct function calling (OpenAI/Anthropic native tool use):** Use when you have a fixed, known set of tools and a single provider. Simpler, faster, no server management. The right choice for most single-agent systems.
+- [Context Engineering](../concepts/context-engineering.md) — MCP is the connectivity layer; context engineering determines what to request through that layer
+- [Agent Skills](../concepts/agent-skills.md) — Skills describe how to use MCP-connected tools; MCP provides the connections skills describe
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — MCP's sampling primitive enables server-side agent behavior and agent-to-agent communication patterns
+- [Token Efficiency](../concepts/token-efficiency.md) — Tool definition token costs make MCP server management an active context budget concern
+- [ReAct](../concepts/react.md) — The reasoning-action loop that MCP tool calls implement at the connectivity level
+- [Semantic Search](../concepts/semantic-search.md) — Commonly wrapped as an MCP server to enable RAG from any compliant host
 
-**[LangChain](../projects/langchain.md) tool abstractions:** Use when you need tool composition, chains of tool calls, and want framework-managed retry/error handling. LangChain supports MCP but also has its own tool abstraction that works without it.
 
-**[OpenAI Agents SDK](../projects/openai-agents-sdk.md):** Use when building on OpenAI's ecosystem specifically. Includes its own tool-calling conventions with MCP support added alongside them.
+## Related
 
-**Custom REST APIs:** Use when your tool service needs to serve non-agent clients simultaneously. MCP's SSE transport is HTTP-based, but it is optimized for agent use patterns. Standard REST endpoints are more broadly accessible.
-
-**Use MCP when:** you are building tools that should work across multiple agent frameworks, you want capability discovery rather than hardcoded tool lists, you are integrating with the growing ecosystem of MCP-compatible services, or you are implementing [Semantic Search](../concepts/semantic-search.md), memory backends, or knowledge graph access as reusable services across agent deployments.
-
-## Related Concepts
-
-- [Context Engineering](../concepts/context-engineering.md) — MCP operates within the context engineering stack as the tool-connectivity layer
-- [Agent Memory](../concepts/agent-memory.md) — Memory backends increasingly expose MCP interfaces
-- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — MCP enables standardized agent-to-agent tool calls
-- [Agent Skills](../concepts/agent-skills.md) — Skills specify which MCP servers to use; MCP provides the connection
-- [Context Management](../concepts/context-management.md) — MCP tool definitions consume context budget and must be managed accordingly
-- [CLAUDE.md](../concepts/claude-md.md) — Project-level configuration that often specifies active MCP servers
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — RAG backends commonly expose MCP interfaces for standardized retrieval access
+- [Claude Code](../projects/claude-code.md) — implements (0.8)
+- [Cursor](../projects/cursor.md) — implements (0.7)
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — alternative_to (0.5)
+- [Knowledge Graph](../concepts/knowledge-graph.md) — implements (0.6)
+- [OpenAI](../projects/openai.md) — alternative_to (0.5)
+- [Claude](../projects/claude.md) — implements (0.8)
+- [OpenClaw](../projects/openclaw.md) — implements (0.6)
+- [Anthropic](../projects/anthropic.md) — created_by (0.9)
+- [Context Engineering](../concepts/context-engineering.md) — implements (0.7)
+- [Windsurf](../projects/windsurf.md) — implements (0.6)
+- [OpenAI Codex](../projects/codex.md) — implements (0.6)
+- [Episodic Memory](../concepts/episodic-memory.md) — implements (0.4)
+- [Agent Memory](../concepts/agent-memory.md) — implements (0.7)
+- [Ollama](../projects/ollama.md) — implements (0.5)
+- [Gemini](../projects/gemini.md) — implements (0.5)
+- [Vector Database](../concepts/vector-database.md) — implements (0.6)
+- [Tree-sitter](../projects/tree-sitter.md) — implements (0.5)
+- [ReAct](../concepts/react.md) — implements (0.5)
+- [LangChain](../projects/langchain.md) — implements (0.6)
+- [Agent Skills](../concepts/agent-skills.md) — implements (0.7)
+- [Semantic Search](../concepts/semantic-search.md) — implements (0.5)
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — implements (0.6)
+- [GPT-4](../projects/gpt-4.md) — implements (0.4)
+- [Reinforcement Learning](../concepts/reinforcement-learning.md) — implements (0.3)
+- [Compositional Skill Synthesis](../concepts/composable-skills.md) — implements (0.6)
+- [NetworkX](../projects/networkx.md) — implements (0.4)
+- [Notion](../projects/notion.md) — implements (0.4)
+- [Token Efficiency](../concepts/token-efficiency.md) — implements (0.6)
+- [Andrej Karpathy](../concepts/andrej-karpathy.md) — part_of (0.3)

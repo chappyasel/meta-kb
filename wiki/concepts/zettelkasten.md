@@ -3,200 +3,168 @@ entity_id: zettelkasten
 type: approach
 bucket: knowledge-substrate
 abstract: >-
-  Zettelkasten is a note-taking method built on atomic, uniquely-identified
-  notes linked bidirectionally; its core insight—that knowledge value comes from
-  connections, not storage—now directly shapes how LLM agents organize,
-  retrieve, and evolve memory.
+  Zettelkasten is a note-taking method built on atomic, densely-linked notes;
+  its key differentiator for agent systems is that wikilink graphs enable graph
+  traversal without vector infrastructure.
 sources:
-  - tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md
-  - tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md
-  - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
-  - papers/xu-a-mem-agentic-memory-for-llm-agents.md
+  - deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md
   - deep/repos/agenticnotetaking-arscontexta.md
   - deep/repos/kepano-obsidian-skills.md
   - deep/repos/michaelliv-napkin.md
-  - deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md
+  - papers/xu-a-mem-agentic-memory-for-llm-agents.md
+  - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
+  - tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md
+  - tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md
 related:
   - obsidian
   - andrej-karpathy
-  - retrieval-augmented-generation
   - synthetic-data-generation
   - markdown-wiki
   - marp
   - claude-code
-  - synthetic-data-generation
-last_compiled: '2026-04-08T03:00:33.587Z'
+last_compiled: '2026-04-08T23:18:03.087Z'
 ---
 # Zettelkasten
 
 ## What It Is
 
-Zettelkasten (German: "slip box") is a knowledge management method developed by sociologist Niklas Luhmann, who used it to produce over 70 books and 400+ academic papers across 30 years. The system has two physical components: a reference box (bibliographic notes on sources) and an idea box (atomic concept notes). Each note in the idea box gets a unique identifier, contains one idea, links to related notes via those identifiers, and accumulates context through continued use.
+Zettelkasten (German for "slip box") is a knowledge management method developed by sociologist Niklas Luhmann, who used it to write over 70 books and 400 articles. The method has two core constraints: notes must be atomic (one idea per note) and notes must link explicitly to other notes. Luhmann maintained roughly 90,000 physical index cards, each with a unique identifier, a single idea, and handwritten references to related cards.
 
-The method's core claim is that knowledge value lives in connections between ideas, not in the ideas themselves. A note isolated from other notes is nearly worthless. A note with twenty inbound and outbound links is a conceptual hub that surfaces relationships the author never explicitly planned.
+The structural principle is that knowledge grows more useful as a network than as a hierarchy. A folder stores documents. A Zettelkasten accumulates connections. The difference matters because connections surface non-obvious relationships that retrieval from folders cannot.
 
-Luhmann reportedly had 90,000 notes at his death. He described the slip box not as a filing cabinet but as a conversation partner—something that surfaced unexpected connections and generated novel questions.
+In digital implementations, the physical card becomes a markdown file, the handwritten reference becomes a `[[wikilink]]`, and the slip box becomes a directory. [Obsidian](../projects/obsidian.md) is the dominant tool for this pattern, but the format requires nothing proprietary: plain markdown files with wikilinks work in any text editor.
 
 ## Why It Matters for Agent Systems
 
-Zettelkasten is the intellectual ancestor of several architectural patterns now appearing in LLM agent memory systems. Three properties of the method translate directly:
+The Zettelkasten pattern has acquired new relevance because LLMs can traverse link graphs in ways humans cannot do efficiently. A human browsing a 500-note vault gets lost. An agent can follow wikilinks programmatically, treating the link graph as a traversable knowledge structure without any database infrastructure.
 
-**Atomicity.** One idea per note forces disambiguation. In agent memory, atomic memory units enable precise retrieval—a chunk about "project X deadline" surfaces on deadline queries without dragging along unrelated project history. [A-MEM](../concepts/agent-memory.md) implements this explicitly, with each memory note containing exactly one coherent piece of information plus generated metadata.
+[Andrej Karpathy](../concepts/andrej-karpathy.md) described this pattern publicly: an LLM compiles source documents into a markdown wiki with backlinks and article-level summaries, then answers queries by traversing the wiki directly. At roughly 400K words across 100 articles, he found this sufficient without RAG. The key observation is that LLM-maintained index files and per-document summaries substitute for vector retrieval at small-to-medium scale.
 
-**Unique identifiers.** Luhmann used a hierarchical alphanumeric scheme (1/1, 1/1a, 1/1a1) that allowed arbitrary insertion between existing notes. In agent systems, this maps to stable memory addresses—IDs that survive content updates, enabling reliable bidirectional linking.
+The A-MEM paper formalizes what Karpathy did informally. Its memory system assigns each memory note seven components: raw content, timestamp, LLM-generated keywords, tags, a contextual description, a dense embedding, and a bidirectional link set. The link set is Zettelkasten-derived: connections emerge from content analysis rather than a predefined schema. On multi-hop reasoning tasks (LoCoMo benchmark), this architecture achieved 45.85 F1 versus 18.41 for the baseline — a 149% improvement — while using 85% fewer tokens by avoiding full-context stuffing.
 
-**Emergent structure.** Zettelkasten accumulates structure bottom-up from content relationships rather than top-down from predetermined categories. This matches the retrieval pattern that outperforms keyword-matching in multi-hop reasoning: follow semantic links, not folder hierarchies.
+## How It Works
 
-## How It Works: Implementation Details
+### Atomic Notes
 
-### The Physical System
+Each note holds one idea, claim, or concept. This constraint feels limiting but creates retrieval precision: if a note mixes three ideas, a query matching one idea pulls in noise from the other two. Atomic notes mean every retrieved note is relevant to the concept it represents.
 
-Each note card contains:
-- A unique ID (written in the corner)
-- A single discrete claim or observation
-- Source citation if derived from external material
-- Explicit references to other note IDs ("see also 23/4a")
-- No predetermined category assignment
+In agent implementations, atomicity maps to chunk quality. A Zettelkasten note is already a well-formed chunk. Systems like Napkin's LongMemEval results (91% on the S-dataset) achieved this partly by storing per-conversation-round notes (~2,500 characters each) rather than full session logs (~15,000 characters). Smaller, focused documents outperform large aggregated ones for keyword retrieval because term frequency better reflects the note's actual topic.
 
-Notes get filed by their ID, not by topic. Topic structure emerges from the link graph, not from the filing location. A note can belong to multiple conceptual clusters simultaneously without being physically copied—the links handle membership.
+### Wikilinks as Graph Edges
 
-### The Three Note Types
+Every `[[link]]` in a note creates a directed edge in the knowledge graph. Bidirectional link tracking (noting which notes link to a given note) creates an inbound reference count equivalent to a lightweight PageRank signal.
 
-**Fleeting notes** capture raw ideas quickly, with no formatting requirements. These get processed within a day or two and discarded.
+Napkin's search ranking uses this: `composite = BM25_score + backlink_count * 0.5 + recency_normalized * 1.0`. Notes with more incoming links rank higher in search results, surfacing well-connected concepts ahead of orphaned ones. The link graph replaces vector similarity for this purpose, with zero infrastructure cost.
 
-**Literature notes** summarize source material in the author's own words, stored in the reference box with full bibliographic data. These serve as the bridge between external sources and the idea network.
+The Ars Contexta system makes this explicit: "wiki links implement GraphRAG without the infrastructure." Following wikilinks enables multi-hop traversal through a knowledge graph using only a filesystem and a grep-equivalent tool. A query about authentication might surface a note on OAuth, which links to a note on token expiration, which links to a note on refresh token rotation — the agent traverses the path by following links.
 
-**Permanent notes** are the core of the system: one idea per card, written in complete sentences, explicitly linked to existing permanent notes. These are never discarded.
+### Maps of Content
 
-The transition from literature to permanent note requires active reformulation—not copying quotes, but synthesizing what the source means in relation to what you already know. This cognitive step is where understanding consolidates.
+A Map of Content (MOC) is a note that aggregates links to related notes rather than containing a single idea. MOCs function as navigable index pages: instead of searching for entry points, an agent consults the MOC for a topic area and branches from there.
 
-### Link Semantics
+Ars Contexta's generated systems require MOC hierarchies as one of ten kernel primitives. Every note must include a "Topics footer" linking back to its parent MOCs. This creates a bidirectional structure: MOCs point down to specific notes, specific notes point up to MOCs. The result is that an agent can navigate top-down (from MOC to detail) or bottom-up (from a note to the concept cluster it belongs to).
 
-Luhmann used several link types without formalizing them:
-- Direct reference ("see 23/4a")
-- Sequence links (1/1, 1/1a, 1/1b—branching from a parent idea)
-- Index entries (topic-keyed pointers to entry notes for a cluster)
+### Processing Pipeline
 
-The index was sparse by design. Luhmann kept only a few entry points per topic, relying on the link network to surface related material once he entered the graph at any node. Dense indexes recreate the categorical filing problem the system was designed to avoid.
+Raw information enters differently from mature knowledge. Zettelkasten implementations typically distinguish:
 
-## Agent System Implementations
+- **Fleeting notes**: quick captures, processed later
+- **Literature notes**: summaries of external sources
+- **Permanent notes**: atomic ideas in the author's own words, linked to existing notes
 
-### A-MEM's Zettelkasten-Inspired Architecture
+In agent systems this becomes a staged pipeline. Karpathy's workflow: raw source documents go into `raw/`, an LLM compiles them into a wiki with summaries and backlinks, queries operate on the compiled wiki, and query outputs get filed back into the wiki. Each stage has a different quality guarantee. The Ars Contexta 6Rs pipeline formalizes this further: Record, Reduce, Reflect, Reweave, Verify, Rethink — each phase runs in a fresh context window to avoid attention degradation.
 
-The [A-MEM paper](../concepts/agent-memory.md) directly cites Zettelkasten as the design basis for its memory note structure. Each memory note contains seven components: original content, timestamp, LLM-generated keywords, tags, a contextual description, a dense vector embedding computed over all textual components, and a bidirectional link set.
+## Who Implements It
 
-The critical innovation is **memory evolution**: when a new memory arrives, it triggers updates to the contextual representations of related existing memories. A new note about a project cancellation causes existing notes about that project's timeline to update their contextual descriptions. This is Zettelkasten's "conversation partner" property implemented computationally—the network reorganizes in response to new information.
+**[Obsidian](../projects/obsidian.md)** is the primary implementation for human-maintained Zettelkasten vaults. Its graph view visualizes the link network; its backlink panel shows all notes linking to the current one. Steph Ango's [agent skill package](../projects/obsidian.md) for Obsidian formalizes how AI agents should produce correctly-formatted Obsidian markdown, wikilinks, and canvas files.
 
-Results on the LoCoMo dataset show 149% improvement on multi-hop reasoning (18.41 → 45.85 F1 with GPT-4o-mini) and 85% token reduction compared to full-context approaches. The ablation confirms both link generation and memory evolution are required—removing either degrades multi-hop performance significantly. [Source](../raw/deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md)
+**Ars Contexta** generates domain-specific Zettelkasten systems from a graph of 249 interconnected research claims. Its derivation engine maps a user's described workflow to eight configuration dimensions, then produces a complete vault structure justified by specific claims from the methodology graph. The system runs as a [Claude Code](../projects/claude-code.md) plugin.
 
-### Ars Contexta's Claim Graph
+**A-MEM** implements Zettelkasten principles for agent long-term memory. Each memory becomes a structured note with LLM-generated metadata and a bidirectional link set. New memories trigger evolution updates to existing linked memories, keeping the network coherent as new information arrives.
 
-[Ars Contexta](../projects/marp.md) implements Zettelkasten principles at the meta-level: its `methodology/` directory contains 249 markdown files where each filename *is* the claim (e.g., `derivation generates knowledge systems from composable research claims not template customization.md`). Notes link to each other via wikilinks, forming a traversable claim graph. The derivation engine navigates this graph to compose domain-specific knowledge system architectures.
+**[Napkin](../projects/obsidian.md)** (Michael Livshits) uses Zettelkasten structure with BM25 retrieval and a backlink-weighted ranking signal. It stores per-round conversation notes in day-directory organization and provides a four-level progressive disclosure interface (NAPKIN.md → keyword overview → BM25 search → full read) for agent consumption.
 
-The claim graph encodes not just conclusions but justification chains—each architectural decision traces to the specific research claims that support it. This makes the system self-documenting in the Zettelkasten sense: the knowledge base is its own argument. [Source](../raw/deep/repos/agenticnotetaking-arscontexta.md)
+**[Andrej Karpathy](../concepts/andrej-karpathy.md)** uses an LLM-maintained markdown wiki with Obsidian as the viewing interface, [MARP](../projects/marp.md) for slide output, and a custom search CLI as an agent tool.
 
-### Karpathy's Markdown Wiki Workflow
+## Practical Implications
 
-Andrej Karpathy's [described workflow](../concepts/andrej-karpathy.md) applies Zettelkasten structure at the document level rather than the atomic-note level. Raw sources index into a `raw/` directory; an LLM compiles these into a wiki of interconnected `.md` files with backlinks, concept articles, and cross-references. The LLM maintains all wiki content—the human rarely edits directly.
+### Progressive Disclosure Fits Context Budgets
 
-The backlink structure enables Q&A at ~100 articles and ~400K words without RAG infrastructure. Crucially, query outputs get filed back into the wiki, creating a compounding loop: each exploration enhances the knowledge base for future queries. This is Luhmann's "slip box as conversation partner" realized with an LLM as the note-taker. [Source](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md)
+A full Zettelkasten vault does not fit in a context window. The standard solution: load an overview first, search for relevant notes, then read specific files. Napkin structures this as four explicit levels (L0 through L3). Ars Contexta enforces it through MOC hierarchies and description fields on every note.
 
-### Napkin's BM25 + Backlink Retrieval
+The overview level is typically generated by TF-IDF across folder contents: headings weighted 3x, filenames 2x, body text 1x. This produces a keyword map that costs roughly 1,000-2,000 tokens and gives an agent enough signal to route queries to the right subgraph.
 
-[Napkin](../projects/obsidian.md) implements a retrieval signal that directly encodes Zettelkasten's link-centrality principle. Its composite search ranking is:
+### Link Graphs Substitute for Vector Infrastructure
 
-```
-composite = BM25_score + backlink_count * 0.5 + recency_normalized * 1.0
-```
+This is the practically significant claim. Napkin's 91% accuracy on LongMemEval-S (versus 86% for the best prior embedding-based system) demonstrates that BM25 plus backlink counts can match or exceed vector similarity retrieval for structured knowledge bases. The precondition: notes must be well-connected. A vault of unlinked notes degrades to pure BM25 with no graph signal.
 
-The backlink count signal functions as simplified PageRank over the wikilink graph—notes with more inbound references rank higher, reflecting Zettelkasten's insight that highly-connected notes are conceptually central. On LongMemEval-S, this BM25 + backlink approach achieves 91% accuracy versus 86% for the best prior embedding-based system. [Source](../raw/deep/repos/michaelliv-napkin.md)
+The tradeoff is real. BM25 cannot match "authentication" to "login" without term overlap. Vector search handles synonyms naturally. For knowledge bases with consistent vocabulary — a research domain, a codebase, a project — this gap rarely surfaces. For knowledge bases spanning multiple domains with inconsistent terminology, embeddings provide meaningful improvement.
 
-## Zettelkasten vs. Competing Approaches
+### Hooks Enforce What Instructions Suggest
 
-### vs. Hierarchical Filing
+Zettelkasten discipline erodes without enforcement. In human systems this is a motivation problem. In agent systems it is a context-pressure problem: instructions to add YAML frontmatter, create backlinks, and update MOCs get dropped when context fills.
 
-Traditional hierarchical folder systems force a note into exactly one location. Zettelkasten allows a note to participate in multiple conceptual clusters through links. The practical difference: a note about "trust in distributed systems" belongs under both "distributed systems" and "security" in a hierarchy, requiring either duplication or an arbitrary placement decision. In a link-based system, it connects to both clusters without moving.
+Automated hooks address this: a write-validate hook checks YAML schema on every file write; an auto-commit hook versions changes; a session-start hook injects the workspace tree so the agent starts oriented. Ars Contexta's four hooks implement this pattern. The practical lesson: quality constraints for Zettelkasten maintenance must be in the execution path, not the system prompt.
 
-### vs. [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
+### Memory Evolution Keeps the Graph Current
 
-RAG retrieves chunks via embedding similarity, independent of explicit relationships. Zettelkasten-style systems retrieve via the link graph, following relationships that the author (or LLM) explicitly established. The two approaches perform differently on different query types:
+A static Zettelkasten accumulates obsolete connections. A-MEM's memory evolution mechanism updates existing notes when new information arrives that changes their context. A note about a project's timeline gets its contextual description updated when a cancellation note links to it.
 
-- Single-hop factual recall: RAG and Zettelkasten-style are comparable
-- Multi-hop reasoning: Zettelkasten-style link traversal outperforms RAG substantially (see A-MEM's 149% multi-hop improvement)
-- Semantic synonym matching: RAG outperforms BM25-based Zettelkasten (BM25 requires term overlap; embeddings handle "authentication" matching "login")
-
-### vs. [Knowledge Graph](../concepts/knowledge-graph.md)
-
-Knowledge graphs use typed, directed edges between entities with formal ontologies. Zettelkasten uses untyped, informal links between atomic notes. Knowledge graphs support structured queries ("find all people related to project X via budget approval"); Zettelkasten supports exploratory traversal ("follow the connections from this concept and see what emerges"). Ars Contexta explicitly claims that wikilinks "implement GraphRAG without the infrastructure"—an informal knowledge graph that costs nothing to maintain.
-
-### vs. [Semantic Memory](../concepts/semantic-memory.md)
-
-Semantic memory in cognitive science refers to general world knowledge (facts, concepts, meanings) as distinct from episodic memory (personal experiences). Zettelkasten implements a kind of semantic memory externalization—general claims and concept relationships, not personal event logs. The distinction matters for agent systems: [Episodic Memory](../concepts/episodic-memory.md) systems track what happened when; Zettelkasten-style systems track what concepts mean and how they relate.
-
-## Practical Implementation Patterns
-
-### The Atomic Note Discipline
-
-The hardest part of implementing Zettelkasten is enforcing atomicity. Beginners write multi-idea notes because atomicity requires deciding where one idea ends and another begins. For agent systems, the same tension exists: smaller notes improve retrieval precision but increase storage overhead and link maintenance cost.
-
-Napkin's benchmark design reveals an empirical answer: per-round notes (~2,500 characters each) outperform per-session notes (~15,000 characters each) for BM25 retrieval. Smaller units concentrate term frequency, making individual notes more distinguishable. For agent memory, this argues for splitting aggressively.
-
-### Index Sparsity
-
-Luhmann's sparse index is counterintuitive but critical. Dense indexes recreate hierarchical filing; sparse indexes force reliance on the link network. For agent systems, this translates to keeping [Maps of Content](../concepts/markdown-wiki.md) high-level (entry points to clusters) rather than exhaustive (full topic taxonomies). Ars Contexta's MOC hierarchy deliberately provides navigation anchors rather than comprehensive topic trees.
-
-### The Evolution/Maintenance Problem
-
-Zettelkasten requires ongoing maintenance: new links added as connections emerge, old notes updated when understanding deepens. Luhmann did this manually over decades. Agent systems face the same problem at higher velocity.
-
-A-MEM's memory evolution mechanism automates this: new memories trigger contextual updates in linked existing memories. The cost is that evolution updates are destructive—no version history, no rollback. If an LLM misinterprets a relationship and updates existing memories incorrectly, the error propagates through the link network. This is the Zettelkasten maintenance problem made worse by automation speed.
-
-### The Bootstrap Problem
-
-A new Zettelkasten has no links. The backlink retrieval signal requires an established link graph before it provides value. New agent memory systems using Zettelkasten-style architectures start with the same bootstrapping problem: early sessions retrieve poorly because there are no connections to follow.
-
-Mitigation approaches: pre-seeding with domain knowledge (Ars Contexta's 249-claim methodology graph), distillation processes that create links during initial knowledge capture (Napkin's auto-distillation), or accepting degraded performance during an accumulation period.
+This introduces a new failure mode: cascading incorrect updates. If the LLM misinterprets a connection, it silently corrupts the contextual descriptions of related notes. A-MEM does not maintain update history. For production systems this requires versioning or at minimum logging of evolution changes.
 
 ## Failure Modes
 
-**Vocabulary mismatch.** BM25-based Zettelkasten retrieval fails when query terms differ from note terms. A note using "authn" won't match a query for "authentication." Embedding-based retrieval handles this; link-traversal-based retrieval does not. This is the primary weakness in Napkin's approach and motivates hybrid BM25+embeddings in systems like GraphRAG.
+**Orphaned notes**: Notes created without links to existing notes cannot be surfaced by graph traversal or backlink ranking. A vault of 1,000 notes where 40% are orphaned has effectively two separate retrieval systems operating on the same corpus.
 
-**Link rot.** As knowledge bases grow and notes evolve, links accumulate that point to outdated or superseded content. Luhmann could physically inspect his slip box; agent systems accumulate broken semantic links invisibly. Ars Contexta's `/reweave` command addresses this with a backward-pass step that updates older notes when new connections emerge, but requires active invocation.
+**Link rot**: Notes get renamed or reorganized, breaking wikilinks. In human-maintained vaults this requires manual cleanup. In agent-maintained vaults, automated rename propagation (or forbidding renames) prevents this.
 
-**Adversarial brittleness.** A-MEM's -28% regression on adversarial tasks suggests that rich semantic connections make the system more susceptible to leading questions—the same link network that enables multi-hop reasoning also amplifies misleading signals.
+**Granularity drift**: Mixed-granularity notes break the atomicity guarantee. A 5,000-word note mixed with 200-word notes means BM25 term frequency statistics are incomparable across the corpus. Enforced schema limits (maximum note length or a linter checking note scope) constrain this.
 
-**Cognitive outsourcing.** Zettelkasten with LLM-mediated note-taking risks a failure mode Luhmann couldn't encounter: the human loses understanding of their own knowledge base because the LLM handles all organization. Ars Contexta acknowledges this with its `/rethink` meta-cognitive audit command, but this requires intentional invocation.
+**Cold start**: A new vault has no links, so the backlink signal is zero for all notes. The system degrades to BM25-only until the vault accumulates enough connections to provide a meaningful graph signal. Auto-distillation (A-MEM's write-back mechanism) partially addresses this by creating links during knowledge ingestion.
 
-## When NOT to Use It
+**Temporal reasoning gaps**: Timestamps exist on notes but most Zettelkasten implementations lack temporal indexing. Queries like "what changed between last month and now" require the agent to navigate date-organized directories manually rather than using a temporal index. Day-directory organization (Napkin's pattern) provides a workaround but not a proper solution.
 
-Zettelkasten-style organization adds overhead that doesn't pay off in every context:
+**Adversarial sensitivity**: A-MEM's enriched contextual descriptions — intended to improve retrieval — made it 28% worse on adversarial tasks. More semantic context amplifies misleading signals from leading questions. Systems with enriched note metadata need adversarial robustness evaluation before production deployment.
 
-- **Short-lived projects** where accumulated connections never compound
-- **Highly structured domains** where a formal ontology fits naturally (legal citation networks, medical taxonomies)—typed knowledge graphs outperform informal links here
-- **Real-time retrieval requirements** where link-traversal latency is unacceptable and pre-indexed embeddings are required
-- **Large-scale multi-modal content** where text-centric link semantics don't capture image/audio/structured data relationships
+## When Not to Use It
+
+Zettelkasten is the wrong choice when:
+
+- **The knowledge base is monolithic**: Legal documents, financial reports, and technical specifications are single documents, not networks of atomic ideas. BM25 on document chunks or vector retrieval over fixed segments outperforms a fragmented Zettelkasten.
+- **Temporal sequence matters more than concept clusters**: Conversation logs, event timelines, and sequential processes have natural order that Zettelkasten flattens. A time-series database or bi-temporal indexing (Zep's pattern) is more appropriate.
+- **Scale exceeds filesystem performance**: At 10,000+ files, BM25 index rebuilds become slow and file-system traversal for graph navigation adds latency. Graph databases with native link traversal handle this better.
+- **Multiple vocabularies span the corpus**: Cross-domain knowledge bases where "login" and "authentication" appear in different documents need semantic similarity, not keyword overlap. Add embeddings.
+- **The agent cannot maintain discipline**: An agent that skips frontmatter, skips backlinks, and dumps everything in one note gets none of the benefits. Without hook enforcement, Zettelkasten degrades to a messy flat directory faster than any other structure.
 
 ## Unresolved Questions
 
-The agent systems literature applying Zettelkasten principles leaves several questions open:
+**How many notes before progressive disclosure is mandatory?** Karpathy reports BM25 working adequately at ~100 articles without RAG. Napkin's benchmarks use per-round notes from ~40 sessions. Where exactly the transition point is — where direct context loading fails and structured retrieval becomes necessary — is not documented with controlled experiments.
 
-**Optimal granularity.** Empirical evidence (Napkin's per-round notes) suggests smaller is better for BM25 retrieval, but no systematic study compares note granularity across memory task types. Multi-hop reasoning might favor different granularity than single-hop recall.
+**How does memory evolution interact with trust?** When A-MEM updates an existing note's contextual description because a new note arrived, the original note's content is implicitly reinterpreted. There is no documentation on how to handle conflicting interpretations or revert erroneous evolutions. Production systems need this.
 
-**Link quality vs. link quantity.** A-MEM generates links via LLM semantic analysis; Zettelkasten generates links via human judgment. No study compares LLM-generated link quality to human-generated links for downstream retrieval or reasoning tasks.
+**What is the right granularity?** Napkin uses per-round notes (~2,500 characters). Ars Contexta uses a configurable granularity dimension. A-MEM uses the raw content of each memory. No controlled experiment compares granularity choices on the same retrieval benchmark.
 
-**Evolution correctness.** A-MEM's memory evolution produces better benchmark results, but no paper reports the false-positive rate for evolution updates—how often does a new memory incorrectly update an existing memory's contextual description?
+**Can Zettelkasten and vector retrieval compose cleanly?** The benchmark evidence suggests BM25 + backlinks matches embedding-based RAG for structured knowledge. But the failure mode (vocabulary gaps) is real. A hybrid architecture — BM25 + backlinks as the primary retrieval path, embeddings as a fallback for synonym bridging — is not documented in any of the reviewed systems.
 
-**Scale ceilings.** Most benchmarks test at hundreds to low thousands of notes. Production deployments of Luhmann-style systems at 90,000+ notes face retrieval complexity that current agent memory papers haven't addressed.
+## Alternatives
+
+**[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)**: Use when vocabulary is inconsistent across the corpus or when the knowledge base is large enough (100K+ chunks) that BM25 recall degrades. RAG with embedding search handles synonym matching that Zettelkasten's wikilink traversal cannot.
+
+**[Knowledge Graph](../concepts/knowledge-graph.md)**: Use when relationships have typed semantics (person→works_at→organization) rather than free-form connections. Typed graphs enable structured queries that Zettelkasten wikilinks cannot. [Graphiti](../projects/graphiti.md) and [Neo4j](../projects/neo4j.md) are production implementations.
+
+**[Vector Database](../concepts/vector-database.md)**: Use when semantic similarity across vocabulary gaps is the primary retrieval requirement. Add to Zettelkasten when the backlink signal alone is insufficient for synonym bridging.
+
+**[CLAUDE.md](../concepts/claude-md.md)**: Use for project-level procedural context (how to run tests, code conventions, current tasks) rather than accumulated knowledge. CLAUDE.md is instructions; Zettelkasten is knowledge. They are complementary: a project can use CLAUDE.md for agent orientation and a Zettelkasten vault for accumulated domain knowledge.
+
+**[Markdown Wiki](../concepts/markdown-wiki.md)**: Use when hierarchical organization suffices and network effects from linking are not the primary goal. Simpler to maintain, less powerful for cross-concept retrieval.
 
 ## Related Concepts
 
-- [Agent Memory](../concepts/agent-memory.md)
-- [Semantic Memory](../concepts/semantic-memory.md)
-- [Long-Term Memory](../concepts/long-term-memory.md)
-- [Knowledge Graph](../concepts/knowledge-graph.md)
-- [Context Engineering](../concepts/context-engineering.md)
-- [Markdown Wiki](../concepts/markdown-wiki.md)
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
-- [Obsidian](../projects/obsidian.md)
-- [Synthetic Data Generation](../concepts/synthetic-data-generation.md)
-- [Andrej Karpathy](../concepts/andrej-karpathy.md)
+- [Agent Memory](../concepts/agent-memory.md): Zettelkasten is one implementation pattern for long-term semantic memory
+- [Semantic Memory](../concepts/semantic-memory.md): The memory type Zettelkasten most directly implements
+- [Long-Term Memory](../concepts/long-term-memory.md): Persistent knowledge accumulation is Zettelkasten's primary use case
+- [Context Engineering](../concepts/context-engineering.md): Progressive disclosure from Zettelkasten vaults is a context engineering technique
+- [Progressive Disclosure](../concepts/progressive-disclosure.md): The retrieval pattern (overview → search → read) for agent vault consumption
+- [BM25](../concepts/bm25.md): The retrieval algorithm that pairs naturally with Zettelkasten's structured markdown
+- [Hybrid Search](../concepts/hybrid-search.md): Adding vector retrieval on top of BM25 to bridge vocabulary gaps
+- [Synthetic Data Generation](../concepts/synthetic-data-generation.md): Karpathy's proposed next step — finetune on wiki content to move knowledge into weights

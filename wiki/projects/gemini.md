@@ -3,151 +3,141 @@ entity_id: gemini
 type: project
 bucket: agent-architecture
 abstract: >-
-  Google's multimodal LLM family (Flash, Pro, Ultra/Deep Research variants)
-  distinguished by a 1M-token context window, native multimodal input, and a
-  free-tier CLI tool for agentic coding workflows.
+  Google's multimodal LLM family (Flash/Pro/Ultra tiers) differentiated by its
+  1M+ token context window, native multimodality, and deep Google ecosystem
+  integration including Search grounding and Workspace tools.
 sources:
-  - repos/orchestra-research-ai-research-skills.md
+  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
+  - deep/repos/affaan-m-everything-claude-code.md
+  - deep/repos/getzep-graphiti.md
   - repos/caviraoss-openmemory.md
-  - repos/yusufkaraaslan-skill-seekers.md
   - repos/infiniflow-ragflow.md
   - repos/jackchen-me-open-multi-agent.md
-  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
-  - deep/repos/getzep-graphiti.md
-  - deep/repos/affaan-m-everything-claude-code.md
+  - repos/orchestra-research-ai-research-skills.md
+  - repos/yusufkaraaslan-skill-seekers.md
 related:
   - openai
   - claude
   - model-context-protocol
-  - retrieval-augmented-generation
-  - cursor
   - anthropic
   - context-engineering
   - ollama
   - multi-agent-systems
   - claude-code
   - episodic-memory
-  - semantic-memory
-  - langchain
-last_compiled: '2026-04-08T02:45:20.029Z'
+  - cursor
+last_compiled: '2026-04-08T23:01:55.471Z'
 ---
 # Gemini
 
 ## What It Is
 
-Gemini is Google's family of large language models, developed by Google DeepMind. The family spans several tiers: Flash (fast, cheap, high-volume), Pro (balanced capability), and Ultra/Advanced (highest capability). A separate "Deep Research" mode chains multiple reasoning steps for extended research tasks. The associated [Gemini CLI](../projects/gemini-cli.md) is Google's answer to [Claude Code](../projects/claude-code.md) — a terminal-based agentic coding tool.
+Gemini is Google DeepMind's family of large language models, available through Google AI Studio and Vertex AI. The family runs across three capability tiers — Flash (fast, cheap), Pro (balanced), and Ultra (highest capability) — plus specialized variants like Flash-Lite and Nano (on-device). Models are accessed via the Gemini API, integrated into Google Workspace products, and deployable through Google Cloud infrastructure.
 
-Gemini's primary architectural differentiator is its context window. At 1 million tokens (with 2 million available in experimental tiers for Gemini 1.5 and beyond), it substantially exceeds most competitors. This isn't just a capacity number — it changes what retrieval architectures are necessary. A codebase that would require [RAG](../concepts/retrieval-augmented-generation.md) or chunking strategies with other models can be fed whole to Gemini. For agent infrastructure specifically, this affects decisions about [context management](../concepts/context-management.md), [episodic memory](../concepts/episodic-memory.md) design, and whether to build retrieval pipelines at all.
+For agent builders, Gemini's two primary differentiators are its context window (up to 2M tokens in Gemini 1.5 Pro, with 1M+ available in production) and native multimodality trained from the ground up rather than bolted on. Google positions it as the model backbone for agentic systems built on Vertex AI, with tooling like Vertex AI Agent Builder, grounding to Google Search, and built-in support for the [Model Context Protocol](../concepts/model-context-protocol.md).
 
-The models are natively multimodal: text, images, audio, video, and code are first-class inputs. This contrasts with text-first models that bolt on vision. Gemini 1.5 Pro processes roughly 1 hour of video, 11 hours of audio, or 30,000 lines of code within its context window.
+## Core Mechanism
 
-## Architecture and Variants
+### Model Tiers and Use Cases
 
-**Gemini Flash** (1.5 Flash, 2.0 Flash): Optimized for throughput and cost. Flash 2.0 is the current workhorse model — fast enough for real-time applications, cheap enough for high-volume pipelines, and still capable on complex tasks. Most agent infrastructure that uses Gemini at scale routes to Flash variants.
+The family breaks down practically as follows:
 
-**Gemini Pro** (1.5 Pro, 2.5 Pro): The capability-focused middle tier. 2.5 Pro introduced explicit reasoning ("thinking") capabilities similar to OpenAI's o1/o3 line, producing chain-of-thought before answering. This matters for [multi-agent systems](../concepts/multi-agent-systems.md) where a model needs to plan before acting.
+- **Gemini Flash** (2.0, 1.5): Optimized for speed and cost. Default choice for high-frequency agent loops, tool-calling pipelines, and tasks where latency matters. Flash 2.0 introduced improved reasoning over 1.5.
+- **Gemini Pro** (2.5, 1.5): The general-purpose workhorse. 2.5 Pro added significantly stronger coding and reasoning capabilities, making it competitive with frontier models on benchmarks like SWE-bench.
+- **Gemini Ultra** (1.0): Highest-capability tier, available on Vertex AI. Positioned for tasks requiring maximum reasoning at the cost of speed and price.
+- **Gemini Nano**: On-device variant, runs locally on Pixel hardware. Not relevant for cloud agent deployments.
 
-**Gemini Ultra / Advanced**: Highest capability, restricted to Google One AI Premium subscribers or enterprise API. Used for benchmarking rather than most production agent deployments.
+### Context Window Architecture
 
-**Gemini Deep Research**: A compound system, not a single model call. It executes multi-step web research autonomously, synthesizing findings into long-form reports. Architecturally closer to an agent than a model — relevant if you're evaluating it for [AutoResearch](../projects/autoresearch.md)-style workflows.
+The 1M+ token context window is Gemini's most architecturally distinctive property. Where [Claude](../projects/claude.md) and GPT-4 class models cap at 128K-200K tokens, Gemini 1.5 Pro can theoretically ingest entire codebases, lengthy document collections, or hours of video transcript in a single context. Google uses a sparse attention mechanism rather than full quadratic attention to make this tractable.
 
-## How It Works in Agent Infrastructure
+In practice, this matters for agent applications where alternative approaches like [RAG](../concepts/retrieval-augmented-generation.md) or [context compression](../concepts/context-compression.md) add complexity. A large enough context window lets you skip retrieval entirely for some workloads. However, [lost-in-the-middle](../concepts/lost-in-the-middle.md) effects remain a real concern — retrieval accuracy drops significantly for information buried in the middle of very long contexts, and this degrades non-linearly as context length increases.
 
-**Context window as memory substitute**: The 1M token window means Gemini can function as a stateless long-context processor where other models would need [episodic memory](../concepts/episodic-memory.md) or [semantic memory](../concepts/semantic-memory.md) systems. For a 50,000-line codebase, you can pass the entire thing. This trades compute cost for architectural simplicity — no retrieval pipeline, no chunking logic, no missed context from imperfect retrieval. The [lost in the middle](../concepts/lost-in-the-middle.md) problem remains real though: performance on information buried in the middle of very long contexts degrades even with 1M tokens available.
+### Multimodal Capabilities
 
-**Native tool use and function calling**: Gemini supports structured function calling, code execution (via built-in Python interpreter), and grounding with Google Search. For agent pipelines built with [LangChain](../projects/langchain.md), [LangGraph](../projects/langgraph.md), or similar frameworks, Gemini slots in as a drop-in model. The function calling interface follows a similar schema to OpenAI's, which simplifies migration.
+Gemini was designed as natively multimodal from pretraining, handling text, images, audio, video, and code within a unified architecture. This contrasts with models like GPT-4V where vision was added post-hoc. In agentic contexts, this enables tasks like processing video frames alongside text instructions, analyzing screenshots in coding agents, or handling mixed document types without separate preprocessing pipelines.
 
-**Model Context Protocol support**: Gemini implements [MCP](../concepts/model-context-protocol.md). The Gemini CLI in particular exposes MCP server support, meaning tools built for Claude can often be reused. Third-party memory systems like [Graphiti](../projects/graphiti.md) list Gemini as a supported embedding and LLM backend.
+### Tool Use and Function Calling
 
-**Embeddings**: Gemini provides embedding models (`text-embedding-004`, `embedding-001`) used in retrieval pipelines. Several agent memory libraries — Graphiti, [OpenMemory](../projects/openmemory.md) — list Gemini as a supported embedding provider. At 768 dimensions, these embeddings are competitive but not differentiated.
+The Gemini API supports structured function calling with JSON schema definitions, parallel tool calls, and multi-turn tool use. This is the standard interface for building [ReAct](../concepts/react.md)-style agents, connecting to [MCP](../concepts/model-context-protocol.md) servers, and integrating with orchestration frameworks like [LangChain](../projects/langchain.md) and [LangGraph](../projects/langgraph.md).
 
-## Gemini CLI
+Google Search grounding is available as a first-party tool — the model can retrieve current information from Google Search without requiring external tooling. For enterprise deployments, this is a meaningful differentiator since it bypasses the need to build and maintain retrieval infrastructure for general knowledge queries.
 
-The [Gemini CLI](../projects/gemini-cli.md) is Google's terminal coding agent. It launched mid-2025 with a notable distribution decision: free access at "generous" rate limits via personal Google accounts. This contrasts with Claude Code (requires Anthropic API credits) and [Cursor](../projects/cursor.md) (subscription required).
+### Ecosystem Integration
 
-The free tier is the primary reason Gemini CLI appears across agent skills libraries. The [AI Research Skills library](../repos/orchestra-research-ai-research-skills.md) supports it. The [Everything Claude Code](../repos/affaan-m-everything-claude-code.md) cross-harness system includes `.gemini/` configuration. The `npx @orchestra-research/ai-research-skills` installer auto-detects installed coding agents and configures Gemini CLI alongside Claude Code, Codex, and others.
+Gemini is the default model powering:
+- **Google Workspace**: Docs, Gmail, Sheets, Slides AI features
+- **Google AI Studio**: Free-tier prototyping environment with direct API access
+- **Vertex AI**: Enterprise deployment with fine-tuning, batch jobs, safety filters, and enterprise SLAs
+- **Android / Pixel**: On-device Nano variant
+- **[Gemini CLI](../projects/gemini-cli.md)**: Command-line interface for terminal-based agent workflows
 
-Functionally, Gemini CLI follows the same pattern as Claude Code: reads a `GEMINI.md` configuration file from the project root, supports MCP tools, executes code, and manages file operations. The `GEMINI.md` format is the Gemini analog to [CLAUDE.md](../concepts/claude-md.md).
+Vertex AI provides additional features over the direct Gemini API: managed endpoints, VPC isolation, IAM-based access control, audit logging, and integration with Google Cloud's MLOps tooling.
 
 ## Key Numbers
 
-- **Context window**: 1 million tokens (Gemini 1.5+), 2 million in experimental tiers
-- **MMLU score**: Gemini Ultra 1.0 reported 90.0% (self-reported by Google, not independently verified by third parties at time of release)
-- **MATH benchmark**: Gemini Ultra 1.0 reported 53.2% (self-reported)
-- **HumanEval**: Gemini Ultra 1.0 reported 74.4% (self-reported)
-- **SWE-bench**: Google has reported figures for Gemini 2.5 Pro in agentic settings, but independent [SWE-bench](../projects/swe-bench.md) leaderboard results should be checked for current standings — these shift frequently and Google's internal test conditions may differ from standard evaluation protocols
-- **API pricing**: Flash variants are among the cheapest frontier models per token; specific pricing changes frequently
+**Benchmarks** (self-reported by Google unless noted):
+- Gemini 2.5 Pro: 63.8% on SWE-bench Verified (self-reported, unverified on the live leaderboard at time of writing)
+- Gemini 1.5 Pro: ~90% on MMLU, competitive on HumanEval
+- Context window: 1M tokens Gemini 1.5 Pro, 2M tokens experimental
 
-Treat Google's self-reported benchmark numbers with appropriate skepticism. Third-party evaluations on [SWE-bench](../projects/swe-bench.md) and other coding benchmarks provide more reliable signal, though even those are gamed by models trained on benchmark-adjacent data.
+**Pricing** (approximate, subject to change):
+- Flash: ~$0.075/1M input tokens, ~$0.30/1M output tokens
+- Pro: ~$1.25/1M input tokens, ~$5.00/1M output tokens
+- Context caching available for long-context workloads, reducing costs for repeated prompts
+
+**Rate limits**: Vary significantly by tier. Free (AI Studio) tier is heavily throttled. Vertex AI enterprise tier has higher throughput but requires billing setup and sometimes quota requests for high-volume workloads.
+
+Independent validation of benchmark numbers is limited. The SWE-bench figure in particular has been disputed in community discussions, as the specific evaluation setup (hints, context provided, scaffolding) affects results significantly.
 
 ## Strengths
 
-**Long-context processing**: The 1M token window is genuinely differentiating. For tasks involving entire codebases, long documents, or extended conversation histories, Gemini can process input that would require a retrieval pipeline with other models. This simplifies agent architectures substantially for the right use cases.
+**Long-context tasks**: For workloads that genuinely require ingesting large documents, codebases, or conversation histories without chunking, Gemini 1.5 Pro's context window is the most practical option available. Tasks like analyzing an entire GitHub repository, processing a book-length document, or maintaining very long agent task histories are feasible in a single API call.
 
-**Multimodal natively**: Audio, video, images, and text in a single context. Relevant for agents that process diverse input types — meeting transcripts with screenshots, code with architecture diagrams, etc.
+**Multimodal pipelines**: When agents need to process images, video, or audio alongside text without separate specialized models, Gemini's unified architecture reduces pipeline complexity. Coding agents that analyze screenshots, research agents processing figures from papers, and document agents handling mixed-format files all benefit.
 
-**Cost structure**: Flash 2.0 is competitive on price/performance for high-volume pipelines. The free Gemini CLI tier makes it accessible for experimentation and hobbyist agent development.
+**Google ecosystem**: For organizations already on Google Cloud or using Google Workspace, Gemini's native integrations reduce integration work. Vertex AI provides enterprise-grade deployment with the same compliance frameworks as other GCP services.
 
-**Ecosystem breadth**: Google's infrastructure means Gemini integrates with Workspace (Docs, Sheets, Drive), Search grounding, and GCP services. For enterprise agents operating in Google-heavy environments, this is practical.
+**Gemini Flash cost-efficiency**: For high-frequency, relatively simple tasks in agent loops — tool call parsing, structured output generation, classification — Flash provides competitive capability at low cost.
 
-**MCP and tool ecosystem**: The growing skills/plugin ecosystem for Gemini CLI (via `GEMINI.md` configs) means teams with existing Claude Code setups can often extend coverage to Gemini with minimal additional work.
+## Critical Limitations
 
-## Limitations
+**Lost-in-the-middle at scale**: While the 1M token context window is genuinely useful, retrieval accuracy degrades for information in the middle portions of very long contexts. Google's own research acknowledges this. An agent relying on the full context window for critical information buried halfway through a 500K token document will see worse performance than one using targeted retrieval. This is not unique to Gemini, but it matters most for Gemini because the context window is its marquee feature.
 
-**Lost in the middle at scale**: Having a 1M token window and using it well are different things. Studies on long-context models consistently show performance degradation on information embedded in the middle of very long inputs. For agent use cases where the critical facts are buried in a 500,000-token context, Gemini may still miss them. The context window is a necessary but not sufficient condition for good long-context reasoning.
+**Infrastructure assumption**: Enterprise use of Gemini (Vertex AI) assumes you are running workloads within Google Cloud or are willing to pay egress costs and accept GCP's compliance model. The Gemini API through AI Studio lacks the enterprise controls (VPC isolation, audit logs, fine-tuning, custom endpoints) that production agent deployments often require. Teams not already on GCP pay significant switching costs — data residency, IAM integration, billing — that are often underestimated.
 
-**Benchmark credibility**: Google self-reports most of its benchmark numbers. Independent evaluators have found mixed results — sometimes matching Google's claims, sometimes not. For production decisions, test on your specific task distribution rather than relying on published scores.
+## When Not to Use It
 
-**Latency on long contexts**: Processing 1M tokens takes time. For real-time agent interactions where latency matters, even Flash variants become slow when given very long inputs. This affects architectural decisions about when to use the long context versus a retrieval system.
+**When your stack is not Google Cloud**: Vertex AI's enterprise features only make sense if you're already in the GCP ecosystem or willing to commit to it. For teams on AWS or Azure, [Claude](../projects/claude.md) via Bedrock or [OpenAI](../projects/openai.md) via Azure OpenAI will have lower integration friction.
 
-**API stability**: Google has changed Gemini's API, model naming, and pricing multiple times. Agent infrastructure built against specific Gemini endpoints requires maintenance as Google iterates. The [LiteLLM](../projects/litellm.md) abstraction layer mitigates this.
+**For coding agents where benchmark accuracy matters**: As of mid-2025, [Claude](../projects/claude.md) Sonnet and Opus variants consistently outperform Gemini on agentic coding tasks in independent evaluations. Projects like [SWE-bench](../projects/swe-bench.md) scores show Claude models generally stronger on end-to-end coding workflows. If you're building a tool like [Cursor](../projects/cursor.md) or [Claude Code](../projects/claude-code.md), reach for Claude by default unless you have specific reasons for Gemini.
 
-**Concrete failure mode**: An agent given a 200,000-token codebase to review for security vulnerabilities will perform worse than one that uses targeted retrieval to surface the 5,000 tokens of security-relevant code. The long context enables lazy architecture — "just pass everything" — that often produces worse results than a thoughtfully designed retrieval step, at higher cost.
+**When you need a stable, slow-moving API**: Google has released and deprecated model versions faster than Anthropic or OpenAI. The `gemini-pro` endpoint has changed behavior across versions in ways that break production applications. Teams that need stable, versioned API endpoints for production should pin to specific model versions and budget time for migration work.
 
-**Unspoken infrastructure assumption**: The 1M token window assumes you have content worth filling it. Most real applications don't. Developers drawn to Gemini for the context window often find their actual inputs are 10-50K tokens, where the window advantage over competitors disappears and the choice reduces to capability, cost, and ecosystem.
-
-## When NOT to Use Gemini
-
-**When you need reproducible benchmarks**: If your evaluation infrastructure relies on consistent model outputs for regression testing, Gemini's model updates (often without versioning that matches competitor practices) create friction. Anthropic and OpenAI provide more stable versioned model access.
-
-**When your stack is already OpenAI-native**: If your agent infrastructure uses OpenAI's Assistants API, fine-tuning, or batch processing, migration cost is real. Gemini's API follows different patterns.
-
-**When privacy requirements preclude cloud**: Gemini has no on-premises deployment option. For air-gapped environments or strict data residency requirements, [Ollama](../projects/ollama.md) with local models or on-premises OpenAI alternatives are the appropriate choice.
-
-**When you need the current best coding agent**: As of mid-2025, independent [SWE-bench](../projects/swe-bench.md) evaluations show [Claude Code](../projects/claude-code.md) with Claude 3.5/3.7 Sonnet ahead of Gemini for complex software engineering tasks. If coding agent capability is the primary criterion, verify current leaderboard standings before choosing.
-
-**For low-latency, high-frequency agent loops**: ReAct-style agents ([ReAct](../concepts/react.md)) that make many small model calls perform better with models optimized for short-context fast responses. At high call frequency, even Flash's latency adds up, and the long context advantage is irrelevant.
+**For privacy-sensitive applications without Vertex AI**: The free AI Studio tier uses conversations for model improvement by default. For applications handling user data, you need Vertex AI with appropriate data processing agreements, which adds cost and setup complexity.
 
 ## Unresolved Questions
 
-**Rate limits at scale**: Google's free tier rate limits for Gemini CLI are described as "generous" but not precisely documented for all use cases. Production agent deployments hitting these limits face unclear upgrade paths. The paid API tier has different limits, but the crossover point and behavior during limit approaches are underdocumented.
+**Effective vs. advertised context performance**: Google's demonstrations of 1M token context use carefully selected tasks. Independent benchmarks of actual retrieval accuracy across the full 1M window in typical agent workloads are sparse. The practical effective context length — where retrieval quality is acceptable for production use — is not clearly documented.
 
-**Deep Research architecture**: Google hasn't published details on how Deep Research chains its reasoning steps, what retrieval it uses, or how it handles contradictory sources. Treating it as a black box is necessary but limits trust calibration for research agent applications.
+**Fine-tuning quality at scale**: Vertex AI offers supervised fine-tuning for Gemini models, but the quality of fine-tuned models relative to base models at scale is not well documented outside Google's case studies. For teams considering domain adaptation, the cost-quality tradeoff against alternatives like prompt engineering or RAG is unclear.
 
-**Long-context quality assurance**: Google's documentation doesn't explain how they test or ensure quality across the full 1M token range. The gap between "accepts 1M tokens" and "reasons well over 1M tokens" is unaddressed officially.
+**Multi-agent coordination reliability**: Gemini's tool use is documented for single-agent scenarios. For [multi-agent systems](../concepts/multi-agent-systems.md) where multiple Gemini instances coordinate, failure modes (context propagation, state consistency, rate limit behavior under load) are not well characterized in public documentation.
 
-**Gemini CLI governance and roadmap**: Unlike Claude Code's Anthropic backing with public model cards and usage policies, the Gemini CLI's development roadmap, feature parity with other platforms, and long-term support commitment are unclear.
+**Pricing stability**: Google has changed Gemini API pricing multiple times. Production budget planning is difficult when prices shift without advance notice.
 
 ## Alternatives and Selection Guidance
 
-**Use [Claude](../projects/claude.md) / [Claude Code](../projects/claude-code.md) when**: Coding agent quality is the primary criterion, you want the most capable current model for software engineering tasks, or you need the tightest available safety/alignment properties for enterprise deployment.
+- **Use [Claude](../projects/claude.md)** (Anthropic via AWS Bedrock or API) when building coding agents, when you need the strongest instruction-following on complex tasks, or when your team is not on GCP. Claude 3.5 Sonnet consistently outperforms comparable Gemini tiers on agentic benchmarks.
+- **Use [OpenAI](../projects/openai.md) GPT-4o** when you need broad ecosystem compatibility, the most mature API tooling, or Azure enterprise deployment. OpenAI's function calling is the most widely supported format across orchestration frameworks.
+- **Use Gemini** when you need 1M+ token context windows, native multimodal processing from a single model family, or when Google Cloud is your primary deployment environment.
+- **Use [Ollama](../projects/ollama.md)** when you need local inference without cloud dependencies, are working with open-weight models, or have strict data residency requirements that exclude cloud APIs.
+- **Use [LiteLLM](../projects/litellm.md)** to abstract over Gemini and other providers when your application needs to switch models dynamically or when you want provider fallback behavior.
 
-**Use [OpenAI](../projects/openai.md) / [GPT-4](../projects/gpt-4.md) when**: Your stack is already OpenAI-native, you need fine-tuning for domain adaptation, or you want the largest third-party ecosystem of integrations.
+## Related Concepts
 
-**Use [Ollama](../projects/ollama.md) when**: Privacy, cost at scale, or offline operation are requirements. You give up frontier capability but gain full control.
-
-**Use Gemini specifically when**: Your task genuinely benefits from 1M+ token contexts (processing large codebases, long documents, or extended histories without retrieval infrastructure), you want a free CLI agent for experimentation, you're operating in Google Workspace or GCP environments where native integration matters, or multimodal inputs (audio, video) are central to the use case.
-
-**Use [Cursor](../projects/cursor.md) or [Windsurf](../projects/windsurf.md) when**: You want IDE-native agent integration rather than terminal-first workflow, and the GUI development environment matters more than the underlying model choice.
-
-## Related Concepts and Projects
-
-- [Gemini CLI](../projects/gemini-cli.md) — the terminal coding agent built on Gemini models
-- [Claude Code](../projects/claude-code.md) — primary competitor in the agentic coding CLI space
-- [Context Engineering](../concepts/context-engineering.md) — how the 1M token window changes context design decisions
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — the retrieval architecture Gemini's long context can sometimes replace
-- [Model Context Protocol](../concepts/model-context-protocol.md) — the tool protocol Gemini CLI implements
-- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — architectures where Gemini functions as orchestrator or worker
-- [LangChain](../projects/langchain.md) — the framework most commonly used to integrate Gemini into agent pipelines
-- [Episodic Memory](../concepts/episodic-memory.md) and [Semantic Memory](../concepts/semantic-memory.md) — memory architectures whose necessity the long context window reduces (but doesn't eliminate)
-- [Lost in the Middle](../concepts/lost-in-the-middle.md) — the failure mode most relevant to long-context Gemini deployments
+- [Context Engineering](../concepts/context-engineering.md): Managing what fits in Gemini's large context window and in what order
+- [Model Context Protocol](../concepts/model-context-protocol.md): Gemini implements MCP for standardized tool integration
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md): Gemini is commonly used as a backbone model in multi-agent pipelines
+- [Episodic Memory](../concepts/episodic-memory.md): Gemini's long context enables episodic memory patterns without external stores
+- [Gemini CLI](../projects/gemini-cli.md): Terminal interface built on the Gemini API

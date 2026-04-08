@@ -3,110 +3,121 @@ entity_id: appworld
 type: project
 bucket: agent-architecture
 abstract: >-
-  AppWorld is a benchmark and sandboxed simulator for evaluating LLM agents on
-  realistic multi-app tasks (Spotify, Gmail, etc.), measuring task goal
-  completion and scenario completion against ground-truth API call sequences
-  across 750 tasks.
+  AppWorld is a benchmark for evaluating LLM agents on realistic multi-app API
+  tasks with a fully controlled, sandboxed environment; its key differentiator
+  is deep integration across 9 apps with 457 APIs, enabling measurable progress
+  on complex, multi-step agent workflows.
 sources:
-  - repos/modelscope-agentevolver.md
-  - papers/zhang-agentic-context-engineering-evolving-contexts-for.md
-  - deep/repos/modelscope-agentevolver.md
-  - deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md
   - deep/papers/xu-agent-skills-for-large-language-models-architectu.md
+  - deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md
+  - deep/repos/modelscope-agentevolver.md
+  - papers/zhang-agentic-context-engineering-evolving-contexts-for.md
+  - repos/modelscope-agentevolver.md
 related: []
-last_compiled: '2026-04-08T02:46:22.030Z'
+last_compiled: '2026-04-08T23:02:53.130Z'
 ---
 # AppWorld
 
 ## What It Is
 
-AppWorld is a benchmark and execution environment for evaluating LLM agents on complex, multi-step tasks that require coordinating across multiple simulated applications — Spotify, Gmail, an Amazon-like store, a bank, a filesystem, and others. Released as a research artifact alongside an NLP paper, it fills a gap between toy tool-use benchmarks and real-world agentic settings by providing a fully sandboxed world where agents interact via Python API calls, receive realistic error messages, and must chain together sequences of operations to complete natural-language goals.
+AppWorld is a benchmark and controlled execution environment for testing LLM agents on complex, real-world-like tasks that span multiple interconnected applications. An agent must complete tasks such as "cancel the Spotify subscription I'm paying for my roommate and send them a Venmo request for the amount I already paid this month" by calling sequences of APIs across connected services, managing state across those services, and recovering from errors along the way.
 
-The benchmark ships 750 tasks of varying difficulty across two splits: `test-normal` (straightforward multi-step tasks) and `test-challenge` (tasks requiring multi-user reasoning, long dependency chains, or handling of ambiguous goals). Tasks are graded on two metrics: **Task Goal Completion (TGC)**, which checks whether the final world state matches the expected outcome, and **Scenario Goal Completion (SGC)**, which evaluates full scenarios that may contain multiple subtasks.
+The benchmark is built on a simulated ecosystem of 9 apps (Spotify, Gmail, Venmo, Amazon, Phone, Notes, Contacts, Calendar, Supervisor) with 457 APIs, 750 everyday tasks organized into 4 difficulty levels, and a sandboxed Python execution environment that acts as the agent's terminal. Each task runs in a fresh, isolated database state so test results are reproducible and agents cannot contaminate each other's environments.
 
-AppWorld has become a standard reference point in multi-agent and agent-training research. The ACE framework reports 76.2% TGC on test-normal using DeepSeek-V3.1. SAGE (from the agent skills survey) reports 72.0% task completion. AgentEvolver's Qwen2.5-14B reaches 48.7% avg@8 and 69.4% best@8.
+AppWorld is frequently used as a primary evaluation target in agent research. [AgentEvolver](../projects/agentevolver.md) reports results on AppWorld as one of two benchmark targets. [ACE](../concepts/context-engineering.md) uses AppWorld for its context evolution experiments and appears on the AppWorld public leaderboard. The benchmark's Task Goal Completion (TGC) and Scenario Goal Completion (SGC) metrics track both per-task accuracy and the harder cross-task scenario success rates, respectively.
 
 ## Architecture
 
-The simulator runs as a FastAPI server backed by SQLite. Each benchmark session creates an isolated database snapshot, so agent actions in one session cannot contaminate another. Agents interact via a Python `AppWorldClient` that exposes a single `step(code_string)` method — the agent submits a Python snippet, the server executes it against the live simulated state, and returns the result or error.
+### Simulated App Ecosystem
 
-This code-execution interface is architecturally significant. Agents must write real Python to call APIs like `apis.spotify.add_to_playlist(playlist_id=..., track_id=...)` rather than submit JSON tool calls. This means the benchmark tests code generation and API discovery in addition to task planning. Agents that only know how to call functions via structured tool schemas will fail here.
+The 9 apps are not thin stubs. Each simulates real application behavior with stateful databases, interdependencies between services (e.g., Venmo transactions affect account balances, Spotify subscription status affects what plans are listed elsewhere), and API semantics that match real-world patterns including pagination, authentication, and error codes. API calls go through a controller that enforces schema validation, logs the interaction, and updates shared state.
 
-The task dataset (`tasks/`) stores task specifications as JSON with fields for the natural-language instruction, the ground-truth action sequence, required initial world state, and the evaluation criteria. Ground-truth sequences are generated programmatically and validated by executing them against a clean world state. The evaluation harness in `eval/` replays the agent's submitted code and compares resulting world states.
+Tasks are seeded with specific data states (specific users, playlists, transactions, contact lists) so every task has a deterministic ground truth. The evaluator checks final database state, not intermediate steps, which means agents can succeed via novel API call sequences that differ from the reference solution.
 
-The AppWorld environment is registered as a standard env-service in AgentEvolver's `env_service/environments/appworld/`, exposing `/create`, `/step`, `/evaluate`, and `/release` endpoints. This interface makes AppWorld composable with agent training frameworks that expect a generic environment API.
+### Task Difficulty Levels
+
+Four levels of increasing complexity:
+
+- **Level 1:** Single app, single API call
+- **Level 2:** Single app, multiple API calls
+- **Level 3:** Multiple apps, moderate coordination
+- **Level 4:** Multiple apps, complex cross-app state management
+
+Most research reports aggregate numbers, but Level 4 tasks expose where agents fail: they require tracking state across multiple services, handling situations where earlier API calls must be revisited based on later discoveries, and managing ambiguous task specifications where the agent must infer intent.
+
+### Execution Environment
+
+The agent operates through a Python REPL. It imports an `appworld` client library, calls APIs as Python function calls, receives structured responses, and writes code to process results. This design choice matters: the agent can use Python to process API outputs (e.g., filter a list, compute a total) rather than relying on the LLM to do arithmetic in context. It also means the benchmark tests code generation alongside API orchestration.
+
+### Evaluation
+
+TGC checks whether the final state of the relevant databases matches the expected state. SGC groups tasks into scenarios (e.g., "manage a shared household account") and measures whether all tasks in the scenario succeed. SGC is significantly harder because partial scenario completion scores zero.
+
+The benchmark has a public leaderboard. As of the research in these sources, ACE with DeepSeek-V3.1 matched the top-ranked production agent (IBM-CUGA, GPT-4.1-based) on overall average and exceeded it by +8.4% TGC on the harder test-challenge split. SAGE (from the agent skills survey) reported 72.0% TGC. AgentEvolver with Qwen2.5-14B reached 48.7% avg@8 and 69.4% best@8. These figures are self-reported by the respective research groups, not independently audited.
 
 ## Key Numbers
 
-| Result | System | Metric | Source |
-|---|---|---|---|
-| 76.2% | ACE + DeepSeek-V3.1 | TGC, test-normal | Self-reported |
-| 72.0% | SAGE | Task completion | Self-reported |
-| 59.4% | ACE + DeepSeek-V3.1 | Average (normal + challenge) | Self-reported |
-| 48.7% / 69.4% | AgentEvolver Qwen2.5-14B | avg@8 / best@8 | Self-reported |
-| 18.0% / 31.4% | Qwen2.5-14B baseline | avg@8 / best@8 | Self-reported |
-| ~64% | IBM-CUGA (GPT-4.1) | Overall average | Self-reported |
+| System | TGC / avg@8 | Notes |
+|--------|-------------|-------|
+| ACE + DeepSeek-V3.1 | 76.2% TGC (test-normal) | Self-reported; on public leaderboard |
+| SAGE | 72.0% TGC | Self-reported; 8.9% over baseline |
+| AgentEvolver (14B, all) | 48.7% avg@8 | Self-reported; ablation results available |
+| Qwen2.5-14B baseline | 18.0% avg@8 | Self-reported |
 
-All results above are self-reported by the respective paper or framework authors. No independent third-party reproduction has been documented in the reviewed sources.
-
-The gap between avg@8 and best@8 in AgentEvolver results (e.g., 48.7% vs. 69.4%) reflects significant variance across rollouts, meaning individual runs differ substantially from the average. Production systems targeting consistent performance should optimize avg@8, not best@8.
+The spread between methods is large enough to be meaningful even with self-reporting caveats. The public leaderboard provides some external validation for leaderboard submissions, though test set security is not described in detail.
 
 ## Strengths
 
-**Grounded evaluation via world state comparison.** TGC checks whether the simulated world reached the right state, not whether the agent's output text looks correct. This prevents agents from gaming evaluation by producing plausible-sounding responses that fail to actually complete tasks.
+**Controlled reproducibility.** Each task runs in an isolated database snapshot. Unlike web agent benchmarks where live websites change, AppWorld results are stable over time and across machines.
 
-**Multi-app dependency chains.** Many tasks require reading state from one app (e.g., the bank balance), making a decision, and taking action in another (e.g., placing a Spotify order). This cross-app reasoning requirement distinguishes AppWorld from single-tool benchmarks like HotpotQA or HumanEval.
+**Real complexity without real systems.** The multi-app interdependencies create genuinely hard tasks without requiring live API credentials, rate limits, or external service dependencies. Researchers can run thousands of evaluation episodes.
 
-**Isolated sandboxing.** The snapshot-per-session design means agents cannot accidentally or intentionally corrupt other test cases. This makes large-scale evaluation reliable and the benchmark suitable for training setups that run thousands of rollouts.
+**Measurable, unambiguous outcomes.** Database state comparison avoids the subjectivity of LLM-as-judge evaluation. Either the Spotify subscription was cancelled and the Venmo request was sent, or it was not.
 
-**Code-execution interface as a capability filter.** The Python snippet interface tests a harder capability than JSON tool-calling. Agents must discover available APIs, write correct Python, and handle runtime errors. This filters for agents with genuine code generation capability.
-
-**Adoption as a standard training environment.** Multiple agent training frameworks (AgentEvolver, SAGE, ACE) now target AppWorld as their primary evaluation environment, which means results are comparable across research groups, and tooling for running and scoring against AppWorld is actively maintained.
+**Code execution as a tool.** The Python REPL design tests whether agents can write working code to process API responses, not just whether they can string API calls together. This is closer to how capable human users actually interact with services.
 
 ## Limitations
 
-**Concrete failure mode: API discovery bottleneck.** Agents entering AppWorld cold have no index of available APIs. They must either receive documentation in their system prompt or discover APIs by querying the environment. For long-horizon tasks with 15+ step solutions, agents that fail to discover an obscure API early (e.g., `apis.bank.get_recurring_transfers`) often cannot recover. The benchmark does not standardize how API documentation is presented, so performance varies significantly based on how a system's prompt engineering handles this.
+**One concrete failure mode:** Tasks with ambiguous specifications expose a systematic failure. When a task says "cancel the subscription I'm paying for my roommate," the agent must determine which subscription qualifies (the roommate could be on multiple plans). Agents that pick the wrong interpretation complete all API calls successfully but fail evaluation because the database state is wrong. Benchmark scores do not distinguish "wrong interpretation" failures from "API usage" failures, making it hard to diagnose agent weaknesses.
 
-**Unspoken infrastructure assumption: a persistent, stateful server process.** AppWorld requires a running FastAPI server with SQLite state for each evaluation session. This is incompatible with serverless evaluation infrastructure and requires session lifecycle management. Frameworks that expect a stateless scoring API will need adapters. AgentEvolver's `env_service/` handles this, but researchers integrating AppWorld into custom pipelines must implement session management themselves.
+**One unspoken infrastructure assumption:** AppWorld's sandboxed environment assumes the agent's code runs in a trusted, controlled interpreter. Production deployments cannot give agents arbitrary Python execution against real APIs. The skills and capabilities demonstrated on AppWorld transfer imperfectly to systems that need sandboxing, permission controls, or API authentication — the benchmark abstracts these away entirely.
 
-**Artificial app ecosystem.** The simulated apps mimic real-world services but are not real services. Transfer of performance to real Spotify or Gmail agents is unknown. The simulated APIs are simpler than real production APIs, which have rate limits, partial failures, pagination quirks, and undocumented behaviors. Agents trained primarily on AppWorld may overfit to the simulator's clean response format.
+**Closed ecosystem.** The 9 apps cover common personal productivity scenarios but miss enterprise contexts (Salesforce, JIRA, GitHub), developer tools, and domain-specific APIs. Agents that score well on AppWorld may not generalize to vertical-specific workflows.
 
-**750 tasks may insufficient for fine-grained capability analysis.** The test set is large enough for aggregate reporting but may be too small to detect differences in specific capability subsets (e.g., financial tasks vs. calendar tasks, single-user vs. multi-user scenarios).
+**Leaderboard dynamics.** Public leaderboards incentivize benchmark-specific optimization. Systems tuned specifically for AppWorld's API patterns and task distributions (as SAGE and AgentEvolver clearly are, given AppWorld is their primary training environment) may overfit to this benchmark's quirks.
 
 ## When Not to Use It
 
-**Do not use AppWorld to benchmark single-tool or retrieval-only agents.** If your system retrieves documents and answers questions, AppWorld's code-execution multi-app setting is the wrong measurement. Use [HotpotQA](../projects/hotpotqa.md) or similar for retrieval benchmarks.
+AppWorld is the wrong benchmark when you need to evaluate:
 
-**Do not use AppWorld as a proxy for real-API performance.** The simulated environment does not capture authentication flows, rate limiting, network failures, or schema drift. Agents that score well here may still fail on real API integrations.
-
-**Do not use AppWorld if you need stateless evaluation infrastructure.** If your evaluation pipeline cannot run persistent services, use benchmarks with file-based or subprocess-based evaluation.
-
-**Do not use AppWorld if your agent uses structured JSON tool-calling only.** The Python code-execution interface requires code generation capability. Agents without this will produce near-zero scores regardless of their reasoning quality.
+- **Enterprise or domain-specific agent workflows.** The benchmark's personal app ecosystem does not reflect B2B automation patterns. Use [Tau-bench](../projects/tau-bench.md) for customer service or [SWE-bench](../projects/swe-bench.md) for software engineering tasks.
+- **Open-ended web navigation.** AppWorld provides structured APIs; it does not test agents that must navigate GUIs, parse HTML, or handle unpredictable web surfaces.
+- **Multi-agent coordination.** All tasks are single-agent. If you are building systems where multiple agents coordinate, AppWorld will not surface coordination failures.
+- **Safety and adversarial robustness.** The controlled environment has no malicious content, prompt injection attempts, or adversarial API responses.
 
 ## Unresolved Questions
 
-**Leaderboard governance.** The AppWorld leaderboard is referenced in research papers but its maintenance model is unclear. Who operates it, how submissions are validated, and whether the test set is held out from public access are not documented in the reviewed sources. Published results use different subsets (test-normal vs. overall average), making cross-paper comparisons imprecise.
+**Test set security.** The public leaderboard implies a held-out test set, but the documentation does not describe how test task isolation is maintained as the dataset becomes more widely known. If training datasets for models like AgentEvolver include AppWorld tasks, contamination becomes a concern.
 
-**Scoring sensitivity to API documentation format.** No standardized specification exists for how API documentation should be presented in the agent's context. Results vary substantially based on whether an agent receives a terse function signature list vs. full documentation with examples. This means AppWorld scores conflate prompt engineering skill with agent capability.
+**Cost at scale.** Running AppWorld evaluation requires executing hundreds of isolated sandboxed environments. The compute and storage cost of running full evaluations at scale is not published. Research groups with GPU clusters can absorb this, but small teams may find evaluation prohibitively expensive.
 
-**Challenge split difficulty calibration.** The test-challenge split is described as harder, but the methodology for determining which tasks are "challenge" vs. "normal" is not detailed. If future work finds the split correlates with a specific capability (e.g., multi-user reasoning), that would clarify what test-challenge scores actually measure.
+**Scenario composition methodology.** How tasks are grouped into scenarios (for SGC scoring) and how scenario difficulty is balanced across the four levels is not publicly documented in detail. The SGC metric's sensitivity to scenario composition choices is not analyzed.
 
-**Cost at scale for training.** Running AppWorld as a training environment (as in AgentEvolver and SAGE) requires running thousands of evaluation sessions. The compute and storage costs for this are not characterized in any reviewed source. AgentEvolver's results on 8 A100 GPUs give some indication, but the proportion of compute spent on AppWorld sessions vs. model training is unreported.
+**Generalization evidence.** AgentEvolver and SAGE both train specifically on AppWorld and report AppWorld results. There is limited evidence that AppWorld-specific improvements transfer to other multi-app benchmarks. The correlation between AppWorld scores and real-world agent capability is asserted, not demonstrated.
 
 ## Alternatives
 
-**Use [SWE-bench](../projects/swe-bench.md)** when you want to evaluate code agents on real software engineering tasks with verified ground truth. SWE-bench uses actual GitHub issues and test suites; AppWorld uses simulated apps.
+- **[Tau-bench](../projects/tau-bench.md):** Use when evaluating agents on customer service or retail workflows with human-in-the-loop dynamics.
+- **[SWE-bench](../projects/swe-bench.md):** Use when evaluating software engineering agents on real GitHub issues with code execution.
+- **[GAIA](../projects/gaia.md):** Use when evaluating general-purpose question answering with tool use across diverse domains.
+- **[HotpotQA](../projects/hotpotqa.md):** Use when evaluating multi-hop reasoning without execution environments.
 
-**Use [tau-bench](../projects/tau-bench.md)** when you need to evaluate customer service or retail agents with human-in-the-loop interaction patterns. Tau-bench focuses on natural conversation and policy compliance; AppWorld focuses on multi-app API execution.
-
-**Use [GAIA](../projects/gaia.md)** when you want to evaluate general assistant capability across diverse task types including web search, document understanding, and tool use. GAIA covers broader task types; AppWorld is deeper on multi-app API coordination specifically.
-
-**Use [HumanEval](../projects/humaneval.md)** when your primary evaluation target is code generation correctness in isolation. HumanEval is purely about writing correct Python functions; AppWorld uses code as a means to interact with a simulated world.
+AppWorld is the right choice specifically when you want to measure structured API orchestration across interdependent services in a reproducible, sandboxed setting with unambiguous outcome metrics.
 
 ## Related Concepts
 
-- [Agent Skills](../concepts/agent-skills.md) — SAGE's skill-based reinforcement learning uses AppWorld as its primary evaluation environment, achieving 72.0% task completion.
-- [Reinforcement Learning](../concepts/reinforcement-learning.md) — AgentEvolver, SAGE, and ACE all use AppWorld's execution feedback as a reward signal for policy optimization.
-- [Context Engineering](../concepts/context-engineering.md) — ACE's offline and online adaptation results on AppWorld demonstrate how evolved system prompts improve multi-app task completion.
-- [ReAct](../concepts/react.md) — Most AppWorld baselines use ReAct-style reasoning, making it a standard comparison point for newer agent architectures.
-- [Agent Harness](../concepts/agent-harness.md) — AppWorld functions as an agent harness: it provides the execution environment, API surface, task definitions, and evaluation logic that research systems plug into.
+- [Agent Skills](../concepts/agent-skills.md): AppWorld is the primary training and evaluation environment for skill-based agent research including SAGE.
+- [ReAct](../concepts/react.md): The baseline agent architecture used in most AppWorld evaluations.
+- [Context Engineering](../concepts/context-engineering.md): ACE uses AppWorld as its primary agent benchmark for evaluating evolving context playbooks.
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md): AppWorld is single-agent, but results are often compared to multi-agent baselines.
+- [Self-Improving Agents](../concepts/self-improving-agents.md): AgentEvolver and SAGE both use AppWorld as the primary environment for training self-evolving agents.

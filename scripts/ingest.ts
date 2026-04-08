@@ -20,9 +20,13 @@ import { ingestArxivPapers } from "./ingest-arxiv.js";
 import { ingestArticles } from "./ingest-article.js";
 
 async function main() {
-  const urls = process.argv.slice(2);
+  const FORCE = process.argv.includes("--force");
+  const urls = process.argv.slice(2).filter((a) => !a.startsWith("--"));
   if (urls.length === 0) {
-    console.log("Usage: bun run ingest <url1> [url2] ...");
+    console.log("Usage: bun run ingest <url1> [url2] ... [--force]");
+    console.log("");
+    console.log("Flags:");
+    console.log("  --force   Re-ingest even if already seen (deletes existing file, re-scores)");
     console.log("");
     console.log("Supported platforms:");
     console.log("  x.com / twitter.com  → Twitter scraper");
@@ -80,6 +84,8 @@ async function main() {
     `\n=== Ingestion: ${twitter.length} tweets, ${github.length} repos, ${arxiv.length} papers, ${article.length} articles ===\n`,
   );
 
+  if (FORCE) console.log("  --force: will re-ingest and re-score existing sources\n");
+
   const seen = await loadSeen();
   const allWritten: string[] = [];
 
@@ -87,7 +93,7 @@ async function main() {
   if (github.length > 0) {
     for (const url of github) {
       try {
-        const written = await ingestGithubRepo(url, { seen });
+        const written = await ingestGithubRepo(url, { seen, force: FORCE });
         allWritten.push(...written);
       } catch (err) {
         console.error(`error processing ${url}: ${err}`);
@@ -98,7 +104,7 @@ async function main() {
   // Twitter (auto-chains to GitHub for discovered repo URLs)
   if (twitter.length > 0) {
     try {
-      const written = await ingestTweets(twitter, { seen });
+      const written = await ingestTweets(twitter, { seen, force: FORCE });
       allWritten.push(...written);
     } catch (err) {
       console.error(`error processing tweets: ${err}`);
@@ -108,7 +114,7 @@ async function main() {
   // arXiv papers
   if (arxiv.length > 0) {
     try {
-      const written = await ingestArxivPapers(arxiv, { seen });
+      const written = await ingestArxivPapers(arxiv, { seen, force: FORCE });
       allWritten.push(...written);
     } catch (err) {
       console.error(`error processing arXiv papers: ${err}`);
@@ -118,7 +124,7 @@ async function main() {
   // Articles (generic URLs — Defuddle + Jina fallback)
   if (article.length > 0) {
     try {
-      const written = await ingestArticles(article, { seen });
+      const written = await ingestArticles(article, { seen, force: FORCE });
       allWritten.push(...written);
     } catch (err) {
       console.error(`error processing articles: ${err}`);
