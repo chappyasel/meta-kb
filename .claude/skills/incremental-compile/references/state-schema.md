@@ -82,8 +82,12 @@ ISO 8601 timestamp of when the state was saved.
   },
   "previous_entity_ids": ["mem0", "graphiti", "letta", "napkin"],
   "synthesis_hashes": {
+    "knowledge-substrate": "9e0f1a2b...",
     "agent-memory": "5a6b7c8d...",
-    "knowledge-bases": "9e0f1a2b..."
+    "context-engineering": "c3d4e5f6...",
+    "agent-architecture": "a7b8c9d0...",
+    "multi-agent-systems": "e1f2a3b4...",
+    "self-improving": "5c6d7e8f..."
   },
   "last_compiled": "2026-04-06T20:00:00.000Z"
 }

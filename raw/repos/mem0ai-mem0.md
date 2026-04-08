@@ -18,19 +18,20 @@ key_insight: >-
   each new model or use case. The 26% accuracy gain and 90% token reduction
   versus full-context demonstrate that selective memory retrieval is superior to
   naive RAG for production agent systems.
-deep_researched: 'deep/repos/mem0ai-mem0.md'
+deep_researched: deep/repos/mem0ai-mem0.md
 stars: 51880
 forks: 5805
 relevance_scores:
   topic_relevance: 10
   practitioner_value: 10
-  novelty: 7
+  novelty: 8
   signal_quality: 9
-  composite: 9.4
+  composite: 9.5
   reason: >-
-    Mem0 is a production-ready, widely-adopted agent memory library directly
-    solving persistent/adaptive memory for LLM agents with documented
-    benchmarks, multi-level abstraction, and a clear API.
+    Mem0 is a canonical example of agent memory infrastructure with documented
+    benchmarks, multi-level abstraction (user/session/agent), production-ready
+    API, and measurable gains over naive RAG—directly addressing topic areas 2
+    and 3.
 language: Python
 license: Apache-2.0
 ---

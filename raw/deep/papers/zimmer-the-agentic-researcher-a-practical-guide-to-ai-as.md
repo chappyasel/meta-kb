@@ -24,6 +24,18 @@ deep_research:
   text_length: 13000
   analyzed_at: '2026-04-04'
   original_source: papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md
+relevance_scores:
+  topic_relevance: 8
+  practitioner_value: 8
+  novelty: 7
+  signal_quality: 8
+  composite: 7.9
+  reason: >-
+    The INSTRUCTIONS.md/Ten Commandments pattern directly parallels
+    CLAUDE.md/AGENTS.md context engineering standards and encodes executable
+    workflows and autonomy guardrails—core concepts for KB builders and
+    self-improving agent systems—making it highly transferable to the knowledge
+    base's topic areas.
 ---
 
 ## Architecture Overview

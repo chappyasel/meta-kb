@@ -19,7 +19,7 @@ key_insight: >-
   snapshots while real-world agent memory must track what was true when and why
   facts changed, which is essential for reliable context assembly in multi-turn
   interactions.
-deep_researched: 'deep/repos/getzep-graphiti.md'
+deep_researched: deep/repos/getzep-graphiti.md
 stars: 24473
 forks: 2433
 relevance_scores:
@@ -29,11 +29,10 @@ relevance_scores:
   signal_quality: 9
   composite: 8.9
   reason: >-
-    Graphiti is a production-ready temporal knowledge graph framework directly
-    addressing agent memory with explicit validity windows and provenance
-    tracking—core to topics 1, 2, and 3—with 24k stars, an arXiv paper, MCP
-    server integration, and a detailed README indicating high signal quality and
-    immediate practitioner applicability.
+    Graphiti is a core agent memory/knowledge substrate tool (Zep/Graphiti)
+    explicitly listed in the KB's topic areas, with 24k stars, detailed docs,
+    temporal graph architecture, MCP server, and arXiv paper—directly actionable
+    for practitioners building context-aware agents.
 language: Python
 license: Apache-2.0
 ---

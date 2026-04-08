@@ -26,11 +26,10 @@ relevance_scores:
   signal_quality: 7
   composite: 5.7
   reason: >-
-    Lilian Weng's seminal 2023 agent overview is a well-known foundational
-    reference covering planning, memory, and tool use patterns relevant to agent
-    memory and context engineering, but it's a broad survey of established
-    concepts rather than a novel or directly actionable implementation guide for
-    KB or agent memory systems specifically.
+    Lilian Weng's seminal 2023 agent overview covers planning, memory, and tool
+    use patterns highly relevant to agent architecture and self-improvement
+    loops, but it's a well-known foundational survey with no new
+    techniques—solid reference material for practitioners but not novel.
 ---
 ## LLM Powered Autonomous Agents
 

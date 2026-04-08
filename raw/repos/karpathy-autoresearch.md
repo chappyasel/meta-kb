@@ -18,20 +18,22 @@ key_insight: >-
   process—enabling the agent to accumulate better instructions over time while
   maintaining human interpretability of the research strategy itself.
 stars: 65009
-deep_researched: 'deep/repos/karpathy-autoresearch.md'
+deep_researched: deep/repos/karpathy-autoresearch.md
 forks: 9258
 relevance_scores:
-  topic_relevance: 8
-  practitioner_value: 7
-  novelty: 8
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 9
   signal_quality: 8
-  composite: 7.7
+  composite: 8.5
   reason: >-
-    This is Karpathy's autoresearch repo—the canonical implementation of the
-    self-improving autonomous research loop pattern (program.md as
-    human-editable agent context driving iterative code modification and
-    evaluation), which is directly the 'autoresearch' pattern named in Topic 5
-    and highly transferable to KB self-improvement systems.
+    Autoresearch is a canonical self-improving agent loop (program.md as
+    human-editable instruction substrate, autonomous iterative refinement,
+    accumulating improvements over generations) that directly instantiates
+    multiple core pillars: self-improving systems, knowledge substrate via
+    markdown-driven agent programs, and multi-agent coordination via swarm-based
+    research orgs—highly transferable patterns for LLM agent infrastructure
+    builders.
 language: Python
 ---
 ## autoresearch

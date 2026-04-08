@@ -18,7 +18,7 @@ key_insight: >-
   resumption when token limits force `/clear`—directly replicating Manus's
   $2B-acquisition workflow pattern of agent persistence through structured file
   artifacts rather than traditional vector databases.
-deep_researched: 'deep/repos/othmanadi-planning-with-files.md'
+deep_researched: deep/repos/othmanadi-planning-with-files.md
 stars: 17968
 forks: 1623
 relevance_scores:
@@ -28,11 +28,11 @@ relevance_scores:
   signal_quality: 7
   composite: 7.7
   reason: >-
-    Directly implements persistent markdown-based external memory for Claude
-    agents (skill composition + agent memory + context engineering), with a
-    concrete Manus-style pattern for session continuity via file artifacts
-    rather than vector DBs—highly relevant to topics 1, 2, 3, and 4, with strong
-    community adoption and benchmarks.
+    Implements a SKILL.md-style persistent markdown planning pattern for Claude
+    agents that directly addresses context engineering, agent memory (file-based
+    external memory), and session continuity—highly relevant to knowledge
+    substrate and context engineering pillars with strong community traction and
+    documented benchmarks.
 language: Python
 license: MIT
 ---

@@ -23,12 +23,11 @@ relevance_scores:
   novelty: 8
   signal_quality: 8
   composite: 8.4
-  deep_researched: 'deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md'
   reason: >-
-    A-MEM directly addresses agent memory (Topic 2) with a novel
-    Zettelkasten-inspired dynamic organization system that enables memory
-    evolution and interconnected networks, with open-source code available for
-    practitioners to use.
+    A-MEM directly addresses agent memory organization with a
+    Zettelkasten-inspired dynamic linking and evolution pattern, with
+    open-source code, empirical benchmarks on six models, and a transferable
+    architecture for long-horizon agent knowledge management.
 ---
 ## A-MEM: Agentic Memory for LLM Agents
 

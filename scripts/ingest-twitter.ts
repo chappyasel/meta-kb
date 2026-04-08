@@ -21,7 +21,7 @@ import { loadSourceUrls } from "./utils/config.js";
 import { parseDate } from "./utils/date.js";
 import { ingestGithubRepo } from "./ingest-github.js";
 import { ingestArticles } from "./ingest-article.js";
-import { isXArticleUrl, fetchXArticle } from "./utils/xquik.js";
+import { isXArticleUrl, extractArticleId, fetchXArticle } from "./utils/xquik.js";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { RawSourceFrontmatter, Engagement } from "./types.js";
@@ -406,10 +406,12 @@ export async function ingestTweets(
     let articleTitle = "";
     const xArticleUrls = expandedUrlsForArticle.filter(isXArticleUrl);
     if (xArticleUrls.length > 0) {
-      const tweetIdStr = getTweetId(tweet);
+      // Use the article ID from the URL (not the linking tweet's ID).
+      // The article ID is the tweet ID of the article-tweet itself.
+      const articleId = extractArticleId(xArticleUrls[0]!);
       try {
-        console.log(`  detected X article link, fetching via Xquik...`);
-        const article = await fetchXArticle(tweetIdStr);
+        console.log(`  detected X article link (article: ${articleId})...`);
+        const article = await fetchXArticle(articleId, tweetUrl);
         articleContent = article.bodyText;
         articleTitle = article.title;
         console.log(`  fetched article: "${articleTitle}" (${articleContent.length} chars)`);

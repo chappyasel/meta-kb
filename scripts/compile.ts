@@ -8,6 +8,7 @@
  *   Pass 1b: Entity resolution (single Sonnet call, merge/dedup)
  *   Pass 2:  Graph construction (co-occurring pairs, Sonnet)
  *   Pass 3a: Synthesis articles (one per bucket, Opus, sequential)
+ *   Pass 3a.5: Blind review (per-article + cross-check, Sonnet, parallel)
  *   Pass 3b: Reference cards (per-entity, Sonnet, parallel)
  *   Pass 3c: Claim extraction (per-synthesis, Sonnet, sequential)
  *   Pass 4:  Field map + ROOT.md + indexes + landscape table
@@ -617,14 +618,10 @@ WRITING RULES (non-negotiable):
 
 // ─── Pass 3a: Synthesis Articles ────────────────────────────────────────
 
-// Opening variants assigned deterministically per bucket to avoid formulaic repetition
-const OPENING_VARIANTS: Record<string, string> = {
-  "knowledge-bases": "Open with the single most surprising finding from the sources. One specific fact a practitioner would not have predicted 6 months ago. State it as fact in one sentence, then two sentences on why it surprised people.",
-  "agent-memory": "Open with a concrete failure. Name the system, the failure mode, and the consequence. Then zoom out: what does this failure reveal about the current state of agent memory?",
-  "context-engineering": "Open with the strongest disagreement in the sources. Two specific projects that made opposite architectural bets. State both positions in one sentence each. Do not resolve it here.",
-  "agent-systems": "Open with the single most surprising finding from the sources. One specific fact a practitioner would not have predicted 6 months ago. State it as fact in one sentence, then two sentences on why it surprised people.",
-  "self-improving": "Open with a concrete failure. Name the system, the failure mode, and the consequence. Then zoom out: what does this failure reveal about the current state of self-improving systems?",
-};
+// Opening variants read from domain config (per-bucket openingVariant field)
+const OPENING_VARIANTS: Record<string, string> = Object.fromEntries(
+  domain.buckets.map((b) => [b.id, b.openingVariant]),
+);
 
 const SYNTHESIS_SYSTEM = (bucket: string) => `You are writing a landscape analysis for ${domain.audience}. This is NOT a catalog of projects. It's a synthesis that changes how practitioners THINK about this space.
 
@@ -715,73 +712,107 @@ async function generateSynthesisArticles(
     })
     .join("\n");
 
-  const synthesisLimit = pLimit(3); // 3 parallel synthesis articles (rate-limit safe)
-  const synthesisTasks = Object.entries(BUCKET_TITLES).map(([bucket, title]) =>
-    synthesisLimit(async () => {
-      // Skip clean buckets in incremental mode
-      if (onlyBuckets && !onlyBuckets.has(bucket)) {
-        console.log(`  ${cl.dim(`Skipping: ${title} (unchanged)`)}`);
-        return;
-      }
-      console.log(`  Writing: ${title}...`);
+  // Evidence registry: tracks which projects/examples have been covered in depth
+  // to prevent cross-article repetition. Each article gets a "already covered" context
+  // and must reference (not re-analyze) examples claimed by earlier articles.
+  const evidenceRegistry: { bucket: string; examples: string[] }[] = [];
 
-      // Collect sources for this bucket, boosting new/changed and deep sources
-      const bucketSources = (index.byBucket[bucket] ?? [])
-        .sort((a, b) => {
-          // Boost new/changed sources by +1.5 to guarantee prompt inclusion
-          const aBoost = changedSources?.has(a.path) ? 1.5 : 0;
-          const bBoost = changedSources?.has(b.path) ? 1.5 : 0;
-          // Boost deep sources by +1.0 to prioritize architectural detail
-          const aDeep = a.path.includes("/deep/") ? 1.0 : 0;
-          const bDeep = b.path.includes("/deep/") ? 1.0 : 0;
-          return (b.relevance + bBoost + bDeep) - (a.relevance + aBoost + aDeep);
-        })
-        .slice(0, 25); // Top 25 by relevance (with boost)
+  // Strategic compilation order: compile each bucket where its flagship examples
+  // naturally belong FIRST, so they get claimed in the right article.
+  // Different from display order in domain.ts — this is the authoring sequence.
+  const COMPILE_ORDER = [
+    "knowledge-substrate",   // Graphiti, Obsidian, knowledge graph projects
+    "multi-agent-systems",   // CORAL, EvoAgentX — claim these here before agent-memory/self-improving
+    "agent-memory",          // Mem0, Letta — natural homes
+    "context-engineering",   // Context graphs, CLAUDE.md patterns
+    "agent-architecture",    // gstack, skills, harnesses
+    "self-improving",        // autoresearch — compiles last, most constrained by registry
+  ];
 
-      // Compute staleness markers from source dates
-      const sourceDates = bucketSources
-        .map((s) => s.frontmatter.date)
-        .filter((d): d is string => !!d && d !== "unknown")
-        .sort();
-      const oldestDate = sourceDates[0] ?? "unknown";
-      const newestDate = sourceDates[sourceDates.length - 1] ?? "unknown";
-      const source_date_range = `${oldestDate} to ${newestDate}`;
-      const staleness_risk = computeStalenessRisk(newestDate);
+  // Use compile order, falling back to BUCKET_TITLES order for any missing buckets
+  const orderedBuckets = COMPILE_ORDER
+    .filter((id) => id in BUCKET_TITLES)
+    .map((id) => [id, BUCKET_TITLES[id]] as [string, string]);
+  // Add any buckets not in COMPILE_ORDER (safety net)
+  for (const [id, title] of Object.entries(BUCKET_TITLES)) {
+    if (!COMPILE_ORDER.includes(id)) orderedBuckets.push([id, title]);
+  }
 
-      // Collect entities in this bucket
-      const bucketEntities = entities.filter((e) => e.bucket === bucket);
+  // Sequential synthesis — each article sees what prior articles already covered
+  for (const [bucket, title] of orderedBuckets) {
+    // Skip clean buckets in incremental mode
+    if (onlyBuckets && !onlyBuckets.has(bucket)) {
+      console.log(`  ${cl.dim(`Skipping: ${title} (unchanged)`)}`);
+      continue;
+    }
+    console.log(`  Writing: ${title}...`);
 
-      // Collect graph edges involving these entities
-      const entityIds = new Set(bucketEntities.map((e) => e.id));
-      const relevantEdges = graph.edges.filter(
-        (e) => entityIds.has(e.source) || entityIds.has(e.target),
-      );
+    // Collect sources for this bucket, boosting new/changed and deep sources
+    const bucketSources = (index.byBucket[bucket] ?? [])
+      .sort((a, b) => {
+        // Boost new/changed sources by +1.5 to guarantee prompt inclusion
+        const aBoost = changedSources?.has(a.path) ? 1.5 : 0;
+        const bBoost = changedSources?.has(b.path) ? 1.5 : 0;
+        // Boost deep sources by +1.0 to prioritize architectural detail
+        const aDeep = a.path.includes("/deep/") ? 1.0 : 0;
+        const bDeep = b.path.includes("/deep/") ? 1.0 : 0;
+        return (b.relevance + bBoost + bDeep) - (a.relevance + aBoost + aDeep);
+      })
+      .slice(0, 25); // Top 25 by relevance (with boost)
 
-      // Build source content (cap at ~25K tokens)
-      const sourceContent = bucketSources
-        .map(
-          (s) =>
-            `### Source: ${s.path}\nKey insight: ${s.frontmatter.key_insight}\n${s.frontmatter.stars ? `Stars: ${s.frontmatter.stars}` : ""}\n\n${s.body}`,
-        )
-        .join("\n\n---\n\n");
+    // Compute staleness markers from source dates
+    const sourceDates = bucketSources
+      .map((s) => s.frontmatter.date)
+      .filter((d): d is string => !!d && d !== "unknown")
+      .sort();
+    const oldestDate = sourceDates[0] ?? "unknown";
+    const newestDate = sourceDates[sourceDates.length - 1] ?? "unknown";
+    const source_date_range = `${oldestDate} to ${newestDate}`;
+    const staleness_risk = computeStalenessRisk(newestDate);
 
-      const entitySummary = bucketEntities
-        .map((e) => `- ${e.name} (${e.type}): ${e.description}`)
-        .join("\n");
+    // Collect entities in this bucket
+    const bucketEntities = entities.filter((e) => e.bucket === bucket);
 
-      const edgeSummary = relevantEdges
-        .slice(0, 30)
-        .map(
-          (e) =>
-            `  ${entities.find((n) => n.id === e.source)?.name} → ${entities.find((n) => n.id === e.target)?.name}: ${e.type} (${e.weight})`,
-        )
-        .join("\n");
+    // Collect graph edges involving these entities
+    const entityIds = new Set(bucketEntities.map((e) => e.id));
+    const relevantEdges = graph.edges.filter(
+      (e) => entityIds.has(e.source) || entityIds.has(e.target),
+    );
 
-      try {
-        const { text } = await generateText({
-          model: getProvider()("claude-opus-4-6"),
-          system: SYNTHESIS_SYSTEM(bucket),
-          prompt: `Write "# ${title}" for the ${domain.name} wiki.
+    // Build source content (cap at ~25K tokens)
+    const sourceContent = bucketSources
+      .map(
+        (s) =>
+          `### Source: ${s.path}\nKey insight: ${s.frontmatter.key_insight}\n${s.frontmatter.stars ? `Stars: ${s.frontmatter.stars}` : ""}\n\n${s.body}`,
+      )
+      .join("\n\n---\n\n");
+
+    const entitySummary = bucketEntities
+      .map((e) => `- ${e.name} (${e.type}): ${e.description}`)
+      .join("\n");
+
+    const edgeSummary = relevantEdges
+      .slice(0, 30)
+      .map(
+        (e) =>
+          `  ${entities.find((n) => n.id === e.source)?.name} → ${entities.find((n) => n.id === e.target)?.name}: ${e.type} (${e.weight})`,
+      )
+      .join("\n");
+
+    // Build evidence registry context for this article
+    let evidenceContext = "";
+    if (evidenceRegistry.length > 0) {
+      evidenceContext = `\n\n## Evidence budget — already covered in depth by other articles:
+${evidenceRegistry.map((r) => `- **${BUCKET_TITLES[r.bucket]}**: ${r.examples.join(", ")}`).join("\n")}
+
+RULE: Do NOT re-analyze these projects/examples in depth. You may reference them briefly (one sentence + link) when relevant, but your deep analysis must focus on examples NOT in this list. Each project gets detailed treatment in exactly one article. This is the key to eliminating cross-article repetition.`;
+    }
+
+    try {
+      const { text } = await generateText({
+        model: getProvider()("claude-opus-4-6"),
+        system: SYNTHESIS_SYSTEM(bucket),
+        prompt: `Write "# ${title}" for the ${domain.name} wiki.
 
 ## Entity link reference (use these exact paths when linking to projects and concepts):
 ${entityLinkRef}
@@ -790,38 +821,185 @@ ${entityLinkRef}
 ${entitySummary}
 
 ## Relationships:
-${edgeSummary}
+${edgeSummary}${evidenceContext}
 
 ## Source material (${bucketSources.length} sources, sorted by relevance):
 ${sourceContent}`,
-        });
+      });
 
-        // Extract abstract from LLM output
-        const { abstract, body } = extractAbstract(text);
+      // Extract abstract from LLM output
+      const { abstract, body } = extractAbstract(text);
 
-        // Add frontmatter
-        const frontmatter: Record<string, unknown> = {
-          title,
-          type: "synthesis",
-          bucket,
-          ...(abstract && { abstract }),
-          source_date_range,
-          newest_source: newestDate,
-          staleness_risk,
-          sources: bucketSources.map((s) => s.path),
-          entities: bucketEntities.map((e) => e.id),
-          last_compiled: new Date().toISOString(),
-        };
-
-        const output = matter.stringify(body, frontmatter);
-        await writeFile(join(WIKI_DIR, `${bucket}.md`), output);
-        console.log(`  ${cl.green("✓")} ${title} (${body.split("\n").length} lines)`);
-      } catch (err) {
-        console.error(`  ✗ Failed to generate ${title}: ${err}`);
+      // Extract key examples covered in depth for the evidence registry.
+      // Heuristic: find entity names (projects AND concepts) that appear 3+ times
+      // in the article body, indicating deep coverage (not just a passing mention).
+      const entityNames = entities
+        .filter((e) => e.article_level === "full")
+        .map((e) => e.name);
+      const coveredExamples = entityNames.filter((name) => {
+        // Skip very short names (≤3 chars) to avoid false positives like "RAG", "LLM"
+        if (name.length <= 3) return false;
+        const regex = new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+        const matches = body.match(regex);
+        return matches && matches.length >= 3;
+      });
+      if (coveredExamples.length > 0) {
+        evidenceRegistry.push({ bucket, examples: coveredExamples.slice(0, 10) });
       }
+
+      // Add frontmatter
+      const frontmatter: Record<string, unknown> = {
+        title,
+        type: "synthesis",
+        bucket,
+        ...(abstract && { abstract }),
+        source_date_range,
+        newest_source: newestDate,
+        staleness_risk,
+        sources: bucketSources.map((s) => s.path),
+        entities: bucketEntities.map((e) => e.id),
+        last_compiled: new Date().toISOString(),
+      };
+
+      const output = matter.stringify(body, frontmatter);
+      await writeFile(join(WIKI_DIR, `${bucket}.md`), output);
+      console.log(`  ${cl.green("✓")} ${title} (${body.split("\n").length} lines, ${coveredExamples.length} examples claimed)`);
+    } catch (err) {
+      console.error(`  ✗ Failed to generate ${title}: ${err}`);
+    }
+  }
+}
+
+// ─── Pass 3a.5: Blind Review ─────────────────────────────────────────────
+
+const reviewIssueSchema = z.object({
+  issues: z.array(z.object({
+    section: z.string().describe("The ## heading where the issue appears"),
+    claim: z.string().describe("The specific claim that is unsupported"),
+    problem: z.enum(["unsupported_number", "unsupported_detail", "internal_contradiction", "source_mischaracterization"]),
+    explanation: z.string().describe("1-2 sentences: what the article says vs what the source actually says"),
+  })),
+});
+
+const REVIEW_SYSTEM = `You are a fact-checker reviewing wiki articles about ${domain.topic}.
+
+You have NO knowledge of how these articles were produced. Your only inputs are:
+1. The article text
+2. The raw source files cited in the article
+
+Your job: find claims in the article that the cited sources do NOT support.
+
+Rules:
+- For each [Source](../raw/...) citation, check whether the preceding claim actually appears in that source.
+- Flag specific numbers (percentages, star counts, benchmark scores) that don't appear in the cited source.
+- Flag component names, file paths, algorithm names, or mechanism details that don't appear in the cited source.
+- Flag internal contradictions within the article.
+- Reasonable paraphrasing is fine. Only flag when the evidence is genuinely missing.
+- Do NOT flag stylistic issues, only factual accuracy.
+- If the article says "X reports Y" (hedged), only flag if X doesn't report Y at all.
+- If the article states Y as fact (unhedged), flag if the source only partially supports Y.`;
+
+const crossArticleSchema = z.object({
+  conflicts: z.array(z.object({
+    articles: z.array(z.string()).describe("The two article filenames that conflict"),
+    conflict: z.string().describe("What they disagree about"),
+  })),
+});
+
+async function reviewSynthesisArticles(index: SourceIndex): Promise<void> {
+  passHeader("3a.5", "Blind Review", "Sonnet × " + BUCKET_IDS.length + " + cross-check");
+  const passStart = Date.now();
+
+  // Load all synthesis articles
+  const articles: Record<string, string> = {};
+  for (const bucket of BUCKET_IDS) {
+    const path = join(WIKI_DIR, `${bucket}.md`);
+    if (existsSync(path)) {
+      articles[bucket] = await readFile(path, "utf-8");
+    }
+  }
+
+  const reviewLimit = pLimit(SONNET_CONCURRENCY);
+  const allIssues: Array<{ bucket: string; issues: z.infer<typeof reviewIssueSchema> }> = [];
+
+  const reviewTasks = Object.entries(articles).map(([bucket, articleText]) =>
+    reviewLimit(async () => {
+      // Extract cited source paths from [Source](../raw/...) links
+      const sourcePattern = /\[Source\]\(\.\.\/raw\/([^)]+)\)/g;
+      const citedPaths = new Set<string>();
+      let match;
+      while ((match = sourcePattern.exec(articleText)) !== null) {
+        citedPaths.add(match[1]);
+      }
+
+      // Load cited sources (truncated)
+      const sourceMaterial = [...citedPaths]
+        .map((citedPath) => {
+          const source = index.sources.find((s) => s.path === citedPath);
+          if (!source) return null;
+          const content = (source.frontmatter.key_insight + "\n\n" + source.body).slice(0, 4000);
+          return `--- SOURCE: ${citedPath} ---\n${content}`;
+        })
+        .filter(Boolean)
+        .join("\n\n");
+
+      const { object } = await generateObject({
+        model: getProvider()("claude-sonnet-4-6"),
+        schema: reviewIssueSchema,
+        system: REVIEW_SYSTEM,
+        prompt: `ARTICLE: ${bucket}.md\n\n${articleText}\n\n---\n\nCITED SOURCES:\n\n${sourceMaterial}`,
+      });
+
+      allIssues.push({ bucket, issues: object });
+      const count = object.issues.length;
+      console.log(`  ${count === 0 ? cl.green("✓") : cl.yellow("⚠")} ${bucket}: ${count} issue${count !== 1 ? "s" : ""} found`);
     }),
   );
-  await Promise.all(synthesisTasks);
+
+  await Promise.all(reviewTasks);
+
+  // Cross-article consistency check: send all articles to a single call
+  const crossCheckArticles = Object.entries(articles)
+    .map(([bucket, text]) => `=== ${bucket}.md ===\n${text.slice(0, 3000)}`)
+    .join("\n\n");
+
+  const { object: crossCheck } = await generateObject({
+    model: getProvider()("claude-sonnet-4-6"),
+    schema: crossArticleSchema,
+    system: `You are checking ${BUCKET_IDS.length} wiki articles for cross-article contradictions. Find cases where:
+- The same project is described with different star counts or benchmark numbers
+- Selection guides give contradictory recommendations
+- The same pattern is called by different names without cross-reference
+- A "Convergence" claim in one article contradicts a "Divergence" claim in another
+Only flag genuine factual contradictions, not differences in emphasis or framing.`,
+    prompt: crossCheckArticles,
+  });
+
+  // Write review report
+  const totalIssues = allIssues.reduce((sum, a) => sum + a.issues.issues.length, 0);
+  const report = {
+    compiled_at: new Date().toISOString(),
+    total_issues: totalIssues,
+    cross_article_conflicts: crossCheck.conflicts.length,
+    by_article: Object.fromEntries(allIssues.map((a) => [a.bucket, a.issues])),
+    cross_article: crossCheck.conflicts,
+  };
+
+  await writeFile(join(BUILD_DIR, "review-report.json"), JSON.stringify(report, null, 2));
+
+  console.log(`  ${cl.green("✓")} Review complete: ${totalIssues} issues, ${crossCheck.conflicts.length} cross-article conflicts ${elapsed(passStart)}`);
+
+  // Log top issues per article
+  for (const { bucket, issues } of allIssues) {
+    for (const issue of issues.issues.slice(0, 3)) {
+      console.log(`    ${cl.dim(bucket)} ${cl.yellow(issue.problem)}: ${issue.explanation.slice(0, 120)}`);
+    }
+  }
+  if (crossCheck.conflicts.length > 0) {
+    for (const c of crossCheck.conflicts.slice(0, 3)) {
+      console.log(`    ${cl.yellow("cross-article")}: ${c.articles.join(" ↔ ")}: ${c.conflict.slice(0, 100)}`);
+    }
+  }
 }
 
 // ─── Pass 3b: Reference Cards ───────────────────────────────────────────
@@ -1118,7 +1296,7 @@ async function generateFieldMapAndIndexes(
 ): Promise<void> {
   passHeader("4", "Field Map + Indexes");
 
-  // Read the 5 synthesis articles we just generated
+  // Read the synthesis articles we just generated
   const syntheses: string[] = [];
   for (const bucket of Object.keys(BUCKET_TITLES)) {
     const path = join(WIKI_DIR, `${bucket}.md`);
@@ -1587,6 +1765,32 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
           prompt: `Claim: "${claim.content}"\nClaim type: ${claim.type}\nClaim confidence: ${claim.confidence}\n\nSource path: ${sourceRef}\nSource content:\n${sourceContent}`,
         });
 
+        // If FAIL, try the deep/ variant before recording failure
+        if (object.verdict === "FAIL" && !sourceRef.startsWith("deep/")) {
+          const deepRef = `deep/${sourceRef}`;
+          const deepSource = index.sources.find((s) => s.path === deepRef);
+          if (deepSource) {
+            const deepContent = (deepSource.frontmatter.key_insight + "\n\n" + deepSource.body).slice(0, 6000);
+            const { object: deepResult } = await generateObject({
+              model: getProvider()("claude-sonnet-4-6"),
+              schema: evalVerificationSchema,
+              system: EVAL_SYSTEM,
+              prompt: `Claim: "${claim.content}"\nClaim type: ${claim.type}\nClaim confidence: ${claim.confidence}\n\nSource path: ${deepRef}\nSource content:\n${deepContent}`,
+            });
+
+            if (deepResult.verdict === "PASS") {
+              results.push({
+                claim_id: claim.id,
+                verdict: "PASS",
+                reason: `[deep/ fallback] ${deepResult.reason}`,
+              });
+              completed++;
+              process.stdout.write(`\r  ${progressBar(completed, sampled.length)} ${elapsed(passStart)}`);
+              return;
+            }
+          }
+        }
+
         results.push({
           claim_id: claim.id,
           verdict: object.verdict,
@@ -1897,7 +2101,7 @@ function computeStalenessRisk(newestDate: string): "low" | "medium" | "high" {
 }
 
 function shouldRunPass(pass: string): boolean {
-  const order = ["0", "1a", "1b", "2", "3a", "3b", "3c", "4", "5", "6", "7", "8"];
+  const order = ["0", "1a", "1b", "2", "3a", "3a.5", "3b", "3c", "4", "5", "6", "7", "8"];
   const idx = order.indexOf(pass);
   if (FROM_PASS && idx < order.indexOf(FROM_PASS)) return false;
   if (TO_PASS && idx > order.indexOf(TO_PASS)) return false;
@@ -1956,10 +2160,11 @@ async function patchReadmeStats(
 ## Stats
 
 - **Sources:** ${shallow.length} curated (${typeSummary}) + ${deep.length} deep research files
+- **Taxonomy:** ${domain.buckets.length} buckets (${domain.buckets.map((b) => b.name.toLowerCase()).join(", ")})
 - **Wiki:** ${full.length + domain.buckets.length + 1} articles (${domain.buckets.length} synthesis, ${projects} project cards, ${concepts} concept explainers, field map, indexes)
 - **Deep research:** ${deepWordsK}K words of source-code-level analysis
 - **Self-eval:** ${claims.length} atomic claims extracted, sampled and verified against sources each compilation
-- **Compiled by:** 3 independent systems (script pipeline, Claude Code skill graph, Codex skill graph), best-of-three merged`;
+- **Compilation:** Script pipeline (\`bun run compile\`) or agent skill graph (\`.claude/skills/compile-wiki/\`)`;
 
   const patched = readme.slice(0, startIdx) + statsBlock + "\n" + readme.slice(endIdx);
   await writeFile(readmePath, patched);
@@ -2277,6 +2482,11 @@ async function main() {
     } else {
       await generateSynthesisArticles(entities, graph, index, dirtyBuckets ?? undefined, changeSet?.changed);
     }
+  }
+
+  // Pass 3a.5: Blind review of synthesis articles
+  if (shouldRunPass("3a.5")) {
+    await reviewSynthesisArticles(index);
   }
 
   // Passes 3b, 3c run concurrently (both depend on 3a, not on each other)

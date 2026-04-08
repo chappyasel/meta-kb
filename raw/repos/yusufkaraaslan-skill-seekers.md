@@ -26,11 +26,10 @@ relevance_scores:
   signal_quality: 7
   composite: 7.7
   reason: >-
-    Directly addresses agentic skill composition (topic 4) and knowledge base
-    construction (topic 1) by converting diverse documentation sources into
-    structured Claude AI skills with conflict detection and MCP integration,
-    making it immediately actionable for practitioners building LLM-powered
-    knowledge systems.
+    Directly implements SKILL.md-style knowledge asset generation with conflict
+    detection and multi-target skill composition across agent frameworks, making
+    it highly relevant to context engineering and agent architecture pillars
+    with a production-ready PyPI library.
 language: Python
 license: MIT
 ---

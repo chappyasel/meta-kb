@@ -27,11 +27,10 @@ relevance_scores:
   signal_quality: 7
   composite: 6.9
   reason: >-
-    Agent0's zero-data self-evolving loop (curriculum agent + executor agent
-    co-evolution via tool-integrated reasoning) is a genuinely novel
-    self-improvement pattern transferable to KB and agent memory bootstrapping,
-    though the concrete application domain is mathematical/visual reasoning
-    rather than knowledge management directly.
+    Agent0's zero-data self-evolution via curriculum/executor co-evolution is a
+    genuinely novel self-improvement pattern transferable to agent memory and KB
+    bootstrapping, though its direct application is math/visual reasoning rather
+    than memory or knowledge systems.
 ---
 ## Agent0
 

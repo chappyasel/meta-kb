@@ -51,7 +51,7 @@ corrected. Provide evidence from sources. Name what replaced it.
 
 Concrete end-to-end trace: a developer building X uses tool A for step 1,
 tool B for step 2, etc. Name specific tools at each step. Walk through one
-realistic workflow that touches all 5 layers.
+realistic workflow that touches all 6 layers.
 
 ### 7. Cross-Cutting Themes
 
@@ -64,7 +64,7 @@ a recommended path through the wiki articles.
 
 ## Mermaid Diagram
 
-Include a Mermaid `graph LR` diagram showing the **5-layer stack**, not individual projects. Each node is a bucket labeled with its central engineering problem. Edges show integration points between adjacent layers. Include a dotted feedback loop from the top layer back to the bottom.
+Include a Mermaid `graph LR` diagram showing the **6-layer stack**, not individual projects. Each node is a bucket labeled with its central engineering problem. Edges show integration points between adjacent layers. Include a dotted feedback loop from the top layer back to the bottom.
 
 Do NOT generate a project-level graph (random projects with sparse edges are meaningless). The diagram represents the article's thesis: these areas form one stack.
 

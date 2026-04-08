@@ -31,11 +31,11 @@ relevance_scores:
   signal_quality: 6
   composite: 7.7
   reason: >-
-    Directly describes the Karpathy autoresearch/self-improvement loop pattern
-    and generalizes it to arbitrary scorable artifacts including knowledge bases
-    and skill files, with concrete setup steps and real-world results, though
-    it's a tweet summary pointing to an external guide rather than the guide
-    itself.
+    Directly describes the Karpathy Loop / autoresearch self-improvement
+    pattern—score-driven autonomous experimentation with git commit/reset
+    cycles—which is a core self-improving systems pattern transferable to
+    knowledge bases and skill files, with high engagement and a linked guide,
+    though the tweet itself is summary-level with depth in the external article.
 ---
 ## Tweet by @aakashgupta
 

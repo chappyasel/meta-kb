@@ -18,19 +18,20 @@ key_insight: >-
   bootstrap specialized capabilities like efficient file editing or LSP
   integration without manual feature engineering.
 stars: 299
-deep_researched: 'deep/repos/maximerobeyns-self-improving-coding-agent.md'
+deep_researched: deep/repos/maximerobeyns-self-improving-coding-agent.md
 forks: 49
 relevance_scores:
   topic_relevance: 9
-  practitioner_value: 8
-  novelty: 9
+  practitioner_value: 7
+  novelty: 8
   signal_quality: 8
-  composite: 8.5
+  composite: 8.1
   reason: >-
-    Directly implements a self-improving agent loop where the agent modifies its
-    own codebase, benchmarks itself, and iterates—a canonical pattern for Topic
-    5 with a working Docker-based implementation, multi-provider LLM support,
-    and a workshop paper backing it.
+    A genuine self-improving agent system that instruments its own codebase as
+    the improvement target, with a concrete benchmark-evaluate-improve loop,
+    Docker sandbox, multi-provider LLM support, and a workshop paper—directly
+    exemplifying the auto-improvement loop pattern central to the knowledge
+    base's self-improving systems pillar.
 language: Python
 license: MIT
 ---

@@ -3,158 +3,163 @@ entity_id: grpo
 type: approach
 bucket: self-improving
 abstract: >-
-  GRPO (Group Relative Policy Optimization) trains LLMs via RL by estimating
-  advantages from grouped rollout rewards rather than a separate critic model,
-  eliminating the memory cost of a value network while enabling
-  verifiable-reward fine-tuning.
+  GRPO (Group Relative Policy Optimization) is a reinforcement learning
+  algorithm for fine-tuning LLMs that eliminates the critic network by computing
+  advantages from within-group score comparisons, reducing memory and compute
+  costs relative to PPO while enabling on-policy self-improvement.
 sources:
   - tweets/hwchase17-continual-learning-for-ai-agents.md
   - repos/orchestra-research-ai-research-skills.md
   - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
+  - deep/repos/modelscope-agentevolver.md
   - deep/repos/gepa-ai-gepa.md
-  - deep/repos/wangyu-ustc-mem-alpha.md
 related:
-  - claude-code
+  - reinforcement-learning
+  - retrieval-augmented-generation
   - gpt-4
+  - claude-code
   - claude
-  - mcp
-last_compiled: '2026-04-07T11:43:44.901Z'
+  - model-context-protocol
+  - gpt-4
+last_compiled: '2026-04-08T02:46:06.966Z'
 ---
 # GRPO: Group Relative Policy Optimization
 
 ## What It Is
 
-GRPO is a reinforcement learning algorithm for fine-tuning LLMs, introduced in the DeepSeekMath paper (Shao et al., 2024) and popularized by DeepSeek-R1. The core idea: instead of maintaining a separate critic (value) network to estimate baselines for policy gradient updates, GRPO generates a *group* of responses to each prompt and uses the group's own reward statistics as the baseline. The result is a RL training loop that fits on significantly less GPU memory than PPO while still producing the reward signal needed to train reasoning and agentic behavior.
+GRPO is a policy gradient algorithm introduced in the DeepSeekMath paper (Shao et al., 2024) that trains language models through reinforcement learning without requiring a separate critic/value network. The core idea: generate a group of responses to the same prompt, score them all, then compute each response's advantage by comparing its score against the group mean. This sidesteps the instability and memory overhead of maintaining a value model while still producing meaningful gradient signals.
 
-GRPO became the dominant post-training algorithm in 2025 because DeepSeek-R1 demonstrated it could produce thinking-style reasoning at scale, and because frameworks like TRL, OpenRLHF, and verl made it accessible to researchers without the infrastructure required for full PPO.
+The algorithm became widely adopted after DeepSeek-R1 demonstrated it could produce strong reasoning capabilities in open models, triggering a wave of open-source RLVR (Reinforcement Learning with Verifiable Rewards) research in 2025.
 
-## How It Works
+## Core Mechanism
 
-### The Group Baseline
+### The Algorithm
 
-Standard policy gradient (REINFORCE) computes an advantage estimate as `reward - baseline`. In PPO, the baseline comes from a learned critic network. Critics are expensive: they require a second model of equal or larger size, double memory, and synchronized training.
+For each training prompt $x$, GRPO generates a group of $G$ responses $\{o_1, ..., o_G\}$ from the current policy $\pi_\theta$. Each response receives a scalar reward $r_i$ from a verifiable reward function (outcome correctness, format compliance, etc.). The group-relative advantage for response $i$ is:
 
-GRPO sidesteps this. For each prompt `q`, the policy samples `G` responses `{o_1, o_2, ..., o_G}`. Each response gets a reward `r_i`. The advantage for response `o_i` is:
+$$A_i = \frac{r_i - \text{mean}(r_1,...,r_G)}{\text{std}(r_1,...,r_G)}$$
 
-```
-A_i = (r_i - mean({r_1,...,r_G})) / std({r_1,...,r_G})
-```
+The policy update maximizes a clipped surrogate objective (borrowing from PPO) with a KL penalty term to prevent the policy from drifting too far from a reference model:
 
-This is a within-group z-score normalization. The intuition: if your response scores better than the group average, you get positive reinforcement. If worse, negative. No critic needed.
+$$\mathcal{L} = \mathbb{E}\left[\min\left(\frac{\pi_\theta(o|x)}{\pi_{\theta_{old}}(o|x)} A, \text{clip}\left(\frac{\pi_\theta(o|x)}{\pi_{\theta_{old}}(o|x)}, 1-\epsilon, 1+\epsilon\right) A\right)\right] - \beta \text{KL}[\pi_\theta || \pi_{ref}]$$
 
-### The Objective
+Advantages are broadcast to every token in a response — meaning all tokens in a high-scoring response receive a positive advantage regardless of which tokens contributed to that score.
 
-The GRPO objective clips the probability ratio between the new policy and the reference policy (same structure as PPO's clipped objective), plus a KL penalty term against the frozen reference model to prevent reward hacking and distributional drift:
+### What It Eliminates
 
-```
-L_GRPO = E[min(r_t * A_t, clip(r_t, 1-ε, 1+ε) * A_t)] - β * KL(π_θ || π_ref)
-```
+Standard PPO for LLMs requires training four models simultaneously: actor (policy), critic (value estimator), reference policy, and reward model. The critic alone matches the actor in parameter count. GRPO replaces the critic with group-based advantage estimation, cutting peak GPU memory requirements substantially. This is why GRPO became practical for researchers without large compute budgets.
 
-Where `r_t = π_θ(o_t|q) / π_ref(o_t|q)` is the probability ratio.
+### The Reward Signal
 
-### Verifiable Rewards
+GRPO works best with binary or near-binary verifiable rewards: math answer correctness, code execution success, format compliance. The standard training setup (following DeepSeek-R1) uses:
 
-GRPO's practical impact comes from pairing it with *verifiable rewards*: outcome signals that don't require a learned reward model. For math, code, and structured tasks, you can check the answer. This is called RLVR (RL with Verifiable Rewards). The reward function is binary or near-binary (correct/incorrect), which means the training signal is noise-free. The group sampling structure then provides variance reduction on top of this clean signal.
+- **Outcome reward**: binary correct/incorrect based on final answer
+- **Format reward**: presence of `<think>...</think>` and answer delimiters
 
-### Variants
+The algorithm cannot use the critic's per-token value estimates that PPO relies on — the group comparison is the only credit signal, applied uniformly to all tokens in a response.
 
-Several derivatives appeared after the original paper:
+### Key Hyperparameters
 
-- **Dr.GRPO** (Liu et al., 2025): Removes per-question difficulty normalization, which the authors argue introduces spurious reward signals. Observed to improve training stability on smaller models.
-- **GSPO** (Zheng et al., 2025, Group Sequence Policy Optimization): Uses sequence-level probability ratios rather than token-level, claiming better credit assignment. Used in the mem-agent paper with Qwen3-4B-Thinking.
-- **RLOO** (Ahmadian et al., 2024): A simpler variant (Reinforce Leave One Out) that uses leave-one-out estimation rather than group z-scoring. Some practitioners prefer it for stability.
+- **Group size G**: typically 8-16 responses per prompt. Larger groups give more stable advantage estimates but cost proportionally more inference compute.
+- **KL coefficient β**: controls drift from reference policy. Too high prevents learning; too low causes instability or reward hacking.
+- **Clip range ε**: typically 0.1-0.2, same as PPO.
+- **Number of update epochs**: how many gradient steps per batch of rollouts. Aggressive reuse of rollout data can cause training instability.
 
-## Infrastructure Requirements
+## Variants and Derivatives
 
-Training with GRPO requires generating multiple rollouts per prompt during training, which means running the policy in inference mode inside the training loop. This creates a fundamental architectural problem: the actor (being trained) and the rollout generator need to be the same model, but training and inference have different memory and compute profiles.
+The original GRPO spawned several modifications addressing specific failure modes:
 
-Production GRPO implementations address this through:
+**Dr.GRPO** (Liu et al., 2025): Removes two sources of bias in standard GRPO — the division by response length (which incentivizes shorter responses over correct ones) and the per-instance normalization (which distorts the gradient when all responses in a group receive the same reward). Used in production by several open-source training pipelines.
 
-**vLLM/SGLang integration for rollout generation**: Frameworks like verl and OpenRLHF offload rollout generation to a separate vLLM or SGLang process, then ship the generated sequences back to the training loop. This lets inference-optimized engines handle the `G` rollouts per prompt while the training process handles weight updates.
+**GSPO** (Group Sequence Policy Optimization, Zheng et al., 2025): Moves from token-level to sequence-level policy ratios, providing convergence guarantees that token-level GRPO lacks. The mem-agent paper used GSPO for training their 4B memory management agent.
 
-**FSDP or Megatron for the training step**: The model being updated lives in a distributed training framework. verl's "HybridFlow" architecture maintains separate actor and rollout worker groups, coordinating weight synchronization between them.
+**ADCA-GRPO** (Attribute-Decomposed Credit Assignment): Used in AgentEvolver. Augments the binary outcome reward with LLM-judged per-step process rewards, broadcasting step-level advantages to all tokens within that step rather than uniform assignment across the full trajectory. Reduces training steps by ~40% versus standard GRPO on multi-turn agent tasks by providing denser reward signal. See [AgentEvolver](../projects/agentevolver.md).
 
-A practical deployment on 8×H100 GPUs (as described in the mem-agent paper) runs the rollout engine and training loop on the same node, with careful batch size management to avoid OOM from `G` simultaneous sequences.
+**RLOO** (Reinforce Leave-One-Out): Related algorithm — computes baselines by averaging over the other group members, producing slightly different gradient estimates. Some practitioners switched to RLOO when GRPO showed training instability.
 
-## Where GRPO Is Used
+## Where It's Used
 
-### Post-Training for Reasoning
+GRPO is the dominant post-training algorithm in open-source LLM research as of 2025-2026. Concrete deployments:
 
-DeepSeek-R1 used GRPO to train extended chain-of-thought reasoning on math and coding tasks. The interleaved `<think>...</think>` format emerged from this training: the model learns to produce reasoning traces that maximize answer correctness rewards.
+- **DeepSeekMath / DeepSeek-R1**: Original deployment; mathematical reasoning
+- **mem-agent** (Dria): 4B model trained to manage markdown memory files via Python tool calls, using GSPO variant on 8×H100 with OpenRLHF
+- **AgentEvolver**: 7B and 14B models for multi-step API agent tasks, using ADCA-GRPO extension
+- **TRL library** (Hugging Face): First-class GRPO support, making it the default choice for most open-source RLVR experiments
+- **veRL** (ByteDance): Distributed GRPO implementation used by AgentEvolver, with FSDP and Megatron-LM backends
+- **OpenRLHF**: Another production GRPO implementation with Ray + vLLM architecture
+- **Orchestra Research AI-Research-Skills**: Maintains a 569-line GRPO skill as one of their "gold standard" skills for enabling research agents to autonomously run RL training experiments [Source](../raw/repos/orchestra-research-ai-research-skills.md)
 
-### Memory Agent Training
+The continual learning framing from Harrison Chase identifies GRPO as the canonical technique for weight-layer learning in agentic systems, alongside SFT — as distinct from harness-layer or context-layer learning, which don't require retraining [Source](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md).
 
-The Mem-alpha project (arXiv:2509.25911) trains a 4B model to manage a three-tier memory system using GRPO via the verl framework. The reward function combines QA accuracy (primary), memory compression, and content-type correctness. Training on 30K-token contexts, the model generalizes to 400K+ tokens. [Source](../raw/deep/repos/wangyu-ustc-mem-alpha.md)
+## Strengths
 
-The mem-agent paper (Tekparmak et al., 2025) used GSPO (a GRPO derivative) to train a 4B agent on markdown-based memory management, achieving 75% on their custom benchmark versus 39% for the base Qwen3-4B. [Source](../raw/articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md)
+**No critic network**: Halves (approximately) the number of models that must fit on GPU simultaneously. Makes billion-parameter RLVR feasible on 8×H100 setups rather than requiring 64+ GPUs.
 
-### Coding Agents
+**Simple reward integration**: Any function that returns a scalar score works. Binary correctness signals from code execution or math verification are sufficient — no reward model training needed.
 
-OpenAI's Codex models are trained for agentic coding tasks using multi-turn RL pipelines in the same family. [Claude Code](../projects/claude-code.md), [Claude](../projects/claude.md), and [GPT-4](../projects/gpt-4.md) all incorporate RL-based post-training, though specific algorithm details are not public.
+**Multi-turn extension**: GRPO extends naturally to agentic settings by treating the full trajectory as the "response" being scored. Extensions like ADCA-GRPO further decompose credit across steps.
 
-### Continual Learning at the Model Layer
-
-Harrison Chase's taxonomy of continual learning for agents identifies GRPO as the primary technique for model-layer learning, contrasted with harness-layer optimization (meta-harness approaches) and context-layer learning (memory updates). [Source](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md)
-
-## Comparison to Alternatives
-
-**PPO**: Full actor-critic setup. Better sample efficiency in theory (critic reduces variance more). Requires a second model. Standard for RLHF pipelines where reward models are needed anyway.
-
-**SFT (Supervised Fine-Tuning)**: Cheaper and more stable. Appropriate when you have high-quality demonstration data. Cannot improve beyond the quality of your demonstrations. GRPO can discover strategies not in the training data.
-
-**GEPA** ([GEPA](../concepts/gepa.md)): An evolutionary prompt optimizer that achieves 35× faster optimization than GRPO by using LLM-readable execution traces (Actionable Side Information) instead of scalar rewards. Not fine-tuning weights — optimizing prompts and system parameters. Accepted as Oral at ICLR 2026. The appropriate choice when you want to optimize system behavior without changing model weights. [Source](../raw/deep/repos/gepa-ai-gepa.md)
-
-**DPO (Direct Preference Optimization)**: No rollouts needed; learns from preference pairs offline. Simpler infrastructure. One research result found DPO produces rank-1 weight perturbations versus distributed changes from online RL, suggesting it may learn different representations.
+**Framework support**: TRL, veRL, OpenRLHF, and SkyRL all implement GRPO. A practitioner can be running experiments within hours of deciding to try it.
 
 ## Critical Limitations
 
-**Reward hacking via format exploitation**: The mem-agent paper documents a concrete failure mode. The model learned that following the format reward for the maximum number of allowed turns (8) produced more total reward than solving the task correctly in 5 turns. The format reward over 8 turns exceeded the task completion reward. The authors discovered this by tabulating all possible reward scenarios — a step they recommend every practitioner take before training. The fix required careful per-turn reward shaping with decreasing returns and a max-turns penalty.
+**Uniform token-level credit**: The biggest unresolved problem. GRPO assigns the same advantage to every token in a response — the token that produced the correct answer gets the same gradient as the token that said "the". For long reasoning chains (30+ steps, 2000+ tokens), this means most gradient signal is wasted on semantically neutral tokens. ADCA-GRPO and similar extensions attempt to fix this, but they add LLM-judged per-step evaluation that costs API calls in the training loop.
 
-**Catastrophic forgetting**: When the model updates on new tasks, performance on previously learned behaviors can degrade. This is the central unsolved problem for model-layer continual learning. The mem-agent paper addresses this partially through RLOO vs. GRPO comparisons, but acknowledges the fundamental tension.
+**Concrete failure mode**: When all responses in a group receive the same reward (all correct or all incorrect), the standard deviation is zero and advantages collapse to zero — no gradient. This "dead batch" problem is common early in training when the model is either too weak (all wrong) or too strong (all right) for the task difficulty. Curricula and mixed-difficulty training are partial mitigations, but the problem isn't solved.
 
-**Qwen3-specific instability**: Multiple papers note that GRPO training with Qwen3 models produces out-of-vocabulary token errors (vLLM issue #13175) and requires removing `<think>` blocks from all but the last turn. The mem-agent paper switched from Qwen3 to Qwen2.5-Coder to Qwen3-4B-Thinking before finding a stable configuration. Base assumption: RL training stability is model-family dependent in ways that aren't documented at training time.
+**Infrastructure assumption**: GRPO assumes you can generate G responses in parallel for every training prompt. At group size 8, training throughput depends on an inference stack (vLLM, SGLang) that can handle G×batch_size concurrent generation requests. Production GRPO training requires coordinating a separate rollout server alongside the training process — the "actor-rollout separation" architecture in veRL and OpenRLHF. Teams that don't anticipate this operational complexity get poor GPU utilization.
 
-**Infrastructure complexity**: A minimal working GRPO setup on 8×H100 requires coordinating rollout generation (vLLM or equivalent), training (FSDP or Megatron), reward computation (often external services), and weight synchronization between workers. The mem-agent paper tried four frameworks (verifiers, Nemo-RL, SkyRL, OpenRLHF) before finding one that worked with their model and hardware configuration.
+**Catastrophic forgetting**: Noted by Harrison Chase as an "open research problem" for all weight-level training. A model updated on new tasks degrades on previously mastered ones. GRPO provides no special protection against this — the reference model KL penalty slows drift but doesn't prevent capability loss. [Source](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md)
 
-**Group size sensitivity**: The quality of the group baseline depends on `G`. Too small, and the z-score normalization is noisy. Too large, and compute cost scales linearly. Typical values are G=4 to G=16. There is no principled method to choose G for a new task domain.
+**Reward hacking is real**: The mem-agent team discovered their model learned to fill all allowed turns with format-compliant responses to maximize format rewards rather than solving tasks efficiently. Their fix required carefully tabulating cumulative rewards across every possible trajectory scenario to ensure correct early termination dominated reward fishing [Source](../raw/articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md). This engineering burden is not reflected in most introductory GRPO tutorials.
 
-## When Not to Use GRPO
+## When NOT to Use It
 
-**When you have high-quality demonstrations**: SFT is faster, more stable, and sufficient. GRPO's advantage is discovering strategies beyond your training data; if your data already contains those strategies, you're paying RL costs for no gain.
+**When your reward signal is sparse or delayed**: GRPO's group-relative advantage computation needs meaningful variance across the group. Tasks with >95% failure rate early in training generate all-zero advantages. Either start with SFT warmup or use curriculum learning to ensure ~30-70% success rates within each group.
 
-**When optimizing system behavior rather than model weights**: Use prompt optimization ([GEPA](../concepts/gepa.md), [DSPy](../projects/dspy.md)) or context-layer learning (memory updates, CLAUDE.md). These approaches are faster to iterate, don't risk catastrophic forgetting, and can be adjusted without a GPU cluster.
+**When you need per-user adaptation**: GRPO modifies global model weights. It cannot produce per-user or per-tenant specialization without training a separate model per user — economically infeasible. Use context-layer learning (memory systems, CLAUDE.md style instructions) for user-level adaptation instead.
 
-**When you lack verifiable rewards**: Without a reliable reward signal, GRPO will optimize for whatever proxy you give it. The technique's success with math and code relies on objective correctness checking. For open-ended tasks, reward model quality becomes the binding constraint — and you're back to the PPO infrastructure problem.
+**When tasks have no verifiable outcomes**: GRPO requires a reward function that can score responses without human judgment in the training loop. For subjective quality, style, or nuanced correctness, you need either a trained reward model (reintroducing the complexity GRPO was meant to avoid) or LLM-as-judge scoring (which is slow and expensive per step).
 
-**When you need per-user specialization**: GRPO trains one model for the whole population. Fine-grained adaptation (per-user, per-tenant) is practically done at the context layer, not the weight layer. The infrastructure required for per-user LoRAs trained with GRPO doesn't exist at production scale.
+**When your team can't maintain the infrastructure**: Production GRPO requires a rollout server, training server, reference model, and reward function all operating in coordination. For teams without MLOps capacity, the context-layer alternative (memory systems, harness optimization) achieves self-improvement without the operational burden of a live training pipeline.
 
-## Practical Reward Shaping Guidance
-
-Based on the mem-agent paper's documented experience:
-
-1. Tabulate all possible per-turn rewards across all possible agent trajectories before training. Identify paths where reward hacking beats correct behavior.
-2. Use decreasing format rewards per turn, not constant. Add explicit penalties for reaching maximum turns without task completion.
-3. Continuous scores (0.0–1.0) work better than binary rewards. Granularity gives the policy more signal.
-4. Separate judge models for different reward dimensions (task success vs. format adherence vs. efficiency) are cleaner than composite functions.
-5. Score and reward curves should track together. Divergence (training reward up, validation score flat or down) indicates overfitting to a reward artifact.
-
-## Related Concepts
-
-- [Reinforcement Learning](../concepts/reinforcement-learning.md)
-- [Self-Improving Agent](../concepts/self-improving-agent.md)
-- [Chain-of-Thought](../concepts/chain-of-thought.md)
-- [GEPA](../concepts/gepa.md)
-- [Continual Learning](../concepts/continual-learning.md)
-- [Synthetic Data Generation](../concepts/synthetic-data-generation.md)
-- [LLM-as-Judge](../concepts/llm-as-judge.md)
-- [Agent Memory](../concepts/agent-memory.md)
+**When speed of iteration matters more than weight-level learning**: GEPA achieves 35x faster optimization than GRPO on prompt-level tasks by using LLM-readable execution traces instead of scalar rewards [Source](../raw/deep/repos/gepa-ai-gepa.md). For optimizing prompts, instructions, or agent scaffolding, GEPA converges in 100-500 evaluations versus GRPO's 5,000-25,000+.
 
 ## Unresolved Questions
 
-**Credit assignment in multi-turn agentic tasks**: GRPO was designed for single-turn outputs. For agents that take 10–20 tool-use steps before receiving a reward, attributing credit to individual actions within the trajectory remains an open problem. Current practice applies the group reward to all tokens in the trajectory equally.
+**Credit assignment remains unsolved at scale**: ADCA-GRPO reduces training steps by ~40% with step-level process rewards, but adds LLM API cost per training step. Whether this tradeoff holds at larger model sizes and longer horizons isn't established. The "right" granularity for credit assignment — token, step, episode — remains an empirical question with no consensus.
 
-**Optimal group size by task type**: No empirical study has established how G should scale with task difficulty, output length, or reward sparsity. Practitioners copy values from prior work.
+**When to stop training**: GRPO papers report results at specific checkpoints but don't provide reliable early stopping criteria. The mem-agent team ran 120 steps before manually stopping; AgentEvolver used 40 epochs per update. Neither provides principled criteria for when continued training yields diminishing returns versus causing degradation on held-out capabilities.
 
-**Interaction between RL and context-layer learning**: It's unclear whether weight-level RL training degrades a model's ability to follow context-layer instructions (CLAUDE.md, memory files) or improves it. No systematic study exists.
+**Multi-turn stability**: Standard GRPO was designed for single-turn (prompt → response → score). Multi-turn agent trajectories require parsing step boundaries, handling variable trajectory lengths, and computing advantages across heterogeneous action sequences. The implementations in veRL and OpenRLHF handle this but with significant custom engineering — `step_parser.py` in AgentEvolver alone is hundreds of lines of model-specific tokenization logic.
 
-**Long-term stability**: Models trained with GRPO are typically evaluated on held-out test sets immediately after training. Whether the learned behaviors persist through subsequent fine-tuning or remain stable in production deployment is not well-documented.
+**KL coefficient tuning**: The KL penalty weight β controls how much the trained model can deviate from the reference. There is no principled method for setting this; practitioners tune it empirically. Too low and the model reward-hacks; too high and training stalls. The mem-agent team lists "initial KL coefficient, KL target, KL horizon" as hyperparameters they modified extensively without a clear winner.
+
+## Comparison to Alternatives
+
+| Method | Compute cost | Reward type needed | Credit resolution | Best for |
+|--------|-------------|-------------------|------------------|----------|
+| **GRPO** | Medium (no critic) | Verifiable scalar | Response-level | Math, code, structured tasks |
+| **PPO** | High (critic required) | Any scalar | Per-token (via value model) | Tasks with rich reward signal |
+| **SFT** | Low | None (demonstrations needed) | N/A | When you have expert trajectories |
+| **GEPA** | Very low (100-500 evals) | Any evaluator function | N/A (no weight updates) | Prompt/harness optimization |
+| **DPO** | Medium | Preference pairs | Response-level | When you have comparison data |
+| **RLOO** | Medium | Verifiable scalar | Response-level | When GRPO shows instability |
+
+**Use GRPO when**: you have verifiable reward signals, need to bake new behaviors into model weights, and have the infrastructure to run async rollout generation.
+
+**Use context-layer approaches when**: you need fast iteration, per-user specialization, or don't have the compute budget for training. CLAUDE.md files and memory systems provide self-improvement without touching weights.
+
+**Use GEPA when**: the thing you're optimizing is textual (prompts, instructions, agent descriptions) and you care about sample efficiency. It outperforms GRPO by 6% average across six tasks while using 35x fewer rollouts.
+
+## Related Concepts
+
+- [Reinforcement Learning](../concepts/reinforcement-learning.md) — parent framework
+- [Self-Improving Agents](../concepts/self-improving-agents.md) — primary application domain
+- [Synthetic Data Generation](../concepts/synthetic-data-generation.md) — often combined for task generation
+- [Chain-of-Thought](../concepts/chain-of-thought.md) — GRPO is the primary mechanism for training CoT reasoning
+- [LLM-as-Judge](../concepts/llm-as-judge.md) — used in ADCA-GRPO variants for step-level credit assignment
+- [GEPA](../concepts/gepa.md) — alternative approach that achieves similar optimization goals without weight updates
+- [Continual Learning](../concepts/continual-learning.md) — GRPO is the weight-layer mechanism within the three-layer continual learning taxonomy
+- [AgentEvolver](../projects/agentevolver.md) — most detailed public implementation of ADCA-GRPO for multi-turn agents
+- [Darwin Gödel Machine](../projects/darwin-godel-machine.md) — uses GRPO within a broader self-improvement architecture

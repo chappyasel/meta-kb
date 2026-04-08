@@ -3,15 +3,21 @@ url: 'https://github.com/anthropics/skills'
 type: repo
 author: anthropics
 date: '2026-04-04'
-tags: [agent-systems, agentic-skills, skill-composition, context-engineering, SKILL.md-standard]
+tags:
+  - agent-systems
+  - agentic-skills
+  - skill-composition
+  - context-engineering
+  - SKILL.md-standard
 key_insight: >-
-  Anthropic's official skills repo establishes a three-tier progressive disclosure
-  architecture (metadata always in context, SKILL.md on trigger, bundled resources
-  on demand) that solves the fundamental tension between rich skill knowledge and
-  finite context windows -- the real innovation is not the SKILL.md format itself
-  but the governance pattern of marketplace-based plugin distribution with strict
-  naming, description-driven triggering, and a meta-skill (skill-creator) that
-  closes the loop on skill quality via eval-driven iteration.
+  Anthropic's official skills repo establishes a three-tier progressive
+  disclosure architecture (metadata always in context, SKILL.md on trigger,
+  bundled resources on demand) that solves the fundamental tension between rich
+  skill knowledge and finite context windows -- the real innovation is not the
+  SKILL.md format itself but the governance pattern of marketplace-based plugin
+  distribution with strict naming, description-driven triggering, and a
+  meta-skill (skill-creator) that closes the loop on skill quality via
+  eval-driven iteration.
 stars: 110064
 deep_research:
   method: source-code-analysis
@@ -28,6 +34,18 @@ deep_research:
     - skills/algorithmic-art/SKILL.md
   analyzed_at: '2026-04-04'
   original_source: repos/anthropics-skills.md
+relevance_scores:
+  topic_relevance: 10
+  practitioner_value: 10
+  novelty: 8
+  signal_quality: 10
+  composite: 9.7
+  reason: >-
+    This is the canonical SKILL.md reference implementation with a detailed
+    three-tier progressive disclosure architecture, marketplace governance
+    pattern, and meta-skill (skill-creator) — directly core to topic areas 3
+    (Context Engineering) and 4 (Agent Architecture) with immediately actionable
+    patterns.
 ---
 
 ## Architecture Overview

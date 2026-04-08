@@ -25,10 +25,9 @@ relevance_scores:
   signal_quality: 8
   composite: 8.4
   reason: >-
-    mem-agent directly addresses persistent agent memory through RL-trained tool
-    use and markdown files, with code, model weights, and a benchmark
-    released—highly relevant and actionable for practitioners building agent
-    memory systems.
+    Directly addresses agent memory via RL-trained tool use with markdown files,
+    introduces a benchmark, releases code and model weights, and solves a core
+    context efficiency problem central to agent memory systems.
 ---
 ## mem-agent: Equipping LLM Agents with Memory Using RL
 

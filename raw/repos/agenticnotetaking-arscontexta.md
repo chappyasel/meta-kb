@@ -28,17 +28,16 @@ deep_researched: deep/repos/agenticnotetaking-arscontexta.md
 stars: 2928
 forks: 187
 relevance_scores:
-  topic_relevance: 9
+  topic_relevance: 8
   practitioner_value: 8
-  novelty: 8
+  novelty: 7
   signal_quality: 8
-  composite: 8.4
+  composite: 7.9
   reason: >-
-    Directly implements a conversational knowledge system generator that bridges
-    context engineering and agent memory with a derivation-from-principles
-    approach (not templating), producing CLAUDE.md-style context files and skill
-    registries—highly relevant to topics 1, 2, 3, and 4 with a working Claude
-    Code plugin and 2.9k stars.
+    Directly addresses context engineering and agent memory (knowledge
+    substrate, CLAUDE.md-style context files, persistent second brain) through a
+    novel conversational derivation approach backed by research claims, with a
+    working Claude Code plugin and detailed README.
 language: Shell
 license: MIT
 ---

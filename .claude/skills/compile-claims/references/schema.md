@@ -80,10 +80,11 @@
     "directional": { "sampled": 4, "passed": 3 }
   },
   "by_bucket": {
-    "knowledge-bases": { "sampled": 6, "passed": 5 },
-    "agent-memory": { "sampled": 8, "passed": 6 },
-    "context-engineering": { "sampled": 7, "passed": 6 },
-    "agent-systems": { "sampled": 5, "passed": 4 },
+    "knowledge-substrate": { "sampled": 5, "passed": 4 },
+    "agent-memory": { "sampled": 6, "passed": 5 },
+    "context-engineering": { "sampled": 5, "passed": 4 },
+    "agent-architecture": { "sampled": 5, "passed": 4 },
+    "multi-agent-systems": { "sampled": 5, "passed": 4 },
     "self-improving": { "sampled": 4, "passed": 3 }
   }
 }

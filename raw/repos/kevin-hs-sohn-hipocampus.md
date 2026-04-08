@@ -20,7 +20,7 @@ key_insight: >-
   explicit prompting.
 stars: 145
 forks: 11
-deep_researched: 'deep/repos/kevin-hs-sohn-hipocampus.md'
+deep_researched: deep/repos/kevin-hs-sohn-hipocampus.md
 relevance_scores:
   topic_relevance: 9
   practitioner_value: 9
@@ -28,10 +28,11 @@ relevance_scores:
   signal_quality: 9
   composite: 8.9
   reason: >-
-    Directly addresses agent memory with a novel compaction-tree/topic-index
-    approach for cross-session recall, includes benchmark data, production-ready
-    npm install, and detailed architecture—highly actionable for agent memory
-    system builders.
+    Hipocampus is a directly relevant agent memory harness with a novel
+    compaction-tree approach that addresses the 'unknown unknowns' problem,
+    complete with benchmarks, clear architecture, and drop-in integration for
+    Claude Code—highly actionable for practitioners building agent memory
+    systems.
 language: JavaScript
 license: MIT
 ---

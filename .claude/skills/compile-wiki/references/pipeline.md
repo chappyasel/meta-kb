@@ -5,13 +5,14 @@ Copy this checklist and track progress:
 ```
 Compilation Progress:
 - [ ] Phase 1: Scan all sources in raw/ and raw/deep/, write build/bucket-sources.json
-- [ ] Phase 2: Write 5 synthesis articles (parallel subagents)
-  - [ ] wiki/knowledge-bases.md
+- [ ] Phase 2: Write 6 synthesis articles (parallel subagents)
+  - [ ] wiki/knowledge-substrate.md
   - [ ] wiki/agent-memory.md
   - [ ] wiki/context-engineering.md
-  - [ ] wiki/agent-systems.md
+  - [ ] wiki/agent-architecture.md
+  - [ ] wiki/multi-agent-systems.md
   - [ ] wiki/self-improving.md
-- [ ] Phase 3: Write wiki/field-map.md (needs all 5 synthesis articles)
+- [ ] Phase 3: Write wiki/field-map.md (needs all 6 synthesis articles)
 - [ ] Phase 4: Write reference cards (parallel subagents)
   - [ ] wiki/projects/*.md (projects with 3+ sources and 7.0+ relevance)
   - [ ] wiki/concepts/*.md (concepts with 3+ sources and 7.0+ relevance)
@@ -29,7 +30,7 @@ Compilation Progress:
 
 ## Verification Gates
 
-After Phase 2: All 5 `wiki/{bucket}.md` files exist and are 3000-5000 words each.
+After Phase 2: All 6 `wiki/{bucket}.md` files exist and are 3000-5000 words each.
 
 After Phase 4: `wiki/projects/` and `wiki/concepts/` contain reference cards. No orphan entities (every entity mentioned in synthesis articles has a card or appears in missing.md).
 

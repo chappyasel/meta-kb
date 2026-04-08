@@ -1,6 +1,6 @@
 # meta-kb
 
-A self-improving LLM knowledge base about self-improving LLM knowledge systems.
+A self-improving knowledge base about LLM agent infrastructure.
 
 [![License: MIT](https://img.shields.io/badge/code-MIT-blue)](LICENSE) [![License: CC BY-SA 4.0](https://img.shields.io/badge/wiki-CC--BY--SA--4.0-lightgrey)](LICENSE) [![Runtime: Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1)](https://bun.sh) [![Sources](https://img.shields.io/badge/sources-126-orange)](#stats) [![Wiki Articles](https://img.shields.io/badge/wiki_articles-149-green)](#stats)
 
@@ -8,13 +8,13 @@ A self-improving LLM knowledge base about self-improving LLM knowledge systems.
 
 ## Browse the wiki
 
-**Start here:** [The Landscape of LLM Knowledge Systems](wiki/field-map.md)
+**Start here:** [The Landscape of LLM Agent Infrastructure](wiki/field-map.md)
 
-|                                                                 |                                                             |
-| --------------------------------------------------------------- | ----------------------------------------------------------- |
-| [The State of LLM Knowledge Bases](wiki/knowledge-bases.md)     | [The State of Agent Memory](wiki/agent-memory.md)           |
-| [The State of Context Engineering](wiki/context-engineering.md) | [The State of Agent Systems](wiki/agent-systems.md)         |
-| [The State of Self-Improving Systems](wiki/self-improving.md)   | [Landscape Comparison Table](wiki/comparisons/landscape.md) |
+|                                                                           |                                                               |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [The State of LLM Knowledge Substrate](wiki/knowledge-substrate.md)      | [The State of Agent Memory](wiki/agent-memory.md)             |
+| [The State of Context Engineering](wiki/context-engineering.md)           | [The State of Agent Architecture](wiki/agent-architecture.md) |
+| [The State of Multi-Agent Systems](wiki/multi-agent-systems.md)           | [The State of Self-Improving Systems](wiki/self-improving.md) |
 
 <table>
 <tr>
@@ -107,18 +107,19 @@ Both paths produce the same output structure. Run both for a comparison diff bet
 <!-- stats:start (auto-updated by bun run compile) -->
 ## Stats
 
-- **Sources:** 126 curated (24 tweets, 66 repos, 13 papers, 23 articles) + 52 deep research files
-- **Wiki:** 149 articles (5 synthesis, 77 project cards, 66 concept explainers, field map, indexes)
-- **Deep research:** 144K words of source-code-level analysis
-- **Self-eval:** 206 atomic claims extracted, 80% accuracy (30 sampled, 24 passed per compilation)
-- **Compiled by:** Script pipeline with Opus for synthesis articles, Sonnet for reference cards
+- **Sources:** 135 curated (29 tweets, 70 repos, 13 papers, 23 articles) + 57 deep research files
+- **Taxonomy:** 6 buckets (knowledge substrate, agent memory, context engineering, agent architecture, multi-agent systems, self-improving systems)
+- **Wiki:** 129 articles (6 synthesis, 67 project cards, 55 concept explainers, field map, indexes)
+- **Deep research:** 157K words of source-code-level analysis
+- **Self-eval:** 263 atomic claims extracted, sampled and verified against sources each compilation
+- **Compilation:** Script pipeline (`bun run compile`) or agent skill graph (`.claude/skills/compile-wiki/`)
 <!-- stats:end -->
 
 ## Roadmap
 
 - [x] **Incremental recompilation** — `bun run compile --incremental` skips unchanged sources, regenerates only dirty buckets/entities
-- [ ] **Source acquisition** — fill coverage gaps in Knowledge Bases (33 sources) and Agent Systems (23 sources), add historical retrospectives and production case studies
-- [ ] **Cross-article synthesis** — sequential compilation with evidence registry to eliminate cross-article repetition, question-routing ROOT.md layer
+- [ ] **Source acquisition** — fill coverage gaps in thin buckets, add historical retrospectives and production case studies
+- [x] **Cross-article synthesis** — sequential compilation with evidence registry to eliminate cross-article repetition
 - [ ] **Claims-first migration** — invert pipeline to raw → claims → articles for better attribution accuracy and reliable incremental recompilation
 - [ ] **Temporal claim decay** — auto-expire time-sensitive claims (star counts, benchmarks) and flag articles for refresh
 

@@ -20,17 +20,16 @@ key_insight: >-
   between RAG's local retrieval bias and the holistic understanding required for
   sensemaking queries.
 relevance_scores:
-  topic_relevance: 8
+  topic_relevance: 9
   practitioner_value: 8
   novelty: 8
   signal_quality: 9
-  composite: 8.2
-  deep_researched: 'deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md'
+  composite: 8.6
   reason: >-
-    GraphRAG is a directly relevant RAG alternative for knowledge bases that
-    introduces a genuinely novel hierarchical graph-indexing approach to solve
-    corpus-level sensemaking queries, with a detailed published paper and
-    Microsoft open-source implementation.
+    GraphRAG is a core Knowledge Substrate paper introducing a hierarchical
+    graph-based indexing and retrieval architecture that directly addresses
+    RAG's local-retrieval bias, with full implementation details, benchmarks,
+    and clear applicability to agent knowledge systems.
 ---
 ## From Local to Global: A Graph RAG Approach to Query-Focused Summarization
 

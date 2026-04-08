@@ -3,9 +3,16 @@ url: 'https://github.com/wangyu-ustc/mem-alpha'
 type: repo
 author: wangyu-ustc
 date: '2026-04-04'
-tags: [agent-memory, self-improving, knowledge-bases]
+tags:
+  - agent-memory
+  - self-improving
+  - knowledge-bases
 key_insight: >-
-  Uses reinforcement learning (GRPO) to train a small 4B-parameter model to autonomously decide when and how to encode information into a structured memory system (core/semantic/episodic), learning memory construction as a skill rather than relying on hand-crafted heuristics -- trained on 30K token contexts but generalizing to 400K+ tokens (13x training length).
+  Uses reinforcement learning (GRPO) to train a small 4B-parameter model to
+  autonomously decide when and how to encode information into a structured
+  memory system (core/semantic/episodic), learning memory construction as a
+  skill rather than relying on hand-crafted heuristics -- trained on 30K token
+  contexts but generalizing to 400K+ tokens (13x training length).
 stars: 0
 deep_research:
   method: source-code-analysis
@@ -27,6 +34,17 @@ deep_research:
     - data_preprocess/extract_memoryagentbench_keywords.py
   analyzed_at: '2026-04-04'
   original_source: repos/wangyu-ustc-mem-alpha.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 7
+  novelty: 9
+  signal_quality: 8
+  composite: 8.3
+  reason: >-
+    Novel RL-trained memory construction agent that learns when/what/how to
+    store across a three-tier memory hierarchy (core/semantic/episodic) —
+    directly advances agent memory architecture with transferable patterns for
+    self-improving memory management systems.
 ---
 
 ## Architecture Overview

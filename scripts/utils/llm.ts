@@ -106,10 +106,7 @@ topic_relevance:
   0-2:  ${domain.scoring.outOfScope.map((s) => `A ${s} system`).join(", ")}
 
 practitioner_value:
-  9-10: Production-ready library or detailed write-up a developer can learn from and apply today. Includes: tools directly relevant to the topic areas, implementations with documented patterns.
-  6-7:  Research code with a novel approach that requires significant adaptation, or a conceptual article with transferable insights
-  3-4:  Academic paper with no code release, or code that only reproduces paper results without a reusable API
-  0-2:  Theoretical framework with no implementation, or tool that solves a completely different problem
+${domain.scoring.practitionerValue}
 
 novelty:
   9-10: First implementation of a genuinely new architecture or pattern

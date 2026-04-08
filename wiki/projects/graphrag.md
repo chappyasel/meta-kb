@@ -1,159 +1,158 @@
 ---
 entity_id: graphrag
 type: project
-bucket: knowledge-bases
+bucket: knowledge-substrate
 abstract: >-
-  GraphRAG (Microsoft, 2024) indexes corpora into hierarchical knowledge graphs
-  via Leiden community detection, enabling global sensemaking queries that flat
-  vector search cannot answer; it wins on multi-hop and temporal reasoning but
-  loses on single-hop factual retrieval and costs significantly more to index
-  than naive RAG.
+  GraphRAG is Microsoft's graph-enhanced RAG system that builds hierarchical
+  knowledge graphs with community detection to enable multi-hop reasoning over
+  document corpora; its key differentiator is answering corpus-wide
+  "sensemaking" queries that flat vector retrieval cannot handle.
 sources:
   - repos/osu-nlp-group-hipporag.md
   - repos/tirth8205-code-review-graph.md
   - papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md
   - deep/repos/agenticnotetaking-arscontexta.md
-  - deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md
-  - deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md
   - deep/repos/infiniflow-ragflow.md
+  - deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md
+  - deep/papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md
   - deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
 related:
-  - rag
+  - retrieval-augmented-generation
+  - knowledge-graph
+  - community-detection
   - raptor
-  - mcp
+  - claude-code
+  - model-context-protocol
   - react
-  - reflexion
-  - letta
-  - hipporag
-  - lightrag
-  - personalized-pagerank
-  - mcp
-last_compiled: '2026-04-07T00:44:10.735Z'
+  - community-detection
+  - raptor
+last_compiled: '2026-04-08T02:41:58.087Z'
 ---
 # GraphRAG
 
-## What It Does
+## What It Is
 
-GraphRAG, introduced in a 2024 Microsoft Research paper and released as an open-source library at `aka.ms/graphrag`, addresses a hard limitation of standard [Retrieval-Augmented Generation](../concepts/rag.md): flat vector search cannot answer global questions about a corpus. Asking "What are the main themes in this dataset?" requires synthesizing many documents simultaneously, not retrieving the most similar chunks to a query. GraphRAG builds a hierarchical index at ingestion time so that global synthesis becomes practical at query time.
+GraphRAG is a retrieval-augmented generation system from Microsoft Research that transforms document corpora into structured knowledge graphs before retrieval. Where standard RAG finds the most similar chunk to a query, GraphRAG can answer questions that require synthesizing information scattered across many documents — "what are the main themes in this corpus?" or "how do these organizations relate?" — because the graph structure captures entity relationships that embedding similarity over flat text misses.
 
-The architecture extends the [Knowledge Graph](../concepts/knowledge-graph.md) idea from discrete lookup to probabilistic, community-structured retrieval, applying Leiden community detection to build a hierarchy of entity clusters, then summarizing each cluster with an LLM. Queries run as map-reduce over those summaries rather than as similarity searches over raw chunks.
+The project lives at [microsoft/graphrag](https://github.com/microsoft/graphrag) with ~24,000 GitHub stars (as of mid-2025). The core paper is "From Local to Global: A Graph RAG Approach to Query-Focused Summarization" (Edge et al., 2024).
 
-## Core Mechanism: How It Works
+It extends [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) by adding a graph construction and [Community Detection](../concepts/community-detection.md) layer between ingestion and retrieval. The result is a two-mode retrieval system: Local Search (entity-neighborhood retrieval for specific queries) and Global Search (community summary map-reduce for corpus-wide queries).
+
+## Architecture
+
+GraphRAG operates in two phases: an offline indexing phase that builds the knowledge graph, and an online query phase that routes queries through Local or Global search.
 
 ### Indexing Pipeline
 
-GraphRAG processes a corpus in five sequential steps, all offline before any query is served:
+**Entity and relationship extraction** runs across every document chunk. An LLM receives each chunk (default 600 tokens) and extracts entities with types, descriptions, and relationships with predicates. This runs multiple passes — the system re-prompts to find additional entities the first pass missed, typically running 2-3 extraction rounds per chunk. This is where GraphRAG gets expensive: extracting a moderately-sized corpus requires hundreds to thousands of LLM calls.
 
-**1. Chunking.** Documents split into 600–2,400 token chunks with configurable overlap. Chunk size matters: 600-token chunks extract approximately 2× more entity references than 2,400-token chunks, but require 4× more LLM calls. This chunk-size/extraction-quality tradeoff is a key parameter decision.
+**Entity resolution** merges duplicate entities across chunks. The same organization mentioned in 50 documents gets one node, with all relationships pointing to it. This consolidation is what enables multi-hop reasoning — a query about a company can traverse to all its mentioned relationships without scanning every source document.
 
-**2. Entity and Relationship Extraction.** An LLM extracts typed entities (people, organizations, locations, events) and labeled relationships from each chunk. A "gleaning" mechanism re-prompts the extraction LLM on each chunk to catch missed entities—single-pass extraction has notably low recall. This is the most expensive pipeline step.
+**Community detection** runs the Leiden algorithm over the entity graph to cluster tightly connected entities. The Leiden algorithm produces hierarchical communities: communities contain sub-communities, which contain individual entities. This hierarchy gives GraphRAG multiple levels of abstraction.
 
-**3. Element Summarization.** Individual summaries generated for each extracted entity and relationship.
+**Community report generation** summarizes each community using an LLM. Every cluster of related entities gets a natural-language summary covering the key themes, entities, and relationships within it. These summaries are what Global Search operates over.
 
-**4. Leiden Community Detection.** The entity-relationship graph is partitioned hierarchically using the Leiden algorithm. The result is a four-level tree:
-- C0 (root): fewest communities, broadest scope
-- C1: high-level sub-communities
-- C2: intermediate
-- C3 (leaf): most specific, closest to source text
+The core data structures — entities, relationships, community memberships, community reports — are stored as Parquet files by default, with optional output to graph databases.
 
-Podcast transcript experiments produce graphs with 8,564 nodes and 20,691 edges; news article corpora yield 15,754 nodes and 19,520 edges.
+### Query Modes
 
-**5. Community Summarization.** Each community at every level receives an LLM-generated summary. Leaf communities prioritize high-degree edges; higher-level communities use sub-community summaries as inputs. This compounds across levels: root summaries are abstractions of abstractions.
+**Local Search** targets specific entities or narrow factual questions. Given a query, it:
+1. Identifies query-relevant entities via embedding similarity
+2. Expands to their n-hop neighborhoods in the graph
+3. Pulls associated source text, entity descriptions, and relationship data
+4. Assembles this as context for the LLM
 
-After indexing, two retrieval modes are available. **Global search** runs the map-reduce pattern described above across community summaries. **Local search** retrieves entity neighborhoods for specific factual questions—closer in behavior to standard RAG.
+**Global Search** targets corpus-wide questions. It runs a map-reduce over all community reports:
+1. Each community report is sent to an LLM with the query (map phase)
+2. Reports that contain relevant information generate partial answers with relevance scores
+3. The highest-scoring partial answers are assembled and sent to a final LLM call (reduce phase)
 
-### Query-Time Map-Reduce
+The paper presents Global Search as the primary innovation: it enables "global sensemaking" queries that no single retrieved chunk could answer. In practice, this costs proportionally to corpus size — every community report participates in the map phase for every query.
 
-Global search does not traverse the graph at query time. Instead:
+### The Extraction Cost Problem
 
-1. Community summaries at the chosen level are shuffled and packed into fixed-size chunks (~8K tokens each, per the paper's ablation)
-2. Each chunk is sent to an LLM with the user query; the LLM returns a partial answer and a 0–100 helpfulness score
-3. Partial answers are ranked by score, assembled until the context limit is reached
-4. A final LLM call synthesizes the assembled partial answers
+The standard configuration uses 600-token chunks and runs multiple extraction passes per chunk. A 2024 cost analysis on a 1M-token corpus found GraphRAG indexing costs roughly 0.5-2.0 USD per 1,000 tokens of input, versus near-zero for embedding-only RAG. This is not a bug — it reflects genuine work. But it means GraphRAG is not economically sensible for frequently changing corpora or for small knowledge bases.
 
-All map calls are independent and parallelizable. You can control cost by limiting how many community summaries get processed.
-
-### Token Efficiency by Level
-
-| Level | Token Savings vs. Source Text Summarization |
-|-------|---------------------------------------------|
-| C0 (root) | 9–43× fewer tokens |
-| C3 (leaf) | 26–33% fewer tokens |
-
-Root-level queries are dramatically cheaper but lose specificity. This enables iterative exploration: start at C0 for broad themes, drill into C2/C3 for detail.
+Microsoft subsequently released **LightRAG** (separate project) and the community released variants specifically to address this. The RAGFlow implementation (RAGFlow) addresses it by submitting each document to the LLM only once for extraction rather than using GraphRAG's multi-pass approach, though at some extraction quality cost.
 
 ## Key Numbers
 
-**Benchmark results** (self-reported, no independent validation at time of writing):
+The [systematic benchmark by Han et al.](../raw/deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md) provides the most credible independent evaluation:
 
-Against naive RAG (semantic similarity baseline) on global sensemaking questions:
-- Comprehensiveness win rate: 72–83% (podcast dataset), 72–80% (news dataset)
-- Diversity win rate: 62–82%
-- Directness: GraphRAG loses; naive RAG is more specific
+| Task | RAG F1 | GraphRAG Local F1 | Winner |
+|------|--------|------------------|--------|
+| Single-hop (NQ) | 64.78 | 63.01 | RAG (+1.77) |
+| Multi-hop (HotPotQA) | 60.04 | 61.66 | GraphRAG (+1.62) |
+| Temporal reasoning | 25.73 | 49.06 | GraphRAG (+23.33) |
 
-Against graph-free text summarization (map-reduce without a graph):
-- Comprehensiveness win rate: 53–64%
-- The graph provides incremental, not transformative, quality improvement at lower community levels
+Community-Global search scores 45-55% F1 on QA tasks versus 60-68% for Local — a consistent 10-20 point gap. Global is not a QA mechanism; it is a summarization mechanism.
 
-Against full-conversation RAG baselines on conversational memory tasks (via Zep/Graphiti, which uses a related approach): +18.5% accuracy, 90% latency reduction on [LongMemEval](../projects/longmemeval.md).
+**The entity extraction ceiling:** Only ~65% of answer-relevant entities exist in constructed knowledge graphs (tested on HotPotQA and NQ). This ~34% miss rate is a hard architectural limit — entities that were not extracted during indexing cannot be retrieved through graph traversal.
 
-The LLM-as-judge evaluation methodology warrants skepticism: the evaluation paper on RAG vs. GraphRAG found that reversing the presentation order of outputs can invert preference judgments entirely. F1 scores should be preferred where ground truth exists.
+**Hybrid integration wins:** Concatenating both RAG and GraphRAG retrieval results yields +6.4% improvement on multi-hop tasks over RAG alone, at 2x retrieval cost. This is the most reliable strategy for mixed query types.
 
-**Repository:** Microsoft's open-source release at `aka.ms/graphrag`. Stars and fork counts change rapidly; check the repo for current figures.
+These benchmarks are independently validated on standard datasets. The temporal reasoning gap (+23 points) is the clearest demonstration of where graph structure provides irreplaceable value. Microsoft's internal evaluations on their benchmark datasets are self-reported.
 
 ## Strengths
 
-**Global sensemaking.** GraphRAG genuinely solves a problem that vector search cannot. For corpora where users ask "What patterns exist?" or "What are the main arguments?" rather than "What does paragraph X say?", the community hierarchy provides structure that flat retrieval lacks.
+**Multi-hop reasoning over large corpora.** When an answer requires connecting entities across many documents — a company's subsidiaries across 200 annual reports, a person's relationships across a news archive — the graph traversal finds connections that embedding similarity over text chunks cannot.
 
-**Temporal and multi-hop reasoning.** A separate evaluation study found GraphRAG (Local search) beats RAG by +23.3 F1 points on temporal reasoning queries and +1–4 points on multi-hop questions. The graph captures temporal relationships and entity connections that embedding similarity over text chunks misses.
+**Temporal and comparison queries.** The benchmark shows +23 F1 points on temporal reasoning. Graph structure represents when events occurred and how entities changed state in ways that flat retrieval cannot.
 
-**Token-efficient exploration.** Root-level community summaries (9–43× token reduction) make iterative corpus exploration practical at lower cost than processing source text repeatedly.
+**Corpus-wide sensemaking.** Global Search addresses a genuinely underserved use case: "what are the major themes in this 500-document corpus?" No amount of retrieval-over-chunks answers this well. Community summaries provide the abstraction level needed.
 
-**Complementarity with RAG.** Combining both—retrieving from RAG and GraphRAG, concatenating results—yields +4–6% improvement on multi-hop tasks over either alone. GraphRAG and standard RAG are not in competition; they handle different query structures.
+**Grounded, citable answers.** The graph traces every claim back to source text through the entity-chunk relationship, enabling citation.
 
 ## Critical Limitations
 
-**The ~34% entity extraction miss rate creates a hard ceiling.** Systematic evaluation across HotPotQA and NQ found that only 65–66% of answer-relevant entities make it into the constructed knowledge graph. If an entity is not extracted, graph retrieval cannot find it—no parameter tuning fixes this. For specialized domains with technical jargon, acronyms, or domain-specific naming conventions, the miss rate is likely higher.
+**Concrete failure mode — static corpus assumption.** GraphRAG's indexing pipeline is designed for batch processing of a fixed corpus. When documents are added, removed, or updated, the entire graph must be rebuilt: entity re-extraction, re-resolution, community re-detection, community report regeneration. There is no incremental update path in the core implementation. For knowledge bases that update daily or continuously (news archives, chat history, product documentation), this makes GraphRAG operationally untenable. The [Graphiti](../projects/graphiti.md) project (used by [Zep](../projects/zep.md)) was built specifically to address this with temporal edge invalidation and incremental community updates, but it is a separate architecture.
 
-**Unspoken infrastructure assumption:** GraphRAG implicitly assumes a static or slowly changing corpus. The Leiden algorithm produces excellent community structure but requires full recomputation when the graph changes. The library does not ship incremental update support. For knowledge bases with streaming updates—new documents daily, conversational history accreting in real time—GraphRAG's indexing architecture is a poor fit. [Zep/Graphiti](../projects/zep.md) solves this by substituting label propagation, which supports incremental updates at the cost of community quality over time.
+**Unspoken infrastructure assumption — LLM budget.** GraphRAG implicitly assumes you have a substantial LLM budget for indexing. The community report generation step alone generates one LLM call per community, and the Leiden algorithm can produce hundreds of communities for large corpora. Operators frequently discover the cost structure only after starting a large indexing run. The system does not surface upfront cost estimates.
 
 ## When NOT to Use GraphRAG
 
-**Single-hop factual retrieval.** For "What is the capital of France?" or "When did event X occur?", standard RAG beats GraphRAG Local by 1.8–2.7 F1 points and is cheaper to run. The community hierarchy adds no value when the answer lives in one text passage.
+**Single-hop factual retrieval.** If your users ask "what does the contract say about termination clauses?" — questions that a single retrieved chunk can answer — GraphRAG adds cost and latency with no accuracy benefit. RAG wins by 1.77 F1 on single-hop tasks.
 
-**Low-query-volume corpora.** Graph indexing requires many LLM calls for extraction (multiple passes per chunk), element summarization, and community summarization. For a corpus queried only a handful of times, graph-free text summarization—map-reduce directly over source chunks—performs nearly as well and costs far less to set up. The paper's own text summarization baseline achieves 53–64% win rates against GraphRAG, competitive enough to question the indexing investment for low-volume use.
+**Frequently updated knowledge bases.** Any corpus that changes faster than a weekly batch rebuild cycle is poorly served by GraphRAG's static indexing. Use [Graphiti](../projects/graphiti.md) or [Zep](../projects/zep.md)'s temporal graph architecture instead.
 
-**Real-time or low-latency requirements.** Indexing a 1M-token corpus with 600-token chunks, gleanings, and GPT-4-class models can cost hundreds of dollars and take hours. Query-time global search parallelizes map calls but still requires many LLM calls. For applications needing sub-second retrieval, GraphRAG's architecture is mismatched.
+**Small knowledge bases.** For corpora under ~50 documents, the community detection step finds minimal structure to exploit. Standard RAG is cheaper, simpler, and comparably accurate.
 
-**Highly dynamic or conversational data.** If the "corpus" is an ongoing conversation or a knowledge base updated continuously, Zep's temporally-aware graph (bi-temporal edge invalidation, incremental community updates) is a better architecture. GraphRAG has no mechanism for handling contradictory information or tracking how facts change over time.
+**Latency-sensitive applications.** Global Search's map-reduce over all community reports scales with corpus size, not query complexity. A large corpus means every query touches hundreds of community summaries. Not suitable for sub-second response requirements.
 
-**Domains where extraction quality is critical.** Medical records, legal documents, and technical specifications often use terminology that general-purpose LLM extraction handles poorly. The 34% miss rate on general corpora will be worse here.
+**Domains with specialized entity types.** The ~34% entity miss rate is the average across general domains. In technical, legal, or scientific text with specialized terminology, extraction quality degrades further. Test your extraction recall before committing to GraphRAG for domain-specific corpora.
 
 ## Unresolved Questions
 
-**Hallucination compounding.** The pipeline generates entities via LLM extraction, then summarizes them via a second LLM call, then summarizes summaries at higher community levels. Each step can introduce hallucinations that compound upward. The Microsoft paper explicitly acknowledges it did not apply SelfCheckGPT or any hallucination detection to its evaluation. Production deployments have no clear answer for measuring or bounding this risk.
+**Community refresh scheduling.** The documentation does not specify how to handle community drift over time as documents are added. Periodic full rebuilds are implied but their frequency and cost implications at scale are not addressed.
 
-**Cost at scale.** Neither the original paper nor the open-source release provides detailed cost models for corpora beyond ~1M tokens. At 10M or 100M tokens, the extraction cost (multiple LLM calls per 600-token chunk) may be prohibitive with GPT-4-class models. The paper does not address using smaller extraction models and their effect on the 34% entity miss rate.
+**Optimal chunk size for extraction.** The default 600-token chunks are presented as a practical choice, but the RAG vs GraphRAG benchmark notes that smaller chunks extract more entities at higher cost. No guidance exists on the accuracy-cost tradeoff at different chunk sizes for different domain types.
 
-**Optimal community level selection.** The paper tests C0 through C3 but provides no guidance on selecting the right level for a given query or corpus. Automated level selection at query time is unaddressed.
+**Global Search vs. Local Search routing.** The system requires the user to select the search mode. No automatic routing mechanism exists in the core implementation to choose based on query type. The benchmark confirms these modes are not interchangeable, but practitioners must implement their own query classifier.
 
-**Cross-document graph merging.** RAGFlow's production implementation of GraphRAG notes this explicitly: the graph operates per-document and cannot yet link graphs across multiple documents in a knowledge base due to memory and computational constraints. The Microsoft paper does not address this limitation.
+**Multi-document graph merging.** RAGFlow's GraphRAG implementation notes that knowledge graph generation operates per-document, and cross-document graph merging is an open problem. The Microsoft implementation handles this through entity resolution, but resolution quality at scale (millions of entities) is not benchmarked publicly.
 
-**LLM-as-judge validity.** A systematic evaluation study found that position bias in LLM judges can completely invert preference judgments between RAG and GraphRAG outputs. The paper's 72–83% comprehensiveness win rates use this evaluation method without controls for position bias.
+**Governance for enterprise multi-tenant use.** GraphRAG stores extracted entities, relationships, and LLM-generated community summaries. In multi-tenant environments, the data boundaries between tenant graphs are not addressed by the core project. This matters when sensitive documents from different organizational units share an indexing pipeline.
 
-## How It Fits with Related Projects
+## Alternatives
 
-[RAPTOR](../projects/raptor.md) takes a similar hierarchical summarization approach but builds a tree via Gaussian Mixture Model clustering of embeddings rather than community detection on an entity graph. RAPTOR is integrated into [RAGFlow](../raw/deep/repos/infiniflow-ragflow.md) alongside GraphRAG as complementary retrieval strategies. [HippoRAG](../projects/hipporag.md) uses [Personalized PageRank](../concepts/personalized-pagerank.md) over a knowledge graph rather than map-reduce over community summaries, optimizing for associative retrieval rather than global synthesis. LightRAG simplifies the GraphRAG pipeline to reduce indexing cost, trading community structure quality for practicality.
+**[RAPTOR](../projects/raptor.md)** — Hierarchical summarization through recursive clustering, then flattening into a single retrieval index. Lower indexing cost than GraphRAG (no graph construction), effective for hierarchical document structure, but does not capture entity relationships across documents. Use RAPTOR when your documents have natural hierarchy (books, documentation, papers) and your queries need summary-level context rather than entity relationship traversal.
 
-For agent memory specifically, [Zep/Graphiti](../projects/zep.md) implements a temporally-aware graph with bi-temporal indexing that handles evolving facts—something GraphRAG's static-corpus design does not address. Graphiti uses label propagation for incremental community updates and invalidates edges rather than deleting them when facts change, making it better suited to [Agent Memory](../concepts/agent-memory.md) applications than GraphRAG's batch-indexing approach.
+**Standard [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) with [Hybrid Search](../concepts/hybrid-search.md)** — BM25 + dense retrieval with re-ranking. Use when queries are predominantly single-hop factual lookups, the corpus changes frequently, or budget is constrained. Outperforms GraphRAG on single-hop by ~2 F1 points at a fraction of the indexing cost.
 
-## Alternatives: Selection Guidance
+**[Graphiti](../projects/graphiti.md) / [Zep](../projects/zep.md)** — Temporal knowledge graph with incremental updates and bi-temporal indexing. Use when the knowledge base evolves continuously (agent conversation history, live document feeds) and you need temporal reasoning over changing facts. Zep achieves 18.5% improvement over full-conversation baselines on LongMemEval. The architectural tradeoff is label propagation (incremental, cheaper) versus Leiden algorithm (better community structure, batch-only).
 
-- **Use standard RAG** when queries are primarily single-hop factual lookups, the corpus is small, or indexing cost is a constraint.
-- **Use GraphRAG (Global)** when users need corpus-wide synthesis—themes, patterns, summaries across many documents—and the corpus is stable.
-- **Use GraphRAG (Local)** when queries require multi-hop reasoning or temporal reasoning across a static knowledge base.
-- **Use RAG + GraphRAG together** (concatenating retrieval results) for maximum quality on multi-hop tasks when retrieval cost is not a constraint.
-- **Use [Zep/Graphiti](../projects/zep.md)** when the knowledge base evolves over time and temporal consistency matters.
-- **Use [RAPTOR](../projects/raptor.md)** when hierarchical summarization is the goal but you want a simpler infrastructure footprint than full entity graph construction.
-- **Use graph-free text summarization** (map-reduce over source chunks) as the baseline before committing to graph indexing—the GraphRAG paper shows it is competitive at lower community levels.
+**[HippoRAG](../projects/hipporag.md)** — Integrates graph traversal with a personalized PageRank mechanism inspired by human associative memory. More retrieval-focused than GraphRAG's sensemaking orientation. Use when you need associative, multi-hop retrieval without the full community-detection infrastructure.
+
+**Hybrid integration** — As the benchmark confirms, concatenating GraphRAG and RAG results yields the best accuracy (+6.4% on multi-hop) at 2x retrieval cost. For applications where accuracy matters more than cost, running both is the pragmatic choice.
+
+## Related Concepts
+
+- [Knowledge Graph](../concepts/knowledge-graph.md) — The underlying data structure GraphRAG constructs
+- [Community Detection](../concepts/community-detection.md) — The Leiden algorithm step that creates the hierarchy
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — The baseline this extends
+- [Semantic Search](../concepts/semantic-search.md) — Used in Local Search for entity identification
+- [Vector Database](../concepts/vector-database.md) — Stores entity and community embeddings
+- [Context Engineering](../concepts/context-engineering.md) — Community summaries and entity neighborhoods as assembled context
+- [RAPTOR](../projects/raptor.md) — Alternative hierarchical approach
+- [Graphiti](../projects/graphiti.md) — Temporal variant solving the static corpus problem

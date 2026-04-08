@@ -30,10 +30,9 @@ relevance_scores:
   signal_quality: 6
   composite: 7.8
   reason: >-
-    Directly covers CLAUDE.md/skills/agents folder structure as
-    version-controlled context engineering infrastructure, hitting topics 3 and
-    4 squarely, with a complete guide linked and high practitioner
-    applicability.
+    Directly covers CLAUDE.md/SKILL.md/agents/ folder architecture — core
+    context engineering and agent architecture patterns — with high engagement
+    suggesting practitioner value, though tweet format limits depth.
 ---
 ## Tweet by @akshay_pachaar
 

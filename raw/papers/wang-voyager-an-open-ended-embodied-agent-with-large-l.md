@@ -25,12 +25,11 @@ relevance_scores:
   novelty: 8
   signal_quality: 8
   composite: 7.3
-  deep_researched: 'deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md'
   reason: >-
     Voyager's skill library with iterative self-verification and compositional
-    skill accumulation is a highly transferable self-improving pattern directly
-    applicable to agentic skill registries and knowledge base growth without
-    catastrophic forgetting, even though the domain is Minecraft.
+    skill accumulation is a highly transferable pattern for self-improving agent
+    systems and knowledge substrate growth, even though the domain is game-based
+    embodied AI.
 ---
 ## Voyager: An Open-Ended Embodied Agent with Large Language Models
 

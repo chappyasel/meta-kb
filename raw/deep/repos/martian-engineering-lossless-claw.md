@@ -3,7 +3,10 @@ url: 'https://github.com/martian-engineering/lossless-claw'
 type: repo
 author: martian-engineering
 date: '2026-04-04'
-tags: [knowledge-bases, agent-memory, context-engineering]
+tags:
+  - knowledge-bases
+  - agent-memory
+  - context-engineering
 key_insight: >-
   Lossless-claw replaces sliding-window context truncation with a DAG-based
   hierarchical summarization system that preserves every message in SQLite while
@@ -29,6 +32,18 @@ deep_research:
     - src/tools/lcm-expand-tool.ts
   analyzed_at: '2026-04-04'
   original_source: repos/martian-engineering-lossless-claw.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 9
+  composite: 8.6
+  reason: >-
+    A production-grade DAG-based hierarchical summarization system replacing
+    sliding-window truncation with lossless SQLite-backed context management and
+    three-level compaction escalation—directly addresses context engineering and
+    agent memory with novel guarantees-over-autonomy architecture and detailed
+    implementation.
 ---
 
 ## Architecture Overview

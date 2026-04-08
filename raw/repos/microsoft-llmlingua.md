@@ -11,7 +11,7 @@ tags:
   - token-optimization
   - inference-acceleration
   - kv-cache
-deep_researched: 'deep/repos/microsoft-llmlingua.md'
+deep_researched: deep/repos/microsoft-llmlingua.md
 key_insight: >-
   Prompt compression via selective token removal can reduce context size by up
   to 20x while maintaining accuracy, directly addressing the cost and latency
@@ -23,16 +23,16 @@ key_insight: >-
 stars: 5985
 forks: 358
 relevance_scores:
-  topic_relevance: 8
-  practitioner_value: 9
+  topic_relevance: 7
+  practitioner_value: 8
   novelty: 7
-  signal_quality: 8
-  composite: 8.2
+  signal_quality: 9
+  composite: 7.6
   reason: >-
-    LLMLingua is a production-ready, well-documented prompt compression library
-    directly addressing context engineering (topic 3) with 20x compression,
-    LangChain/LlamaIndex integration, peer-reviewed papers, and active Microsoft
-    development making it immediately actionable for KB and RAG builders.
+    LLMLingua is a production-ready prompt compression library directly
+    addressing context engineering and token budgeting challenges in
+    RAG/knowledge-base systems, with strong integrations into LangChain and
+    LlamaIndex and detailed benchmarks showing 20x compression.
 language: Python
 license: MIT
 ---

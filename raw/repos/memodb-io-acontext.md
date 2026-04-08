@@ -20,19 +20,19 @@ key_insight: >-
   composition problem.
 stars: 3264
 forks: 307
-deep_researched: 'deep/repos/memodb-io-acontext.md'
+deep_researched: deep/repos/memodb-io-acontext.md
 relevance_scores:
   topic_relevance: 9
   practitioner_value: 9
-  novelty: 9
+  novelty: 8
   signal_quality: 8
-  composite: 8.9
+  composite: 8.7
   reason: >-
-    Acontext directly addresses agent memory, skill composition, context
-    engineering, and self-improving loops by treating memory as structured
-    human-readable skill files distilled from execution traces—a genuinely novel
-    approach with a production-ready TypeScript/Python library, active
-    community, and 3K+ stars.
+    Acontext directly implements core topics — skill files as memory (SKILL.md
+    pattern), self-improving loops via trace distillation, and context
+    engineering — with a production-ready TypeScript/Python library that reifies
+    the skill composition paradigm discussed across multiple knowledge base
+    pillars.
 language: TypeScript
 license: Apache-2.0
 ---

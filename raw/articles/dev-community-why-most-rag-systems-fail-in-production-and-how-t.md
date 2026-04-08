@@ -18,16 +18,16 @@ key_insight: >-
   itself; hybrid retrieval combined with intelligent context filtering prevents
   silent degradation that demo systems never surface.
 relevance_scores:
-  topic_relevance: 6
-  practitioner_value: 6
-  novelty: 3
-  signal_quality: 5
-  composite: 5.4
+  topic_relevance: 7
+  practitioner_value: 7
+  novelty: 4
+  signal_quality: 6
+  composite: 6.4
   reason: >-
-    Covers practical RAG production failure modes with actionable patterns
-    (hybrid retrieval, layout-aware parsing, reranking) that are relevant to
-    building LLM knowledge bases, but presents well-known techniques without
-    novel architectural insights.
+    Solid production-focused RAG article covering hybrid retrieval, reranking,
+    and context management—directly relevant to context engineering and
+    knowledge substrate topics, but covers well-known patterns without
+    introducing genuinely new approaches.
 ---
 ## Why Most RAG Systems Fail in Production (And How to Design One That Actually Works)
 

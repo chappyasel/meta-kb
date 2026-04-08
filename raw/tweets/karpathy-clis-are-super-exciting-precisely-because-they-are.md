@@ -23,17 +23,16 @@ views: 2114773
 images:
   - images/karpathy-clis-are-super-exciting-precisely-because-they-are/image.jpg
 relevance_scores:
-  topic_relevance: 6
-  practitioner_value: 6
+  topic_relevance: 7
+  practitioner_value: 7
   novelty: 5
-  signal_quality: 5
-  composite: 5.7
+  signal_quality: 6
+  composite: 6.6
   reason: >-
-    Karpathy's tweet touches on agentic skill composition and the
-    SKILL.md/agent-accessible tool design pattern with actionable questions
-    (markdown docs, Skills, CLI/MCP access), but it's a high-level tweet rather
-    than a detailed architecture writeup, and the primary focus is CLI tooling
-    for agents rather than KB or memory systems specifically.
+    Karpathy articulates the 'Karpathy pattern' directly—CLIs, markdown docs,
+    Skills, MCP as agent-accessible interfaces—which is core to the knowledge
+    substrate and agent architecture topics, with actionable design heuristics
+    for practitioners building agentic systems.
 ---
 ## Tweet by @karpathy
 

@@ -32,10 +32,10 @@ relevance_scores:
   composite: 7.9
   reason: >-
     GAM is a directly relevant agent memory system with hierarchical
-    organization, semantic chunking, and incremental memory generation for
-    long-context agents, featuring a production-ready Python SDK, CLI, and REST
-    API with clear documentation—though the video memory component is out of
-    scope, the core agentic memory architecture is highly applicable.
+    organization, incremental memory generation, and long-context trajectory
+    management—core to agent memory and context engineering topics—with a
+    production-ready Python SDK, CLI, and REST API, plus 838 stars indicating
+    real adoption.
 language: Python
 ---
 ## general-agentic-memory

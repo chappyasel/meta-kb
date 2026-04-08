@@ -26,14 +26,14 @@ relevance_scores:
   topic_relevance: 9
   practitioner_value: 9
   novelty: 8
-  signal_quality: 8
-  composite: 8.7
+  signal_quality: 9
+  composite: 8.9
   reason: >-
-    Napkin directly addresses agent memory/KB with a novel
-    BM25+progressive-disclosure approach that outperforms RAG on LongMemEval,
-    includes benchmarks, a working SDK, and a clear architecture—highly
-    actionable for practitioners building agentic knowledge systems without
-    vector infrastructure.
+    Directly implements a local-first, progressive-disclosure knowledge system
+    for agents using BM25 over markdown—no embeddings required—with benchmarks
+    showing it matches or beats RAG on LongMemEval, making it immediately
+    actionable for practitioners building agent memory/knowledge substrate
+    systems.
 language: TypeScript
 license: MIT
 ---

@@ -20,18 +20,17 @@ key_insight: >-
   *before* catastrophic damage rather than after—critical for agent systems
   where damage compounds faster than human reaction time.
 relevance_scores:
-  topic_relevance: 6
-  practitioner_value: 6
+  topic_relevance: 7
+  practitioner_value: 7
   novelty: 6
   signal_quality: 6
-  composite: 6
+  composite: 6.7
   reason: >-
-    Algorithmic circuit breakers with multi-metric anomaly detection (semantic
-    drift, confidence decay, recursive loops, velocity spikes) provide
-    zero-latency containment patterns directly applicable to self-improving
-    agent systems and agentic workflows, making this a transferable
-    self-healing/self-monitoring pattern relevant to topic 5, though the article
-    appears truncated and is conceptual rather than implementation-focused.
+    Multi-metric anomaly detection and algorithmic circuit breakers for
+    autonomous agent containment is a directly transferable pattern for agent
+    architecture and self-improving/self-monitoring systems, with concrete
+    metrics (semantic drift, confidence decay, recursive loops, velocity spikes)
+    that practitioners can adapt.
 ---
 ## Algorithmic Circuit Breakers: Preventing "Flash Crashes" of Logic in Autonomous Workflows
 

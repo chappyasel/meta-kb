@@ -3,9 +3,16 @@ url: 'https://github.com/MaximeRobeyns/self_improving_coding_agent'
 type: repo
 author: MaximeRobeyns
 date: '2026-04-04'
-tags: [self-improving, agentic-skills, context-engineering]
+tags:
+  - self-improving
+  - agentic-skills
+  - context-engineering
 key_insight: >-
-  SICA implements true scaffold-level self-modification where the coding agent modifies its own source code (tools, reasoning structures, sub-agents) inside a Docker sandbox, evaluates the modification against benchmarks, selects the best-performing ancestor via confidence-interval-aware selection, and iterates -- the agent literally rewrites itself to become better at coding tasks.
+  SICA implements true scaffold-level self-modification where the coding agent
+  modifies its own source code (tools, reasoning structures, sub-agents) inside
+  a Docker sandbox, evaluates the modification against benchmarks, selects the
+  best-performing ancestor via confidence-interval-aware selection, and iterates
+  -- the agent literally rewrites itself to become better at coding tasks.
 stars: 299
 deep_research:
   method: source-code-analysis-plus-web
@@ -26,14 +33,28 @@ deep_research:
     - base_agent/description.txt
     - base_agent/agent_change_log.md
   web_sources:
-    - https://arxiv.org/html/2504.15228v2
-    - https://arxiv.org/abs/2504.15228
-    - https://www.marktechpost.com/2025/04/29/can-coding-agents-improve-themselves-researchers-from-university-of-bristol-and-igent-ai-propose-sica-self-improving-coding-agent-that-iteratively-enhances-its-own-code-and-performance/
-    - https://ubos.tech/news/the-rise-of-self-improving-coding-agents-exploring-the-sica-architecture/
-    - https://docs.bswen.com/blog/2026-03-29-self-improving-coding-agent/
-    - https://www.emergentmind.com/papers/2504.15228
+    - 'https://arxiv.org/html/2504.15228v2'
+    - 'https://arxiv.org/abs/2504.15228'
+    - >-
+      https://www.marktechpost.com/2025/04/29/can-coding-agents-improve-themselves-researchers-from-university-of-bristol-and-igent-ai-propose-sica-self-improving-coding-agent-that-iteratively-enhances-its-own-code-and-performance/
+    - >-
+      https://ubos.tech/news/the-rise-of-self-improving-coding-agents-exploring-the-sica-architecture/
+    - 'https://docs.bswen.com/blog/2026-03-29-self-improving-coding-agent/'
+    - 'https://www.emergentmind.com/papers/2504.15228'
   analyzed_at: '2026-04-04'
   original_source: repos/maximerobeyns-self-improving-coding-agent.md
+relevance_scores:
+  topic_relevance: 10
+  practitioner_value: 8
+  novelty: 9
+  signal_quality: 9
+  composite: 9.1
+  reason: >-
+    SICA is a direct implementation of scaffold-level self-modification with
+    confidence-interval-aware selection, sandboxed evaluation loops, and unified
+    meta/target agent architecture—core to the self-improving systems pillar
+    with detailed architecture, benchmarks, and multi-agent coordination
+    patterns.
 ---
 
 ## Architecture Overview

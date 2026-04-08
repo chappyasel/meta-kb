@@ -29,10 +29,11 @@ relevance_scores:
   signal_quality: 8
   composite: 7.7
   reason: >-
-    MemAgent directly addresses agent memory architecture with RL-optimized
-    long-context processing—highly relevant to agent memory and context
-    engineering pillars, with released model weights, training framework, and
-    detailed benchmarks making it practically actionable.
+    MemAgent introduces a genuinely novel RL-trained memory agent architecture
+    for extending LLM context windows to 3.5M tokens via multi-turn
+    workflows—directly relevant to agent memory and context engineering pillars,
+    with released weights, code, and benchmarks making it immediately actionable
+    for practitioners.
 language: Python
 license: Apache-2.0
 ---

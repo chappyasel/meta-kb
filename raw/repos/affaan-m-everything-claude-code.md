@@ -21,16 +21,16 @@ key_insight: >-
 stars: 136116
 forks: 20075
 relevance_scores:
-  topic_relevance: 8
+  topic_relevance: 9
   practitioner_value: 8
   novelty: 7
   signal_quality: 7
-  composite: 7.7
+  composite: 8.1
   reason: >-
-    Directly addresses context engineering (CLAUDE.md/AGENTS.md patterns), agent
-    skill composition, persistent memory hooks, and continuous learning loops
-    for Claude agents—core to topics 2, 3, and 4—with a production-ready,
-    widely-adopted implementation.
+    Directly implements the everything-claude-code framework with skills, memory
+    hooks, harness optimization, and continuous learning loops—core to the
+    knowledge base's agent architecture and self-improving systems pillars, with
+    high star count suggesting production adoption.
 language: JavaScript
 license: MIT
 deep_researched: deep/repos/affaan-m-everything-claude-code.md

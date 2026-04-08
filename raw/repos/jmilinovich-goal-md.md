@@ -27,9 +27,11 @@ relevance_scores:
   signal_quality: 8
   composite: 8.7
   reason: >-
-    GOAL.md directly generalizes Karpathy's autoresearch pattern to domains with
-    constructed metrics, providing a concrete, immediately-applicable framework
-    for autonomous self-improvement loops—a core pillar of this knowledge base.
+    GOAL.md directly addresses the self-improving agent loop pattern (fitness
+    function construction, dual-score safeguards, improvement loops) from topic
+    6, generalizes Karpathy's autoresearch to arbitrary software domains, and is
+    immediately actionable with a template/examples/CLAUDE.md for practitioners
+    building autonomous coding agents.
 language: Shell
 ---
 ## goal-md

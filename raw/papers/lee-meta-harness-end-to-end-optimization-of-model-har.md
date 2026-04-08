@@ -12,12 +12,24 @@ tags:
   - harness-optimization
   - automated-engineering
   - execution-traces
-deep_researched: 'deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md'
+deep_researched: deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
 key_insight: >-
-  Model harnesses (the code controlling what information LLMs receive) create
-  up to 6x performance gaps. Meta-Harness automates harness optimization by
-  giving a coding agent filesystem access to all prior candidates' source code,
+  Model harnesses (the code controlling what information LLMs receive) create up
+  to 6x performance gaps. Meta-Harness automates harness optimization by giving
+  a coding agent filesystem access to all prior candidates' source code,
   execution traces, and scores, achieving +7.7 over ACE with 4x fewer tokens.
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 9
+  signal_quality: 8
+  composite: 8.5
+  reason: >-
+    Meta-Harness directly addresses context engineering and self-improving agent
+    systems by automating harness optimization via an outer-loop agentic
+    proposer with filesystem access to prior candidates' traces and scores—a
+    highly transferable pattern for self-improving LLM infrastructure with
+    concrete benchmarks and token efficiency gains.
 ---
 ## Meta-Harness: End-to-End Optimization of Model Harnesses
 

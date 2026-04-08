@@ -3,15 +3,20 @@ url: 'https://github.com/Memento-Teams/Memento-Skills'
 type: repo
 author: Memento-Teams
 date: '2026-04-04'
-tags: [agent-systems, agentic-skills, self-improving, agent-memory, skill-composition]
+tags:
+  - agent-systems
+  - agentic-skills
+  - self-improving
+  - agent-memory
+  - skill-composition
 key_insight: >-
-  Memento-Skills implements genuine deployment-time self-evolution where the agent's
-  skill library is not a static registry but a mutable knowledge base that grows
-  through a Read-Execute-Reflect-Write loop -- the reflection phase can rewrite
-  skill code, adjust prompts, create entirely new skills from failure patterns,
-  and update utility scores, making it the most complete implementation of
-  case-based reasoning for LLM agents where model parameters theta remain frozen
-  and all adaptation happens in external skill memory M.
+  Memento-Skills implements genuine deployment-time self-evolution where the
+  agent's skill library is not a static registry but a mutable knowledge base
+  that grows through a Read-Execute-Reflect-Write loop -- the reflection phase
+  can rewrite skill code, adjust prompts, create entirely new skills from
+  failure patterns, and update utility scores, making it the most complete
+  implementation of case-based reasoning for LLM agents where model parameters
+  theta remain frozen and all adaptation happens in external skill memory M.
 stars: 916
 deep_research:
   method: source-code-analysis
@@ -52,6 +57,17 @@ deep_research:
     - middleware/storage/models.py
   analyzed_at: '2026-04-04'
   original_source: repos/memento-teams-memento-skills.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 8
+  composite: 8.4
+  reason: >-
+    Implements a complete Read-Execute-Reflect-Write self-improving skill loop
+    with mutable skill memory, hybrid retrieval, and versioned skill
+    evolution—directly relevant to Agent Architecture, Self-Improving Systems,
+    and Knowledge Substrate pillars with detailed architectural documentation.
 ---
 
 ## Architecture Overview

@@ -21,7 +21,7 @@ the script pipeline (`bun run compile`).
 ```
 Phase 1: Scan sources     (you do this — build source manifest)
 Phase 2: Synthesis         (5 parallel subagents — one per bucket)
-Phase 3: Field map         (sequential — needs all 5 synthesis articles)
+Phase 3: Field map         (sequential — needs all 6 synthesis articles)
 Phase 4: Reference cards   (parallel subagents — batched by entity)
 Phase 5: Indexes           (sequential — needs all articles)
 Phase 6: Claims + eval     (sequential — needs synthesis articles)
@@ -42,7 +42,7 @@ A source can belong to multiple buckets based on its tags.
 Write `build/bucket-sources.json` with this structure:
 ```json
 {
-  "knowledge-bases": [{ "path": "repos/foo.md", "relevance": 8.1, "key_insight": "..." }],
+  "knowledge-substrate": [{ "path": "repos/foo.md", "relevance": 8.1, "key_insight": "..." }],
   "agent-memory": [...],
   ...
 }
@@ -124,7 +124,7 @@ Read and follow the writing rules in `.claude/skills/stop-slop/SKILL.md`.
 wiki/
   ROOT.md              # Agent-optimized topic index (<2K tokens)
   field-map.md         # Systems overview (3000-5000 words)
-  {bucket}.md          # 5 synthesis articles with abstracts
+  {bucket}.md          # 6 synthesis articles with abstracts
   projects/*.md        # Project reference cards with abstracts
   concepts/*.md        # Concept explainers with abstracts
   indexes/*.md         # Project, topic, missing indexes

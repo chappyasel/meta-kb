@@ -30,10 +30,12 @@ relevance_scores:
   signal_quality: 7
   composite: 8.1
   reason: >-
-    Hyperagents/DGM-H directly instantiates metacognitive self-improvement loops
-    where the improvement process itself evolves—a core pattern for
-    self-improving KB/agent systems—with demonstrated cross-domain transfer of
-    meta-level improvements like persistent memory and performance tracking.
+    Hyperagents/DGM-H directly advances self-improving agent systems with
+    metacognitive self-modification—the meta-level improvement loop itself
+    becomes evolvable—which is a genuinely novel and transferable pattern for
+    designing self-improving knowledge and agent systems, with multi-domain
+    validation and meta-improvements like persistent memory and performance
+    tracking that transfer across runs.
 ---
 ## Tweet by @jennyzhangzt
 

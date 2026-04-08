@@ -3,9 +3,15 @@ url: 'https://github.com/vectifyai/pageindex'
 type: repo
 author: vectifyai
 date: '2026-04-04'
-tags: [knowledge-bases, context-engineering]
+tags:
+  - knowledge-bases
+  - context-engineering
 key_insight: >-
-  Replaces vector similarity search with a hierarchical tree index built from document structure, enabling LLM agents to navigate long documents through reasoning-based tree traversal rather than embedding-based retrieval -- achieving 98.7% accuracy on FinanceBench by making retrieval a reasoning problem rather than a similarity problem.
+  Replaces vector similarity search with a hierarchical tree index built from
+  document structure, enabling LLM agents to navigate long documents through
+  reasoning-based tree traversal rather than embedding-based retrieval --
+  achieving 98.7% accuracy on FinanceBench by making retrieval a reasoning
+  problem rather than a similarity problem.
 stars: 23900
 deep_research:
   method: source-code-analysis
@@ -25,6 +31,17 @@ deep_research:
     - cookbook/pageindex_RAG_simple.ipynb
   analyzed_at: '2026-04-04'
   original_source: repos/vectifyai-pageindex.md
+relevance_scores:
+  topic_relevance: 8
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 8
+  composite: 8
+  reason: >-
+    PageIndex introduces a reasoning-based tree traversal approach to RAG that
+    directly addresses context engineering and knowledge substrate patterns with
+    strong benchmark results, production provenance, and a reusable open-source
+    API that practitioners can adopt immediately.
 ---
 
 ## Architecture Overview

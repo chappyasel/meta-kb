@@ -26,11 +26,11 @@ relevance_scores:
   signal_quality: 8
   composite: 8.3
   reason: >-
-    Letta Code is a production-ready implementation of persistent agent memory
-    and cross-session knowledge retention for coding agents, directly
-    instantiating core topics 2 (agent memory), 4 (agent systems/harnesses), and
-    5 (self-improving loops) with a clear architecture, npm package, and
-    documented API.
+    Letta Code is a production-ready memory-first coding agent that directly
+    implements persistent cross-session agent memory and learning—core topics 2
+    (Agent Memory) and 4 (Agent Architecture)—with a clear philosophical
+    contrast to session-based alternatives and an npm-installable package with
+    documented APIs.
 ---
 ## letta-code
 

@@ -28,10 +28,10 @@ relevance_scores:
   signal_quality: 8
   composite: 8.4
   reason: >-
-    DAG-based hierarchical summarization for lossless agent context management
-    is a directly relevant and novel approach to context engineering and agent
-    memory, with a working TypeScript plugin, SQLite persistence, and
-    agent-accessible recall tools.
+    DAG-based hierarchical summarization for lossless context management is a
+    directly relevant and novel approach to context engineering and agent
+    memory, with a production-ready TypeScript plugin, SQLite persistence,
+    agent-callable recall tools, and clear architecture documentation.
 language: TypeScript
 license: MIT
 ---

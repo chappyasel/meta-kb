@@ -3,13 +3,16 @@ url: 'https://github.com/microsoft/LLMLingua'
 type: repo
 author: microsoft
 date: '2026-04-04'
-tags: [context-engineering, knowledge-bases]
+tags:
+  - context-engineering
+  - knowledge-bases
 key_insight: >-
   LLMLingua compresses prompts through a three-tier filtering hierarchy
   (context-level -> sentence-level -> token-level) using perplexity scores from
-  a small language model to rank token importance, while LLMLingua-2 replaces this
-  with a trained token classification model that achieves 3-6x faster compression
-  with better fidelity by treating compression as a binary token labeling task.
+  a small language model to rank token importance, while LLMLingua-2 replaces
+  this with a trained token classification model that achieves 3-6x faster
+  compression with better fidelity by treating compression as a binary token
+  labeling task.
 stars: 4800
 deep_research:
   method: source-code-analysis
@@ -22,6 +25,17 @@ deep_research:
     - experiments/llmlingua2/evaluation/compress.py
   analyzed_at: '2026-04-04'
   original_source: repos/microsoft-llmlingua.md
+relevance_scores:
+  topic_relevance: 7
+  practitioner_value: 8
+  novelty: 7
+  signal_quality: 8
+  composite: 7.5
+  reason: >-
+    LLMLingua's token-level compression directly addresses context engineering
+    and token budgeting challenges in LLM agent systems, with a detailed
+    three-tier architecture and production-ready library that practitioners can
+    apply today to manage context window constraints.
 ---
 
 ## Architecture Overview

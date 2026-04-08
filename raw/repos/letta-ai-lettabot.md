@@ -26,10 +26,11 @@ relevance_scores:
   signal_quality: 7
   composite: 6.7
   reason: >-
-    Production-ready Letta-based multi-channel bot with persistent cross-session
-    memory is directly relevant to agent memory systems (Topic 2), with decent
-    documentation and a deployable implementation, but the approach (wrapping
-    Letta for multi-channel input) is not architecturally novel.
+    Production TypeScript implementation of cross-channel persistent memory
+    using Letta SDK with unified episodic/semantic memory across multiple
+    messaging platforms—directly relevant to agent memory systems but the
+    cross-channel unification pattern is the main novel contribution rather than
+    any new memory architecture.
 ---
 ## lettabot
 

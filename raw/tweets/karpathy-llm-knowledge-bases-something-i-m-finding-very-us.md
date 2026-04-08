@@ -24,14 +24,15 @@ views: 9952669
 relevance_scores:
   topic_relevance: 10
   practitioner_value: 10
-  novelty: 9
+  novelty: 8
   signal_quality: 9
-  composite: 9.7
+  composite: 9.5
   reason: >-
-    This is the canonical Karpathy tweet describing the exact LLM-compiled
-    markdown wiki pattern (raw/→wiki, Obsidian IDE, health-check linting loops,
-    query-driven KB enhancement, synthetic data finetuning) that is the primary
-    pillar of this knowledge base.
+    This is the canonical 'Karpathy pattern' tweet that directly defines the
+    LLM-maintained markdown wiki architecture—covering data ingest, Obsidian
+    IDE, RAG alternatives, health-check linting loops, query-driven wiki
+    enhancement, and synthetic data generation—which is the foundational
+    reference for Knowledge Substrate topic area 1.
 ---
 ## Tweet by @karpathy
 

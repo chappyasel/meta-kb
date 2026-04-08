@@ -1,205 +1,243 @@
 ---
 entity_id: graphiti
 type: project
-bucket: knowledge-bases
+bucket: knowledge-substrate
 abstract: >-
-  Graphiti is an open-source Python library that builds temporal knowledge
-  graphs for AI agents, differentiating itself by bi-temporally indexing facts
-  so agents can query what was true at any point in time, not just what is
-  currently true.
+  Graphiti is a Python async library that builds temporal knowledge graphs for
+  agent memory, distinguishing itself through bi-temporal edge indexing
+  (valid_at/invalid_at + created/expired transaction times) and a multi-stage
+  LLM extraction pipeline that incrementally resolves contradictions rather than
+  overwriting them.
 sources:
   - repos/getzep-graphiti.md
   - papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
   - deep/repos/getzep-graphiti.md
-  - deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md
   - deep/repos/letta-ai-letta.md
+  - deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md
   - deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
 related:
   - zep
-  - knowledge-graph
+  - retrieval-augmented-generation
   - letta
-  - hybrid-search
-  - bm25
-  - mem0
-last_compiled: '2026-04-07T11:42:23.793Z'
+  - memgpt
+  - episodic-memory
+  - semantic-memory
+  - letta
+  - memgpt
+last_compiled: '2026-04-08T02:44:41.787Z'
 ---
 # Graphiti
 
+**Type:** Project | **Bucket:** Knowledge Substrate
+**Repository:** `graphiti_core/` | **Part of:** [Zep](../projects/zep.md)
+**Related:** [Episodic Memory](../concepts/episodic-memory.md) · [Semantic Memory](../concepts/semantic-memory.md) · [Knowledge Graph](../concepts/knowledge-graph.md) · [Temporal Reasoning](../concepts/temporal-reasoning.md) · [Hybrid Search](../concepts/hybrid-search.md) · [Agent Memory](../concepts/agent-memory.md) · [Community Detection](../concepts/community-detection.md)
+
+---
+
 ## What It Does
 
-Graphiti builds and queries a temporal knowledge graph that an AI agent can use as long-term memory. It ingests conversational messages, JSON documents, or raw text, extracts entities and relationships via an LLM pipeline, stores them as typed fact triples, and exposes a hybrid search layer combining semantic embeddings, BM25, and graph traversal.
+Graphiti converts raw conversational and structured data into a queryable knowledge graph where facts carry timestamps indicating when they were true, not just when they were recorded. An agent feeding conversation turns into Graphiti gets back a graph of typed entities (Person, Company, etc.) connected by relationships (WORKS_AT, LIVES_IN) each with four timestamps: when the fact became true, when it stopped being true, when the system first recorded it, and when the system invalidated it. Querying "where does Alice work?" returns the current employer with expired historical edges preserved for audit.
 
-The core differentiator from vector-store-based memory systems like [Mem0](../projects/mem0.md) is bi-temporal indexing: every relationship edge carries four timestamps (when the fact became true, when it stopped being true, when the system learned it, when the system stopped believing it). This lets an agent answer "what was Alice's employer as of Q1 2023?" independently of when that information entered the database. Stale facts are not deleted but expired, so the full history of what was believed when remains queryable.
+The core differentiator against flat memory stores ([Mem0](../projects/mem0.md), [Letta](../projects/letta.md)) is that Graphiti treats facts as first-class citizens with temporal scope, not strings to retrieve. Against batch graph systems like [GraphRAG](../projects/graphrag.md), Graphiti processes data incrementally — one episode at a time — enabling sub-second query latency without full corpus reprocessing.
 
-Graphiti is the core engine behind [Zep](../projects/zep.md)'s commercial memory product. The arXiv paper (arXiv:2501.13956) accompanying the library provides one of the few independently structured (if author-reported) benchmarks in this space.
+---
 
 ## Architecture
 
-### Graph Structure
+### Three-Tier Graph Model
 
-The formal model is a three-tier hierarchical graph G = (N, E, phi):
+The formal model, described in arXiv:2501.13956, defines **G = (N, E, phi)** with three subgraphs:
 
-**Episode subgraph:** Raw input nodes storing messages, JSON, or text. Every derived entity and relationship traces provenance back to the episode that produced it.
+**Episode Subgraph (G_e):** Raw input data stored as `EpisodicNode` objects — messages, text, JSON. Every derived entity and relationship traces provenance back to a specific episode. This non-lossy ground truth layer prevents information from disappearing when extraction fails.
 
-**Semantic entity subgraph:** Extracted entities (1024-dimensional embeddings, LLM-generated summaries) connected by typed fact edges. Entity types can be user-defined via Pydantic models or left to the LLM's discretion.
+**Semantic Entity Subgraph (G_s):** `EntityNode` objects with names, types, summaries, and 1024-dimensional embeddings. Connected by `EntityEdge` objects carrying typed predicates (SCREAMING_SNAKE_CASE) and bi-temporal bounds. This is where actual knowledge lives.
 
-**Community subgraph:** Clusters of strongly connected entities with LLM-generated summaries, embedded and searchable like individual entities.
-
-This maps deliberately onto the episodic/semantic memory distinction from cognitive science: episodes store *what happened*, entities and edges store *what is known*, communities store *thematic groupings*.
+**Community Subgraph (G_c):** `CommunityNode` objects auto-detected via label propagation, each with an LLM-generated summary. Community names embed key terms for similarity search, making high-level topics findable without retrieving individual entities.
 
 ### Bi-Temporal Data Model
 
-The `EntityEdge` class carries four temporal fields:
+Each `EntityEdge` (defined in `graphiti_core/edges.py`) carries four temporal fields:
 
 ```python
-class EntityEdge(Edge):
-    valid_at: datetime | None      # When the fact became true (event time)
-    invalid_at: datetime | None    # When the fact stopped being true (event time)
-    expired_at: datetime | None    # When the system stopped believing it (transaction time)
-    reference_time: datetime | None  # Reference timestamp for resolving relative expressions
+valid_at: datetime | None      # When fact became true (event time)
+invalid_at: datetime | None    # When fact stopped being true (event time)
+expired_at: datetime | None    # When system invalidated this record (transaction time)
+reference_time: datetime | None  # Reference for resolving relative dates
 ```
 
-The system resolves relative temporal expressions ("last week") against the episode's `reference_time` parameter at ingestion. This is a genuine bitemporal design from database theory, standard in financial audit systems, rarely seen in LLM memory applications.
+This dual-timeline design originates from database theory and is standard in financial audit systems. It enables queries like "what did the system believe about Alice's employer in January 2023?" — filtering on both the event timeline (what was true then) and the transaction timeline (what the system knew then). Contradicted edges receive an `expired_at` timestamp rather than deletion, preserving the full belief history.
 
-### Storage Layer
+### Graph Driver Abstraction
 
-Four graph database backends via a `GraphDriver` abstraction: Neo4j 5.26+ (default, requires APOC), FalkorDB 1.1.2+, Kuzu 0.11.2+ (embedded, useful for development), Amazon Neptune with OpenSearch Serverless. All graph mutations use predefined Cypher queries, never LLM-generated ones -- a deliberate choice to prevent schema hallucinations and ensure consistency.
+`graphiti_core/driver/` implements a `GraphDriver` base class with four backends: **Neo4jDriver** (default, requires APOC, Neo4j 5.26+), **FalkorDBDriver** (1.1.2+), **KuzuDriver** (0.11.2+, embedded, good for development), **NeptuneDriver** (AWS, requires OpenSearch Serverless for full-text). Each backend has its own `operations/` directory with 10+ files implementing node/edge CRUD in the appropriate Cypher dialect. Kuzu requires modeling edges as intermediate nodes due to its column-oriented storage.
 
-The `group_id` parameter scopes all queries to isolated namespaces, enabling multi-tenant deployments within a single database instance.
+### LLM and Embedding Clients
 
-### Ingestion Pipeline
+Seven LLM providers: OpenAI (default, `gpt-4.1-mini`), Anthropic, Azure OpenAI, Gemini, Groq, OpenAI-generic (custom base URL), GLiNER2 (local NER). A `small_model` option (`gpt-4.1-nano` by default) handles simpler prompts to reduce cost. All use Pydantic structured output — a hard requirement that limits provider choice but ensures reliable parsing.
 
-A single `add_episode()` call (in `graphiti_core/graphiti.py`) runs 4-5 sequential LLM calls:
+Four embedding providers: OpenAI (default), Azure OpenAI, Gemini, Voyage AI.
 
-1. **Entity extraction** (`extract_nodes` in `utils/maintenance/node_operations.py`): The LLM receives the current message plus the four preceding messages for context, returns typed `ExtractedEntity` objects. The extraction prompt is extensively negative-specified -- it lists what *not* to extract (pronouns, bare kinship terms, abstract nouns, generic nouns) to reduce noise.
+---
 
-2. **Node deduplication** (`resolve_extracted_nodes`): Each extracted entity is embedded and compared against existing entities via cosine similarity + BM25 full-text search + LLM cross-encoder evaluation. Handles semantic equivalence ("NYC" = "New York City") and disambiguation ("Java programming language" vs "Java island").
+## Core Mechanism: Episode Ingestion Pipeline
 
-3. **Edge extraction** (`extract_edges` in `utils/maintenance/edge_operations.py`): The LLM extracts fact triples as `Edge` objects with source, target, relation type in SCREAMING_SNAKE_CASE, a natural language description, and temporal validity bounds.
+The `add_episode()` method in `graphiti_core/graphiti.py` (lines 916–1163) runs five sequential LLM stages per episode:
 
-4. **Edge resolution** (`resolve_extracted_edges`): New edges are compared against existing edges between the same entity pairs. The LLM identifies duplicates and contradictions. Contradicted edges get `expired_at` set to the current time. Newer facts consistently supersede older ones.
+**Stage 1 — Entity Extraction** (`utils/maintenance/node_operations.py`)
+The LLM receives the current message plus the four preceding messages for context. It returns `ExtractedEntity` objects with names and type labels. The extraction prompt in `prompts/extract_nodes.py` includes extensive negative examples — what NOT to extract: pronouns, generic nouns, bare kinship terms like "dad," abstract concepts. Entity names must be specific and qualified ("Nisha's dad," not "dad"). A reflection pass reviews extractions before committing, reducing hallucinated entities.
 
-5. **Attribute extraction**: Entity summaries are updated to incorporate information from newly added edges. Only triggered for non-duplicate edges.
+**Stage 2 — Node Deduplication** (`resolve_extracted_nodes`)
+Each extracted entity is embedded and compared against existing entities via cosine similarity plus BM25 full-text search on names and summaries. An LLM cross-encoder makes the final dedup decision. The prompt handles semantic equivalence ("NYC" = "New York City") and disambiguation ("Java programming language" vs "Java island"). Merged entities receive updated names and summaries incorporating both old and new information.
 
-Optional sixth stage: `update_communities()` runs label propagation and updates community summaries for affected entities.
+**Stage 3 — Edge Extraction** (`utils/maintenance/edge_operations.py`)
+The LLM extracts fact triples as `Edge` objects: source entity, target entity, relation type, natural language description, and `valid_at`/`invalid_at` bounds. The `reference_time` parameter lets the LLM resolve relative temporal expressions ("last week"). The paper formalizes these as structured triples with temporal validity windows.
+
+**Stage 4 — Edge Resolution**
+New edges are compared against existing edges between the same entity pairs only — this constraint reduces computational complexity while preventing spurious combinations. The LLM identifies `duplicate_facts` (identical information) and `contradicted_facts` (edges the new fact supersedes). Contradicted edges receive `expired_at` set to now. The system consistently prioritizes newer information.
+
+**Stage 5 — Attribute Extraction**
+Entity nodes receive updated summaries from newly established edges. Only applied to new (non-duplicate) edges to avoid redundant updates.
+
+After all stages, nodes and edges are saved via **predefined Cypher queries** — never LLM-generated. The paper makes this explicit: predefined queries "ensure consistent schema and reduce hallucinations." This is a deliberate engineering constraint that trades query flexibility for production reliability.
 
 ### Hybrid Search
 
-The `SearchConfig` in `graphiti_core/search/search.py` combines three retrieval methods run in parallel:
+`graphiti_core/search/search.py` runs three complementary search methods in parallel, configurable via `SearchConfig`:
 
-- **Cosine similarity** (`phi_cos`): Vector search on 1024-dimensional fact embeddings via Neo4j/Lucene vector indices
-- **BM25** (`phi_bm25`): Full-text search using the graph database's native BM25 across fact fields, entity names, and community names
-- **Breadth-first search** (`phi_bfs`): Graph traversal from specified origin nodes up to N hops
+- **cosine_similarity** — vector similarity on fact embeddings; catches semantic equivalence
+- **bm25** — native BM25 full-text via the graph database's Lucene integration; catches word-level matches
+- **bfs** — breadth-first traversal from origin nodes up to n-hops; catches contextually related facts (nodes closer in the graph appear in more similar conversational contexts)
 
-The three methods target complementary similarity types: BFS captures contextual similarity (nodes closer in the graph appear in more similar conversational contexts), cosine captures semantic similarity, BM25 captures lexical similarity. No single method covers all three.
-
-Reranking options: Reciprocal Rank Fusion (default), maximal marginal relevance, episode-mention frequency, graph distance from a center node, and neural cross-encoder (OpenAI, BGE, or Gemini rerankers). `COMBINED_HYBRID_SEARCH_CROSS_ENCODER` is the pre-built configuration for best quality.
+Results merge via configurable reranking: reciprocal rank fusion (RRF), Maximal Marginal Relevance (MMR), node distance from a center, episode mention frequency, or cross-encoder neural reranking. `COMBINED_HYBRID_SEARCH_CROSS_ENCODER` is the recommended preset.
 
 ### Community Detection
 
-Graphiti uses label propagation rather than the Leiden algorithm ([GraphRAG](../concepts/graphrag.md) uses Leiden). Each entity starts as its own community; iteratively, each node adopts the community held by the plurality of its neighbors. The key reason for this choice: incremental extension. When a new entity arrives, it is assigned to its neighbors' plurality community without full graph recomputation. Leiden would require recomputing from scratch. The tradeoff: incrementally updated communities drift from optimal clustering over time and require periodic full refreshes.
+Graphiti implements label propagation rather than Leiden (which [GraphRAG](../projects/graphrag.md) uses). The choice is deliberate: label propagation supports incremental extension. When a new entity arrives, it adopts the community label of the plurality of its neighbors without rerunning the full algorithm. Each community receives an LLM-generated summary via iterative map-reduce over member entity summaries. Community names contain searchable key terms, making high-level topics discoverable through the same hybrid search pipeline.
 
-After clustering, each community receives an LLM-generated summary via map-reduce-style iteration over member entity summaries. Community names contain key terms embedded for hybrid search.
+The acknowledged tradeoff: incrementally updated communities gradually diverge from what a full recomputation would produce. Periodic full refreshes are needed, but the paper does not specify when divergence becomes problematic.
+
+### Concurrency Control
+
+All operations use `semaphore_gather` with a configurable `SEMAPHORE_LIMIT` (default 10) to prevent 429 rate-limit errors. The library is async-first throughout — `add_episode`, `search`, and all internal operations are coroutines.
+
+---
 
 ## Key Numbers
 
-The arXiv paper (arXiv:2501.13956) provides the primary benchmark data. These are author-reported from the paper's authors, who also built Zep commercially.
+**GitHub stars:** ~12k (as of mid-2025) — not independently verified.
 
-**Deep Memory Retrieval (DMR), 500 conversations:**
+**Benchmarks** (from arXiv:2501.13956, self-reported by Zep):
+
+**Deep Memory Retrieval (DMR)** — 500 conversations, ~60 messages each:
 
 | System | Accuracy |
 |--------|----------|
-| MemGPT/[Letta](../projects/letta.md) | 93.4% |
+| MemGPT (gpt-4-turbo) | 93.4% |
 | Zep/Graphiti (gpt-4-turbo) | 94.8% |
 | Zep/Graphiti (gpt-4o-mini) | 98.2% |
-| Full-conversation baseline | 98.0% |
+| Full-conversation baseline (gpt-4o-mini) | 98.0% |
 
-The authors themselves criticize DMR as inadequate: conversations fit in modern context windows, questions are single-turn fact retrieval, and it "poorly represents real-world enterprise use cases." The 98.2% vs 98.0% comparison uses a better base model than the baseline, making it not directly comparable.
+The authors themselves note DMR is inadequate: conversations fit in modern context windows, questions are single-turn fact retrieval, and the benchmark "poorly represents real-world enterprise use cases."
 
-**LongMemEval (LME), ~115K token conversations:**
+**LongMemEval (LME)** — ~115k token conversations:
 
 | Model | Baseline | Zep | Improvement |
 |-------|----------|-----|-------------|
 | gpt-4o-mini | 55.4% | 63.8% | +15.2% |
 | gpt-4o | 60.2% | 71.2% | +18.5% |
 
-Response latency: 31.3s (baseline, full context) → 3.2s (Zep) for gpt-4o-mini, a 90% reduction. Context reduction: 115K tokens → ~1.6K tokens.
+**Latency reduction:** 115k tokens → ~1.6k tokens per query. Baseline latency 31.3s → 3.2s with Zep (+gpt-4o-mini) — a 90% reduction.
 
-Per-question-type breakdown (gpt-4o-mini):
+**Per-question-type breakdown (gpt-4o-mini):**
+- Single-session-preference: +77.7%
+- Temporal-reasoning: +48.2%
+- Multi-session: modest gains
+- Single-session-assistant: **−17.7%** (documented regression)
 
-| Task type | Change |
-|-----------|--------|
-| Single-session-preference | +184% |
-| Temporal-reasoning | +48.2% |
-| Multi-session | +30.7% |
-| Knowledge-update | +6.5% |
-| Single-session-assistant | **-17.7%** |
+These benchmarks are self-reported by the Zep team and use their own system as test subject. No independent replication is documented.
 
-The +48.2% on temporal reasoning directly validates the bi-temporal model. The -17.7% on single-session-assistant questions is a meaningful regression -- the extraction pipeline is better at indexing what users say than what the assistant says.
-
-All benchmarks are self-reported by the Zep team.
+---
 
 ## Strengths
 
-**Temporal reasoning over evolving knowledge.** The bi-temporal model handles facts that change over time -- "Alice works at Acme" becomes "Alice worked at Acme 2020-2023" when new information arrives, not a deleted edge. This is the right architecture for domains where information ages (contact details, employment, prices, preferences).
+**Temporal reasoning at the data model level.** The +48.2% gain on temporal reasoning tasks validates the bi-temporal indexing design. Facts that were true at different points in time are retrievable as such, not just as the latest known state.
 
-**Structured fact representation.** Edges are typed triples (Entity → RELATION_TYPE → Entity) with natural language descriptions. This enables queries vector stores cannot answer: "what relationships involving Alice changed this quarter?" or "find entities connected to Alice within 2 hops."
+**Incremental ingestion with full history.** Unlike GraphRAG's batch processing, Graphiti handles one episode at a time with sub-second query latency. The expired-edge model preserves history without deletions, enabling audit trails and time-travel queries.
 
-**Provenance tracing.** Every entity and edge traces back to the specific episode that produced it, enabling source citation and debugging of incorrect beliefs.
+**Provenance tracing.** Every entity and relationship traces back to the specific episode that produced it. You can always find the source conversation turn for any fact in the graph.
 
-**Hybrid retrieval breadth.** The BFS + cosine + BM25 combination covers retrieval scenarios that any single method misses. The graph traversal component is particularly useful when the relevant fact doesn't share vocabulary with the query.
+**Configurable retrieval.** The three-dimensional hybrid search (semantic + lexical + graph traversal) with multiple reranking strategies covers complementary retrieval dimensions. The cross-encoder preset provides highest quality for complex queries.
 
-**Multi-backend support.** Kuzu (embedded) works with no external infrastructure during development; Neo4j handles production scale.
+**Multi-tenant support.** `group_id` namespacing isolates graph instances within a single database, enabling multi-user or multi-project deployments without separate database instances.
+
+**Custom ontologies.** Developers define entity and edge types as Pydantic models, enforcing domain-specific schemas. Without custom types, entities use a default schema with name, summary, and type fields.
+
+---
 
 ## Critical Limitations
 
-**LLM call volume per episode.** A single `add_episode()` makes 4-5+ LLM calls minimum. With community updates enabled, add per-node summarization calls. For real-time conversational applications, this creates unacceptable latency unless episode ingestion runs asynchronously. The README explicitly recommends running `add_episode` as a background task via FastAPI background tasks or Celery -- treating it as an online operation is an architecture mistake.
+**Concrete failure mode — assistant content retrieval gap:** The −17.7% regression on single-session-assistant questions reveals a systematic extraction bias. The entity extraction pipeline captures user-stated facts well but misses information generated by the assistant: recommendations, calculations, creative outputs, reasoning chains. In agentic contexts where the agent's prior outputs are important future context — plans it made, analyses it ran, decisions it justified — this is a substantial gap. A fact stated by the user ("I work at Google") gets extracted; a recommendation made by the agent ("I suggested switching to PostgreSQL because...") may not.
 
-**Infrastructure assumption: graph database required.** Unlike [Mem0](../projects/mem0.md) (which defaults to an in-memory vector store) or [Letta](../projects/letta.md) (which uses PostgreSQL), Graphiti requires a dedicated graph database. The lowest-friction option (Kuzu) is embedded and file-backed, but Neo4j for production means an additional service with its own operational overhead, backup strategy, and schema management. This is a non-trivial infrastructure requirement that isn't prominent in the getting-started documentation.
+**Unspoken infrastructure assumption:** Graphiti requires a running graph database. The default path assumes Neo4j 5.26+ with APOC installed — not a trivial operational dependency. Neo4j's community edition license restricts commercial use; the enterprise license is expensive. FalkorDB and Kuzu reduce this burden (Kuzu is embedded), but the production-recommended Neo4j path implies meaningful infrastructure overhead that the documentation does not foreground.
 
-## When NOT to Use It
+---
 
-**High-throughput real-time ingestion.** If your agent processes hundreds of messages per minute and needs each one indexed before the next query, Graphiti's multi-LLM-call pipeline won't keep up without a very large background worker pool. Flat memory systems ([Mem0](../projects/mem0.md)) or append-log approaches handle this better.
+## When NOT to Use Graphiti
 
-**Simple single-session assistants.** For chatbots where context doesn't persist beyond one conversation, the infrastructure overhead (graph database, LLM extraction pipeline, community detection) provides no benefit over a sliding context window.
+**High-volume real-time ingestion with cost constraints.** Each `add_episode` call makes 4–5+ LLM API calls. At scale, this becomes expensive and slow. The README recommends running ingestion as a background task (FastAPI background tasks, Celery), not in the request path. If you need to ingest thousands of messages per minute with tight latency budgets, the per-episode LLM pipeline is the wrong architecture.
 
-**Adversarial or high-stakes fact verification.** Contradiction resolution is entirely LLM-dependent -- no deterministic checking. If the LLM fails to detect a contradiction, a stale edge persists as valid. There's no confidence scoring or source-authority weighting. If a newer (but incorrect) fact arrives, it will expire the correct fact. "Newer wins" is a hard assumption, not a configurable policy.
+**Simple single-session or short-context applications.** If your conversations fit in a context window and you don't need cross-session entity tracking or temporal reasoning, the infrastructure cost (graph database + LLM pipeline) outweighs the benefit. [RAG](../concepts/retrieval-augmented-generation.md) with a vector store, or even Letta's in-context memory blocks, will be cheaper and simpler.
 
-**Domains requiring assistant-side recall.** The -17.7% regression on single-session-assistant tasks means Graphiti systematically indexes user-stated information better than assistant-generated information. If your agent needs to recall its own prior outputs (recommendations it made, calculations it performed, commitments it made), the extraction pipeline will miss a meaningful fraction of this content.
+**Domains where older information is authoritative.** Graphiti consistently prioritizes newer facts when resolving contradictions. For medical records, legal documents, or audit trails where the original recorded fact may be more authoritative than a later claim, this hardcoded assumption is wrong. There is no confidence scoring or source-authority weighting in contradiction resolution.
+
+**Static corpus retrieval.** Graphiti is optimized for conversational memory with evolving information. For indexing a fixed document corpus for question answering, batch approaches like GraphRAG or standard [RAG](../concepts/retrieval-augmented-generation.md) pipelines will produce higher-quality entity resolution (one pass over all data) and require no ongoing LLM calls for ingestion.
+
+---
 
 ## Unresolved Questions
 
-**Community refresh scheduling.** The paper acknowledges incremental label propagation diverges from optimal clustering over time and requires periodic full refreshes. No guidance exists on how to detect drift, trigger refreshes, or size the refresh operation for graphs with millions of entities.
+**Bulk ingestion and temporal consistency.** The `add_episode_bulk` method explicitly skips edge invalidation and date extraction. For importing historical data, temporal consistency is not maintained. There is no documented migration path from bulk import to full temporal accuracy.
 
-**Ingestion cost at scale.** The paper reports retrieval latency and benchmark accuracy but publishes no per-episode ingestion cost or throughput numbers. For an enterprise system processing 10,000 messages per day, the total LLM cost of 4-5 calls per episode is substantial and unpublished.
+**Cost at production scale.** The paper uses gpt-4o-mini for graph construction but does not report per-message ingestion cost, total tokens consumed per conversation, or how cost scales with graph size. With community updates enabled, each episode triggers additional LLM calls per affected community node.
 
-**Cross-driver bug parity.** The four graph backends each have their own operations directories with 10+ files each. There's no documented process for ensuring a bug fix in Neo4j operations propagates to FalkorDB, Kuzu, and Neptune operations. Production deployments on non-Neo4j backends carry an unknown risk of driver-specific issues.
+**Community divergence detection.** The documentation acknowledges that incrementally updated communities gradually diverge from optimal clustering but does not specify when divergence becomes problematic, how to detect it, or the cost of a full refresh at graph sizes of 10k+ entities.
 
-**Bulk ingestion and temporal consistency.** `add_episode_bulk` explicitly skips edge invalidation and date extraction for speed. There's no guidance on when bulk ingestion is safe vs. when it silently corrupts temporal consistency.
+**Edge deduplication at scale.** Edge resolution searches existing edges between the same entity pairs — computationally reasonable for small graphs, but the scaling behavior for entity pairs with hundreds of edges (e.g., a frequently-discussed organization) is not analyzed.
 
-**Contradiction resolution policy.** "Newer wins" is hard-coded. Medical records, legal documents, and audit trails are domains where this assumption fails. There's no architecture for authority-weighted or confidence-weighted contradiction resolution.
+**Entity extraction across LLM providers.** The structured output requirement limits provider choice. The quality of entity extraction and contradiction detection varies across models, but the paper only validates gpt-4o-mini for construction. Switching to open-weight models may substantially degrade extraction quality in unpredictable ways.
+
+**No evaluation against standard RAG benchmarks.** The paper acknowledges no testing against BEIR or FinanceBench. Performance on static corpus retrieval compared to standard RAG is unknown.
+
+---
 
 ## Alternatives
 
-**[Mem0](../projects/mem0.md):** Use when you need fast setup, minimal infrastructure (works with in-memory vector stores), and your application doesn't require temporal reasoning or structured relational queries. Mem0's extraction pipeline makes 2 LLM calls per memory vs. Graphiti's 4-5, and it doesn't require a graph database.
+| Alternative | When to Choose It |
+|-------------|-------------------|
+| [Mem0](../projects/mem0.md) | You want managed agent memory with simpler infrastructure — Mem0 uses a vector store as primary with optional graph layer, requiring no graph database. Lower per-operation cost. |
+| [Letta / MemGPT](../projects/letta.md) | You want the agent to manage its own memory via tool calls (core_memory_replace, rethink_memory). Better for self-modifying persona/instruction memory; worse for relational queries across many entities. |
+| [GraphRAG](../projects/graphrag.md) | You have a static corpus and want highest-quality community structure. GraphRAG's Leiden algorithm produces better communities than label propagation, but requires full reprocessing when data changes. |
+| [HippoRAG](../projects/hipporag.md) | You want graph-augmented retrieval without managing a graph database — HippoRAG uses a graph index over existing vector stores. |
+| Standard [RAG](../concepts/retrieval-augmented-generation.md) | Your use case is single-session or static-corpus retrieval without cross-session entity tracking. Far lower complexity and cost. |
 
-**[Letta](../projects/letta.md):** Use when you want the agent itself to manage its memory via explicit tool calls, need full agent lifecycle management (not just a memory layer), or want the agent to reorganize and consolidate its own knowledge. Letta's memory is unstructured text in blocks, which is simpler but doesn't support relational queries.
+**Selection guidance:** Use Graphiti when you need (a) cross-session entity tracking, (b) temporal reasoning about when facts changed, (c) provenance from answer back to source, and (d) you can absorb the Neo4j dependency and per-episode LLM cost. Use anything else if one of those requirements is absent.
 
-**[GraphRAG](../concepts/graphrag.md):** Use when you have a static document corpus that changes infrequently and can afford batch reprocessing on updates. GraphRAG uses the Leiden algorithm for higher-quality community detection but requires full recomputation when the corpus changes. Graphiti is the correct choice when data arrives continuously.
+---
 
-**Full-context approaches ([RAG](../concepts/rag.md) with large context windows):** Use when your total knowledge base fits within a modern context window (128K-200K tokens), query complexity is low, and you want zero infrastructure overhead. The LME benchmark shows full-context approaches at 55-60% accuracy -- effective for simple tasks, inadequate for complex temporal reasoning across many sessions.
+## Sources
 
-**[Neo4j](../projects/neo4j.md) directly:** Use when your team has graph database expertise, wants full control over the schema, and is willing to build the extraction and retrieval pipeline from scratch. Graphiti is essentially a pre-built layer on top of Neo4j (and alternatives) -- adopting it trades flexibility for faster time to a working system.
+- [Deep repo analysis: getzep/graphiti](../raw/deep/repos/getzep-graphiti.md)
+- [Deep paper analysis: Zep temporal knowledge graph (arXiv:2501.13956)](../raw/deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)
+- [Paper summary: Zep temporal knowledge graph](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md)
 
-## Related Concepts
 
-- [Knowledge Graph](../concepts/knowledge-graph.md): The underlying data structure
-- [Hybrid Search](../concepts/hybrid-search.md): The retrieval mechanism combining BM25, cosine similarity, and graph traversal
-- [BM25](../concepts/bm25.md): Lexical component of the search pipeline
-- [Episodic Memory](../concepts/episodic-memory.md): The episode subgraph mirrors this cognitive memory type
-- [Semantic Memory](../concepts/semantic-memory.md): The entity subgraph mirrors this cognitive memory type
-- [Entity Extraction](../concepts/entity-extraction.md): Stage 1 of the ingestion pipeline
-- [Reciprocal Rank Fusion](../concepts/reciprocal-rank-fusion.md): Default reranking strategy
-- [GraphRAG](../concepts/graphrag.md): Alternative graph-based RAG using Leiden community detection and batch processing
-- [Agent Memory](../concepts/agent-memory.md): The broader concept this system implements
-- [Continual Learning](../concepts/continual-learning.md): Graphiti handles the non-forgetting problem by expiring rather than deleting edges
+## Related
+
+- [Zep](../projects/zep.md) — part_of (0.7)
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — alternative_to (0.6)
+- [Letta](../projects/letta.md) — part_of (0.7)
+- [MemGPT](../projects/memgpt.md) — part_of (0.6)
+- [Episodic Memory](../concepts/episodic-memory.md) — implements (0.7)
+- [Semantic Memory](../concepts/semantic-memory.md) — implements (0.7)
+- [Letta](../projects/letta.md) — part_of (0.7)
+- [MemGPT](../projects/memgpt.md) — part_of (0.6)

@@ -22,6 +22,19 @@ deep_research:
   text_length: 10500
   analyzed_at: '2026-04-04'
   original_source: papers/xu-a-mem-agentic-memory-for-llm-agents.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 9
+  composite: 8.6
+  reason: >-
+    A-MEM directly addresses agent memory with Zettelkasten-inspired autonomous
+    organization, link generation, and memory evolution — core to the knowledge
+    substrate and agent memory pillars — with concrete benchmarks (2.5x
+    multi-hop F1, 85% token reduction) and detailed architectural description
+    making it immediately actionable for practitioners building long-horizon
+    agent systems.
 ---
 
 ## Architecture Overview

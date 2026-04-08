@@ -3,9 +3,19 @@ url: 'https://github.com/snarktank/compound-product'
 type: repo
 author: snarktank
 date: '2026-04-04'
-tags: [self-improving, context-engineering, knowledge-bases]
+tags:
+  - self-improving
+  - context-engineering
+  - knowledge-bases
 key_insight: >-
-  Implements an autonomous observe-correct-improve loop for production software where the system reads its own performance reports (metrics, errors, feedback), uses LLM analysis to pick the #1 actionable priority, then orchestrates an AI agent through a fully automated pipeline (report analysis -> PRD generation -> task decomposition into 8-15 granular machine-verifiable tasks -> execution loop with quality gates -> PR creation), with compounding self-improvement through AGENTS.md long-term memory and progress.txt cross-iteration learnings.
+  Implements an autonomous observe-correct-improve loop for production software
+  where the system reads its own performance reports (metrics, errors,
+  feedback), uses LLM analysis to pick the #1 actionable priority, then
+  orchestrates an AI agent through a fully automated pipeline (report analysis
+  -> PRD generation -> task decomposition into 8-15 granular machine-verifiable
+  tasks -> execution loop with quality gates -> PR creation), with compounding
+  self-improvement through AGENTS.md long-term memory and progress.txt
+  cross-iteration learnings.
 stars: 503
 deep_research:
   method: source-code-analysis
@@ -26,6 +36,18 @@ deep_research:
     - examples/sample-prd.md
   analyzed_at: '2026-04-04'
   original_source: repos/snarktank-compound-product.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 9
+  novelty: 8
+  signal_quality: 9
+  composite: 8.9
+  reason: >-
+    This is a directly relevant, production-ready autonomous
+    observe-correct-improve loop with AGENTS.md long-term memory, multi-phase
+    orchestration, and explicit compounding self-improvement mechanics—all core
+    to the self-improving systems and context engineering pillars of this
+    knowledge base.
 ---
 
 ## Architecture Overview

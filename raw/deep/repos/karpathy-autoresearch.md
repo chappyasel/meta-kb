@@ -3,9 +3,16 @@ url: 'https://github.com/karpathy/autoresearch'
 type: repo
 author: karpathy
 date: '2026-04-04'
-tags: [self-improving, context-engineering, agentic-skills, knowledge-bases]
+tags:
+  - self-improving
+  - context-engineering
+  - agentic-skills
+  - knowledge-bases
 key_insight: >-
-  Autoresearch codifies the foundational self-improvement loop pattern (modify, verify, keep/revert) as a Claude Code skill system with 10 commands, proving that the Karpathy loop generalizes from ML training to any domain with a scalar metric and fast verification.
+  Autoresearch codifies the foundational self-improvement loop pattern (modify,
+  verify, keep/revert) as a Claude Code skill system with 10 commands, proving
+  that the Karpathy loop generalizes from ML training to any domain with a
+  scalar metric and fast verification.
 stars: 20800
 deep_research:
   method: source-code-analysis-plus-web
@@ -21,13 +28,25 @@ deep_research:
     - .claude/commands/autoresearch/ship.md
     - .claude/commands/autoresearch/reason.md
   web_sources:
-    - https://fortune.com/2026/03/17/andrej-karpathy-loop-autonomous-ai-agents-future/
-    - https://softmaxdata.com/blog/autoresearch/
-    - https://www.nextbigfuture.com/2026/03/andrej-karpathy-on-code-agents-autoresearch-and-the-self-improvement-loopy-era-of-ai.html
-    - https://news.ycombinator.com/item?id=47291123
-    - https://www.datacamp.com/tutorial/guide-to-autoresearch
+    - >-
+      https://fortune.com/2026/03/17/andrej-karpathy-loop-autonomous-ai-agents-future/
+    - 'https://softmaxdata.com/blog/autoresearch/'
+    - >-
+      https://www.nextbigfuture.com/2026/03/andrej-karpathy-on-code-agents-autoresearch-and-the-self-improvement-loopy-era-of-ai.html
+    - 'https://news.ycombinator.com/item?id=47291123'
+    - 'https://www.datacamp.com/tutorial/guide-to-autoresearch'
   analyzed_at: '2026-04-04'
   original_source: repos/karpathy-autoresearch.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 9
+  composite: 8.6
+  reason: >-
+    Directly implements the Karpathy self-improvement loop as a transferable
+    Claude Code skill system with detailed SKILL.md architecture, 10 commands,
+    and reference protocols—core to topics 4, 6, and 3 simultaneously.
 ---
 
 ## Architecture Overview

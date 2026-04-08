@@ -26,12 +26,11 @@ relevance_scores:
   novelty: 8
   signal_quality: 8
   composite: 8.4
-  deep_researched: 'deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md'
   reason: >-
-    ACE directly addresses context engineering, agent memory, and self-improving
-    loops—the core pillars of this KB—with a novel framework preventing context
-    collapse through structured incremental updates, strong benchmark results,
-    and practical applicability to both offline prompts and online agent memory.
+    ACE directly addresses context engineering, self-improving agent loops, and
+    memory/context collapse—core topics—with measurable benchmarks,
+    offline/online optimization, and no-label adaptation patterns immediately
+    transferable to agent builders.
 ---
 ## Agentic Context Engineering: Evolving Contexts for Self-Improving Language Models
 

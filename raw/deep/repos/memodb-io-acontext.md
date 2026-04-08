@@ -14,11 +14,12 @@ tags:
   - distillation-pipeline
   - learning-spaces
 key_insight: >-
-  Acontext implements a three-stage learning pipeline (Task Extraction -> Distillation
-  -> Skill Agent) that transforms raw agent execution traces into structured,
-  human-readable markdown skill files, with an LLM-as-judge distillation phase that
-  classifies learnings into SOPs, failure warnings, or factual content -- making agent
-  memory debuggable, editable, and portable rather than opaque vector embeddings.
+  Acontext implements a three-stage learning pipeline (Task Extraction ->
+  Distillation -> Skill Agent) that transforms raw agent execution traces into
+  structured, human-readable markdown skill files, with an LLM-as-judge
+  distillation phase that classifies learnings into SOPs, failure warnings, or
+  factual content -- making agent memory debuggable, editable, and portable
+  rather than opaque vector embeddings.
 stars: 3300
 deep_research:
   method: source-code-analysis
@@ -33,10 +34,12 @@ deep_research:
     - src/server/core/acontext_core/llm/prompt/base.py
     - src/server/core/acontext_core/llm/tool/skill_learner_lib/ctx.py
     - src/server/core/acontext_core/llm/tool/skill_learner_lib/create_skill.py
-    - src/server/core/acontext_core/llm/tool/skill_learner_lib/create_skill_file.py
+    - >-
+      src/server/core/acontext_core/llm/tool/skill_learner_lib/create_skill_file.py
     - src/server/core/acontext_core/llm/tool/skill_learner_lib/get_skill.py
     - src/server/core/acontext_core/llm/tool/skill_learner_lib/get_skill_file.py
-    - src/server/core/acontext_core/llm/tool/skill_learner_lib/str_replace_skill_file.py
+    - >-
+      src/server/core/acontext_core/llm/tool/skill_learner_lib/str_replace_skill_file.py
     - src/server/core/acontext_core/llm/tool/skill_learner_lib/mv_skill_file.py
     - src/server/core/acontext_core/llm/tool/skill_learner_lib/distill.py
     - src/server/core/acontext_core/llm/tool/task_lib/ctx.py
@@ -56,6 +59,18 @@ deep_research:
     - docs/content/docs/(guides)/engineering/agent_skills.mdx
   analyzed_at: '2026-04-04'
   original_source: repos/memodb-io-acontext.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 9
+  novelty: 8
+  signal_quality: 9
+  composite: 8.9
+  reason: >-
+    Acontext directly implements the SKILL.md/skill-file pattern for agent
+    memory as a full production system with a three-stage trace-to-skill
+    pipeline, LLM-as-judge distillation, and human-readable/editable/portable
+    memory architecture — highly relevant to context engineering, agent memory,
+    and self-improving systems pillars with detailed architecture documentation.
 ---
 
 ## Architecture Overview

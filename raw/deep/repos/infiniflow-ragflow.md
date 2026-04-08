@@ -3,15 +3,18 @@ url: 'https://github.com/infiniflow/ragflow'
 type: repo
 author: infiniflow
 date: '2026-04-04'
-tags: [knowledge-bases, context-engineering, agent-memory]
+tags:
+  - knowledge-bases
+  - context-engineering
+  - agent-memory
 key_insight: >-
   RAGFlow is a production-grade RAG engine that invests deeply in document
   understanding before retrieval — its DeepDoc subsystem uses OCR, layout
   recognition, and table structure recognition to accurately parse complex
   documents, then applies template-based chunking strategies (naive, book,
-  paper, resume, QA, etc.) combined with RAPTOR hierarchical summarization
-  and GraphRAG knowledge graphs to build multi-layered retrieval that finds
-  needles in unlimited-token haystacks.
+  paper, resume, QA, etc.) combined with RAPTOR hierarchical summarization and
+  GraphRAG knowledge graphs to build multi-layered retrieval that finds needles
+  in unlimited-token haystacks.
 stars: 14900
 deep_research:
   method: source-code-analysis
@@ -34,6 +37,18 @@ deep_research:
     - memory/services/query.py
   analyzed_at: '2026-04-04'
   original_source: repos/infiniflow-ragflow.md
+relevance_scores:
+  topic_relevance: 7
+  practitioner_value: 8
+  novelty: 6
+  signal_quality: 8
+  composite: 7.3
+  reason: >-
+    RAGFlow is a production-grade RAG engine with deep document understanding
+    (DeepDoc, GraphRAG, RAPTOR) that is directly relevant to the Knowledge
+    Substrate pillar and partially to context engineering, with a detailed
+    architecture description making it highly actionable for practitioners
+    building knowledge systems.
 ---
 
 ## Architecture Overview

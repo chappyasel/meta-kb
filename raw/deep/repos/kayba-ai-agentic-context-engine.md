@@ -3,12 +3,17 @@ url: 'https://github.com/kayba-ai/agentic-context-engine'
 type: repo
 author: kayba-ai
 date: '2026-04-04'
-tags: [context-engineering, agentic-skills, self-improving, agent-memory]
+tags:
+  - context-engineering
+  - agentic-skills
+  - self-improving
+  - agent-memory
 key_insight: >-
-  ACE implements a persistent skillbook that survives across sessions via a three-role
-  feedback loop (Agent -> Reflector -> SkillManager), where skills are deduplicated
-  by embedding similarity and rendered as XML strategies injected into agent prompts,
-  creating a self-improving context layer that learns from execution traces.
+  ACE implements a persistent skillbook that survives across sessions via a
+  three-role feedback loop (Agent -> Reflector -> SkillManager), where skills
+  are deduplicated by embedding similarity and rendered as XML strategies
+  injected into agent prompts, creating a self-improving context layer that
+  learns from execution traces.
 stars: 2100
 deep_research:
   method: source-code-analysis
@@ -25,6 +30,19 @@ deep_research:
     - ace/runners/ace.py
   analyzed_at: '2026-04-04'
   original_source: repos/kayba-ai-agentic-context-engine.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 9
+  composite: 8.6
+  reason: >-
+    ACE directly implements all three primary pillars—persistent skillbook
+    (Knowledge Substrate), self-improving feedback loop with trace-driven skill
+    updates (Self-Improving Systems), and a structured
+    Agent/Reflector/SkillManager multi-role coordination pattern (Multi-Agent
+    Systems)—with detailed architecture documentation and a production-ready
+    Python framework.
 ---
 
 ## Architecture Overview

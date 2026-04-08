@@ -26,11 +26,11 @@ relevance_scores:
   signal_quality: 7
   composite: 8.1
   reason: >-
-    A curated index of autonomous improvement loop systems directly inspired by
-    Karpathy's autoresearch pattern—core to Topic 5—with categorized entries
-    covering general-purpose descendants, research agents, evaluation harnesses,
-    and domain-specific adaptations, making it immediately useful for
-    practitioners building self-improving systems.
+    A curated index of autonomous improvement loops and self-improving agent
+    systems directly aligned with the knowledge base's core pillars, covering
+    Karpathy-inspired autoresearch patterns, skill composition, cross-run
+    learning persistence, and multi-agent optimization—highly actionable for
+    practitioners building self-improving agent infrastructure.
 license: NOASSERTION
 ---
 ## awesome-autoresearch

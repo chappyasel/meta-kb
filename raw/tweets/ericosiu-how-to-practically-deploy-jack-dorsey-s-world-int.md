@@ -21,16 +21,17 @@ likes: 774
 retweets: 103
 views: 150170
 relevance_scores:
-  topic_relevance: 6
-  practitioner_value: 5
+  topic_relevance: 7
+  practitioner_value: 7
   novelty: 5
-  signal_quality: 5
-  composite: 5.4
+  signal_quality: 6
+  composite: 6.6
   reason: >-
-    Describes a practical implementation of a company-wide vector database
-    'world model' syncing all organizational data to feed AI agents—directly
-    relevant to agent memory and knowledge base architecture patterns, though
-    the signal is a tweet/article summary with limited technical depth.
+    Describes a real-world deployment of a multi-agent, shared-state 'world
+    model' architecture with concrete hardware stack and coordination
+    patterns—highly relevant to multi-agent systems and knowledge substrate
+    pillars, though framed as a tweet/article summary with limited architectural
+    depth.
 ---
 ## Tweet by @ericosiu
 

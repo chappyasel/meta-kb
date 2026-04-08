@@ -3,209 +3,220 @@ entity_id: agent-memory
 type: concept
 bucket: agent-memory
 abstract: >-
-  Agent memory encompasses the mechanisms AI agents use to store and retrieve
-  information across interactions — distinguished from static RAG by supporting
-  multiple memory types (episodic, semantic, procedural, core) and cross-session
-  persistence.
+  Agent memory covers how AI agents store and retrieve information across
+  interactions, spanning in-context buffers, external vector/graph stores,
+  procedural skill storage, and automatic extraction pipelines.
 sources:
-  - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
+  - tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md
+  - tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md
   - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
-  - repos/osu-nlp-group-hipporag.md
+  - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
+  - repos/transformeroptimus-superagi.md
+  - repos/supermemoryai-supermemory.md
   - repos/agenticnotetaking-arscontexta.md
-  - repos/thedotmack-claude-mem.md
+  - tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md
+  - repos/kayba-ai-agentic-context-engine.md
+  - repos/aiming-lab-agent0.md
   - repos/mem0ai-mem0.md
-  - repos/letta-ai-lettabot.md
+  - repos/infiniflow-ragflow.md
   - papers/mei-a-survey-of-context-engineering-for-large-language.md
-  - articles/lil-log-llm-powered-autonomous-agents.md
-  - papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
-  - articles/fabricio-q-memory-in-agents-episodic-vs-semantic-and-the-h.md
-  - articles/turing-post-9-open-agents-that-improve-themselves.md
+  - papers/zhang-agentic-context-engineering-evolving-contexts-for.md
+  - deep/repos/mem0ai-mem0.md
+  - deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
 related:
-  - rag
+  - retrieval-augmented-generation
   - context-engineering
-  - letta
+  - openai
+  - model-context-protocol
+  - context-management
+  - multi-agent-systems
   - claude-code
-  - episodic-memory
-  - semantic-memory
-  - crewai
-  - chain-of-thought
-  - task-decomposition
-  - knowledge-base
-  - andrej-karpathy
   - knowledge-graph
-  - mem0
-  - reflexion
-  - graphrag
-  - react
   - langchain
-last_compiled: '2026-04-07T11:46:48.802Z'
+  - ace
+  - vector-database
+  - crewai
+  - langgraph
+  - chain-of-thought
+  - andrej-karpathy
+  - openclaw
+  - cursor
+  - anthropic
+  - claude
+  - react
+  - ace
+  - vector-database
+  - crewai
+  - langgraph
+last_compiled: '2026-04-08T02:41:45.955Z'
 ---
 # Agent Memory
 
 ## What It Is
 
-Agent memory refers to the set of mechanisms by which an AI agent stores, retrieves, and applies information across interactions. A single-turn LLM call has no memory — each request starts from scratch. Agent memory changes this by maintaining state that outlasts any individual context window.
+Agent memory is the set of mechanisms that let an AI agent use information from outside its current context window. Without memory, every agent invocation starts from scratch: the agent has no knowledge of prior interactions, learned preferences, or accumulated skills. With memory, agents can personalize responses across sessions, learn from mistakes, and build on prior work.
 
-The term covers a spectrum: from a simple system prompt that prepends user preferences, to a full memory layer like [Letta](../projects/letta.md) or [Mem0](../projects/mem0.md) that manages extraction, storage, retrieval, and injection of information across sessions, users, and agents.
+The term encompasses four functionally distinct memory types drawn loosely from cognitive science:
 
-Memory is architecturally distinct from [Retrieval-Augmented Generation](../concepts/rag.md). RAG retrieves from a static external corpus. Memory retrieves from a dynamic, agent-maintained store that grows through interaction. The two often compose — retrieved memories are injected into context alongside retrieved documents — but they solve different problems.
+- **[Episodic Memory](../concepts/episodic-memory.md):** Records of specific past events ("last Tuesday the user said X")
+- **[Semantic Memory](../concepts/semantic-memory.md):** Extracted facts and knowledge ("the user prefers dark mode")
+- **[Procedural Memory](../concepts/procedural-memory.md):** Skills, strategies, and patterns for how to do things
+- **[Core Memory](../concepts/core-memory.md):** Always-present identity and context, injected directly into every prompt
 
-## Why It Matters
+In practice, systems blend these categories. [Mem0](../projects/mem0.md) primarily extracts semantic facts. [ACE](../projects/ace.md) builds a procedural skill library. [Letta](../projects/letta.md) (formerly MemGPT) gives agents explicit tools to manage all four types. Most production systems use semantic + episodic memory backed by a vector store, with procedural memory as an advanced add-on.
 
-Context windows are finite. Even with 200K-token models, production agents face three hard limits:
+## Why Memory Matters
 
-1. **Cross-session continuity.** Context resets between conversations. An agent cannot remember a user's name, preferences, or prior decisions without explicit storage.
-2. **Long-horizon task tracking.** Multi-step tasks spanning hours or days cannot fit their full history into one context. Memory externalizes what can't fit.
-3. **Cost and latency.** Stuffing entire conversation histories into each request is expensive and slow. Selective retrieval of relevant memories cuts both. [Mem0](../projects/mem0.md)'s benchmarks report 90% token reduction and 91% latency improvement versus full-context baseline on the LOCOMO benchmark — though these are self-reported figures, not independently validated.
+The context window is the LLM's only working surface. Everything the model knows for a given inference must fit inside it. [Context Engineering](../concepts/context-engineering.md) formalizes this as an optimization problem: assemble the best possible payload C = A(c_instr, c_know, c_tools, c_mem, c_state, c_query) subject to the hard constraint |C| ≤ L_max.
 
-## Memory Taxonomy
+Memory systems answer a specific subproblem: what should c_mem contain, and how do you populate it efficiently across many interactions?
 
-Agent memory systems typically decompose along four axes drawn from cognitive science:
+The naive approach — keep appending the full conversation history — hits the context limit quickly and degrades quality before it does. [Lost in the Middle](../concepts/lost-in-the-middle.md) research shows LLMs recall information from the beginning and end of long contexts best, meaning long conversation histories waste tokens while burying the most relevant material in the middle.
 
-### Episodic Memory
-Records of specific events, interactions, and experiences with temporal context. An agent with [episodic memory](../concepts/episodic-memory.md) can answer "what did we decide last Tuesday?" by retrieving a specific past conversation segment. Systems like [Zep](../projects/zep.md) and [Mem0](../projects/mem0.md) emphasize episodic storage — Zep's temporal knowledge graph explicitly tracks when facts were true, enabling queries like "what did the user prefer before they changed their mind?"
+Selective memory retrieval outperforms full-context on both accuracy and cost. The [Mem0](../projects/mem0.md) paper reports +26% accuracy over OpenAI Memory on the LOCOMO benchmark, 91% faster responses, and 90% fewer tokens compared to full-context approaches — though these figures are self-reported and should be treated as directional rather than definitive. The underlying mechanism is straightforward: instead of including 50,000 tokens of chat history, inject 200 tokens of relevant extracted facts.
 
-### Semantic Memory
-Factual knowledge distilled from experience — not "we discussed this on Tuesday" but "the user prefers dark mode." [Semantic memory](../concepts/semantic-memory.md) stores generalizations extracted from episodes. Mem0's memory extraction step uses an LLM to pull semantic facts from conversations before storing them; Zep's Graphiti engine performs entity extraction and deduplication as part of ingestion.
-
-### Procedural Memory
-How to do things: learned workflows, tool-use patterns, skill sequences. [Procedural memory](../concepts/procedural-memory.md) powers agents that improve at tasks over time. [Voyager](../projects/voyager.md) implements this explicitly — its skill library stores verified code functions, allowing the agent to reuse successful strategies rather than rederiving them. [Agent Workflow Memory](../projects/agent-workflow-memory.md) extracts and reuses procedural patterns from successful task completions.
-
-### Core Memory
-A small, always-present store of critical facts kept in the active context at all times. [Letta](../projects/letta.md) (formerly MemGPT) popularized this abstraction — its core memory holds a "persona" block and "human" block that never leave the context window, ensuring the agent always knows who it is and who it's talking to. [Core memory](../concepts/core-memory.md) solves the "amnesia at session start" problem without retrieval latency.
-
-## How It Works: Core Mechanisms
-
-### Memory Extraction
-
-Most systems extract memories through an LLM call at the end of each conversation turn or session. The model reads the conversation and identifies facts worth storing. Mem0's extraction prompt instructs the model to output structured memory objects — a list of atomic facts — which are then deduplicated against existing memories before storage.
-
-The quality of extraction determines memory quality. Systems that extract too aggressively store noise; systems that extract too conservatively miss important context. No system has solved this tradeoff definitively.
+## Memory Architecture Layers
 
 ### Storage Backends
 
-Memory systems use three storage types, often in combination:
+**Vector stores** are the standard backend for semantic and episodic memory. Text is embedded into a high-dimensional space; retrieval finds the nearest vectors to a query embedding. [ChromaDB](../projects/chromadb.md), Pinecone, Qdrant, and pgvector are common choices. Vector stores handle "what memories are semantically related to this query?" well but struggle with temporal queries ("what happened last Tuesday?") and relational queries ("how is Alice connected to Bob?"). See [Vector Database](../concepts/vector-database.md).
 
-- **Vector stores** ([ChromaDB](../projects/chromadb.md), [Qdrant](../projects/qdrant.md), [Pinecone](../projects/pinecone.md), [FAISS](../projects/faiss.md)): support semantic similarity search over embeddings. Fast and scalable but lose temporal and relational structure.
-- **Knowledge graphs** ([Neo4j](../projects/neo4j.md), [Graphiti](../projects/graphiti.md)): store entities and relationships with traversal. Zep's Graphiti engine adds temporal edges — each fact has a `valid_at` / `invalid_at` timestamp — enabling queries over how relationships changed over time.
-- **Relational/key-value stores** ([PostgreSQL](../projects/postgresql.md), [SQLite](../projects/sqlite.md)): store structured facts and metadata. Often used as the primary store with vector indexes alongside.
+**Knowledge graphs** add explicit entity and relationship structure. [Graphiti](../projects/graphiti.md) and [Zep](../projects/zep.md) build temporal knowledge graphs where edges carry timestamps and validity periods, enabling queries like "what did the user prefer before they changed jobs?" [GraphRAG](../projects/graphrag.md) and [HippoRAG](../projects/hipporag.md) extend RAG with graph traversal for multi-hop reasoning. See [Knowledge Graph](../concepts/knowledge-graph.md).
 
-[Zep](../projects/zep.md)'s architecture uses all three: Graphiti manages the temporal knowledge graph, a vector store handles semantic search over memory embeddings, and structured storage holds session metadata. The paper reports 94.8% accuracy on the Deep Memory Retrieval (DMR) benchmark versus MemGPT's 93.4%, and 18.5% accuracy improvement on LongMemEval with 90% latency reduction — figures from the Zep team's own paper, so treat as directional rather than definitive.
+**Relational/document stores** handle structured data that doesn't fit well in vector space: user account information, session state, audit trails. Most memory systems use SQLite or a similar store for history tracking alongside their primary vector backend.
 
-### Retrieval
+**In-context storage** — literally just including information in the system prompt — works for small, always-relevant facts. [CLAUDE.md](../concepts/claude-md.md) files used by [Claude Code](../projects/claude-code.md) and [Cursor](../projects/cursor.md) are a practical instance: project-specific facts that belong in every session get written to a file that's injected at the start of each conversation.
 
-When an agent needs memory, it queries the store using the current conversation turn as a query. Retrieval strategies include:
+### Retrieval Mechanisms
 
-- **Semantic search**: embed the query, return nearest neighbors. Fast but misses temporally relevant memories that aren't semantically similar.
-- **[Hybrid search](../concepts/hybrid-search.md)**: combine semantic search with BM25 keyword matching via [Reciprocal Rank Fusion](../concepts/reciprocal-rank-fusion.md). More robust for proper nouns and exact phrases.
-- **Graph traversal**: follow entity relationships from query entities. Required for multi-hop reasoning ("who did Alice work with, and what did they say about the project?").
+**Semantic (dense) retrieval** embeds the current query and finds nearest neighbors in the memory store. Fast and general-purpose. Fails on exact keyword matches and structured queries. See [Semantic Search](../concepts/semantic-search.md).
 
-### Injection
+**Keyword (sparse) retrieval** uses BM25 or similar term-frequency methods. Reliable for exact matches. Degrades on paraphrased or conceptually similar but lexically different queries. See [BM25](../concepts/bm25.md).
 
-Retrieved memories must enter the context. Three injection patterns:
+**Hybrid search** combines both signals, typically by reranking the union of retrieval results. Outperforms either approach alone in most benchmarks. See [Hybrid Search](../concepts/hybrid-search.md).
 
-1. **Prepend to system prompt**: reliable but consumes context budget for every turn regardless of relevance.
-2. **Dynamic injection before user message**: retrieved memories inserted just before the current query. Reduces noise but adds latency.
-3. **Tool-based retrieval**: the agent calls a `search_memory` tool mid-generation when it determines retrieval is needed. Most flexible but requires the model to know when it needs memory.
+**Graph traversal** follows entity relationships to answer multi-hop queries. Necessary when the answer requires connecting multiple facts that don't appear together in any single document or memory record.
 
-Letta uses a tiered model: core memory is always present in the system prompt, and archival memory requires explicit tool calls (`archival_memory_search`, `archival_memory_insert`). This gives the agent agency over its own memory operations.
+**Temporal filtering** restricts retrieval by time windows. Critical for memory systems where the most recent information should override older conflicting facts. Most vector stores support this as a metadata filter, but it requires that memories are stamped and indexed by time at write time.
 
-## Implementation Patterns
+### Write Pipelines
 
-### The Karpathy Approach: Markdown Wikis
+How memories get created is as important as how they're retrieved.
 
-[Andrej Karpathy](../concepts/andrej-karpathy.md) documented a lightweight memory pattern: an LLM compiles raw source documents into a structured Markdown wiki, maintains an index file, and performs Q&A by reading relevant articles rather than using vector search. For knowledge bases under ~400K words, the LLM's ability to auto-maintain summaries and indexes makes retrieval unnecessary. The agent also runs "linting" passes to find inconsistencies and impute missing data. This approach trades retrieval sophistication for inspectability — every memory is a human-readable file in [Obsidian](../projects/obsidian.md). [Source](../raw/tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md)
+**Automatic extraction** (used by [Mem0](../projects/mem0.md)): An LLM pass over each conversation extracts atomic facts ("user prefers Python over JavaScript"). A second LLM pass reconciles new facts against existing memories, deciding whether to ADD, UPDATE, DELETE, or ignore. Simple to integrate — wrap any conversation in `memory.add()` — but fully dependent on prompt quality. The extraction and reconciliation prompts are the entire "intelligence" of the system.
 
-### CLAUDE.md / Context Files
+**Agent-driven management** (used by [Letta](../projects/letta.md) / [MemGPT](../projects/memgpt.md)): The agent itself has explicit tools for memory operations (`core_memory_append`, `archival_memory_search`, etc.) and decides what to remember, what to discard, and when to retrieve. More flexible and potentially higher quality, but requires the agent to reason about memory explicitly, which adds latency and can introduce reasoning errors.
 
-[Claude Code](../projects/claude-code.md) implements a form of procedural memory through [CLAUDE.md](../concepts/claude-md.md) files — markdown documents that persist project-specific instructions, conventions, and learned preferences across sessions. The agent reads these at startup. This pattern is manual (humans or agents write the files) but reliable and inspectable.
+**Reflective extraction** (used by [ACE](../projects/ace.md)): After task execution, a separate Reflector agent analyzes the execution trace to extract procedural strategies. These go into a Skillbook that the agent retrieves at the start of future tasks. The Recursive Reflector in ACE writes Python code in a sandboxed environment to programmatically search traces for patterns — a qualitatively different approach from simple summarization. The key finding from [Meta-Harness](../raw/deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md): full execution trace access (10M tokens) produces dramatically better strategy extraction than compressed summaries (50.0 vs 34.6 accuracy). Compression destroys the causal signal needed to understand why a strategy failed.
 
-### Reflexion-Style Episode Storage
+**Continual learning** updates memory incrementally as new information arrives, rather than batch-processing conversations. See [Continual Learning](../concepts/continual-learning.md) and [Continual RAG](../concepts/continual-rag.md).
 
-[Reflexion](../concepts/reflexion.md) stores verbal self-evaluations after task failures — the agent writes a short critique of what went wrong, which is prepended to the next attempt. This is episodic memory used specifically for error recovery, not general persistence.
+## How Memory Types Map to Implementations
 
-### Voyager Skill Library
+| Memory Type | Typical Storage | Representative System | Retrieved How |
+|---|---|---|---|
+| Episodic | Vector store with timestamps | [Zep](../projects/zep.md), [Mem0](../projects/mem0.md) | Semantic similarity + temporal filter |
+| Semantic | Vector store (flat facts) | [Mem0](../projects/mem0.md), [OpenMemory](../projects/openmemory.md) | Nearest-neighbor embedding search |
+| Semantic (relational) | Knowledge graph | [Graphiti](../projects/graphiti.md), [Zep](../projects/zep.md) | Graph traversal + entity lookup |
+| Procedural | [Skill Book](../concepts/skill-book.md) / vector store | [ACE](../projects/ace.md), [Voyager](../projects/voyager.md) | Similarity search on task description |
+| Core | System prompt / file | [CLAUDE.md](../concepts/claude-md.md), [Letta](../projects/letta.md) core memory | Direct injection (always present) |
 
-[Voyager](../projects/voyager.md) stores verified executable code in a skill library (procedural memory). After each successful task, the agent writes a JavaScript function implementing the solution and adds it to the library. Future tasks retrieve relevant skills via embedding search over skill descriptions, then execute them. This is perhaps the clearest example of procedural memory improving agent capability over time.
+## Memory Scoping
 
-## Context Engineering Integration
+Most systems scope memories by identity dimension:
 
-Memory is one component of the broader [context engineering](../concepts/context-engineering.md) problem. The context assembly function can be written as:
+- **User-level:** Persists across all sessions for a given user. Preferences, biographical facts, relationship context.
+- **Session-level:** Persists within one bounded interaction. Multi-step workflow state, current task context.
+- **Agent-level:** Persists across all tasks for a given agent. Learned strategies, tool preferences, domain knowledge.
+- **Organizational-level:** Shared across multiple users or agents. Company policies, shared domain knowledge.
 
-**C = A(c_instr, c_know, c_tools, c_mem, c_state, c_query)**
+These are typically implemented as metadata filters on a flat vector collection, not as separate storage systems. The conceptual hierarchy helps architects decide what to store where; the implementation is usually just `user_id`, `session_id`, and `agent_id` fields on memory records.
 
-where `c_mem` competes with other components for the finite context budget `L_max`. Memory systems make allocation decisions: what to retrieve, how much to retrieve, how to compress retrieved memories before injection. A memory system that retrieves too much crowds out tool definitions or retrieved documents.
+## Key Design Tradeoffs
 
-The [survey by Mei et al.](../raw/papers/mei-a-survey-of-context-engineering-for-large-language.md) frames memory as one of six context components and notes that LLMs are far better at understanding complex contexts than generating equally sophisticated outputs. This asymmetry means memory architects should invest in retrieval quality — storing well-structured, clean memories — rather than assuming the model will compensate for noisy or incomplete memory with better reasoning.
+**Automatic vs. agent-driven memory management.** Automatic extraction (Mem0 style) is invisible to the application and trivial to integrate. The agent doesn't decide what to remember; the extraction pipeline does. Agent-driven management (Letta style) gives agents more control but requires reasoning about memory during every interaction. For most personalization use cases, automatic extraction is sufficient and far simpler. For complex multi-session reasoning where the agent needs to deliberately build a knowledge base, agent-driven management is more appropriate.
 
-## Strengths
+**Vector stores vs. knowledge graphs.** Vector stores handle "what's related to this query?" well. Knowledge graphs handle "how are these entities connected?" and "what was true before X date?" well. For simple preference tracking and conversation history, a vector store suffices. For enterprise knowledge management or temporal reasoning across long time horizons, graphs provide qualitatively better results. The cost: graphs require infrastructure (Neo4j or equivalent) and substantially more LLM calls per write operation.
 
-**Cross-session continuity.** Memory genuinely solves the session-reset problem. An agent with a well-implemented memory layer can pick up a conversation where it left off, remember user preferences, and avoid asking the same clarifying questions repeatedly.
+**Recall vs. precision.** Returning more memories reduces the risk of missing relevant context but increases noise and token cost. Most systems use a fixed retrieval limit (top-k by similarity). Better approaches combine similarity thresholds, reranking, and query-adaptive limits — retrieving fewer memories when the query is specific, more when it's ambiguous.
 
-**Cost reduction at scale.** Selective memory retrieval consistently outperforms full-context approaches on cost and latency. The 90% token reduction Mem0 reports is plausible in principle, though the exact figure depends heavily on conversation length and memory quality.
+**Memory growth.** Memory stores grow monotonically without explicit compaction, summarization, or pruning. Old, contradicted memories accumulate. [Memory Evolution](../concepts/memory-evolution.md) and [MemEvolve](../projects/memevolve.md) address this through structured consolidation. Most simpler systems just accumulate indefinitely, relying on recency and relevance weighting to naturally de-prioritize stale memories in retrieval.
 
-**Composability.** Memory systems compose with RAG, tool use, and multi-agent architectures. [LangChain](../projects/langchain.md), [LangGraph](../projects/langgraph.md), and [CrewAI](../projects/crewai.md) all support memory layer integrations.
-
-## Critical Limitations
-
-**Extraction quality determines everything.** Memory systems are only as good as what they extract. LLM-based extraction introduces errors — misattributed facts, hallucinated preferences, missed context. Once a bad memory is stored, it can corrupt future responses in ways that are hard to trace. No current system provides reliable extraction quality metrics.
-
-**The infrastructure assumption no one states.** Production memory systems require always-on storage backends, embedding model availability, and extraction LLM calls at every session end. For applications with millions of users, the operational cost of running memory extraction (an LLM call per session) can exceed the cost of the primary LLM calls. Most open-source memory systems document the happy path and omit the operational costs at scale.
-
-**Benchmark inadequacy.** The primary memory benchmarks (DMR, LongMemEval, LOCOMO) test single or few-session recall. They do not test the cross-session synthesis, temporal reasoning, or multi-user isolation that production systems require. Numbers from these benchmarks measure narrow capabilities, not production readiness.
+**Compression vs. fidelity.** The Meta-Harness ablation is decisive: compressed summaries of execution traces add nearly nothing over raw scores (34.9 vs 34.6 accuracy), while full trace access reaches 50.0. For any system that learns from experience, providing the learning mechanism access to uncompressed execution data is worth the token cost. This applies directly to [Reflexion](../concepts/reflexion.md)-style systems and any reflective memory extraction pipeline. [Context Compression](../concepts/context-compression.md) is appropriate for reducing retrieval cost, not for compressing the signal that drives learning.
 
 ## Failure Modes
 
-**Memory poisoning.** If an adversarial or confused user causes incorrect facts to be extracted and stored, those facts persist and influence future sessions. Memory systems generally lack mechanisms to detect or correct stored errors without explicit human review.
+**Hallucinated memory IDs.** When LLMs generate structured updates (ADD/UPDATE/DELETE), they can hallucinate record identifiers. Mem0 addresses this by mapping UUIDs to sequential integers before the LLM call. Systems that don't do this lose writes silently.
 
-**Temporal staleness.** A memory that was true six months ago may no longer be true. Most vector-store-based systems have no expiry or staleness detection. Only graph-based systems like Zep explicitly model temporal validity.
+**Silent extraction failures.** JSON parsing failures in extraction pipelines typically produce empty results with no error surfaced to the caller. A conversation is processed, nothing is remembered, and there's no signal that memory creation failed. Production systems need explicit monitoring on extraction success rates.
 
-**Retrieval failure on novel queries.** Semantic search retrieves memories similar to the current query. If the relevant memory was stored with different vocabulary, retrieval fails silently — the agent proceeds without the relevant context, producing wrong answers it states confidently.
+**Stale memory contamination.** When a user's preferences or facts change, old memories aren't automatically invalidated. A system that learned "user prefers React" before the user switched to Vue will continue retrieving the stale preference unless there's explicit contradiction detection. Knowledge graphs with soft-deletion and validity timestamps handle this better than flat vector stores.
 
-**[Catastrophic forgetting](../concepts/catastrophic-forgetting.md) via deduplication.** Aggressive memory consolidation can overwrite accurate older memories with incorrect newer ones. Mem0's deduplication step merges conflicting memories using an LLM, which can resolve contradictions incorrectly.
+**Retrieval-context mismatch.** The extraction context (what was happening when a memory was created) differs from the retrieval context (the current query). A fact extracted from a technical discussion may not retrieve correctly when the user asks a casual question about the same topic, or vice versa.
 
-## When Not to Use It
+**Write concurrency.** Multiple simultaneous `memory.add()` calls for the same user can race: both read existing memories, both decide to ADD the same fact, and duplicates accumulate. Most open-source systems lack write locking at the application level.
 
-**Single-session applications.** If users never return, memory storage costs exceed any benefit. RAG over a static knowledge base is sufficient.
+**Privacy leakage in organizational memory.** Organizational-level memories are shared across all users of a workspace. Without careful scoping, sensitive information from one user's conversations can surface in another user's context. This is an architectural risk that governance controls alone cannot fully address.
 
-**Low-latency requirements.** Memory retrieval adds 100-500ms per turn in typical configurations. For real-time voice agents or interactive tools where response latency is measured in hundreds of milliseconds, memory retrieval may be unacceptable.
+## Evaluation
 
-**Regulated data environments.** Persistent memory stores create data retention obligations. Healthcare, finance, and legal applications face compliance requirements that may prohibit storing user statements across sessions without explicit consent and deletion mechanisms. Most memory frameworks lack built-in compliance tooling.
+Memory system quality is harder to measure than standard NLP benchmark accuracy. Key benchmarks:
 
-**Small agent deployments with simple context.** If the agent's context fits in a single prompt and interactions are short, the complexity of a memory system exceeds its value. Start with [CLAUDE.md](../concepts/claude-md.md)-style context files or explicit conversation history before adding a memory layer.
+- **[LongMemEval](../projects/longmemeval.md):** Tests multi-session memory across long time horizons with questions requiring integration across sessions
+- **[LoCoMo](../projects/locomo.md):** Long-context conversation benchmark used by Mem0 for their +26% accuracy comparison
+- **[Tau-bench](../projects/tau-bench.md):** Multi-step agentic task benchmark used by ACE to demonstrate 2x consistency improvement from learned strategies
+- **LongMemEval DMR task:** Zep/Graphiti reports 94.8% vs MemGPT's 93.4% on single-session fact retrieval — a narrow gap suggesting that for simple recall, most approaches perform comparably
 
-## Unresolved Questions
+Most published benchmarks test single-session recall rather than the cross-session synthesis and temporal reasoning that production systems actually need. Treat benchmark comparisons skeptically, particularly when self-reported.
 
-**Who controls memory deletion?** Most systems support `delete_memory` calls but do not specify who can invoke them, under what conditions, or what audit trail exists. For multi-user systems, memory isolation between users is also underspecified.
+## Implementing Agent Memory
 
-**Cost at scale.** Running an LLM extraction call per session, maintaining embedding indexes, and serving retrieval queries at millions of sessions per day has material infrastructure cost. Published benchmarks measure accuracy, not cost per memory operation at scale.
+For a new system, a reasonable progression:
 
-**Memory conflicts across agents.** In multi-agent systems, two agents may store contradictory memories about the same entity. No standard conflict resolution protocol exists. [CrewAI](../projects/crewai.md) and [LangGraph](../projects/langgraph.md) both support shared memory but leave conflict resolution to the application layer.
+1. Start with a [CLAUDE.md](../concepts/claude-md.md)-style file for always-relevant project or user context. Zero infrastructure, immediate benefit.
+2. Add session-level memory as a short context window summary passed to each new session. Cheap, adequate for many use cases.
+3. Add user-level semantic memory with a vector store (Qdrant local, Chroma, or pgvector if you already run Postgres). Use a two-pass extraction pipeline like Mem0's.
+4. Add hybrid search (dense + BM25) once retrieval quality matters enough to instrument and measure.
+5. Add a knowledge graph if you need temporal reasoning, relationship queries, or deduplication across many sources.
+6. Add procedural memory (ACE-style skill extraction) if your agents do repeated structured tasks and you want them to improve from experience.
 
-**Evaluation validity.** The LOCOMO benchmark Mem0 uses for its +26% accuracy claim was created by a separate research group, but the benchmark itself tests a narrow conversational memory scenario. Whether these numbers generalize to enterprise agent use cases remains unclear.
+## Relation to Adjacent Concepts
 
-## Alternatives and Selection Guidance
+[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) is a specific implementation of the knowledge retrieval component of agent memory. RAG focuses on retrieving from static external knowledge bases; agent memory focuses on retrieving from dynamically accumulated interaction history. The retrieval mechanisms overlap significantly (both use vector search); the write pipeline is what differs.
 
-| Situation | Use instead |
-|---|---|
-| Static knowledge retrieval from a document corpus | [RAG](../concepts/rag.md) without persistent memory |
-| Improving multi-hop reasoning over documents | [GraphRAG](../concepts/graphrag.md) or [HippoRAG](../projects/hipporag.md) |
-| Agent self-improvement through verified skills | [Voyager](../projects/voyager.md)-style skill library |
-| Project-specific conventions for coding agents | [CLAUDE.md](../concepts/claude-md.md) context files |
-| Full memory management with OS-style paging | [Letta](../projects/letta.md) |
-| Production memory with temporal reasoning | [Zep](../projects/zep.md) / [Graphiti](../projects/graphiti.md) |
-| Lightweight managed memory layer | [Mem0](../projects/mem0.md) |
-| Personal knowledge base without RAG infrastructure | Karpathy-style Markdown wiki via [Obsidian](../projects/obsidian.md) |
+[Context Management](../concepts/context-management.md) governs how memory is assembled into the context window: what to include, in what order, and at what level of compression. Memory systems provide the store; context management governs the assembly.
 
-## Related Concepts
+[Multi-Agent Systems](../concepts/multi-agent-systems.md) introduce additional complexity: how do multiple agents share memory, avoid redundant retrieval, and coordinate on memory updates? See [Organizational Memory](../concepts/organizational-memory.md) for the shared-memory dimension.
 
-- [Episodic Memory](../concepts/episodic-memory.md) — event-based recall with temporal context
-- [Semantic Memory](../concepts/semantic-memory.md) — distilled factual knowledge
-- [Procedural Memory](../concepts/procedural-memory.md) — stored skill and workflow patterns
-- [Core Memory](../concepts/core-memory.md) — always-present context block
-- [Context Engineering](../concepts/context-engineering.md) — the broader discipline of context assembly
-- [Retrieval-Augmented Generation](../concepts/rag.md) — static corpus retrieval, complementary to memory
-- [Context Window](../concepts/context-window.md) — the hard constraint memory systems work around
-- [Memory Evolution](../concepts/memory-evolution.md) — how memory systems improve over time
-- [Continual Learning](../concepts/continual-learning.md) — weight-level learning vs. external memory
+[Self-Improving Agents](../concepts/self-improving-agents.md) use procedural memory as a core mechanism: agents write strategies back to their own skill store, then retrieve them in future sessions. ACE and [Voyager](../projects/voyager.md) exemplify this pattern.
+
+[Short-Term Memory](../concepts/short-term-memory.md) and [Long-Term Memory](../concepts/long-term-memory.md) are the temporal dimension of the same taxonomy.
+
+
+## Related
+
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — implements (0.7)
+- [Context Engineering](../concepts/context-engineering.md) — part_of (0.7)
+- [OpenAI](../projects/openai.md) — part_of (0.5)
+- [Model Context Protocol](../concepts/model-context-protocol.md) — implements (0.7)
+- [Context Management](../concepts/context-management.md) — part_of (0.8)
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — part_of (0.7)
+- [Claude Code](../projects/claude-code.md) — implements (0.6)
+- [Knowledge Graph](../concepts/knowledge-graph.md) — implements (0.7)
+- [LangChain](../projects/langchain.md) — implements (0.7)
+- [ACE](../projects/ace.md) — implements (0.6)
+- [Vector Database](../concepts/vector-database.md) — implements (0.7)
+- [CrewAI](../projects/crewai.md) — part_of (0.6)
+- [LangGraph](../projects/langgraph.md) — implements (0.6)
+- [Chain-of-Thought](../concepts/chain-of-thought.md) — part_of (0.5)
+- [Andrej Karpathy](../concepts/andrej-karpathy.md) — part_of (0.5)
+- [OpenClaw](../projects/openclaw.md) — implements (0.6)
+- [Cursor](../projects/cursor.md) — implements (0.5)
+- [Anthropic](../projects/anthropic.md) — part_of (0.6)
+- [Claude](../projects/claude.md) — implements (0.6)
+- [ReAct](../concepts/react.md) — implements (0.6)
+- [ACE](../projects/ace.md) — implements (0.6)
+- [Vector Database](../concepts/vector-database.md) — implements (0.7)
+- [CrewAI](../projects/crewai.md) — part_of (0.6)
+- [LangGraph](../projects/langgraph.md) — implements (0.6)

@@ -3,126 +3,160 @@ entity_id: evoagentx
 type: project
 bucket: self-improving
 abstract: >-
-  EvoAgentX is an open-source Python framework that generates multi-agent
-  workflows from natural language goals and iteratively optimizes them via
-  built-in evolution algorithms (TextGrad, AFlow, MIPRO, EvoPrompt),
-  differentiating itself by treating prompt and structure optimization as
-  first-class features rather than afterthoughts.
+  EvoAgentX is a Python framework that unifies five optimization algorithms
+  (TextGrad, AFlow, MIPRO, EvoPrompt, SEW) to automatically evolve multi-agent
+  workflow prompts and structures against task benchmarks, reporting 7-20% gains
+  on HotPotQA, MBPP, MATH, and GAIA.
 sources:
   - tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md
   - repos/evoagentx-evoagentx.md
   - articles/turing-post-9-open-agents-that-improve-themselves.md
-related: []
-last_compiled: '2026-04-07T11:49:53.357Z'
+  - deep/repos/evoagentx-evoagentx.md
+related:
+  - retrieval-augmented-generation
+last_compiled: '2026-04-08T02:49:46.613Z'
 ---
 # EvoAgentX
 
+**Type:** Project | **Domain:** Self-Improving Agents, Multi-Agent Systems
+**Repository:** [EvoAgentX/EvoAgentX](https://github.com/EvoAgentX/EvoAgentX)
+**Stars:** ~2,700 | **License:** MIT | **Language:** Python
+
+---
+
 ## What It Does
 
-EvoAgentX is a Python framework for building, evaluating, and evolving LLM-based multi-agent workflows. Given a natural language goal, it generates a structured workflow, assigns agents, executes the workflow, scores the output against task-specific criteria, and rewrites prompts or workflow structure based on that feedback. The loop repeats until performance plateaus or a budget runs out.
+EvoAgentX builds, evaluates, and optimizes LLM-based multi-agent workflows in an automated loop. Given a goal, it can auto-construct a workflow from scratch, run it against a benchmark, measure performance, and iteratively mutate prompts or graph topology to improve results. The central claim: agents should rewrite how they work, not just what they output.
 
-Most multi-agent frameworks treat prompt engineering as the user's problem. EvoAgentX treats it as the system's problem, providing four evolution algorithms that can optimize both the text of prompts and the topology of agent workflows without human intervention.
+The architecturally distinctive move is bundling five distinct optimization paradigms into a single framework — gradient-based text optimization, evolutionary code generation, Bayesian prompt search, population-based prompt evolution, and sequential workflow mutation — all sharing the same agent execution runtime, benchmark infrastructure, and evaluation harness. No prior open framework unified these approaches against a common API.
 
-## Architecture and Core Mechanism
+---
 
-The framework organizes around three main abstractions:
+## Architecture
 
-**WorkFlowGenerator** (`evoagentx/workflow/`) takes a natural language goal and produces a `WorkFlowGraph`, a directed graph where nodes are agents with defined actions and edges represent data flow. Generation is LLM-driven: the generator prompts a backbone model to decompose the goal into roles and dependencies.
+The codebase (`evoagentx/`) follows a five-layer stack built on Pydantic `BaseModule` for serialization throughout.
 
-**AgentManager** instantiates agents from the workflow graph and wires them to LLM backends. Model adapters live in `evoagentx/models/`: `openai_model.py` and `aliyun_model.py` for native APIs, `litellm_model.py`, `siliconflow_model.py`, and `openrouter_model.py` for routing to [Claude](../projects/claude.md), [DeepSeek](../projects/deepseek.md), and others through [LiteLLM](../projects/litellm.md) and [OpenRouter](../projects/openrouter.md).
+**Agents** (`evoagentx/agents/`): Each `Agent` holds an LLM reference, a `ShortTermMemory` message buffer, optional `LongTermMemory` (RAG-backed), and a list of `Action` objects wrapping `PromptTemplate` + `LLMOutputParser`. Execution path: `Agent.execute(action_name, input)` → render prompt → `llm.generate()` → package result as `Message`. The `AgentManager` maintains thread-safe agent state with `threading.Lock` and per-agent `threading.Condition` objects, suggesting parallel execution was planned but never wired into the runtime.
 
-**Evolution algorithms** (in `examples/optimization/`) sit outside the core execution loop and treat the workflow as an artifact to rewrite:
+**Workflow** (`evoagentx/workflow/`): `WorkFlowGraph` wraps a NetworkX `MultiDiGraph`. Nodes are `WorkFlowNode` instances with typed input/output `Parameter` lists, agent assignments, and state tracking. `WorkFlowGraph.next()` returns all nodes whose predecessors are complete. The `WorkFlow` executor calls `get_next_task()` then `execute_task()` in a sequential loop — despite the graph supporting parallel-ready branches, only one task runs at a time.
 
-| Algorithm | Optimization target | Mechanism |
-|-----------|--------------------|-|
-| TextGrad | Prompts | Gradient-like feedback through LLM chain |
-| MIPRO | Prompts | Black-box evaluation + adaptive reranking |
-| AFlow | Prompts + workflow structure | Monte Carlo Tree Search over workflow variants |
-| EvoPrompt | Prompts | Feedback-driven evolutionary mutation |
+**Environment blackboard** (`evoagentx/workflow/environment.py`): All inter-agent communication flows through an `Environment` object. It accumulates a `trajectory` of `TrajectoryStep` records and an `execution_data` dict that downstream tasks read as input. Agents never call each other directly.
 
-Evaluation runs against built-in benchmark integrations (HotPotQA, MBPP, MATH) with 50-example validation sets. The optimizer selects the best-performing variant and writes it back to the workflow.
+**Optimization** (`evoagentx/optimizers/`): Five concrete optimizer implementations share an abstract interface with `optimize(dataset)`, `step()`, `evaluate(dataset)`, and `convergence_check()`.
 
-For memory, the framework supports both ephemeral (within-session) and persistent (cross-session) storage, though the implementation details of the persistence layer are not fully documented in public sources.
+**Evaluation** (`evoagentx/evaluators/`, `evoagentx/benchmark/`): `Evaluator` iterates over benchmark examples via `ThreadPoolExecutor`, calls the workflow, and scores via `benchmark.evaluate(prediction, label)`. Eight benchmarks are implemented: HotPotQA (F1), HumanEval/MBPP (pass@k), GSM8K/MATH (exact match), GAIA (overall), BigBenchHard, and `WorfBench` — a meta-benchmark that scores workflow quality itself.
 
-A `HITLManager` wraps execution with approval gates: `HITLInterceptorAgent` pauses before nominated actions, `HITLUserInputCollectorAgent` collects free-form input, and a mapping dict routes human-verified fields back into the workflow's data flow.
+---
 
-Tools are organized as toolkits under `evoagentx/tools/`: code interpreters (`interpreter_python.py`, `interpreter_docker.py`), search backends (`search_wiki.py`, `search_google.py`, `search_ddgs.py`, `search_serpapi.py`), filesystem (`storage_file.py`, `cmd_toolkit.py`), databases (`database_mongodb.py`, `database_postgresql.py`, `database_faiss.py`), image tools, and browser automation (`browser_tool.py`, `browser_use.py`). [MCP](../concepts/mcp.md) integration is available via a separate tutorial.
+## Core Mechanism: The Five Optimizers
+
+The central loop is: construct workflow → evaluate against benchmark → mutate workflow → re-evaluate → iterate. Each optimizer targets a different level of the abstraction stack.
+
+### SEW (Self-Evolving Workflow) — `sew_optimizer.py`
+Works on `SequentialWorkFlowGraph`, a subclass enforcing linear chains with automatic edge inference. Serializes the workflow to one of five text formats (Python dict, YAML, Code DSL, BPMN XML, or a custom "Core" format), injects a random mutation prompt from 57 predefined strategies (ranging from "elaborate on the instruction" to "think well outside the box") plus one of 40 thinking styles, sends it to the optimizer LLM, and parses the result back into a new graph. Falls back to the original graph on parse failure. **Limitation:** SEW only works with sequential graphs — no branching or conditional paths.
+
+### AFlow — `aflow_optimizer.py`
+Adapted from MetaGPT's AFlow. The workflow is a Python `Workflow` class. The optimizer LLM receives accumulated round history, top-scoring previous code, operator descriptions, and error logs from `DataUtils.load_log()`, then generates a new `<graph>` and `<prompt>` in Python. Code is written to `round_N/graph.py` and dynamically loaded. `ConvergenceUtils.check_convergence()` monitors top-3 scores across rounds and stops on plateau. Available operator primitives: `Custom`, `AnswerGenerate`, `QAScEnsemble`, `ScEnsemble`, `Test`, `CodeGenerate`, `Programmer`, `Reflection`. These compose freely — the LLM can discover patterns like generate-3→ensemble→reflect→regenerate.
+
+### TextGrad — `textgrad_optimizer.py`
+Wraps the TextGrad library. Converts each agent's system prompt and action instruction into `textgrad.Variable` objects. `TextGradEngine` adapts EvoAgentX's `BaseLLM` to TextGrad's `EngineLM` interface. Loss functions are task-specific: `CODE_LOSS_PROMPT` for code generation, `GENERAL_LOSS_PROMPT` for QA, `NO_ANSWER_LOSS_PROMPT` for open tasks. The optimizer runs forward pass → compute loss → backward pass (textual gradient via LLM) → `TextualGradientDescent` update. Maintains snapshots for rollback if score degrades.
+
+### EvoPrompt — `evoprompt_optimizer.py`
+Re-implements the EvoPrompt paper. Maintains `node_populations` (prompt variant lists per node), `node_scores`, and a hash-keyed `_eval_cache`. Initializes via a `ParaphraseAgent` generating semantically equivalent variants. Evolves through GA/DE operations across generations, with `early_stopping_patience` to halt on stagnation.
+
+### MIPRO — `mipro_optimizer.py`
+Wraps DSPy's `MIPROv2` via a complex adapter layer: `MiproLMWrapper` adapts `BaseLLM` to `dspy.LM`, `MiproRegistry` maps workflow nodes to DSPy signatures, `PromptTuningModule` wraps execution as a DSPy module. Uses Optuna's Bayesian TPE search to jointly select few-shot demonstrations and instruction variants, with light/medium/heavy intensity presets.
+
+### Workflow Auto-Construction
+`WorkFlowGenerator` → `TaskPlanner` decomposes a natural language goal into `TaskPlanningOutput` with typed subtask dependencies → `build_workflow_from_plan()` constructs the graph → `AgentGenerator` creates agent definitions per node via LLM calls. Every step uses `_execute_with_retry()` with exponential backoff.
+
+---
 
 ## Key Numbers
 
-**GitHub:** ~2,700 stars, 227 forks (as of early April 2026). Repository launched May 2025, framework paper published July 2025 on arXiv (2507.03616).
+| Benchmark | Task | Improvement |
+|-----------|------|-------------|
+| HotPotQA | Multi-hop QA | +7.44% F1 |
+| MBPP | Code generation | +10.00% pass@1 |
+| MATH | Reasoning | +10.00% solve rate |
+| GAIA | Real-world tasks | up to +20.00% |
 
-**Benchmark results** (self-reported, 100-example test sets, backbone not specified in README):
+These compare optimized vs. unoptimized EvoAgentX workflows, not against other frameworks. **Self-reported** (arXiv:2507.03616). No independent validation, no head-to-head comparisons against AutoGen, CrewAI, or LangGraph. The paper was published in July 2025.
 
-| Method | HotPotQA F1% | MBPP Pass@1% | MATH Solve Rate% |
-|--------|-------------|-------------|-----------------|
-| Original (no evolution) | 63.58 | 69.00 | 66.00 |
-| TextGrad | 71.02 | 71.00 | 76.00 |
-| AFlow | 65.09 | 79.00 | 71.00 |
-| MIPRO | 69.16 | 68.00 | 72.30 |
+Applied to external frameworks on GAIA: EvoAgentX optimized prompts for Open Deep Research and OWL (an external multi-agent system), producing reported score improvements — also self-reported with full optimization runs published in linked forks.
 
-These numbers are self-reported by the EvoAgentX team and have not been independently validated. The README does not specify which backbone model was used, test set sampling methodology, or variance across runs — all standard caveats for interpreting these figures.
-
-The team also applied EvoAgentX prompt optimization to two external frameworks ([GAIA](../projects/gaia.md) benchmark, Open Deep Research and OWL agents). Performance improvements are shown in charts in the repository but lack tabular data in the README.
+---
 
 ## Strengths
 
-**Modular optimizer selection.** TextGrad, MIPRO, AFlow, and EvoPrompt target different optimization surfaces. When prompt-only tuning (TextGrad, MIPRO) plateaus, AFlow can search over workflow structure changes. This staged approach is more principled than single-algorithm systems.
+**Optimizer breadth in one runtime.** Prompt-level (TextGrad, EvoPrompt, MIPRO), topology-level (SEW), and full code-level (AFlow) optimization all share the same benchmark and evaluation infrastructure. Switching optimizers requires changing one class instantiation.
 
-**Broad model compatibility.** The LiteLLM and OpenRouter adapters make it practical to swap backbones without rewriting workflow code, which matters when optimizing because different models respond differently to the same prompts.
+**Pre-built benchmark integration.** Eight benchmarks with domain-appropriate metrics are ready to use. HotPotQA F1, pass@k for code, and exact match for math don't need custom scaffolding.
 
-**Built-in benchmark scaffolding.** HotPotQA, MBPP, and MATH are wired in with evaluation code, lowering the barrier to measuring whether evolution actually improved anything.
+**Tool ecosystem.** 30+ built-in tools cover Python execution (sandboxed and Docker-isolated), six search providers, browser automation (Playwright-based), databases (PostgreSQL, MongoDB, FAISS), image generation, Gmail, Telegram, MCP client integration, and financial data. Tools attach to agents via `tool_names` in config, resolved by `AgentManager`.
 
-**Human-in-the-loop integration.** The HITL module lets teams insert approval gates at specific agent actions without restructuring the whole workflow. For production workflows where some steps touch external systems (email, payments), this is practically necessary.
+**Pydantic-native serialization.** Every workflow, agent, and action graph serializes to JSON via `save_module()` / `from_file()`. Pre-built workflow examples in `Wonderful_workflow_corpus/` (arxiv digest, stock analysis, travel recommendation) load and run directly.
+
+**External framework optimization.** The MIPRO and TextGrad adapters demonstrate the framework can optimize externally-built agent systems (Open Deep Research, OWL) without requiring a full rewrite into EvoAgentX idioms.
+
+---
 
 ## Critical Limitations
 
-**Concrete failure mode — optimization budget opacity.** The evolution algorithms run LLM calls to evaluate and rewrite workflows. Neither the README nor the documentation specifies how many LLM calls AFlow's Monte Carlo Tree Search makes per optimization run, what the stopping conditions are, or how costs scale with workflow complexity. A user running AFlow on a 10-agent workflow against a 50-example validation set could easily spend hundreds of dollars on API calls without a clear signal of when to stop. There is no built-in cost estimator or hard budget cap documented in public sources.
+**`WorkFlowController` is a stub.** `controller.py` defines `WorkFlowController` with `agent_manager`, `workflow`, and `optimizers` fields. Its `start()` method is `pass`. This was the natural integration point for combining live workflow execution with ongoing optimization. It does not exist. The optimization loop must be manually orchestrated.
 
-**Unspoken infrastructure assumption.** The workflow generation step assumes the backbone LLM can reliably decompose an arbitrary natural language goal into sensible agent roles and dependencies. For vague or ambiguous goals, the generated workflow may be structurally valid but semantically wrong, and subsequent evolution will optimize a broken graph rather than flag the upstream problem. The framework has no goal validation or clarification step before workflow generation.
+**`eval()` on LLM-generated code in `parse_workflow_python_repr()`.** The SEW optimizer parses workflow Python representations by calling `eval(code_block.replace("steps = ", "").strip())` on LLM output. In any deployment where the optimizer LLM's output is not fully controlled, this is an arbitrary code execution vector.
 
-## When NOT to Use It
+**Unspoken infrastructure assumption: API budget.** An AFlow optimization run with 20 rounds, 5 validation evaluations per round, and a 5-step workflow produces 500+ executor LLM calls plus 20+ optimizer LLM calls. The framework tracks `avg_cost` and `total_cost` per round in `evaluation_utils.py` but does not expose cost-capping as a constraint. There is no dollar-limit stopping criterion.
 
-**Single-agent tasks.** The overhead of workflow generation, agent instantiation, and evaluation loops is wasted on tasks a single prompted LLM handles well. Use [DSPy](../projects/dspy.md) or direct API calls instead.
+**Sequential execution despite parallel-capable graph.** `WorkFlow.async_execute()` processes one task at a time despite `WorkFlowGraph.next()` returning all ready tasks. Workflows with independent parallel branches execute sequentially.
 
-**Latency-sensitive applications.** Workflow execution adds orchestration overhead on top of LLM latency. Evolution adds much more. This is a batch-optimization tool, not a real-time inference stack.
+---
 
-**Teams without benchmark data.** The evolution algorithms need a labeled dataset (even 50 examples) to score against. Without ground truth, the optimizer has nothing to optimize toward and will produce arbitrary changes. If you don't have evaluation data, build it before adopting EvoAgentX.
+## When Not to Use It
 
-**Production environments requiring deterministic behavior.** Evolved workflows can change prompt text and agent topology in ways that are difficult to audit. If your compliance or governance requirements demand stable, reviewable system prompts, the self-rewriting loop is incompatible with those constraints.
+**Latency-sensitive production deployments.** Optimization runs are offline, expensive, and measured in hundreds of LLM calls. The framework has no online adaptation during inference.
+
+**Workflows requiring parallel agent execution.** The runtime is strictly sequential. If your use case needs concurrent tool calls or simultaneous agent branches, EvoAgentX's executor will serialize them.
+
+**When you need to understand why an optimized prompt works.** The evolution algorithms produce improved prompts without explanation. AFlow changes Python code structure; TextGrad applies textual gradients. Neither produces human-interpretable justifications for changes.
+
+**When the task distribution shifts after optimization.** There is no incremental re-optimization. A shift in task distribution requires re-running the full optimization loop from scratch.
+
+---
 
 ## Unresolved Questions
 
-**Evolution algorithm selection guidance.** The benchmark table shows AFlow wins on MBPP, TextGrad wins on HotPotQA and MATH, but MIPRO underperforms on MBPP. There is no documented guidance on which algorithm to try first for a given task type, or how to interpret a case where algorithms disagree on the best workflow variant.
+**No meta-optimizer.** The five optimizers are independent tools. Nothing selects which to apply, sequences them, or transfers knowledge between runs. Whether combining TextGrad's gradient refinement with AFlow's structural mutation in a single loop is beneficial — and how to do it — is unanswered.
 
-**Cost at scale.** How many LLM tokens does a full AFlow optimization run consume on a realistic 10-agent workflow? This is not documented.
+**Governance of the `NOASSERTION` license.** The repository README states MIT license, but the repository metadata shows `NOASSERTION`. Which governs commercial use is unclear.
 
-**Conflict resolution between evolved variants.** When two evolution algorithms propose different structural changes to the same workflow, how does the system choose? The README does not address this.
+**Cost characteristics at scale.** No published benchmarks for token cost, latency, or cost-per-percentage-improvement exist. The infrastructure for tracking this is present (`evaluation_utils.py`) but results are not published.
 
-**Memory persistence implementation.** The framework advertises long-term memory but the implementation details — what storage backend, what retrieval mechanism, how memory survives workflow rewrites — are not described in publicly available documentation.
+**Population diversity in EvoPrompt.** The optimizer tracks `_generations_without_improvement` but has no diversity metric for the prompt population. Whether the population collapses to near-identical variants before early stopping triggers is undocumented.
 
-**License clarity.** The repository metadata says "NOASSERTION" for the license field despite the README and badge claiming MIT. This inconsistency is unresolved in the repository.
+**HITL and optimization don't interact.** Humans can intercept agent execution at `PRE_EXECUTION` and `POST_EXECUTION` checkpoints, but cannot provide feedback during optimization, set constraints interactively, or inject gradient signals into the optimizer. The two systems are completely separate.
+
+---
 
 ## Alternatives
 
-**[DSPy](../projects/dspy.md)** — Use when you want prompt optimization for a single LLM module or pipeline without multi-agent orchestration. DSPy's optimizer ecosystem (MIPRO is shared with EvoAgentX) is more mature and better documented for cost and iteration count.
+| Framework | When to prefer it |
+|-----------|-------------------|
+| [DSPy](../projects/dspy.md) | Prompt optimization with clean abstractions and active research community; use when you want MIPRO/COPRO without the multi-agent execution overhead |
+| [AFlow](../projects/aflow.md) | Use the original AFlow implementation from MetaGPT when you only need code-level workflow evolution without the broader EvoAgentX runtime |
+| [AutoGen](../projects/autogen.md) | Mature multi-agent conversation framework with parallel execution and better production story; use when you don't need automated self-optimization |
+| [MetaGPT](../projects/metagpt.md) | Structured multi-agent with software engineering focus; use when role-based coordination matters more than automated optimization |
+| [LangGraph](../projects/langgraph.md) | Production-grade graph-based workflow with parallel execution and observability; use when you need branching/conditional logic with actual parallelism |
 
-**[LangGraph](../projects/langgraph.md)** — Use when you need fine-grained control over agent state machines and execution graphs without the self-modification loop. Better choice for production systems where workflow topology must stay stable.
-
-**[CrewAI](../projects/crewai.md)** — Use when you want multi-agent role assignment with simpler setup and no optimization loop. Trades EvoAgentX's self-improvement capability for lower complexity and better documentation.
-
-**[AgentEvolver](../projects/agentevolver.md)** — Use when the optimization target is agent policy through environment interaction rather than prompt/workflow text. AgentEvolver operates on trajectories; EvoAgentX operates on prompts and graphs.
-
-**[Darwin Gödel Machine](../projects/darwin-godel-machine.md)** — Use when the research goal is fully recursive self-modification of agent code, not just prompt text. DGM operates at a deeper level of self-improvement than EvoAgentX's prompt rewriting.
-
-For teams choosing between EvoAgentX and DSPy specifically: EvoAgentX makes sense when the task genuinely requires multiple coordinated agents and you have labeled evaluation data. DSPy makes sense when prompt optimization alone is sufficient and you want more predictable optimization costs.
+---
 
 ## Related Concepts
 
-- [Self-Improving Agent](../concepts/self-improving-agent.md)
-- [Prompt Optimization](../concepts/dspy-optimization.md)
-- [Agent Workflow Memory](../projects/agent-workflow-memory.md)
-- [Automatic Curriculum](../concepts/automatic-curriculum.md)
-- [LLM-as-Judge](../concepts/llm-as-judge.md)
-- [Agentic RAG](../concepts/agentic-rag.md)
-- [GEPA](../concepts/gepa.md)
+- [Self-Improving Agents](../concepts/self-improving-agents.md) — EvoAgentX is a concrete implementation of the self-improvement loop pattern
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — The workflow graph model and blackboard coordination pattern
+- [Prompt Optimization](../concepts/prompt-optimization.md) — Three of the five optimizers operate at the prompt level
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — Used in the long-term memory module and `RealMMRAG` benchmark
+- [Reinforcement Learning](../concepts/reinforcement-learning.md) — AFlow draws on RL-style exploration; EvoPrompt uses evolutionary selection analogous to population-based RL
+- [Agent Workflow Memory](../projects/agent-workflow-memory.md) — Related framework for workflow reuse from execution traces
+- [AgentEvolver](../projects/agentevolver.md) — Complementary self-evolution approach using trajectory-based credit assignment rather than benchmark-driven optimization

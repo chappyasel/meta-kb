@@ -28,10 +28,10 @@ relevance_scores:
   signal_quality: 5
   composite: 6.8
   reason: >-
-    Directly addresses agentic skill evaluation and self-improving loops
-    (eval-driven iteration, LLM-as-judge, preventing capability drift) with
-    actionable patterns, though as a tweet summary it lacks deep implementation
-    detail.
+    Directly addresses agent skill evaluation patterns (eval-driven iteration,
+    LLM-as-judge, deterministic checks) which are core to self-improving agent
+    systems and SKILL.md-style capability management, with practical actionable
+    guidance though limited depth in tweet format.
 ---
 ## Tweet by @_philschmid
 

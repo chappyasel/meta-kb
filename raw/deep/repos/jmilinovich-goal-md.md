@@ -3,9 +3,18 @@ url: 'https://github.com/jmilinovich/goal-md'
 type: repo
 author: jmilinovich
 date: '2026-04-04'
-tags: [self-improving, knowledge-bases, context-engineering]
+tags:
+  - self-improving
+  - knowledge-bases
+  - context-engineering
 key_insight: >-
-  Introduces constructed fitness functions as the key generalization of autoresearch -- when your domain has no natural scalar metric (documentation quality, test infrastructure trustworthiness, code health), you must build the ruler before you can measure, leading to a dual-score pattern where the agent simultaneously improves the measurement instrument and the thing being measured, with three operating modes (converge/continuous/supervised) and an action catalog for prioritized optimization.
+  Introduces constructed fitness functions as the key generalization of
+  autoresearch -- when your domain has no natural scalar metric (documentation
+  quality, test infrastructure trustworthiness, code health), you must build the
+  ruler before you can measure, leading to a dual-score pattern where the agent
+  simultaneously improves the measurement instrument and the thing being
+  measured, with three operating modes (converge/continuous/supervised) and an
+  action catalog for prioritized optimization.
 stars: 112
 deep_research:
   method: source-code-analysis
@@ -22,6 +31,18 @@ deep_research:
     - STYLE.md
   analyzed_at: '2026-04-04'
   original_source: repos/jmilinovich-goal-md.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 8
+  composite: 8.4
+  reason: >-
+    goal-md directly addresses the self-improving systems pillar with a concrete
+    file-format pattern for autonomous agent optimization, introducing the
+    'constructed fitness function' insight as a genuine generalization of
+    autoresearch to domains without natural scalar metrics, with a dogfooded
+    repo, template, examples, and CLAUDE.md bootstrapping instructions.
 ---
 
 ## Architecture Overview

@@ -18,7 +18,7 @@ key_insight: >-
   costs compound across multi-turn agent interactions.
 stars: 13011
 forks: 1551
-deep_researched: 'deep/repos/memorilabs-memori.md'
+deep_researched: deep/repos/memorilabs-memori.md
 relevance_scores:
   topic_relevance: 9
   practitioner_value: 8
@@ -27,9 +27,10 @@ relevance_scores:
   composite: 8.1
   reason: >-
     Memori is a production-ready, SQL-native agent memory infrastructure with
-    structured extraction from agent actions, directly addressing persistent
-    agent memory (Topic 2) with a differentiated architecture and strong
-    adoption signals (13k stars).
+    structured extraction from agent actions (not just text), LLM/framework
+    agnostic design, and strong adoption signals (13k stars), making it directly
+    relevant to agent memory and context engineering topics with clear
+    practitioner applicability.
 language: Python
 license: NOASSERTION
 ---

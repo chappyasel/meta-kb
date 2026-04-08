@@ -18,19 +18,19 @@ key_insight: >-
   waste that plagues agent builders—enabling genuinely observable,
   self-improving agent memory that scales beyond simple RAG truncation.
 stars: 20813
-deep_researched: 'deep/repos/volcengine-openviking.md'
+deep_researched: deep/repos/volcengine-openviking.md
 forks: 1465
 relevance_scores:
   topic_relevance: 9
   practitioner_value: 8
-  novelty: 8
+  novelty: 7
   signal_quality: 8
-  composite: 8.4
+  composite: 8.3
   reason: >-
-    OpenViking is a production-ready context database with 20k+ stars that
-    directly addresses agent memory, context engineering, and skill management
-    through a file system paradigm with hierarchical L0/L1/L2 loading and
-    session compression—core to topics 1-4 and partially 5.
+    OpenViking is a production-ready context database that directly addresses
+    agent memory, context engineering, and skill management with a novel
+    hierarchical L0/L1/L2 filesystem paradigm and session compression—core to
+    the KB's primary topic pillars.
 language: Python
 license: AGPL-3.0
 ---

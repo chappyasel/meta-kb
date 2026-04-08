@@ -29,14 +29,13 @@ relevance_scores:
   topic_relevance: 10
   practitioner_value: 9
   novelty: 8
-  signal_quality: 8
-  composite: 9.1
+  signal_quality: 7
+  composite: 9
   reason: >-
-    This is the canonical Karpathy pattern tweet describing LLM-compiled
-    markdown wikis with self-improving loops (linting, health checks, filing
-    outputs back into the KB), covering all five topic areas directly including
-    data ingest, Obsidian IDE, Q&A without RAG, output rendering, and iterative
-    wiki enhancement.
+    This is literally the Karpathy pattern — the canonical reference for
+    LLM-compiled markdown wikis as living knowledge bases, covering ingest, IDE,
+    Q&A, output filing, and linting/health-checks, which are core pillars of
+    topics 1, 3, and 6 in this KB.
 ---
 ## Tweet by @himanshustwts
 

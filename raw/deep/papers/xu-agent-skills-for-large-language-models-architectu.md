@@ -25,6 +25,17 @@ deep_research:
   text_length: 14000
   analyzed_at: '2026-04-04'
   original_source: papers/xu-agent-skills-for-large-language-models-architectu.md
+relevance_scores:
+  topic_relevance: 10
+  practitioner_value: 9
+  novelty: 8
+  signal_quality: 9
+  composite: 9.3
+  reason: >-
+    Directly covers SKILL.md architecture, progressive context loading, and
+    security governance for agent skill ecosystems — core topics for context
+    engineering and agent architecture pillars with immediately actionable
+    patterns.
 ---
 
 ## Architecture Overview

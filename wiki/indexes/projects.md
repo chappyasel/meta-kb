@@ -2,83 +2,91 @@
 
 | Project | Bucket | Sources |
 |---|---|---|
-| [Claude](../projects/claude.md) | agent-systems | 24 |
+| [Anthropic](../projects/anthropic.md) | agent-architecture | 18 |
 | [AutoResearch](../projects/autoresearch.md) | self-improving | 19 |
-| [Obsidian](../projects/obsidian.md) | knowledge-bases | 9 |
-| [SWE-bench](../projects/swe-bench.md) | agent-systems | 7 |
-| [TAU-bench](../projects/tau-bench.md) | agent-systems | 6 |
-| [OpenAI](../projects/openai.md) | agent-systems | 21 |
-| [Mem0](../projects/mem0.md) | agent-memory | 9 |
-| [LangGraph](../projects/langgraph.md) | agent-systems | 8 |
-| [LoCoMo](../projects/locomo.md) | agent-memory | 8 |
-| [CrewAI](../projects/crewai.md) | agent-systems | 4 |
-| [Letta](../projects/letta.md) | agent-memory | 10 |
-| [Graphiti](../projects/graphiti.md) | knowledge-bases | 6 |
-| [Zep](../projects/zep.md) | agent-memory | 6 |
-| [LongMemEval](../projects/longmemeval.md) | agent-memory | 5 |
-| [Claude Code](../projects/claude-code.md) | agent-systems | 36 |
-| [OpenCode](../projects/opencode.md) | agent-systems | 11 |
-| [OpenAI Codex](../projects/codex.md) | agent-systems | 17 |
-| [Neo4j](../projects/neo4j.md) | knowledge-bases | 5 |
-| [nanoGPT](../projects/nanogpt.md) | agent-systems | 3 |
-| [Cognee](../projects/cognee.md) | knowledge-bases | 2 |
-| [OpenClaw](../projects/openclaw.md) | agent-systems | 21 |
-| [Darwin Gödel Machine](../projects/darwin-godel-machine.md) | self-improving | 3 |
-| [Cursor](../projects/cursor.md) | agent-systems | 19 |
-| [Anthropic](../projects/anthropic.md) | agent-systems | 18 |
-| [Windsurf](../projects/windsurf.md) | agent-systems | 9 |
-| [GPT-4](../projects/gpt-4.md) | agent-systems | 14 |
-| [LiteLLM](../projects/litellm.md) | agent-systems | 5 |
-| [ACE Framework](../projects/ace.md) | agent-systems | 4 |
-| [WebArena](../projects/webarena.md) | agent-systems | 4 |
+| [Claude](../projects/claude.md) | agent-architecture | 22 |
+| [SWE-bench](../projects/swe-bench.md) | agent-architecture | 8 |
+| [Tau-bench](../projects/tau-bench.md) | agent-architecture | 3 |
+| [OpenAI Agents SDK](../projects/openai-agents-sdk.md) | agent-architecture | 5 |
+| [Memento](../projects/memento.md) | agent-memory | 5 |
+| [TerminalBench](../projects/termination-bench.md) | agent-architecture | 5 |
+| [OpenAI](../projects/openai.md) | agent-architecture | 20 |
+| [Obsidian](../projects/obsidian.md) | knowledge-substrate | 7 |
+| [LoCoMo](../projects/locomo.md) | agent-memory | 7 |
+| [Mem0](../projects/mem0.md) | agent-memory | 6 |
+| [CrewAI](../projects/crewai.md) | multi-agent-systems | 4 |
+| [LangGraph](../projects/langgraph.md) | agent-architecture | 6 |
+| [MARP](../projects/marp.md) | knowledge-substrate | 3 |
+| [Claude Code](../projects/claude-code.md) | agent-architecture | 42 |
+| [OpenCode](../projects/opencode.md) | agent-architecture | 11 |
+| [OpenAI Codex](../projects/codex.md) | agent-architecture | 18 |
+| [vLLM](../projects/vllm.md) | agent-architecture | 7 |
+| [Ollama](../projects/ollama.md) | agent-architecture | 7 |
+| [Pi](../projects/pi.md) | agent-architecture | 4 |
+| [AppWorld](../projects/appworld.md) | agent-architecture | 5 |
+| [OSWorld](../projects/osworld.md) | agent-architecture | 2 |
 | [SEAgent](../projects/seagent.md) | self-improving | 3 |
-| [LangSmith](../projects/langsmith.md) | agent-systems | 2 |
-| [PostgreSQL](../projects/postgresql.md) | knowledge-bases | 7 |
-| [AppWorld](../projects/appworld.md) | agent-systems | 4 |
-| [Qdrant](../projects/qdrant.md) | knowledge-bases | 4 |
-| [HippoRAG](../projects/hipporag.md) | knowledge-bases | 3 |
-| [RAPTOR](../projects/raptor.md) | knowledge-bases | 3 |
-| [A-MEM](../projects/a-mem.md) | agent-memory | 2 |
-| [LightRAG](../projects/lightrag.md) | knowledge-bases | 2 |
-| [GitHub Copilot](../projects/github-copilot.md) | agent-systems | 9 |
-| [OpenRouter](../projects/openrouter.md) | agent-systems | 3 |
-| [vLLM](../projects/vllm.md) | agent-systems | 6 |
-| [Ollama](../projects/ollama.md) | agent-systems | 5 |
-| [Gemini](../projects/gemini.md) | agent-systems | 13 |
-| [LangChain](../projects/langchain.md) | agent-systems | 9 |
-| [LlamaIndex](../projects/llamaindex.md) | knowledge-bases | 3 |
-| [HyperAgents](../projects/hyperagents.md) | agent-systems | 3 |
-| [MemEvolve](../projects/memevolve.md) | self-improving | 3 |
-| [Supermemory](../projects/supermemory.md) | agent-memory | 3 |
-| [FAISS](../projects/faiss.md) | knowledge-bases | 3 |
-| [SkillWeaver](../projects/skillweaver.md) | self-improving | 2 |
-| [GAIA](../projects/gaia.md) | agent-systems | 3 |
-| [MemoryBank](../projects/memorybank.md) | agent-memory | 6 |
-| [Elasticsearch](../projects/elasticsearch.md) | knowledge-bases | 4 |
-| [Antigravity](../projects/antigravity.md) | agent-systems | 5 |
-| [MemVid](../projects/memvid.md) | agent-memory | 2 |
-| [DSPy](../projects/dspy.md) | context-engineering | 4 |
-| [SGLang](../projects/sglang.md) | agent-systems | 2 |
-| [HotpotQA](../projects/hotpotqa.md) | knowledge-bases | 4 |
-| [ChromaDB](../projects/chromadb.md) | knowledge-bases | 4 |
-| [Pinecone](../projects/pinecone.md) | knowledge-bases | 3 |
-| [LanceDB](../projects/lancedb.md) | knowledge-bases | 2 |
-| [SQLite](../projects/sqlite.md) | knowledge-bases | 7 |
-| [AgentEvolver](../projects/agentevolver.md) | self-improving | 3 |
-| [Agent Workflow Memory](../projects/agent-workflow-memory.md) | agent-memory | 3 |
-| [DeepSeek](../projects/deepseek.md) | agent-systems | 5 |
-| [Tree-sitter](../projects/tree-sitter.md) | agent-systems | 3 |
-| [EvoAgentX](../projects/evoagentx.md) | self-improving | 3 |
-| [Voyager](../projects/voyager.md) | self-improving | 3 |
-| [SuperAGI](../projects/superagi.md) | agent-systems | 3 |
-| [Agent Zero](../projects/agent-zero.md) | agent-systems | 3 |
+| [Graphiti](../projects/graphiti.md) | knowledge-substrate | 6 |
+| [Zep](../projects/zep.md) | agent-memory | 6 |
+| [Letta](../projects/letta.md) | agent-memory | 10 |
+| [LongMemEval](../projects/longmemeval.md) | agent-memory | 4 |
+| [MemGPT](../projects/memgpt.md) | agent-memory | 4 |
 | [ADAS](../projects/adas.md) | self-improving | 2 |
-| [Aider](../projects/aider.md) | agent-systems | 2 |
-| [AutoGPT](../projects/autogpt.md) | agent-systems | 2 |
-| [Pydantic](../projects/pydantic.md) | agent-systems | 5 |
-| [Redis](../projects/redis.md) | knowledge-bases | 4 |
-| [AutoGen](../projects/autogen.md) | agent-systems | 2 |
-| [Weaviate](../projects/weaviate.md) | knowledge-bases | 2 |
-| [Milvus](../projects/milvus.md) | knowledge-bases | 2 |
-| [RAGFlow](../projects/ragflow.md) | knowledge-bases | 2 |
-| [Docling](../projects/docling.md) | knowledge-bases | 3 |
+| [HumanEval](../projects/humaneval.md) | agent-architecture | 4 |
+| [ACE](../projects/ace.md) | agent-architecture | 5 |
+| [OpenClaw](../projects/openclaw.md) | context-engineering | 23 |
+| [Cursor](../projects/cursor.md) | agent-architecture | 20 |
+| [GraphRAG](../projects/graphrag.md) | knowledge-substrate | 9 |
+| [Gemini](../projects/gemini.md) | agent-architecture | 8 |
+| [Tree-sitter](../projects/tree-sitter.md) | agent-architecture | 4 |
+| [MetaGPT](../projects/metagpt.md) | multi-agent-systems | 4 |
+| [Neo4j](../projects/neo4j.md) | knowledge-substrate | 4 |
+| [Antigravity](../projects/antigravity.md) | agent-architecture | 4 |
+| [MGX](../projects/metagpt-agent.md) | multi-agent-systems | 2 |
+| [AgentEvolver](../projects/agentevolver.md) | self-improving | 4 |
+| [ChromaDB](../projects/chromadb.md) | knowledge-substrate | 6 |
+| [ReMe](../projects/reme.md) | agent-memory | 2 |
+| [Windsurf](../projects/windsurf.md) | agent-architecture | 10 |
+| [HotpotQA](../projects/hotpotqa.md) | knowledge-substrate | 5 |
+| [EvoAgentX](../projects/evoagentx.md) | self-improving | 4 |
+| [MemEvolve](../projects/memevolve.md) | self-improving | 3 |
+| [Agent Workflow Memory](../projects/agent-workflow-memory.md) | agent-memory | 3 |
+| [AFlow](../projects/aflow.md) | self-improving | 3 |
+| [Voyager](../projects/voyager.md) | self-improving | 3 |
+| [TextGrad](../projects/textgrad.md) | self-improving | 2 |
+| [SkillWeaver](../projects/skillweaver.md) | agent-architecture | 2 |
+| [ElizaOS](../projects/elizaos.md) | agent-architecture | 2 |
+| [GAIA](../projects/gaia.md) | agent-architecture | 3 |
+| [Cerebra Fusion Memory](../projects/cerebra-fusion-memory.md) | agent-memory | 2 |
+| [GPT-4](../projects/gpt-4.md) | agent-architecture | 12 |
+| [A-MEM](../projects/a-mem.md) | agent-memory | 2 |
+| [LangChain](../projects/langchain.md) | agent-architecture | 11 |
+| [Darwin Gödel Machine](../projects/darwin-godel-machine.md) | self-improving | 3 |
+| [Aider](../projects/aider.md) | agent-architecture | 2 |
+| [Cognee](../projects/cognee.md) | knowledge-substrate | 2 |
+| [Pinecone](../projects/pinatone.md) | knowledge-substrate | 3 |
+| [Gemini CLI](../projects/gemini-cli.md) | agent-architecture | 6 |
+| [GitHub Copilot](../projects/github-copilot.md) | agent-architecture | 4 |
+| [LiteLLM](../projects/litellm.md) | agent-architecture | 4 |
+| [DSPy](../projects/dspy.md) | self-improving | 4 |
+| [AutoGen](../projects/autogen.md) | multi-agent-systems | 3 |
+| [HippoRAG](../projects/hipporag.md) | knowledge-substrate | 3 |
+| [RAPTOR](../projects/raptor.md) | knowledge-substrate | 3 |
+| [OpenMemory](../projects/openmemory.md) | agent-memory | 3 |
+| [LightRAG](../projects/lightrag.md) | knowledge-substrate | 2 |
+| [MemoryBank](../projects/memorybank.md) | agent-memory | 2 |
+| [DeepSeek](../projects/deepseek.md) | agent-architecture | 2 |
+| [Letta API](../projects/letta-api.md) | agent-memory | 3 |
+| [Docling](../projects/docling.md) | knowledge-substrate | 3 |
+| [AutoGPT](../projects/autogpt.md) | agent-architecture | 2 |
+| [HyperAgents](../projects/hyperagents.md) | multi-agent-systems | 3 |
+| [SuperMemory](../projects/supermemory.md) | agent-memory | 3 |
+| [LlamaIndex](../projects/llamaindex.md) | knowledge-substrate | 3 |
+| [WebArena](../projects/webarena.md) | agent-architecture | 2 |
+| [Mind2Web](../projects/mind2web.md) | agent-architecture | 2 |
+| [MemVid](../projects/memvid.md) | agent-memory | 2 |
+| [Agent Zero](../projects/agent-zero.md) | agent-architecture | 3 |
+| [SuperAGI](../projects/superagi.md) | agent-architecture | 3 |
+| [RAGFlow](../projects/ragflow.md) | knowledge-substrate | 2 |
+| [MinerU](../projects/mineru.md) | knowledge-substrate | 2 |
+| [Elasticsearch](../projects/elastic-search.md) | knowledge-substrate | 2 |

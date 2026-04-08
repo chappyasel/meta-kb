@@ -19,17 +19,18 @@ key_insight: >-
   guardrails—shifting from passive retrieval to active scaffolding of multi-hour
   experimental sessions.
 relevance_scores:
-  topic_relevance: 6
+  topic_relevance: 7
   practitioner_value: 7
   novelty: 6
   signal_quality: 7
-  composite: 6.5
-  deep_researched: 'deep/papers/zimmer-the-agentic-researcher-a-practical-guide-to-ai-as.md'
+  composite: 6.9
   reason: >-
-    Directly relevant to context engineering and agentic skill composition
-    (prompt rules as executable workflows, autonomy guardrails, skill
-    scaffolding), with open-source code and practical taxonomy, though focused
-    on research assistance rather than core KB/memory system building.
+    This paper presents a transferable framework for autonomous multi-hour agent
+    sessions with methodological prompt rules, verification procedures, and
+    autonomy guardrails—directly applicable to agent architecture, context
+    engineering (AGENTS.md-style rules), and self-improving research loops,
+    though the domain focus is ML/math research rather than KB infrastructure
+    specifically.
 ---
 ## The Agentic Researcher: A Practical Guide to AI-Assisted Research in Mathematics and Machine Learning
 

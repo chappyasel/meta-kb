@@ -31,6 +31,18 @@ deep_research:
     - README.md
   analyzed_at: '2026-04-04'
   original_source: repos/davebcn87-pi-autoresearch.md
+relevance_scores:
+  topic_relevance: 10
+  practitioner_value: 9
+  novelty: 9
+  signal_quality: 9
+  composite: 9.4
+  reason: >-
+    Pi-autoresearch is a production-tested, open-sourced implementation of
+    Karpathy's autonomous experiment loop with MAD-based confidence scoring,
+    append-only persistence, skill/infrastructure separation, and context-window
+    exhaustion detection—directly exemplifying the self-improving systems pillar
+    with transferable patterns for any measurable optimization target.
 ---
 
 ## Architecture Overview

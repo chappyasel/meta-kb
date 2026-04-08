@@ -27,13 +27,13 @@ relevance_scores:
   topic_relevance: 8
   practitioner_value: 8
   novelty: 7
-  signal_quality: 7
-  composite: 7.7
+  signal_quality: 8
+  composite: 7.9
   reason: >-
-    Directly implements three-layer agent memory, runtime tool creation
-    (self-evolving skills), and self-repair loops in pure Python—all core
-    patterns for agent memory and self-improving systems with 3500 lines of
-    production code to learn from.
+    Directly demonstrates three-layer memory architecture, runtime tool creation
+    for self-improvement, and 24/7 production agent patterns—all highly
+    transferable to KB and agent infrastructure contexts, with a real working
+    implementation in ~3500 lines of pure Python.
 language: Python
 license: MIT
 ---

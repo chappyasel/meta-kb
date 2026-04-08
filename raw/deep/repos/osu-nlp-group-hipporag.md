@@ -3,13 +3,16 @@ url: 'https://github.com/osu-nlp-group/hipporag'
 type: repo
 author: osu-nlp-group
 date: '2026-04-04'
-tags: [knowledge-bases, agent-memory, context-engineering]
+tags:
+  - knowledge-bases
+  - agent-memory
+  - context-engineering
 key_insight: >-
   HippoRAG implements a biologically-inspired retrieval system that mirrors the
-  hippocampal memory indexing theory, using OpenIE-extracted knowledge graphs with
-  entity synonymy edges, Personalized PageRank for multi-hop traversal, and a
-  DSPy-optimized recognition memory filter -- achieving significantly better multi-hop
-  QA performance than standard dense passage retrieval.
+  hippocampal memory indexing theory, using OpenIE-extracted knowledge graphs
+  with entity synonymy edges, Personalized PageRank for multi-hop traversal, and
+  a DSPy-optimized recognition memory filter -- achieving significantly better
+  multi-hop QA performance than standard dense passage retrieval.
 stars: 3300
 deep_research:
   method: source-code-analysis
@@ -25,6 +28,17 @@ deep_research:
     - src/hipporag/evaluation/retrieval_eval.py
   analyzed_at: '2026-04-04'
   original_source: repos/osu-nlp-group-hipporag.md
+relevance_scores:
+  topic_relevance: 8
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 9
+  composite: 8.2
+  reason: >-
+    HippoRAG is a directly relevant RAG alternative using knowledge graphs,
+    Personalized PageRank multi-hop traversal, and DSPy-optimized retrieval—core
+    to knowledge substrate and context engineering topics with detailed
+    architecture documentation and production-ready implementation.
 ---
 
 ## Architecture Overview

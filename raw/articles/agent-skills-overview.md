@@ -21,14 +21,14 @@ key_insight: >-
 relevance_scores:
   topic_relevance: 9
   practitioner_value: 8
-  novelty: 8
-  signal_quality: 6
+  novelty: 7
+  signal_quality: 7
   composite: 8.1
   reason: >-
-    Agent Skills (SKILL.md) is a directly relevant open standard from Anthropic
-    for packaging procedural knowledge as portable, version-controlled units
-    that agents can discover and load—core to agentic skill composition and
-    context engineering topics, with real adoption and an open spec.
+    Agent Skills / SKILL.md is a core topic in the knowledge base (explicitly
+    listed under Agent Architecture), covering portable version-controlled skill
+    packages as composable units for agents—directly relevant and actionable for
+    practitioners building agent systems.
 ---
 ## Overview
 

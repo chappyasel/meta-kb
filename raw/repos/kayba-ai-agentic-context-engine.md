@@ -18,7 +18,7 @@ key_insight: >-
   inference, it turns ad-hoc corrections into reusable patterns that compound
   across sessions.
 stars: 2112
-deep_researched: 'deep/repos/kayba-ai-agentic-context-engine.md'
+deep_researched: deep/repos/kayba-ai-agentic-context-engine.md
 forks: 264
 relevance_scores:
   topic_relevance: 9
@@ -27,10 +27,11 @@ relevance_scores:
   signal_quality: 8
   composite: 8.7
   reason: >-
-    ACE directly implements agent memory via a queryable 'Skillbook' that stores
-    learned strategies across sessions, combining self-improving feedback loops
-    with agentic skill composition—core to topics 1, 2, 4, and 5—and has a
-    production-ready hosted solution with 2k+ stars.
+    ACE is a directly on-topic self-improving agent system with a queryable
+    'Skillbook' for cross-session strategy retention, persistent feedback loops,
+    and context engineering—a production-ready Python library with 2k+ stars
+    covering agent memory, self-improvement, and context engineering
+    simultaneously.
 language: Python
 license: MIT
 ---

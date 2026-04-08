@@ -3,160 +3,213 @@ entity_id: context-management
 type: concept
 bucket: context-engineering
 abstract: >-
-  Context management controls what information occupies an LLM's context window
-  across multi-turn interactions, balancing relevance against token cost through
-  retrieval, compression, summarization, and hierarchical memory structures.
+  Context management governs what information occupies an agent's context window
+  at each step, trading off completeness against token cost, retrieval latency,
+  and model attention quality.
 sources:
+  - tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md
+  - tweets/omarsar0-universal-claude-md-claims-to-cut-claude-output-t.md
+  - tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md
+  - repos/aiming-lab-simplemem.md
+  - repos/helloruru-claude-memory-engine.md
+  - repos/transformeroptimus-superagi.md
+  - repos/martian-engineering-lossless-claw.md
   - repos/kevin-hs-sohn-hipocampus.md
-  - repos/memento-teams-memento-skills.md
+  - repos/thedotmack-claude-mem.md
+  - repos/laurian-context-compression-experiments-2508.md
   - papers/mei-a-survey-of-context-engineering-for-large-language.md
   - papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
+  - papers/zhang-agentic-context-engineering-evolving-contexts-for.md
+  - articles/calmops-ai-agent-skills-complete-guide-2026-building-reus.md
   - articles/dev-community-why-most-rag-systems-fail-in-production-and-how-t.md
-  - deep/repos/kevin-hs-sohn-hipocampus.md
-  - deep/repos/memento-teams-memento-skills.md
+  - >-
+    articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md
+  - articles/martinfowler-com-context-engineering-for-coding-agents.md
+  - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
+  - deep/repos/martian-engineering-lossless-claw.md
+  - deep/repos/letta-ai-letta.md
+  - deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md
 related:
-  - rag
-  - bm25
-  - vector-database
+  - retrieval-augmented-generation
   - claude-code
+  - agent-memory
+  - long-term-memory
+  - vector-database
   - openclaw
-  - opencode
-last_compiled: '2026-04-07T11:58:35.169Z'
+  - anthropic
+  - context-engineering
+  - claude-md
+  - ace
+  - context-compression
+  - short-term-memory
+  - episodic-memory
+  - claude
+  - model-context-protocol
+  - knowledge-graph
+  - react
+  - ace
+  - context-compression
+  - short-term-memory
+last_compiled: '2026-04-08T02:47:34.141Z'
 ---
 # Context Management
 
-## What It Is
+Context management is the set of decisions, mechanisms, and systems that determine what information an LLM agent can see at any given moment. Every agent operates within a fixed context window. Context management is the discipline of filling that window with the right content.
 
-Context management is the set of decisions, algorithms, and data structures that govern what information an LLM sees at any given moment. Every token in a context window competes for attention and costs money. Context management is the discipline of winning that competition deliberately rather than by default.
-
-The problem has two faces. The first is capacity: most models top out at 128K–200K tokens, and a long-running agent accumulates far more state than that. The second is relevance: stuffing a context window with everything available degrades output quality as the model's attention dilutes across noise. Context management solves both.
-
-It sits within the broader discipline of [Context Engineering](../concepts/context-engineering.md), which covers the full pipeline from retrieval through generation. Context management specifically handles the *window management* layer: what gets loaded, what gets compressed, what gets evicted, and when.
+The problem is harder than it appears. Raw insertion (dump everything into context) fails at scale: token costs grow linearly, model attention degrades on long sequences, and irrelevant content crowds out relevant content. Pure retrieval (search for what you need) fails on unknown unknowns: you cannot query for information you don't know you need. Good context management navigates between these failure modes.
 
 ## Why It Matters
 
-A coding agent running for three hours across a large codebase will encounter a hard wall: the context window fills, the session crashes or degrades, and the agent loses coherent state. Without deliberate management, the options are unacceptable: truncate early (losing critical decisions), dump everything (paying for 500K tokens per call), or rely on the model's retrieval from long context (which degrades for information buried 100K tokens back).
+The context window is the agent's working memory. Everything the agent knows for a given response must pass through it. This creates a hard constraint with cascading effects:
 
-The same problem appears in chatbots with conversation history, research agents tracking multi-document sources, and any system where state accumulates faster than context capacity grows.
+- **Cost**: Every token in context costs money at inference time.
+- **Quality**: Models attend unevenly across long contexts. The [Lost in the Middle](../concepts/lost-in-the-middle.md) phenomenon documents that models reliably underweight information positioned in the middle of long sequences, favoring content near the beginning and end.
+- **Latency**: Larger contexts increase time-to-first-token.
+- **Scope**: Agents with poor context management forget decisions, repeat work, and contradict themselves across sessions.
 
-## The Four Core Mechanisms
+[Context Engineering](../concepts/context-engineering.md) treats context management as a first-class engineering discipline rather than a configuration afterthought.
 
-### 1. Selective Loading
+## The Fundamental Tradeoffs
 
-Load only what the current task requires. This requires knowing what exists before loading it, which is the [Progressive Disclosure](../concepts/progressive-disclosure.md) problem: you need a lightweight index to decide what heavyweight content to fetch.
+Three tensions structure every context management decision:
 
-[Claude Code](../projects/claude-code.md)'s [CLAUDE.md](../concepts/claude-md.md) file is a canonical example. It sits at 1–5K tokens and tells the agent about project structure, conventions, and important decisions, without loading every source file. The agent reads it first, then fetches specific files as needed.
+**Completeness vs. cost.** Including more information reduces the chance of missing something relevant. It also increases token spend quadratically for attention and linearly for billing. Most systems need an explicit policy on what to exclude.
 
-[Hipocampus](https://github.com/kevin-hs-sohn/hipocampus) formalizes this into a three-tier cache hierarchy. Layer 1 (always loaded, ~3K tokens) contains `ROOT.md`, a keyword-dense topic index covering everything the agent has discussed across months. Layer 2 (on-demand) contains raw daily logs and curated knowledge files. Layer 3 (cold, via search or tree traversal) contains the full compaction history. The agent always knows what it knows, but only pays for what it needs.
+**Recall vs. unknown unknowns.** Search-based retrieval ([Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)) works well when agents know what to retrieve. It fails for implicit connections — decisions made three weeks ago that bear on today's task but share no keywords with today's query. The hipocampus MemAware benchmark quantifies this: BM25 search scores 2.8% on implicit context retrieval, barely above the 0.8% baseline of no memory at all.
 
-### 2. Compression and Summarization
+**Freshness vs. depth.** Recent context is often most relevant, but important context may be old. Systems that protect only recent messages risk losing critical earlier decisions. Systems that weight older content equally pay token costs for potentially stale information.
 
-When content exceeds what can be loaded verbatim, summarize it. The tradeoff is fidelity against cost.
+## Core Mechanisms
 
-Two compression strategies exist:
+### Static Inclusion
 
-**Lossless below threshold**: For small content, copy verbatim. Hipocampus uses this below ~200 lines for raw-to-daily compaction: concatenate the source files exactly, zero LLM cost, zero information loss.
+The simplest strategy: put fixed content in the system prompt and context every time. [CLAUDE.md](../concepts/claude-md.md) files exemplify this — project instructions, conventions, and persistent facts get loaded at session start regardless of the current task. [Progressive Disclosure](../concepts/progressive-disclosure.md) extends this by organizing static content hierarchically, loading more detail only when the task requires it.
 
-**Lossy above threshold**: For large content, use an LLM to generate keyword-dense summaries. The Memento-Skills framework (`compaction.py`) compresses message history by serializing all messages into structured text, asking an LLM to summarize, and replacing the full history with the summary prefixed `[compressed from {role}]`. This trades completeness for context headroom.
+Static inclusion works well for stable, high-value information (project conventions, user preferences, tool schemas). It fails when the information set is too large to fit, or when most of the included content is irrelevant to any given query.
 
-The [Context Compression](../concepts/context-compression.md) literature includes more targeted techniques: token pruning (remove low-attention tokens), span extraction (keep only high-information spans), and hierarchical summarization (compress old content more aggressively than recent content).
+### Retrieval-Based Augmentation
 
-### 3. Hierarchical Memory Structures
+[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) dynamically pulls relevant content at query time. The agent formulates a search query (implicitly or explicitly), a retrieval system finds matching passages, and those passages get injected into context. [Vector Database](../concepts/vector-database.md) systems handle semantic similarity; [BM25](../concepts/bm25.md) handles keyword matching; [Hybrid Search](../concepts/hybrid-search.md) combines both.
 
-Organize information by recency and expected access frequency, matching storage cost to retrieval probability.
+RAG's core limitation is query dependency. The retrieval system can only surface what the agent asks for. Hipocampus's benchmark demonstrates this structurally: on hard cross-domain questions (zero keyword overlap between query and relevant memory), hybrid search scores 0.7% — below the performance of no memory system at all, because search overhead costs tokens without returning relevant results.
 
-The CPU cache analogy is accurate: L1 (hot, always present), L2 (warm, loaded on demand), L3 (cold, searched on explicit query). Hipocampus implements exactly this three-tier structure. The Memento-Skills framework uses a similar pattern with scratchpad (active session state), skill files (task-specific context), and archived conversation summaries.
+### Hierarchical Summarization
 
-Temporal decay is a common organizing principle. Recent information is more likely to be relevant and deserves more detailed representation. Older information compresses more aggressively. Hipocampus's compaction chain formalizes this: raw logs compress to daily nodes, daily to weekly, weekly to monthly, monthly to ROOT.md. Each level loses detail but remains discoverable.
+Instead of choosing between full content and search, hierarchical systems maintain the full information at multiple levels of abstraction simultaneously. Lossless-claw ([OpenClaw](../projects/openclaw.md) plugin) constructs a DAG where leaf nodes summarize raw messages, higher nodes summarize leaf nodes, and agents can traverse from abstract to concrete when they need detail. The assembler fills the context window with summary nodes at the appropriate abstraction level plus a protected "fresh tail" of recent raw messages.
 
-[Episodic Memory](../concepts/episodic-memory.md) and [Semantic Memory](../concepts/semantic-memory.md) represent the cognitive science framing of this pattern: episodic memory stores specific events with temporal context, semantic memory stores generalized knowledge extracted from episodes.
+This approach addresses both the completeness problem (everything is accessible via tree traversal) and the cost problem (high-level summaries consume far fewer tokens than raw content). The [Context Compression](../concepts/context-compression.md) that creates summaries is inherently lossy, but the access path back to original content is preserved.
 
-### 4. Retrieval-on-Demand
+The OOLONG benchmark compares lossless-claw's approach against sliding-window compaction: at 256K context length, the DAG approach outperforms sliding-window by +10 points; at 512K context length, the gap widens to +12.6 points. These numbers are self-reported by Martian Engineering.
 
-Instead of pre-loading context, retrieve it when needed. [Retrieval-Augmented Generation](../concepts/rag.md) is the dominant implementation: embed queries, search a vector store, inject top-k results.
+### Topic Indexing
 
-[BM25](../concepts/bm25.md) handles keyword-dense retrieval. [Vector databases](../concepts/vector-database.md) handle semantic similarity. [Hybrid search](../concepts/hybrid-search.md) combines both, typically via [Reciprocal Rank Fusion](../concepts/reciprocal-rank-fusion.md). [Agentic RAG](../concepts/agentic-rag.md) extends this to multi-step retrieval where the agent decides what to search and when.
+A lightweight alternative to full hierarchical summarization: maintain a compact index of what information exists, without storing the information itself in context. Hipocampus's ROOT.md is a 3K-token topic index that lists every subject the agent has ever encountered with metadata (type, age, pointer to detail). Every session loads ROOT.md, giving the agent O(1) awareness of its full knowledge surface without paying to load the knowledge itself.
 
-The fundamental limitation of retrieval-only approaches is that they require knowing what to search for. Implicit context, which is information relevant to the current task but not obviously related by keyword or semantic similarity, does not surface through search. Hipocampus's MemAware benchmark quantifies this: BM25 search scores 2.8% on implicit recall questions (across 900 questions requiring the agent to proactively surface relevant past context). Hipocampus with its topic index scores 17.3% using the same underlying search. The topic index makes unknown unknowns findable. (These numbers are self-reported by the Hipocampus project.)
+The benchmark impact is substantial. Adding ROOT.md to vector search improves implicit context retrieval from 17.3% to 21.0% overall and from 26% to 34% on easy questions. The mechanism: the agent sees that "rate limiting" exists as a topic before deciding whether to search for it, enabling connections that query-first approaches cannot make.
 
-## Concrete Implementations
+### Sliding Window with Eviction
 
-### Claude Code
+The most common production approach: maintain a fixed-size buffer of recent messages, evict the oldest when the buffer overflows. Simple to implement, predictable in token consumption, and adequate when recent history is sufficient for the task.
 
-Loads `CLAUDE.md` at session start, providing project-level context. Agents write new findings back to `CLAUDE.md` or create [Skill Files](../concepts/skill-md.md) for reusable procedures. This is minimal, single-file context management: no compression, no tiering, but effective for coding tasks with bounded context requirements. See [Claude Code](../projects/claude-code.md).
+Sliding windows fail catastrophically for long-running tasks. A context decision made early in a session disappears when it slides out of the window. The agent has no knowledge of its own forgetting — it cannot flag uncertainty about whether relevant earlier context exists.
 
-### Hipocampus (via OpenClaw and OpenCode)
+### Self-Modifying Memory Blocks
 
-Five-level compaction tree: raw daily logs → daily compaction nodes → weekly summaries → monthly summaries → ROOT.md topic index. ROOT.md stays at ~3K tokens regardless of history length. Each compaction node carries YAML frontmatter with `status: tentative|fixed`, `period`, `topics`, and `source-files` fields. Fixed nodes are immutable once their time period ends; tentative nodes regenerate as new data arrives.
+[Letta](../projects/letta.md) (formerly MemGPT) takes a different approach: memory is literally part of the prompt, and agents can edit it via tool calls (`core_memory_replace`, `rethink_memory`, `archival_memory_insert`). The agent decides what to remember, how to organize it, and when to retrieve additional context from archival storage.
 
-Memory type classification controls compaction behavior: `user` and `feedback` entries survive indefinitely without compression; `project` entries compress to Historical Summary when completed; `reference` entries gain staleness markers after 30 days. The `compact.mjs` CLI script handles the mechanical compaction layer (transcript extraction, secret scanning, ISO week calculation, below-threshold concatenation) before the LLM runs above-threshold summarization. See [OpenClaw](../projects/openclaw.md) and [OpenCode](../projects/opencode.md).
+This makes context management a first-class agent capability rather than an external system. The agent can notice that its "human" block contains outdated preferences and update them mid-conversation. The tradeoff: every memory modification requires an LLM call (the agent must reason about what to change), memory quality depends on the agent's own reasoning capability, and memory is bounded by character limits rather than information-theoretic relevance.
 
-### Memento-Skills
+The MemGPT paper demonstrates this achieves 93.4% accuracy on fact retrieval benchmarks, competitive with knowledge graph approaches. The Zep/Graphiti approach scores 94.8% on the same benchmark — marginally better, but the self-modifying approach has different failure modes (it can rewrite correct memories incorrectly) versus knowledge graph approaches (they can fail to extract relationships).
 
-The `ContextManager` class in `core/context/` implements bounded context assembly with four behaviors: progressive summarization when token count exceeds thresholds, a persistent scratchpad for inter-step state, block-based message organization (each user turn opens a new block), and embedding-based retrieval for historical conversations. The `compact_messages()` function serializes all non-system messages into structured text with role tags and tool call details, then passes them to an LLM with explicit instructions to preserve plan execution status and tool results.
+## Eviction and Compaction Strategies
 
-The key difference from Hipocampus: Memento-Skills uses LLM-based summarization as its primary compaction mechanism. Hipocampus uses verbatim copy below threshold (zero LLM cost, zero information loss). Hipocampus's approach is cheaper and lossless for typical daily usage; Memento-Skills's approach is more uniform but always incurs LLM cost and risks information loss.
+When context overflows, systems must decide what to evict. The main options:
 
-## The "Unknown Unknowns" Problem
+**Oldest-first**: Evict the messages furthest from now. Simple, predictable, wrong for long tasks where early decisions matter.
 
-Standard retrieval assumes the agent knows it needs something. The agent poses a query, retrieves matches, uses the results. This works for known unknowns.
+**Importance-weighted**: Tag messages by importance at ingestion time, evict low-importance content first. Requires accurate importance estimation at write time, before the agent knows what future tasks will need it for.
 
-Unknown unknowns, situations where relevant past context exists but the agent has no reason to search for it, require a different architecture. A topic index (ROOT.md) loaded into every session is one solution: the agent sees all topics at zero search cost and recognizes when the current task intersects with past decisions.
+**Summarize-then-evict**: Before evicting content, summarize it. The summary enters context in place of the original. Information is lost (summaries are lossy), but the semantic gist survives. Lossless-claw's escalation strategy runs: normal summarization → aggressive summarization (tighter prompt, lower temperature) → deterministic truncation fallback. The fallback guarantees compaction always makes progress even if the LLM fails.
 
-The Hipocampus MemAware results show the gap starkly (self-reported): on "hard" questions requiring cross-domain implicit recall, vector search scores 0.7%. Hipocampus with its compaction tree scores 8.0%. The tree does not use semantic similarity; it uses structural coverage. The agent knows what it knows.
+**Fresh-tail protection**: Reserve a portion of the context window for the most recent messages unconditionally, fill the rest with summary/retrieved content. Lossless-claw defaults to protecting the last 64 raw messages. Hipocampus protects the current session's active work (SCRATCHPAD.md, WORKING.md) at the hot tier.
 
-This is the core tension in context management design: loading more costs more, but loading less misses unknown relevance. A well-structured index is the resolution: small enough to always load, complete enough to trigger retrieval when relevant.
+[ACE](../projects/ace.md) (Agentic Context Engineering) identifies a failure mode it calls "context collapse": when LLMs iteratively summarize their own context, each rewrite applies brevity bias, and information degrades across rounds. After 5-10 iterations, the context converges to generic instructions stripped of domain-specific knowledge. ACE's solution: incremental delta updates (append bullets with metadata counters) merged by deterministic logic, never by LLM rewriting. Experimental results show this achieves 82-92% cost reduction versus alternatives while improving task performance by +10.6% on agent benchmarks. These figures are self-reported by the ACE paper authors.
 
-## Failure Modes
+## Context Assembly
 
-**Compression quality degrades with model quality.** LLM-based summarization produces summaries only as good as the model's comprehension. A poor summary loses information that cannot be recovered from the compressed output (though raw sources often remain available via tree traversal in well-designed systems).
+Context assembly is the process of constructing the exact message array that gets sent to the model at each turn. Assembly must:
 
-**Keyword mismatch breaks retrieval.** BM25 misses "배포" when the query says "deployment." Vector search helps but does not fully close the gap. Hipocampus's manifest-based LLM selection (step 2 in its 3-step recall protocol) addresses this: load frontmatter-only from compaction nodes, ask an LLM to identify relevant files semantically, then read only those files.
+1. Stay within the token budget
+2. Maintain structural validity (e.g., every `tool_result` must follow a `tool_use` in Anthropic's API)
+3. Normalize content format across message types
+4. Order content to maximize model attention on high-value information (given Lost in the Middle effects, critical content belongs at the beginning or end, not the middle)
 
-**Fixed token budgets create pressure.** A 3K-token ROOT.md budget limits topic coverage. Hipocampus's benchmarks show that increasing to 10K tokens improves easy questions from 26% to 34% overall but leaves hard questions unchanged (cross-domain reasoning is bottlenecked by the answer model, not the index size). Choosing a budget requires estimating the tradeoff between per-call cost and coverage.
+Lossless-claw's assembler (`src/assembler.ts`) handles this explicitly: fetch context items ordered by position, split into evictable prefix and protected fresh tail, fill remaining budget from oldest-to-newest in the evictable set, normalize assistant content to array blocks, sanitize tool-use/result pairing. The fresh tail is always included even if over budget.
 
-**Contradiction accumulation.** As a history grows, earlier decisions may conflict with later ones. Most context management systems have no contradiction detection. The topic index shows that a decision exists; it does not flag that a newer decision supersedes it. An agent reading ROOT.md might retrieve both the old and new decisions without knowing which to follow.
+[Model Context Protocol](../concepts/model-context-protocol.md) standardizes how tools and context sources provide content, separating the production of context from its assembly.
 
-**The cold start problem.** On day one, any index is sparse. A compaction tree populated over three months provides qualitatively better coverage than one populated over one day. Systems that depend on accumulated context provide weaker guarantees early in their lifecycle.
+## Dynamic Prompt Injection
 
-## When Not to Use It
+Context management is not limited to conversation history. The system prompt itself can be dynamically adjusted based on the current context state. Lossless-claw injects a confidence calibration into the system prompt based on compression depth: when the agent is operating from lightly compressed context, it gets gentle guidance; when operating from deeply compressed context (depth ≥ 2 or multiple condensed summaries), it receives an explicit uncertainty checklist. The prompt tells the agent to expand summaries or express uncertainty before making specific factual claims.
 
-Context management overhead is unjustified for short-lived interactions. A single-turn question-answering system, a chatbot with a few-message conversation window, or a task that completes in under 10 minutes does not need a compaction tree. The setup cost (initializing memory structures, running first-session compaction) exceeds the benefit.
+This pattern — the system knowing its own compression state and adjusting its prompting accordingly — is novel. It treats the agent's epistemic position as a runtime variable that should influence its behavior.
 
-Avoid complex context management when conversation history is naturally bounded. A coding assistant that only sees the current file never accumulates enough state to need compression. CLAUDE.md-style selective loading is sufficient.
+## Multi-Agent Context Coordination
 
-Also avoid layered compression when retrieval precision matters more than recall. A summarization step that compresses technical decisions into keywords may lose the specific numbers, edge cases, or caveats that make those decisions actionable. For high-stakes knowledge (security policies, compliance requirements, API contracts), store verbatim references and retrieve them exactly.
+In [Multi-Agent Systems](../concepts/multi-agent-systems.md), context management extends to coordination between agents. Several patterns emerge:
 
-## Unresolved Questions
+**Shared memory blocks** (Letta): Multiple agents read and write the same memory blocks. Useful for collaborative knowledge building but requires coordination to prevent conflicts.
 
-**Optimal compression granularity.** Hipocampus's thresholds (200/300/500 lines before switching from verbatim to LLM compression) are empirically chosen but not formally justified. No published research compares granularity choices against downstream task performance.
+**Sleeptime agents**: A dedicated background agent consolidates and reorganizes context during idle periods, without blocking the primary agent's conversation. The primary agent maintains fast response times; the sleeptime agent handles expensive memory consolidation.
 
-**Multi-agent context sharing.** Current implementations assume one agent's memory. When multiple agents work on related tasks, their context management systems are independent. Shared context pools, conflict resolution between agents' summaries, and selective synchronization remain open engineering problems.
+**Scoped sub-agents** (lossless-claw): When an agent needs to recover detail from a compressed summary, it spawns a sub-agent with a scoped delegation grant (TTL, token cap, conversation scope). The sub-agent traverses the summary DAG, retrieves the needed information, and returns a focused answer (≤2000 tokens by default). The scope constraint prevents recursive sub-agent spawning.
 
-**Cost attribution at scale.** ROOT.md loaded into every API call at 3K tokens (or 300 tokens with prompt caching) accumulates cost. For systems making thousands of calls per day, the per-call overhead multiplied across a fleet of agents becomes significant. No published analysis covers the cost model at deployment scale for these approaches.
+**Context partitioning**: Each agent in a multi-agent system maintains its own context, with explicit handoff at agent boundaries. [ReAct](../concepts/react.md)-based agents pass observations through structured formats rather than sharing raw context.
 
-**Evaluation methodology.** The MemAware benchmark evaluates one specific retrieval pattern (proactive implicit recall) on one agent's conversation history. General benchmarks for context management quality across diverse task types, multi-agent systems, and varied memory depths do not exist.
+## Production Failure Modes
 
-## Alternatives and Selection Guidance
+**Unknown unknown blindness**: Search-only systems cannot surface context the agent doesn't know to search for. The MemAware benchmark quantifies this at 2.8% recall for BM25 search on implicit context — barely above the 0.8% baseline. Systems serving long-running tasks need a topic index or structural overview in context to make unknown unknowns discoverable.
 
-**Use plain RAG** ([Retrieval-Augmented Generation](../concepts/rag.md)) when the agent only needs to answer questions about external knowledge, not remember its own past decisions.
+**Retrieval formatting bugs**: Content can survive storage perfectly and be inaccessible due to formatting normalization applied between storage and retrieval. Three consecutive normalization layers that each strip one content type create a system with "perfect memory storage and zero memory retrieval." End-to-end retrieval testing is necessary — testing storage and retrieval separately is not sufficient.
 
-**Use CLAUDE.md / SKILL.md files** when the project has stable conventions and bounded scope. Manual curation beats automated compression for high-precision requirements.
+**Context collapse**: Repeated LLM summarization of LLM summaries converges to generic content. ACE's paper demonstrates this occurs within 5-10 iterations. Any system that asks an LLM to rewrite its own context incrementally is at risk.
 
-**Use a compaction tree** (Hipocampus-style) when the agent operates continuously across weeks and needs to proactively connect past decisions to new tasks.
+**Token estimation mismatch**: Systems that estimate tokens from character count (`chars/4`) as a rough heuristic can significantly miscalculate actual token counts, especially for code (low characters-per-token) or CJK text (many characters, fewer tokens). Context windows can overflow or underutilize their budget.
 
-**Use LLM-based summarization** (Memento-Skills-style) when you need uniform context compression and can accept some information loss in exchange for simpler implementation.
+**Compaction stall**: If the summarization model's credentials expire or requests time out, compaction stalls and context grows unbounded. Systems need a deterministic fallback (truncation) that guarantees progress regardless of LLM availability.
 
-**Use [Agent Memory](../concepts/agent-memory.md) infrastructure** ([Letta](../projects/letta.md), [Mem0](../projects/mem0.md), [Zep](../projects/zep.md)) when you need managed memory with multi-user support, persistence guarantees, and production SLAs rather than building your own compression pipeline.
+**Fresh tail vs. summary budget tension**: A large fresh tail (many protected recent messages) leaves little context budget for summaries of older content. A small fresh tail compresses recent content aggressively but preserves more historical summary. The right balance is task-dependent: long-running sessions with important early decisions need more summary budget; short interactive sessions need more fresh context.
+
+## Implementation Approaches
+
+| Approach | Best For | Fails When |
+|---|---|---|
+| Static system prompt | Stable, always-relevant facts | Information set too large or too variable |
+| Sliding window | Short interactive sessions | Early decisions matter to later tasks |
+| RAG | Known retrieval targets | Implicit connections, cross-domain queries |
+| Hierarchical summarization | Long-running sessions, indefinite history | High compaction cost, latency requirements |
+| Topic index (ROOT.md) | Bridging search and unknown unknowns | Topics not captured at write time |
+| Self-modifying blocks | Agent-controlled memory, continual learning | Weak base models, high call counts |
 
 ## Related Concepts
 
-- [Context Engineering](../concepts/context-engineering.md): The broader discipline this falls within
-- [Context Window](../concepts/context-window.md): The physical constraint being managed
-- [Context Compression](../concepts/context-compression.md): Compression-specific techniques
-- [Retrieval-Augmented Generation](../concepts/rag.md): Retrieval-based context loading
-- [Agent Memory](../concepts/agent-memory.md): Long-term persistence layer
-- [Progressive Disclosure](../concepts/progressive-disclosure.md): Index-first loading strategy
-- [Episodic Memory](../concepts/episodic-memory.md) / [Semantic Memory](../concepts/semantic-memory.md): Cognitive science framing
-- [Hybrid Search](../concepts/hybrid-search.md): Combined BM25 + vector retrieval
-- [CLAUDE.md](../concepts/claude-md.md): File-based selective loading pattern
+- [Context Engineering](../concepts/context-engineering.md): The broader discipline of which context management is a core component
+- [Context Compression](../concepts/context-compression.md): Techniques for reducing token count while preserving information
+- [Short-Term Memory](../concepts/short-term-memory.md): In-context working memory
+- [Long-Term Memory](../concepts/long-term-memory.md): Persistent storage across sessions
+- [Episodic Memory](../concepts/episodic-memory.md): Session-level memory of past interactions
+- [Agent Memory](../concepts/agent-memory.md): The broader memory taxonomy
+- [Lost in the Middle](../concepts/lost-in-the-middle.md): The attention distribution problem context management must account for
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md): The retrieval-based approach to context augmentation
+- [Vector Database](../concepts/vector-database.md): Infrastructure for semantic retrieval
+- [Knowledge Graph](../concepts/knowledge-graph.md): Structured alternative to vector retrieval
+
+## Implementations
+
+- [Claude Code](../projects/claude-code.md): Uses CLAUDE.md for static context, tool results for dynamic context
+- [OpenClaw](../projects/openclaw.md): ContextEngine plugin system enabling pluggable context management strategies
+- [Letta](../projects/letta.md): Self-modifying memory blocks as first-class agent capability
+- [ACE](../projects/ace.md): Incremental delta updates to prevent context collapse
+- [MemGPT](../projects/memgpt.md): Original virtual context management paper and system
+- [Mem0](../projects/mem0.md): Automatic fact extraction and retrieval
+- [Graphiti](../projects/graphiti.md): Knowledge graph-based context management with temporal reasoning

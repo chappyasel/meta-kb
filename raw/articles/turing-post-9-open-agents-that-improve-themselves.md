@@ -17,17 +17,17 @@ key_insight: >-
   history—builders need to architect memory systems that distinguish between
   episodic interactions and learned capabilities that transfer across tasks.
 relevance_scores:
-  topic_relevance: 8
+  topic_relevance: 9
   practitioner_value: 7
   novelty: 6
   signal_quality: 6
-  composite: 7.1
+  composite: 7.5
   reason: >-
-    Directly covers self-improving agent architectures (topic 5) and persistent
-    cross-session memory (topic 2) with a curated list of open-source frameworks
-    including HyperAgents, EvoAgentX, Agent0, and Letta that developers can
-    explore, though the article is a survey/list format rather than deep
-    architectural documentation.
+    This article surveys 9 open-source self-improving agent frameworks
+    (HyperAgents, Agent0, EvoAgentX, AgentEvolver, Agent Zero, Letta, etc.)
+    directly covering self-improving loops, persistent cross-session memory, and
+    skill evolution—core pillars of the knowledge base—with actionable links to
+    explore each system.
 ---
 ## 9 Open Agents That Improve Themselves
 

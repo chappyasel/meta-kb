@@ -1,211 +1,188 @@
 ---
 entity_id: claude
 type: project
-bucket: agent-systems
+bucket: agent-architecture
 abstract: >-
-  Anthropic's frontier LLM family (Haiku, Sonnet, Opus) with 200K context
-  windows, constitutional AI training, and extended thinking; primary
-  differentiator is top-tier coding/reasoning performance and first-party
-  agentic infrastructure (Claude Code, MCP, Agent Skills).
+  Anthropic's family of LLMs (Haiku, Sonnet, Opus) used as agent backbones
+  across coding tools, multi-agent frameworks, and document workflows; primary
+  differentiator is native infrastructure integration via Model Context Protocol
+  and Agent Skills.
 sources:
   - tweets/hesamation-bro-created-a-skill-inspired-by-karpathy-s-autores.md
-  - tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md
   - tweets/karpathy-clis-are-super-exciting-precisely-because-they-are.md
-  - repos/aiming-lab-simplemem.md
-  - repos/helloruru-claude-memory-engine.md
-  - tweets/hwchase17-continual-learning-for-ai-agents.md
-  - tweets/ericosiu-how-to-practically-deploy-jack-dorsey-s-world-int.md
+  - tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md
+  - tweets/godofprompt-breaking-mipt-just-ran-the-largest-ai-agent-co.md
+  - repos/canvas-org-meta-agent.md
   - repos/memodb-io-acontext.md
+  - repos/helloruru-claude-memory-engine.md
+  - repos/supermemoryai-supermemory.md
   - repos/anthropics-skills.md
-  - repos/natebjones-projects-ob1.md
+  - repos/orchestra-research-ai-research-skills.md
   - repos/greyhaven-ai-autocontext.md
   - repos/caviraoss-openmemory.md
-  - repos/kayba-ai-agentic-context-engine.md
-  - repos/jmilinovich-goal-md.md
-  - repos/thedotmack-claude-mem.md
-  - repos/letta-ai-letta-code.md
   - repos/evoagentx-evoagentx.md
+  - repos/yusufkaraaslan-skill-seekers.md
+  - repos/jmilinovich-goal-md.md
+  - repos/jackchen-me-open-multi-agent.md
   - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
+  - >-
+    articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md
+  - articles/x-twitter-meta-agent-continual-learning-for-agents.md
   - deep/repos/gepa-ai-gepa.md
   - deep/repos/anthropics-skills.md
   - deep/repos/jmilinovich-goal-md.md
-  - deep/papers/xu-agent-skills-for-large-language-models-architectu.md
-  - repos/canvas-org-meta-agent.md
-  - articles/x-twitter-meta-agent-continual-learning-for-agents.md
 related:
-  - mcp
-  - claude-md
   - andrej-karpathy
-  - rag
-  - openai
   - cursor
-  - anthropic
+  - openai
   - autoresearch
-  - openclaw
+  - model-context-protocol
+  - retrieval-augmented-generation
+  - context-engineering
+  - windsurf
   - gemini
   - claude-code
+  - anthropic
   - agent-skills
+  - multi-agent-systems
+  - openclaw
   - codex
-  - gepa
-  - meta-agent
-  - skill-md
-  - tau-bench
-  - windsurf
-  - progressive-disclosure
-  - mem0
-  - vector-database
-  - langgraph
-  - continual-learning
-  - grpo
+  - vllm
   - ollama
+  - gepa
+  - claude-md
+  - reinforcement-learning
+  - meta-agent
+  - langchain
+  - agent-memory
+  - progressive-disclosure
+  - long-term-memory
+  - grpo
+  - context-management
+  - vector-database
   - gpt-4
-  - litellm
-  - swe-bench
-  - context-compression
-  - embedding-model
-  - catastrophic-forgetting
-  - decision-traces
-last_compiled: '2026-04-07T11:36:34.317Z'
+  - human-in-the-loop
+  - continual-learning
+  - github-copilot
+  - autogen
+  - temporal-reasoning
+  - tau-bench
+  - prompt-optimization
+  - observability
+  - system-prompt
+  - termination-bench
+  - abductive-context
+last_compiled: '2026-04-08T02:38:44.632Z'
 ---
 # Claude
 
-## What It Is
+## What It Does
 
-Claude is Anthropic's family of large language models, spanning three tiers: Haiku (fast, cheap), Sonnet (balanced), and Opus (most capable). Current production models as of mid-2026 include Claude Haiku 4.5, Claude Sonnet 4.x, and Claude Opus 4.6. All models share a 200K token context window. Anthropic trains Claude using Constitutional AI (CAI) and Reinforcement Learning from Human Feedback (RLHF), with an explicit safety orientation built into the training process rather than bolted on post-hoc.
+Claude is Anthropic's production LLM family deployed across three capability tiers: Haiku (fast, cheap), Sonnet (balanced), and Opus (highest capability). In agent infrastructure specifically, Claude functions as both a task-executing model and an orchestration backbone. It reads from and writes to structured context, executes tools, coordinates subagents, and serves as the reasoning engine in multi-agent pipelines.
 
-Claude sits at the center of a growing agentic infrastructure stack: the [Model Context Protocol](../concepts/mcp.md) for tool connectivity, [Agent Skills](../concepts/agent-skills.md) / [SKILL.md](../concepts/skill-md.md) for procedural knowledge, [CLAUDE.md](../concepts/claude-md.md) for project-level agent configuration, and [Claude Code](../projects/claude-code.md) as the primary coding agent surface. This makes Claude unusual among frontier models: [Anthropic](../projects/anthropic.md) builds and ships the full agent stack, not just the model.
+What separates Claude from [GPT-4](../projects/gpt-4.md) and [Gemini](../projects/gemini.md) in agent contexts is not benchmark numbers but infrastructure integration. Anthropic has built a tight loop between the model and its surrounding systems: [Model Context Protocol](../concepts/model-context-protocol.md) for tool and resource access, the Agent Skills system for modular capability loading, [CLAUDE.md](../concepts/claude-md.md) for repository-level behavioral directives, and the Claude Agent SDK for building harnesses. These systems compound each other in ways that make Claude the default choice when building on Anthropic's stack.
 
-## Model Tiers
+## Architecture in Agent Contexts
 
-**Haiku 4.5** — Fastest, cheapest. Used for high-frequency tasks, inner loops in agent pipelines, and latency-sensitive applications. Benchmarks show it achieves 79.3% on SWE-bench Verified with GEPA-evolved skills, rising to 98.3% after skill optimization — suggesting the base capability is bottlenecked more by task knowledge than raw model capacity. [Source](../raw/deep/repos/gepa-ai-gepa.md)
+### Context Window Handling
 
-**Sonnet** — The workhorse tier. Recommended for most production agentic workloads.
+Claude Sonnet 4 and Opus 4 support 200K token context windows. In practice, Claude agents use [context management](../concepts/context-management.md) strategies to work within this limit rather than filling it. The Agent Skills system uses progressive disclosure: metadata (~100 tokens) stays resident, full SKILL.md loads on trigger (<5000 tokens), and bundled scripts/reference docs load on demand. This prevents context bloat when multiple skills are installed simultaneously.
 
-**Opus 4.6** — Highest capability, highest cost. Used as the proposer/reflection model in multi-model pipelines (e.g., meta-agent uses Opus 4.6 as proposer with Haiku 4.5 as the task agent). Achieves 79.2% on SWE-bench Verified. [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
+The [lost-in-the-middle](../concepts/lost-in-the-middle.md) problem applies to Claude as it does to all transformers: retrieval performance degrades for information placed in the middle of long contexts. Agent systems that rely on Claude for long-context reasoning should front-load or end-load critical information.
 
-## Architecturally Notable Features
+### Agent Skills System
 
-### Extended Thinking
-Claude Opus and Sonnet support extended thinking — a scratchpad reasoning mode where the model produces explicit chain-of-thought before responding. This is distinct from standard generation and uses separate token budgets. Critical for complex multi-step tasks where reasoning transparency matters.
+Claude's canonical mechanism for modular capability loading uses SKILL.md files with YAML frontmatter. The format requires two fields: `name` (1-64 chars, lowercase with hyphens) and `description` (1-1024 chars). The description field is the triggering mechanism — Claude reads it and decides whether to invoke the skill based on semantic match to the current task.
 
-### Constitutional AI Training
-Anthropic's training methodology involves Claude critiquing and revising its own outputs against a set of constitutional principles. This differs from RLHF alone: rather than purely learning from human preference labels, Claude learns from a policy document. The practical effect is more consistent refusal behavior and better calibration on edge cases, though it also produces brittleness in some adjacent-to-sensitive domains.
+The anthropics/skills repository (110K stars) demonstrates this at scale: document skills (pdf, xlsx, docx, pptx), creative skills, development skills, and a meta-skill (`skill-creator`) that teaches Claude to build and evaluate other skills. See [Agent Skills](../concepts/agent-skills.md) for the full specification.
 
-### Agent Skills Integration
-Claude is the reference implementation for the [Agent Skills](../concepts/agent-skills.md) specification at agentskills.io. Skills are SKILL.md files using three-tier progressive disclosure: ~100-token metadata always in context for routing decisions, full instructions loaded on trigger, bundled resources loaded on demand. Claude reads skill descriptions and decides whether to load a skill semantically — there is no programmatic trigger mechanism. This means description quality directly controls whether a skill fires. [Source](../raw/deep/repos/anthropics-skills.md)
+The triggering mechanism has a known failure mode: Claude undertriggers by default. The official skill-creator documentation explicitly recommends making descriptions "a little bit pushy" — specifying when to trigger rather than just what the skill does. The claude-api skill demonstrates the precision required:
 
-### MCP-Native
-Claude is built with first-party [Model Context Protocol](../concepts/mcp.md) support. MCP handles tool connectivity (what the agent can access); Skills handle procedural knowledge (how to use those tools). The two systems are complementary: a skill can instruct Claude to use a specific MCP server and how to interpret its outputs.
+```
+TRIGGER when: code imports `anthropic`/`@anthropic-ai/sdk`
+DO NOT TRIGGER when: code imports `openai`/other AI SDK
+```
 
-## Key Benchmarks
+### Model Context Protocol
+
+[Model Context Protocol](../concepts/model-context-protocol.md) is Claude's standard for connecting to external tools, resources, and data sources. The mcp-builder skill in the skills repo implements a four-phase development loop (research, implement, review, evaluate) for building MCP servers. This makes Claude the default model for teams building MCP-native workflows.
+
+### CLAUDE.md
+
+[CLAUDE.md](../concepts/claude-md.md) files placed in project roots provide persistent behavioral directives. Unlike system prompts which must be explicitly passed, CLAUDE.md files are read automatically by Claude Code when entering a repository. This enables repository-specific behavior: coding standards, tool preferences, workflow rules, and project context that persists across sessions.
+
+### Claude Agent SDK
+
+The SDK provides structured primitives for building agent harnesses. It supports lifecycle hooks for tool use, custom stop conditions, subagent coordination, and permission logic. The [meta-agent](../concepts/meta-agent.md) project (canvas-org) targets this SDK specifically: it reads production traces, uses an LLM judge to score failures, and iteratively updates the harness. On tau-bench v3 airline tasks, a meta-agent loop improved Haiku 4.5 from 67% to 87% holdout accuracy within 4-10 iterations.
+
+## Key Numbers
 
 | Metric | Value | Source |
 |--------|-------|--------|
-| SWE-bench Verified (Opus 4.6) | 79.2% | Self-reported [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md) |
-| SWE-bench Verified (Haiku 4.5 + GEPA skills, Jinja) | 93.9% → 100% | Self-reported [Source](../raw/deep/repos/gepa-ai-gepa.md) |
-| SWE-bench Verified (Haiku 4.5 + GEPA skills, Bleve) | 79.3% → 98.3% | Self-reported [Source](../raw/deep/repos/gepa-ai-gepa.md) |
-| TAU-bench v3 airline (Haiku 4.5, baseline) | 67% | Independent benchmark [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md) |
-| TAU-bench v3 airline (Haiku 4.5 + meta-agent) | 87% | Single-run, not independently replicated [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md) |
+| anthropics/skills GitHub stars | 110,064 | Repository stats, self-reported |
+| Haiku 4.5 baseline on TerminalBench-2 | 27.5% | Meta-Harness paper (Lee et al. 2026) |
+| Haiku 4.5 with hand-engineered harness | 35.5% | Same paper, independently reported |
+| Haiku 4.5 on tau-bench after meta-agent loop | 87% (from 67%) | Single-run, canvas-org self-reported |
+| Claude Haiku 4.5 Bleve coding tasks (GEPA) | 98.3% (from 79.3%) | GEPA paper, ICLR 2026 Oral |
+| Claude Haiku 4.5 Jinja coding tasks (GEPA) | 100% (from 93.9%) | GEPA paper, ICLR 2026 Oral |
 
-**Credibility assessment:** SWE-bench Verified is a well-established third-party benchmark with a held-out test set — these numbers carry more weight than benchmark-specific evals. The GEPA skill transfer results are self-reported by GEPA's authors with Anthropic models as subjects, not by Anthropic. The TAU-bench meta-agent results are single-run on a 50-task split; the authors explicitly note plans to add variance estimates. Treat performance claims with appropriate skepticism outside SWE-bench.
+The tau-bench result is a single run on a 15-task holdout split — treat it as directional, not definitive. The GEPA coding results are from an ICLR-accepted paper and carry more credibility, though they measure skill transfer performance rather than base model capability.
 
 ## Strengths
 
-**Coding and agentic tasks.** Claude consistently ranks at or near the top on software engineering benchmarks. The combination of strong base capability, tool use, and first-party agentic infrastructure (Claude Code, MCP, Skills) makes it the default choice for coding agent pipelines.
+**Native infrastructure integration.** CLAUDE.md, Model Context Protocol, Agent Skills, and the Claude Agent SDK form a coherent system. Teams building on Anthropic's stack get these integrations without glue code. Competitors don't have equivalent first-party infrastructure.
 
-**Long-context coherence.** 200K context window with strong performance across the full range. Other models with similar windows degrade more noticeably at the far end.
+**Harness optimization potential.** Claude models respond well to harness-level improvements. The meta-agent results (67% to 87% on tau-bench) and GEPA results (coding tasks reaching 98-100%) show that Claude's performance is substantially shaped by the harness, not just the base model. This is a feature: it means systematic improvement is possible without fine-tuning.
 
-**Instruction following.** Constitutional AI training produces unusually consistent adherence to complex, multi-part instructions. This matters for agentic pipelines where the agent must follow structured protocols.
+**Constitutional AI alignment.** Claude's training includes Constitutional AI and Reinforcement Learning from Human Feedback. In agent contexts this matters: Claude tends to ask for clarification when uncertain rather than hallucinating confident wrong answers, and respects [human-in-the-loop](../concepts/human-in-the-loop.md) patterns naturally.
 
-**Skill optimization target.** Claude models, especially Haiku 4.5, show strong improvement from GEPA-style skill evolution. The meta-agent results show that harness-level optimization (proposer: Opus 4.6, task agent: Haiku 4.5) can push Haiku from 67% to 87% on TAU-bench — suggesting Haiku's base capability leaves significant room for harness-level gains that Opus does not need. [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
-
-**Multi-model pipeline participation.** Claude models appear as both task agents (Haiku 4.5, Sonnet) and reflection/proposer models (Opus 4.6) across GEPA, meta-agent, and skill-creator. The tiered pricing structure makes mixed-model pipelines economically viable.
+**Long-context instruction following.** Within its 200K window, Claude handles complex multi-document system prompts more reliably than many competitors, which matters when assembling skill instructions, tool definitions, conversation history, and task context simultaneously.
 
 ## Critical Limitations
 
-**Concrete failure mode — skill triggering reliability.** Skills trigger purely on semantic matching between user requests and skill descriptions. There is no programmatic trigger fallback. The skill-creator documentation explicitly warns about "undertriggering" — Claude will not invoke a skill even when it should, unless the description is written to be "a little bit pushy." This is not a fringe edge case; it is the primary adoption friction for the Skills ecosystem. An agent that sometimes skips the relevant skill without warning is difficult to debug and unpredictable in production. [Source](../raw/deep/repos/anthropics-skills.md)
+**Concrete failure mode — skill undertriggering.** Claude's description-driven skill triggering fails silently. If a skill's description doesn't closely match the user's phrasing, the skill won't load and Claude proceeds without it — producing plausible but suboptimal output with no error or warning. The fix requires aggressive description writing and trigger testing via the skill-creator's eval loop (which itself costs 300+ LLM calls to run properly). There is no programmatic trigger layer, no file-pattern matcher, no fallback mechanism.
 
-**Infrastructure assumption — Anthropic API availability.** Claude is API-only from Anthropic (no weights released). Every Claude deployment depends on Anthropic's infrastructure, pricing, rate limits, and policy decisions. Unlike [Ollama](../projects/ollama.md)-served open models, Claude cannot run on-premises or air-gapped. Organizations with data residency requirements, security constraints against third-party API calls, or need for cost predictability at scale face a hard constraint here that no architectural workaround resolves.
+**Unspoken infrastructure assumption.** The Agent Skills system, CLAUDE.md behavior, and Claude Agent SDK all assume Claude Code or Claude.ai as the runtime. Teams accessing Claude via raw API get none of these integrations automatically. They must implement context loading, skill injection, and behavioral directives manually. The skills repository readme acknowledges this partially ("These skills are provided for demonstration and educational purposes only"), but the gap between the integrated experience and the API experience is larger than the documentation suggests.
 
 ## When NOT to Use Claude
 
-**Air-gapped or on-premises deployments.** Claude requires API access to Anthropic's servers. If your threat model, compliance requirements, or network architecture prohibits outbound API calls to third parties, Claude does not fit. Use a self-hosted open model instead.
+**Cost-sensitive high-volume inference.** For applications requiring millions of daily requests, [Ollama](../projects/ollama.md) with local models or [vLLM](../projects/vllm.md) for hosted open-weight models provide dramatically lower per-token cost. Haiku is Anthropic's cheapest tier, but it still carries API margins. If your task tolerates a capable open-weight model (Llama 3.1, Mistral), the economics favor alternatives.
 
-**High-volume, latency-critical inner loops where cost scales poorly.** Even Haiku has per-token costs. At sufficient scale, the economics favor fine-tuned open models or lighter inference. Benchmark your actual workload cost before committing.
+**Offline or air-gapped environments.** Claude requires Anthropic API access. Teams operating in regulated environments without internet access cannot use Claude regardless of capability fit.
 
-**Applications requiring full model transparency or auditability.** Anthropic does not publish model weights, architecture details, or training data composition. If your compliance or research requirements demand auditability of the model itself, not just its outputs, Claude is the wrong choice.
+**When you need fine-tuning control.** Anthropic does not currently offer broad fine-tuning access to Claude. If your task requires domain adaptation that goes beyond prompting and harness engineering, [GPT-4](../projects/gpt-4.md) (via OpenAI's fine-tuning API) or open-weight models via [vLLM](../projects/vllm.md) give you more control.
 
-**Tasks where constitutional training creates friction.** CAI training produces consistent, calibrated refusals, but adjacent-to-sensitive tasks sometimes hit unexpected walls. Security research, adversarial red-teaming, and certain creative writing domains can be harder to prompt reliably compared to models with looser safety training. This varies by Claude version and task specifics.
+**When benchmarks for your specific task favor alternatives.** Benchmark rankings shift rapidly across model generations. Before committing to Claude for a new agent workflow, run your actual task distribution against current [Gemini](../projects/gemini.md) and GPT-4 variants. Self-reported aggregate benchmarks are a poor proxy for task-specific performance.
 
 ## Unresolved Questions
 
-**Governance of the Skills marketplace at scale.** The security analysis of community skills found a 26.1% vulnerability rate across 42,447 skills, with 54.1% of confirmed malicious cases attributable to a single industrialized actor. [Source](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md) Anthropic's proposed four-tier trust governance model (static analysis, semantic classification, dynamic sandboxing, full verification) exists as a proposal, not a deployed system. What Anthropic's actual security gates are for the agentskills.io marketplace is not documented publicly.
+**Governance of skill triggering at scale.** There is no documented mechanism for monitoring which skills trigger in production, detecting undertriggering, or receiving alerts when a skill stops being invoked. The skill-creator's description optimizer requires 300 LLM calls to run once and provides no ongoing monitoring. How teams maintain skill triggering fidelity across model updates is undocumented.
 
-**Phase transition in skill library size.** Research shows skill routing accuracy degrades sharply past a critical library size. Anthropic has not published what that threshold is for Claude specifically or how they plan to handle it as the Skills marketplace grows.
+**Model update compatibility.** When Anthropic releases a new Claude version, skills written for the previous version may trigger differently or behave differently. There is no versioning mechanism in the SKILL.md spec (the `compatibility` field is optional and freeform), no automated regression testing across model versions, and no documented rollback procedure.
 
-**Cost at scale for Opus-as-reflector patterns.** Using Opus 4.6 as the proposer/reflection model in meta-agent and GEPA-style pipelines produces strong results, but the per-iteration cost (Opus calls for each reflection + Haiku calls for each evaluation) accumulates quickly. Published results use small benchmark splits (50 tasks). The economics at production scale — thousands of concurrent agents, millions of tasks — are not documented.
+**Cost at scale for multi-agent systems.** GEPA optimization of Claude skills costs substantially per run — the Pydantic integration guide recommends budgeting 50-200 evaluations, each involving multiple LLM calls. For [multi-agent systems](../concepts/multi-agent-systems.md) with dozens of skills running continuous improvement loops, the optimization cost can exceed the inference cost. No public guidance exists on this.
 
-**Training data cutoff and knowledge staleness.** Anthropic does not publish precise training data cutoffs or update schedules. For agents operating on rapidly evolving domains (current APIs, recent research), Claude's embedded knowledge may diverge from ground truth faster than documented.
+**Conflict resolution between CLAUDE.md and system prompts.** When CLAUDE.md directives contradict system prompt instructions, precedence rules aren't publicly documented. Teams building on Claude Code discover this empirically.
 
 ## Alternatives
 
-**Use [GPT-4](../projects/gpt-4.md) / [OpenAI](../projects/openai.md) when:** your organization already has deep OpenAI API integration, you need Azure-hosted deployment for compliance, or your workload benefits from OpenAI's function-calling conventions and ecosystem tooling.
+**Use [GPT-4](../projects/gpt-4.md) when** your team is already on OpenAI's stack, you need fine-tuning, or current benchmarks favor it for your specific task type.
 
-**Use [Gemini](../projects/gemini.md) when:** you need Google Cloud integration, are already in the Google ecosystem, or need multimodal capabilities with long video/document inputs.
+**Use [Gemini](../projects/gemini.md) when** you need deep Google Workspace integration, very long context windows beyond 200K, or multimodal tasks where Gemini's training shows advantages.
 
-**Use [Ollama](../projects/ollama.md)-served open models when:** you need on-premises deployment, air-gapped operation, or predictable fixed infrastructure costs at scale without per-token billing.
+**Use [vLLM](../projects/vllm.md) or [Ollama](../projects/ollama.md) when** cost, latency, or offline deployment requirements make API models impractical.
 
-**Use [OpenAI Codex](../projects/codex.md) / [GitHub Copilot](../projects/github-copilot.md) when:** your use case is narrowly IDE-integrated code completion rather than general agentic tasks.
-
-**Use [DeepSeek](../projects/deepseek.md) when:** cost efficiency at high volume is the primary constraint and task performance on Chinese-language or math-heavy workloads is critical.
-
-## Ecosystem Integration
-
-Claude is the primary target model across several related projects in this knowledge base:
-
-- [Claude Code](../projects/claude-code.md) — Anthropic's coding agent built on Claude
-- [CLAUDE.md](../concepts/claude-md.md) — Project-level agent configuration files Claude reads at session start
-- [Agent Skills](../concepts/agent-skills.md) — Skill system Claude implements
-- [Model Context Protocol](../concepts/mcp.md) — Tool connectivity layer Claude uses natively
-- [GEPA](../concepts/gepa.md) — Evolutionary prompt/skill optimizer that targets Claude models
-- [Meta-Agent](../concepts/meta-agent.md) — Continual harness improvement system built on Claude Agent SDK
-- [LangGraph](../projects/langgraph.md), [LiteLLM](../projects/litellm.md), [AutoResearch](../projects/autoresearch.md) — Third-party frameworks that use Claude via API
-- [SWE-bench](../projects/swe-bench.md), [TAU-bench](../projects/tau-bench.md) — Primary benchmarks used to evaluate Claude
-
-Related concepts: [Chain-of-Thought](../concepts/chain-of-thought.md), [Context Compression](../concepts/context-compression.md), [Progressive Disclosure](../concepts/progressive-disclosure.md), [Decision Traces](../concepts/decision-traces.md), [Continual Learning](../concepts/continual-learning.md), [Retrieval-Augmented Generation](../concepts/rag.md)
-
+**Use Claude when** you're building agent infrastructure on Anthropic's stack (Claude Code, MCP, Agent Skills), when harness-level optimization is part of your workflow, or when constitutional alignment properties matter for your use case.
 
 ## Related
 
-- [Model Context Protocol](../concepts/mcp.md) — implements (0.8)
-- [CLAUDE.md](../concepts/claude-md.md) — implements (0.8)
-- [Andrej Karpathy](../concepts/andrej-karpathy.md) — part_of (0.4)
-- [Retrieval-Augmented Generation](../concepts/rag.md) — part_of (0.5)
-- [OpenAI](../projects/openai.md) — competes_with (0.8)
-- [Cursor](../projects/cursor.md) — part_of (0.6)
-- [Anthropic](../projects/anthropic.md) — created_by (1.0)
-- [AutoResearch](../projects/autoresearch.md) — part_of (0.6)
-- [OpenClaw](../projects/openclaw.md) — part_of (0.4)
-- [Gemini](../projects/gemini.md) — competes_with (0.8)
-- [Claude Code](../projects/claude-code.md) — extends (0.9)
-- [Agent Skills](../concepts/agent-skills.md) — implements (0.7)
-- [OpenAI Codex](../projects/codex.md) — competes_with (0.7)
-- [GEPA](../concepts/gepa.md) — part_of (0.4)
-- [Meta-Agent](../concepts/meta-agent.md) — part_of (0.5)
-- [Skill Files](../concepts/skill-md.md) — implements (0.7)
-- [TAU-bench](../projects/tau-bench.md) — part_of (0.4)
-- [Windsurf](../projects/windsurf.md) — competes_with (0.4)
-- [Progressive Disclosure](../concepts/progressive-disclosure.md) — implements (0.5)
-- [Mem0](../projects/mem0.md) — part_of (0.4)
-- [Vector Database](../concepts/vector-database.md) — part_of (0.4)
-- [LangGraph](../projects/langgraph.md) — part_of (0.4)
-- [Continual Learning](../concepts/continual-learning.md) — implements (0.5)
-- [GRPO](../concepts/grpo.md) — part_of (0.3)
-- [Ollama](../projects/ollama.md) — alternative_to (0.4)
-- [GPT-4](../projects/gpt-4.md) — competes_with (0.8)
-- [LiteLLM](../projects/litellm.md) — part_of (0.5)
-- [SWE-bench](../projects/swe-bench.md) — part_of (0.5)
-- [Context Compression](../concepts/context-compression.md) — implements (0.5)
-- [Embedding Model](../concepts/embedding-model.md) — part_of (0.5)
-- [Catastrophic Forgetting](../concepts/catastrophic-forgetting.md) — alternative_to (0.4)
-- [Decision Traces](../concepts/decision-traces.md) — implements (0.4)
+- [Agent Skills](../concepts/agent-skills.md) — the modular capability loading system
+- [CLAUDE.md](../concepts/claude-md.md) — repository-level behavioral directives
+- [Model Context Protocol](../concepts/model-context-protocol.md) — tool and resource integration standard
+- [Claude Code](../projects/claude-code.md) — primary agentic coding environment
+- [Context Engineering](../concepts/context-engineering.md) — techniques for managing what goes into the context window
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — coordination patterns where Claude acts as orchestrator or subagent
+- [GEPA](../concepts/gepa.md) — evolutionary prompt optimization that demonstrates large gains on Claude tasks
+- [Meta-Agent](../concepts/meta-agent.md) — continual harness improvement from production traces
+- [Human-in-the-Loop](../concepts/human-in-the-loop.md) — patterns Claude's alignment training makes natural
+- [Anthropic](../projects/anthropic.md) — the creating organization

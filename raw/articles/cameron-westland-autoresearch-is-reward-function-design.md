@@ -19,16 +19,15 @@ key_insight: >-
   and constraint-violating hacks.
 relevance_scores:
   topic_relevance: 8
-  practitioner_value: 9
+  practitioner_value: 8
   novelty: 7
-  signal_quality: 8
-  composite: 8.2
+  signal_quality: 7
+  composite: 7.7
   reason: >-
-    This article directly demonstrates the autoresearch/self-improving loop
-    pattern with concrete implementation details (deterministic replay
-    harnesses, reward function design, constraint enforcement to prevent
-    shortcut hacks), offering immediately transferable patterns for building
-    self-improving knowledge base systems.
+    Directly demonstrates a self-improving agent loop with reward function
+    design, constraint enforcement via secondary metrics, and deterministic
+    replay harnesses—all highly transferable patterns for knowledge base
+    self-improvement systems.
 ---
 ## Autoresearch Is Reward Function Design
 

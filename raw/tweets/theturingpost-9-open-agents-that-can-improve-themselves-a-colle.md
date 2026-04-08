@@ -23,16 +23,16 @@ images:
   - >-
     images/theturingpost-9-open-agents-that-can-improve-themselves-a-colle/image.jpg
 relevance_scores:
-  topic_relevance: 7
+  topic_relevance: 8
   practitioner_value: 6
   novelty: 4
   signal_quality: 4
-  composite: 5.8
+  composite: 6.2
   reason: >-
-    A curated list of 9 self-improving agent frameworks directly relevant to
-    topics 4 and 5, but the tweet itself is a shallow pointer with no
-    architectural detail—value lies in the linked list rather than the content
-    here.
+    A curated list of 9 self-improving agent frameworks directly relevant to the
+    self-improvement pillar, offering practitioners a useful reference
+    collection, but the tweet itself lacks architectural depth and is primarily
+    a pointer to an external resource.
 ---
 ## Tweet by @TheTuringPost
 

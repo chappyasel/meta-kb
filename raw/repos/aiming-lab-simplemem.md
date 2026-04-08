@@ -28,11 +28,11 @@ relevance_scores:
   signal_quality: 7
   composite: 7.7
   reason: >-
-    SimpleMem is a production-ready Python library for lifelong agent memory
-    with semantic lossless compression and MCP integration, directly addressing
-    topics 2 (agent memory) and 3 (context engineering/compression), with
-    meaningful novelty in its unified multimodal compression approach and strong
-    practitioner value given PyPI availability and multi-platform support.
+    SimpleMem is a production-ready Python library implementing semantic
+    lossless compression for lifelong agent memory with MCP integration and
+    multimodal support—directly relevant to Agent Memory topic area with a novel
+    compression angle that addresses context window exhaustion in multi-session
+    agents.
 language: Python
 license: MIT
 ---

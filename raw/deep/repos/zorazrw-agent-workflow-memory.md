@@ -3,9 +3,18 @@ url: 'https://github.com/zorazrw/agent-workflow-memory'
 type: repo
 author: zorazrw
 date: '2026-04-04'
-tags: [self-improving, agent-memory, agentic-skills]
+tags:
+  - self-improving
+  - agent-memory
+  - agentic-skills
 key_insight: >-
-  Proposes workflow induction as a self-improving memory mechanism for web agents -- common subroutines are abstracted from ground-truth examples (offline) or past agent experiences (online) into reusable workflow templates, then injected as in-context exemplars during inference, achieving SOTA 35.6% success rate on WebArena by enabling agents to transfer procedural knowledge across tasks without fine-tuning through a three-phase pipeline of induction, retrieval, and utilization.
+  Proposes workflow induction as a self-improving memory mechanism for web
+  agents -- common subroutines are abstracted from ground-truth examples
+  (offline) or past agent experiences (online) into reusable workflow templates,
+  then injected as in-context exemplars during inference, achieving SOTA 35.6%
+  success rate on WebArena by enabling agents to transfer procedural knowledge
+  across tasks without fine-tuning through a three-phase pipeline of induction,
+  retrieval, and utilization.
 stars: 0
 deep_research:
   method: source-code-analysis
@@ -25,6 +34,17 @@ deep_research:
     - mind2web/prompt/one_shot_action.txt
   analyzed_at: '2026-04-04'
   original_source: repos/zorazrw-agent-workflow-memory.md
+relevance_scores:
+  topic_relevance: 8
+  practitioner_value: 7
+  novelty: 8
+  signal_quality: 8
+  composite: 7.7
+  reason: >-
+    AWM's three-phase induction/retrieval/utilization loop is a directly
+    transferable self-improving procedural memory pattern for LLM agents, with
+    concrete SOTA results and an organized codebase, though the implementation
+    is research-grade and web-navigation-specific.
 ---
 
 ## Architecture Overview

@@ -18,16 +18,16 @@ key_insight: >-
   variants, turning prompt engineering from an art into a measurable, structured
   experiment.
 relevance_scores:
-  topic_relevance: 8
-  practitioner_value: 8
+  topic_relevance: 9
+  practitioner_value: 9
   novelty: 7
   signal_quality: 7
-  composite: 7.7
+  composite: 8.4
   reason: >-
-    Directly covers self-improving AI skills via automated overnight eval loops
-    with Claude Code—maps strongly to topics 4 (agentic skills), 5
-    (self-improving systems), and 3 (prompt/context engineering), with
-    actionable methodology for building measurable prompt improvement pipelines.
+    Directly describes a self-improving prompt engineering loop using
+    AutoResearch/Karpathy methodology with binary eval assertions and Claude
+    Code—a highly transferable pattern for self-improving agent systems with
+    actionable implementation details.
 ---
 ## How to Use Claude Code with AutoResearch to Build Self-Improving AI Skills
 

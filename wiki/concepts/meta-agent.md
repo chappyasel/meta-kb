@@ -1,181 +1,210 @@
 ---
 entity_id: meta-agent
 type: concept
-bucket: self-improving
+bucket: multi-agent-systems
 abstract: >-
-  A meta-agent manages, coordinates, or improves other agents — distinct from
-  task-level agents in that its target is agent behavior itself, via harness
-  optimization, context learning, or model updating.
+  A meta-agent orchestrates, evaluates, or modifies other agents in a hierarchy
+  — distinct from peer agents by having authority over their configuration,
+  routing, or behavior, not just their outputs.
 sources:
-  - tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md
-  - tweets/hwchase17-continual-learning-for-ai-agents.md
-  - repos/mirix-ai-mirix.md
-  - papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
-  - deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
   - repos/canvas-org-meta-agent.md
+  - repos/greyhaven-ai-autocontext.md
   - articles/x-twitter-meta-agent-continual-learning-for-agents.md
+  - deep/repos/greyhaven-ai-autocontext.md
+  - deep/repos/kayba-ai-agentic-context-engine.md
+  - deep/repos/foundationagents-metagpt.md
+  - deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md
 related:
-  - tau-bench
-  - rag
   - claude
-  - decision-traces
-  - claude-code
-last_compiled: '2026-04-07T11:53:56.328Z'
+  - gepa
+  - openai
+  - anthropic
+  - react
+  - gepa
+last_compiled: '2026-04-08T03:04:22.700Z'
 ---
 # Meta-Agent
 
 ## What It Is
 
-A meta-agent is an agent whose target is another agent's behavior rather than a domain task. Where a standard agent solves customer service tickets or writes code, a meta-agent reads execution traces from that agent, identifies failure patterns, and modifies the agent's configuration to improve future performance.
+A meta-agent is an LLM-powered agent whose primary domain is other agents. Where a base agent executes tasks — writing code, calling APIs, browsing the web — a meta-agent observes, coordinates, evaluates, or modifies the agents doing that work. The distinction is structural: a meta-agent operates on agents as its objects, not on the world directly.
 
-The term covers a range of implementations, from simple prompt-rewriters to full coding agents that modify retrieval logic and tool scaffolding. What unifies them is the structure: an outer loop that observes a subordinate agent, evaluates its behavior, proposes changes, and validates those changes before committing them.
+The term covers three distinct functional roles that often overlap in practice:
 
-This is different from [multi-agent systems](../concepts/agent-memory.md) where agents coordinate on tasks. A meta-agent's job is the agent itself.
+**Orchestrators** route tasks to sub-agents, manage execution order, and synthesize outputs. MetaGPT's `TeamLeader` ([MetaGPT](../projects/metagpt.md)) intercepts every message in the team bus, decides which role should handle it, and delegates via explicit task assignment. [OpenAI Agents SDK](../projects/openai-agents-sdk.md) formalizes this as a first-class handoff primitive.
+
+**Evaluators** score sub-agent outputs and decide whether to accept, retry, or rollback. Autocontext's `Curator` agent quality-gates every proposed playbook mutation before it persists. The `LLMJudge` in its `ImprovementLoop` scores outputs across multiple dimensions and drives the advance/retry/rollback decision in the `BackpressureGate`.
+
+**Improvers** analyze sub-agent behavior and modify the harness around them — prompts, tools, hooks, skills — to change future behavior. This is the most architecturally ambitious role: meta-agents that not only observe performance but change the system that produces it.
+
+These roles compose. GEPA ([GEPA](../concepts/gepa.md)) acts as both evaluator and improver. Autocontext's five-agent architecture (Competitor, Analyst, Coach, Architect, Curator) splits these responsibilities across specialized agents, each with a narrow function, coordinated by a generation runner.
 
 ## Why It Matters
 
-Harness engineering turns out to be as impactful as model selection. The code that controls what information an LLM receives — prompt construction, retrieval logic, memory management, tool selection — can produce up to 6x performance gaps on the same benchmark with the same model weights. Yet most practitioners hand-engineer this code and rarely revisit it.
+Harness optimization is a meaningful lever on agent performance. On TerminalBench-2, hand-engineered harness changes lift vanilla Claude Code + Haiku 4.5 from 27.5% to 35.5% with no fine-tuning. Meta-agent (canvas-org) improved tau-bench airline accuracy from 67% to 87% through automated harness optimization over 4-10 iterations. These gains come not from better base models but from better configuration of the agents already in use.
 
-Meta-agents automate that revision process. They shift harness improvement from a manual debugging cycle into a continuous feedback loop driven by real execution data.
-
-The practical consequence: a Haiku 4.5 agent on TAU-bench airline tasks starts at 67% and reaches 87% accuracy after meta-agent optimization, with no fine-tuning and no model change. On TerminalBench-2, hand-engineered harnesses beat vanilla Claude Code by 8 percentage points. Meta-Harness, running automated optimization, beats those hand-engineered harnesses and ranks #1 among all Haiku 4.5 agents on that leaderboard.
-
-These results are self-reported from early 2026 papers and single-run experiments. Independent replication at scale has not been published.
-
-## The Three Layers of Agent Learning
-
-Harrison Chase's framing clarifies where meta-agents operate:
-
-**Model layer**: weights updated via SFT or RL. Slow, expensive, risks [catastrophic forgetting](../concepts/catastrophic-forgetting.md). Usually done at the agent level, not per-user.
-
-**Harness layer**: the code and base instructions that drive all instances of an agent. Meta-agents at this layer read traces and rewrite harness code. Changes apply universally to the agent.
-
-**Context layer**: per-instance configuration (user memory, org-level skills, [CLAUDE.md](../concepts/claude-md.md) files) that sits outside the harness but shapes behavior. Updates here are faster and more targeted, with lower risk of degrading other users.
-
-Meta-agents can operate at any of these layers. Most current systems target the harness layer because the feedback loop is cleaner and the changes are more reusable.
+This matters because the gap between a base agent and a well-configured agent is often larger than the gap between two different base models. A meta-agent can close that gap continuously, on production data, without labeled training sets.
 
 ## How It Works
 
 ### The Core Loop
 
-Every meta-agent implementation follows the same structure:
+Every meta-agent implementation runs some variant of:
 
-1. Run the target agent over a task set and collect execution traces
-2. Score outcomes (with ground truth labels, an [LLM-as-Judge](../concepts/llm-as-judge.md), or both)
-3. Identify failure patterns — either by direct inspection or clustering
-4. Propose one or more harness modifications
-5. Evaluate the modified harness on a held-out set
-6. Keep the modification only if it improves holdout performance without regressing on previously fixed failures
-7. Repeat
+```
+observe sub-agent behavior →
+evaluate quality →
+identify failure patterns →
+propose harness change →
+validate on holdout →
+apply or reject
+```
 
-The key design variables are: how much trace data the proposer sees, how changes are validated, and what the proposer can modify.
+The variation is in which steps involve LLMs, how validation works, and what constitutes a "harness change."
 
-### Filesystem Memory
+**meta-agent** (canvas-org): reads unlabeled production traces, runs an LLM judge to score them, has a proposer identify recurring failure patterns and write one targeted change (prompt, hook, tool, stop condition), validates on a small labeled holdout, keeps the change only if holdout accuracy improves. Filesystem memory stores all prior candidates, traces, and scores so the proposer can search history before proposing — avoiding repeated failed attempts.
 
-The Meta-Harness paper (Lee et al., 2026) makes the most important architectural contribution here: the proposer reads raw execution traces from a filesystem rather than compressed summaries. Each candidate harness, its scores, and its full execution traces are stored as files. The proposer (Claude Code with Opus-4.6) reads a median of 82 files per iteration, referencing over 20 prior candidates before proposing a new one.
+**Autocontext**: runs scenarios with a Competitor agent that proposes strategies, scores results via tournament (Elo/Glicko for game scenarios) or LLM judge (for task scenarios), passes outcomes to an Analyst that diagnoses failures, a Coach that updates the playbook (markdown with versioning and rollback), an Architect that generates new tools, and a Curator that quality-gates all changes. The `GenerationRunner` orchestrates this loop; `BackpressureGate` decides advance/retry/rollback based on score trajectory. [Source](../raw/deep/repos/greyhaven-ai-autocontext.md)
 
-The ablation result is stark:
+**ACE** (Agentic Context Engine): uses a Generator (runs the agent), Reflector (critiques execution traces), and Curator (synthesizes delta bullets that merge deterministically into the evolving context). The non-LLM merge is the critical design choice — by appending bullets rather than rewriting the full context, ACE prevents the information loss that occurs when LLMs iteratively summarize their own context ("context collapse"). [Source](../raw/deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md)
 
-| Access level | Median accuracy |
-|---|---|
-| Scores only | 34.6 |
-| Scores + summaries | 34.9 |
-| Full filesystem access | 50.0 |
+**MetaGPT TeamLeader**: coordinates a team of specialized agents by intercepting all messages, routing them to the appropriate role, managing a task `Plan` DAG with explicit assignees, and delegating via `publish_team_message`. Complexity routing is explicit in the prompt: XS/S tasks skip PRD and design, M+ tasks get the full PM → Architect → Engineer pipeline. [Source](../raw/deep/repos/foundationagents-metagpt.md)
 
-Summaries add 0.3 points. Full trace access adds 15.4. The causal signal — the specific prompts that were constructed, the exact retrieval results that came back, the precise point where the agent failed — does not survive compression. A proposer that can only see summaries can observe that something failed. A proposer with full traces can understand why.
+### What Meta-Agents Can Modify
 
-This has a direct implication for any iterative optimization system: [Reflexion](../concepts/reflexion.md)-style verbal self-reflection is materially worse than full execution trace access. If you are building a self-improvement loop, surface raw diagnostic data to the optimizer.
+The harness is everything around the model: system prompts, tools, hooks, memory, sub-agents, stop conditions, routing logic. Meta-agents differ by which layer they target:
 
-### Proposer Behavior
+| Layer | Example | Mechanism |
+|-------|---------|-----------|
+| System prompt | meta-agent rewrites prompt with policy rules | Direct file write |
+| Skills/playbook | Autocontext Coach updates markdown playbook | Delimited block replacement |
+| Tools | Autocontext Architect generates new tool code | Code generation + archive |
+| Context bullets | ACE Curator appends delta bullets | Deterministic merge |
+| Routing | MetaGPT TeamLeader delegates tasks | Message `send_to` targeting |
+| Model weights | Autocontext distillation (frontier → local) | MLX/CUDA fine-tuning |
 
-With full trace access, capable proposers exhibit genuine causal reasoning rather than trial-and-error. From the TerminalBench-2 case documented in the Meta-Harness paper:
+Prompt and skill changes are low-risk and reversible. Code generation (tool creation, subagent modification) is higher-risk. Weight updates (distillation) are the highest-leverage but most expensive.
 
-After observing two consecutive regressions from changes that bundled structural modifications with prompt changes, the proposer explicitly identified that the shared prompt interventions confounded the results and separated the concerns. After five regression failures from changes that modified completion flow, it shifted strategy: "All prior iterations regressed because they modified the completion flow, prompt template, or observation processing. This takes a different approach — purely additive."
+### Validation as the Gating Mechanism
 
-The proposer tracks its own failure history, forms hypotheses about root causes, and adjusts strategy based on what it has already tried. This only works because the filesystem preserves the full history.
+Without validation, a meta-agent is a prompt-mutation machine that may accumulate garbage. Every credible implementation uses a holdout or equivalency check:
 
-### What the Proposer Can Modify
+- meta-agent: small labeled holdout set evaluated with the official task evaluator, not the LLM judge used during search
+- Autocontext: `BackpressureGate` compares generation scores against a moving threshold; `TrendAwareGate` detects plateaus and relaxes thresholds to escape local optima
+- ACE: helpful/harmful counters on each bullet track association with successful vs failed executions over time
+- MetaGPT: no explicit validation loop for harness changes (the TeamLeader routes, not improves)
 
-Meta-agents targeting the harness layer can change:
+Holdout separation is the key discipline. meta-agent found its judge-based search run reached 87% holdout accuracy vs 80% for labeled-search — possibly because LLM judge critiques ("the agent refunded without checking the cancellation policy") provide richer signal than binary pass/fail labels.
 
-- System prompt content and structure
-- Retrieval logic (which fields to query, how many results to fetch, reranking strategies)
-- Routing decisions (which retrieval path to use based on input type)
-- Lifecycle hooks around tool use
-- Stop conditions and error handling
-- Custom tools and subagents
-- Memory management logic
+### Credit Assignment
 
-The canvas-org [meta-agent](https://github.com/canvas-org/meta-agent) library exposes this through a `build_options(ctx: RunContext) -> ClaudeAgentOptions` interface. Any Python code that builds the agent's options is fair game for the proposer to rewrite.
+When multiple harness components change simultaneously, which change drove the improvement? Autocontext's `analytics/credit_assignment.py` implements component sensitivity profiling — correlating specific types of changes (playbook, tools, hints, strategy) with score improvements across many generations. This is hard to get right: playbook change and tool addition in the same generation make attribution ambiguous. The system identifies patterns over many runs rather than per-generation.
 
-### Discovered Harness Patterns
+ACE's helpful/harmful counters are a simpler approach — each bullet tracks its own association with outcomes, providing per-item rather than per-component attribution.
 
-The Meta-Harness research produced several reusable patterns worth knowing:
+## Concrete Architecture Patterns
 
-**Draft-Verification (text classification):** Two-stage retrieval. First, retrieve 5 similar examples and produce a draft label. Second, retrieve confirming and challenging examples conditioned on that draft label for verification. Lower context cost than naive few-shot (5.4K tokens vs. 50.8K for ACE).
+### The Five-Role Architecture (Autocontext)
 
-**Label-Primed Query:** Single retrieval call combining a label primer (all valid outputs), one example per label, and contrastive pairs (similar examples with different labels). Highest accuracy (48.6%) at moderate context cost.
+Autocontext's most distinctive design: five agents with narrow responsibilities rather than one generalist.
 
-**Subject-Specific Router (math):** Lexical classifier over input routes to specialized BM25 retrieval policies. Combinatorics queries fetch 20, deduplicate to 8, rerank, keep 3. Geometry queries fetch 1 hard reference plus 2 neighbors. Number theory queries fetch 12, rerank with technique-early bonus, keep 3.
+```
+CompetitorRunner → proposes strategy
+Analyst → diagnoses what happened and why
+Coach → updates playbook with lessons
+Architect → generates tools (runs every N generations)
+Curator → quality-gates all knowledge changes
+```
 
-**Environment Bootstrapping (coding agents):** Pre-execution snapshot injecting available OS, languages, package managers, and memory state before the agent loop. Eliminates 3-5 wasted exploration turns on dependency-heavy tasks.
+The separation is not cosmetic. The Analyst does not propose solutions; the Coach does not diagnose failures. Each agent's context window stays focused on its specialty, producing higher-quality outputs per role than a single agent doing everything. The cost is ~5x LLM calls per generation.
 
-### LLM Judge as Surrogate Evaluator
+The Curator provides independent quality gating. Without it, bad lessons accumulate — a plausible-sounding but wrong lesson passes through the Coach and persists indefinitely. With the Curator, each proposed change faces a second LLM evaluation before it touches the knowledge store.
 
-The canvas-org meta-agent variant solves a production problem: most real agent deployments lack labeled ground truth. Their system uses an LLM judge to score unlabeled production traces during search, while maintaining a small labeled holdout set for final validation.
+### Subscription-Based Coordination (MetaGPT)
 
-On TAU-bench v3 airline tasks (50 tasks, 35 search / 15 holdout), the judge-based run reached 87% holdout accuracy vs. 80% for the labeled-search variant. The proposed explanation: the LLM judge produces natural-language critiques ("the agent refunded without checking the cancellation policy") rather than binary pass/fail signals. The proposer reads these critiques and can address the specific behavioral failure rather than optimizing against an opaque score.
+MetaGPT's `_watch()` mechanism encodes the SOP as message routing topology. Each role subscribes to the output types of its upstream roles:
 
-This is a single run on a small benchmark split. The result is promising but not conclusive.
+```python
+Architect._watch([WritePRD])
+ProjectManager._watch([WriteDesign])
+Engineer._watch([WriteTasks, SummarizeCode, WriteCode])
+```
 
-## Concrete Failure Modes
+No orchestrator directs traffic. The SOP is topology, not code. Adding a role requires only defining what it watches — zero changes to existing roles. The TeamLeader layer adds dynamic routing on top: it intercepts all messages and can override the static subscription graph with explicit delegation.
 
-**Overfitting to observed traces.** The proposer tends to write fixes narrow enough to address the specific traces it saw rather than general behavioral rules. The canvas-org team observed this in early iterations: search accuracy improved while holdout accuracy declined. Their mitigation was a simple instruction: "State your change as a rule about agent behavior. If you can only justify it by pointing to specific traces, it's too narrow." This reduced but did not eliminate the problem.
+### Incremental Delta Context (ACE)
 
-**Regression without a gate.** Without a regression test suite that grows with each resolved failure, the optimizer re-opens previously fixed issues. The auto-harness library (neosigmaai) addresses this by maintaining a growing `workspace/suite.json` that converts each resolved failure cluster into a permanent test case. Changes must pass the full regression suite, not just improve the primary metric.
+ACE's curator merges new knowledge as small bullets via deterministic logic, not LLM rewriting. Each bullet carries a unique ID and helpful/harmful counters. Semantic deduplication (embedding-based) prunes redundant bullets.
 
-**Proposer model dependency.** All published results use Opus-4.6 class models as the proposer. The causal reasoning documented in the TerminalBench trace — identifying confounded experiments, pivoting strategy after five consecutive failures — requires a highly capable model. Results with weaker proposers have not been published.
+The non-LLM merge is the architectural key. LLMs applying brevity bias to context rewriting will compress "When parsing European XBRL filings, check decimals before scale" into "Parse filings carefully." The deterministic merge never makes this compression — it appends the specific bullet and lets deduplication handle exact redundancy separately. [Source](../raw/deep/papers/zhang-agentic-context-engineering-evolving-contexts-for.md)
 
-**Infrastructure assumption (unspoken).** All published meta-agent systems assume you can run your target agent in a sandboxed evaluation environment rapidly enough to complete 10-40 iterations of search within a reasonable time window. For agents with expensive or slow task environments (real API calls, human-in-the-loop steps, multi-hour tasks), the evaluation loop is the bottleneck and meta-agent search becomes impractical without purpose-built simulation infrastructure.
+### Filesystem Memory (meta-agent)
 
-## When Not to Use It
+meta-agent stores every harness candidate, its scores, and its traces on disk. The proposer searches this history before proposing changes — finding what has already been tried, which changes improved performance, and which trace patterns recur. This prevents the proposer from repeatedly attempting the same failed fix.
 
-Meta-agent optimization assumes your failure modes are systematic and reproducible. If your agent fails randomly due to model stochasticity rather than consistent policy gaps, the proposer will find spurious patterns and make changes that don't generalize.
+## Failure Modes
 
-It also assumes you have enough tasks to split between search and holdout. The TAU-bench experiments use 35 search / 15 holdout tasks. Smaller task sets make it difficult to distinguish real improvements from noise.
+**Overfitting to visible traces.** meta-agent's proposer initially fixed specific traces rather than writing general behavioral rules, improving search accuracy while hurting holdout. Their mitigation: "State your change as a rule about agent behavior. If you can only justify it by pointing to specific traces, it's too narrow."
 
-If your agent serves highly heterogeneous users whose tasks share no common structure, a single harness optimization may improve average performance while degrading performance for specific user types. The meta-agent finds one harness that does well on average — it does not find user-specific harnesses unless you run separate optimization loops per user segment.
+**Knowledge pollution.** Without a quality gate, every bad lesson from a misdiagnosed failure accumulates in the playbook. The Analyst misdiagnoses → Coach encodes bad lesson → Curator misses it → lesson persists and degrades future performance. The chain of trust means a single early error propagates.
 
-Finally, if your primary bottleneck is model capability (the model genuinely cannot do the task) rather than harness design (the model could do the task if prompted and contextualized correctly), harness optimization will not close the gap.
+**Backpressure oscillation.** Autocontext's TrendAwareGate can cycle: plateau detected → relax threshold → accept marginal improvement → tighten → reject similar improvements → plateau again. This wastes generations without genuine progress.
+
+**Context collapse.** Meta-agents that evolve prompts through LLM rewriting — asking an LLM to incorporate new lessons into the current system prompt — experience progressive information loss. Each rewrite applies brevity bias. ACE's incremental delta approach prevents this; systems without it should treat it as an unresolved risk.
+
+**Credit misattribution.** When multiple components change simultaneously, correlation is not causation. A tool addition and a playbook change in the same generation both correlate with improvement. The system may reinforce the wrong component, wasting subsequent generations on less effective change types.
+
+**Cost at scale.** Autocontext: 5 agents × N LLM calls per generation × tournament matches × architect interventions = substantial per-generation cost. meta-agent: proposer uses Opus 4.6 per iteration. These costs are justified for systems with long production lifespans, not for one-off tasks.
+
+## When NOT to Use a Meta-Agent
+
+**Simple tasks.** ACE's paper explicitly notes that "simpler tasks often benefit more from concise instructions than lengthy contexts." A meta-agent adds overhead — extra LLM calls, validation cycles, memory management — that is not justified when the base agent already performs well and the task is predictable.
+
+**No feedback signal.** Meta-agents that improve behavior need to evaluate behavior. Without execution feedback (test results, API outcomes, human labels, or a holdout set), the meta-agent cannot distinguish helpful from harmful changes. Deploying a meta-agent that optimizes on noisy or unavailable feedback will degrade the system.
+
+**Single-run tasks.** Meta-agent improvement compounds over many iterations. For a task run once, the overhead of improvement cycles exceeds any benefit. The value is in recurring tasks where learned harness improvements transfer.
+
+**Safety-critical applications without human-in-the-loop.** A meta-agent that can modify prompts, tools, or subagents can modify behavior in unexpected directions. Autocontext's playbook rollback and the Curator quality gate help, but they do not catch all failure modes. For high-stakes deployments, [Human-in-the-Loop](../concepts/human-in-the-loop.md) review of proposed harness changes is a prerequisite.
+
+**When you need structural changes.** Meta-agents that modify prompts and tools cannot restructure the agent's architecture — add a new agent role, change the memory system, switch inference backends. Those changes require human engineering.
 
 ## Unresolved Questions
 
-**Cost at scale.** Meta-Harness processes approximately 10 million tokens per iteration. At current API pricing, 40 iterations of harness optimization costs hundreds of dollars in proposer API calls before counting target agent evaluation costs. The canvas-org and auto-harness systems do not publish cost breakdowns. For production adoption, the question of when to run optimization, how frequently, and at what compute budget is unanswered.
+**Governance of harness changes.** Who controls what a meta-agent is allowed to modify? Autocontext archives old tool versions and supports playbook rollback, but there is no access control framework for saying "the meta-agent can update prompts but cannot create new subagents." This is an open design problem.
 
-**Multi-tenant optimization.** Harrison Chase notes that harness optimization is usually done at the agent level, but user-level or org-level context optimization is more granular. No published system demonstrates automated meta-agent optimization at the per-tenant level at scale. The governance question — who decides when to apply a harness change that affects all users — is not addressed.
+**Conflict resolution between concurrent meta-agents.** What happens when two meta-agents propose conflicting harness changes simultaneously? None of the implementations address multi-meta-agent coordination. Autocontext's single-threaded generation loop sidesteps this; MetaGPT's TeamLeader is a singleton. Production deployments with multiple improvement loops will need explicit conflict resolution.
 
-**Proposer-target coupling.** The proposer reads code it must understand and modify. If the target harness becomes complex after many optimization iterations, does the proposer's ability to reason about it degrade? No published work tracks proposer effectiveness as harness complexity grows.
+**Knowledge transfer between tasks.** Autocontext stores knowledge per-scenario. ACE bullets are task-specific. Neither provides a mechanism for transferring lessons learned on task A to related task B. Cross-task knowledge transfer is mentioned (Autocontext's cross-run inheritance) but not architected.
 
-**Stability over time.** Task distributions shift. A harness optimized on last month's traces may degrade as user behavior changes. How often should meta-agent optimization run? What triggers a re-optimization cycle? These operational questions are not addressed in any published system.
+**Distillation quality at scale.** Autocontext's frontier-to-local distillation trains local models on successful run data. Whether distilled models generalize to novel task instances rather than overfitting to training scenarios is not validated in available benchmarks.
 
-## Related Systems and Selection Guidance
+**Judge reliability as improvement signal.** meta-agent's judge-based search outperformed labeled search in one run on 50 tasks. This is a single-run result with no variance estimates. Whether LLM judge critique ("the agent refunded without checking policy") is systematically better than binary labels, or whether this was noise in a small experiment, is not established.
 
-**[Meta-Harness](../projects/darwin-godel-machine.md)** (Lee et al., 2026): Academic system demonstrating full-trace filesystem access. Use this framing when you want to understand the theoretical contribution and ablations.
+## Alternatives
 
-**[meta-agent](https://github.com/canvas-org/meta-agent)**: Open-source library supporting Claude Agent SDK. Use when you want a working implementation to extend. Currently limited to one SDK.
+**[ReAct](../concepts/react.md)**: Use when you need a single agent with tool use, not coordination of multiple agents. ReAct adds no improvement loop.
 
-**[auto-harness](https://github.com/neosigmaai/auto-harness)** (NeoSigma): Adds failure clustering and growing regression test suite. Use when regression prevention is a priority or when you want the `workspace/learnings.md` persistent log pattern.
+**[LangGraph](../projects/langgraph.md)**: Use when you need deterministic multi-agent workflows with explicit state machines. Suitable for production pipelines where the workflow is known and stable, not for self-improving systems.
 
-**[EvoAgentX](../projects/evoagentx.md)**: Framework for evolutionary agent optimization. Use when you want broader search strategies beyond coding-agent proposers.
+**[CrewAI](../projects/crewai.md)**: Use when you want role-based multi-agent coordination with minimal setup. No meta-level improvement; roles are fixed.
 
-**[DSPy](../projects/dspy.md)**: Optimizes prompts and few-shot examples programmatically. Use DSPy when your harness is primarily prompt-based and your task has clean metric functions. Use meta-agent when your harness includes retrieval logic, routing, and tool scaffolding that DSPy's prompt optimizer cannot touch.
+**[AutoGen](../projects/autogen.md)**: Use when you need flexible agent conversation patterns with code execution. Closer to peer coordination than hierarchical meta-agent.
 
-**[LangGraph](../projects/langgraph.md)**: Provides the multi-agent orchestration substrate. Meta-agents can be implemented as outer-loop nodes in a LangGraph workflow. Use LangGraph when you want production-grade state management and tracing infrastructure underneath your meta-agent loop.
+**[DSPy](../projects/dspy.md)**: Use when your optimization target is a prompt or chain, you have labeled data, and you want gradient-based or discrete optimization over prompt parameters. DSPy optimizes prompts systematically; meta-agents optimize harnesses holistically including tools and routing logic.
 
-**[Reflexion](../concepts/reflexion.md)**: Verbal self-reflection for single-agent improvement. Use Reflexion for lightweight, within-session learning. Use meta-agent when you need persistent cross-session improvement with code-level changes. The trace-access ablation results show meta-agent's approach is materially more effective.
+**[GEPA](../concepts/gepa.md)**: Use when optimizing a specific text artifact (prompt, rubric, playbook) through evolutionary search with Pareto multi-objective tracking. GEPA is narrower than a full meta-agent loop but more principled for artifact-level optimization.
 
-**[Self-Improving Agent](../concepts/self-improving-agent.md)**: The broader concept. Meta-agent is a specific architecture within the self-improving space focused on harness-level changes rather than weight updates or context accumulation.
+**[Self-Improving Agents](../concepts/self-improving-agents.md)**: The broader concept of which meta-agents are one implementation pattern. Includes approaches based on weight updates, skill synthesis, and memory evolution that do not use a dedicated meta-agent.
 
-**[Decision Traces](../concepts/decision-traces.md)**: The raw execution logs that meta-agents consume. Good trace infrastructure is a prerequisite for effective meta-agent operation.
+## Related Concepts
 
-**[CLAUDE.md](../concepts/claude-md.md)**: The context-layer analog in coding agents. Meta-agents targeting context rather than harness code produce or modify files like CLAUDE.md and [Skill Files](../concepts/skill-md.md).
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md): The coordination layer meta-agents sit above
+- [Agent Harness](../concepts/agent-harness.md): What meta-agents modify
+- [Prompt Optimization](../concepts/prompt-optimization.md): One specific target of meta-agent improvement
+- [LLM-as-Judge](../concepts/llm-as-judge.md): The evaluation primitive most meta-agents depend on
+- [Reflexion](../concepts/reflexion.md): Self-improvement through verbal reflection, an early meta-agent precursor
+- [Execution Traces](../concepts/execution-traces.md): The primary input to meta-agent evaluation
+- [Human-in-the-Loop](../concepts/human-in-the-loop.md): The governance layer missing from most meta-agent implementations
+- [Continual Learning](../concepts/continual-learning.md): The learning-theoretic framing of what meta-agents do operationally
+- [GEPA](../concepts/gepa.md): Evolutionary artifact optimization, directly integrated into Autocontext
+- [SkillBook](../concepts/skill-book.md): One form of harness that meta-agents maintain and evolve

@@ -1,29 +1,35 @@
-# Taxonomy — 5 Buckets
+# Taxonomy — 6 Buckets
 
-## knowledge-bases
+## knowledge-substrate
 The Karpathy pattern (raw sources → LLM-compiled .md wiki), Obsidian workflows,
-markdown wikis, compiled vs curated approaches, NotebookLM, personal second brains,
-RAG alternatives. The "how do you store and organize knowledge for agents" question.
+markdown wikis, compiled vs curated approaches, RAG alternatives, personal second brains,
+context graphs, decentralized knowledge graphs, registries, vector stores.
+The "where does knowledge live and how is it structured" question.
 
 ## agent-memory
 Persistent memory for LLM agents. Mem0, Letta, A-MEM, Zep/Graphiti, LangMem, Cognee.
 Episodic vs semantic vs working memory architectures. Cross-session knowledge retention.
-The "how do agents remember" question.
+Temporal awareness and fact validity. The "how do agents remember" question.
 
 ## context-engineering
 Context window management as a discipline. CLAUDE.md/AGENTS.md/SKILL.md standards.
-Prompt engineering for knowledge. Context graphs. Token optimization (LLMLingua).
-Progressive disclosure. The "how do you give agents the right context" question.
+Token budgeting, traversal policy, progressive disclosure. Context graphs for runtime
+selection. The "how do you give agents the right context at inference time" question.
 
-## agent-systems
-Skills, harnesses, and orchestration. gstack, everything-claude-code, Anthropic Skills.
-Modular agent capabilities. Skill composition patterns. How agents discover and chain
-tools. The "how do you build and compose agent capabilities" question.
+## agent-architecture
+Skills, harnesses, and individual agent design. gstack, everything-claude-code,
+Anthropic Skills. Modular capabilities, SKILL.md, tool use patterns, prompt optimization,
+skill composition. The "how do you build a single agent's capabilities" question.
+
+## multi-agent-systems
+Coordination between multiple agents. CORAL, shared state management, task delegation,
+agent-to-agent communication, conflict resolution, signal aggregation, organizational
+coordination, trust primitives. The "how do agents work together" question.
 
 ## self-improving
 Autonomous observe/correct/improve loops. AutoResearch (Karpathy's pattern). Reflexion.
-Darwin-Godel Machine. Self-healing knowledge bases. Health checks, gap detection, linting.
-The "how do systems get better without human intervention" question.
+Fitness functions, trace-driven optimization, Darwinian/Lamarckian selection, health
+checks, gap detection, linting. The "how do systems get better autonomously" question.
 
 ## Neutrality rule
 

@@ -26,6 +26,18 @@ deep_research:
   text_length: 9000
   analyzed_at: '2026-04-04'
   original_source: papers/edge-from-local-to-global-a-graph-rag-approach-to-quer.md
+relevance_scores:
+  topic_relevance: 7
+  practitioner_value: 7
+  novelty: 6
+  signal_quality: 8
+  composite: 7
+  reason: >-
+    GraphRAG's hierarchical community summarization and map-reduce query pattern
+    are directly transferable to knowledge substrate and context engineering
+    topics, with detailed architectural analysis covering token efficiency,
+    retrieval tradeoffs, and community detection that practitioners can apply to
+    agent knowledge systems.
 ---
 
 ## Architecture Overview

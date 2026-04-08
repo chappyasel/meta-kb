@@ -25,11 +25,10 @@ relevance_scores:
   signal_quality: 7
   composite: 7.1
   reason: >-
-    Directly addresses agent memory architectures (episodic/semantic/procedural)
-    with Elasticsearch as a production-ready backend, covering context
-    management, identity-based memory isolation, and token optimization—core
-    topics for KB/agent memory practitioners, though the approach is a solid
-    known pattern rather than genuinely novel.
+    Directly addresses agent memory architecture (episodic/semantic/procedural),
+    context pollution, token budgeting, and identity-scoped memory retrieval
+    using Elasticsearch—core Agent Memory and Context Engineering topics with
+    actionable implementation patterns.
 ---
 ## AI agent memory: Agentic AI memory management with Elasticsearch
 

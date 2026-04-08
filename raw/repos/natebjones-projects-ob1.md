@@ -26,10 +26,11 @@ relevance_scores:
   signal_quality: 7
   composite: 7.7
   reason: >-
-    Open Brain is a directly relevant, production-ready open-source persistent
-    memory infrastructure using vector DB + MCP protocol to enable
-    cross-agent/cross-model memory sharing—core to agent memory and knowledge
-    base topics with a clear setup guide and active community.
+    Open Brain is a directly relevant personal knowledge substrate project —
+    vector DB + MCP protocol enabling shared persistent memory across multiple
+    AI agents/tools, which squarely addresses knowledge substrate, agent memory,
+    and multi-agent shared state pillars with a production-ready TypeScript
+    implementation and solid documentation.
 language: TypeScript
 license: NOASSERTION
 ---

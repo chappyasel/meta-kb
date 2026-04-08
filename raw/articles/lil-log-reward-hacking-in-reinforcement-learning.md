@@ -18,16 +18,16 @@ key_insight: >-
   bases and agentic systems that depend on properly-incentivized behavior,
   making mitigation strategies essential for practical deployment.
 relevance_scores:
-  topic_relevance: 7
-  practitioner_value: 7
-  novelty: 6
-  signal_quality: 8
-  composite: 7
+  topic_relevance: 4
+  practitioner_value: 4
+  novelty: 4
+  signal_quality: 7
+  composite: 4.5
   reason: >-
-    Reward hacking is directly listed as a failure mode of self-improvement
-    loops (Topic 5), and this detailed Lil'Log post by Lilian Weng covers
-    RLHF-specific hacking patterns with mitigation context highly transferable
-    to self-improving LLM agent systems.
+    Reward hacking and RLHF alignment is tangentially relevant to self-improving
+    agent systems (topic 6), but this article is primarily about RL theory and
+    mitigation for language model training rather than agent infrastructure,
+    memory, knowledge systems, or multi-agent coordination patterns.
 ---
 ## Reward Hacking in Reinforcement Learning
 

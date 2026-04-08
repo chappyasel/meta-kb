@@ -8,6 +8,7 @@
 import sharp from "sharp";
 import { readdirSync } from "fs";
 import path from "path";
+import { domain } from "../config/domain.ts";
 
 const SS_DIR = path.join(import.meta.dirname, "..", "og", "screenshots");
 const OUT_PATH = path.join(import.meta.dirname, "..", "og", "og-image.png");
@@ -79,20 +80,20 @@ async function main() {
     </defs>
     <rect x="100" y="340" width="2200" height="580" rx="30"
       fill="black" fill-opacity="0.7"/>
-    <text x="50%" y="43%" text-anchor="middle" dominant-baseline="middle"
+    <text x="50%" y="40%" text-anchor="middle" dominant-baseline="middle"
       font-family="Geist Mono" font-size="360" font-weight="bold"
       fill="white" filter="url(#shadow)">
-      meta-kb
+      ${domain.name}
     </text>
     <text x="50%" y="60%" text-anchor="middle" dominant-baseline="middle"
       font-family="Geist Mono" font-size="86" font-weight="bold"
       fill="white" filter="url(#shadow)">
-      A self-improving LLM knowledge base
+      A self-improving knowledge base
     </text>
     <text x="50%" y="68%" text-anchor="middle" dominant-baseline="middle"
       font-family="Geist Mono" font-size="86" font-weight="bold"
       fill="white" filter="url(#shadow)">
-      about self-improving LLM knowledge bases
+      about LLM agent infrastructure
     </text>
   </svg>`;
 

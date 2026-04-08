@@ -24,10 +24,10 @@ relevance_scores:
   signal_quality: 6
   composite: 7
   reason: >-
-    Directly addresses agent memory architectures (episodic vs semantic hybrid)
-    with practical implementation patterns, making it highly relevant to topic
-    area 2, though the content appears to be a conceptual/introductory article
-    rather than a novel technical contribution.
+    Directly addresses agent memory architecture (episodic/semantic hybrid) with
+    practical implementation patterns, covering a core topic area (Agent Memory)
+    with actionable trade-offs and a shippable recipe, though the content is a
+    blog-level micro-article rather than a deep technical reference.
 ---
 ## Memory in Agents: Episodic vs. Semantic, and the Hybrid That Works - Principia Agentica
 

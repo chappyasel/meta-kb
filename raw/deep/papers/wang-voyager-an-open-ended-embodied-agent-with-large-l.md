@@ -16,16 +16,28 @@ tags:
 key_insight: >-
   Voyager's three-component architecture (automatic curriculum + skill library +
   iterative self-verification) creates compounding lifelong learning: each new
-  skill stored as executable code builds on prior discoveries, enabling 3.3x more
-  exploration and 15.3x faster tech tree progression vs baselines. The skill
-  library pattern -- executable code indexed by text embeddings, composed through
-  retrieval -- is directly transferable to any agent system that needs to
-  accumulate and reuse capabilities without fine-tuning.
+  skill stored as executable code builds on prior discoveries, enabling 3.3x
+  more exploration and 15.3x faster tech tree progression vs baselines. The
+  skill library pattern -- executable code indexed by text embeddings, composed
+  through retrieval -- is directly transferable to any agent system that needs
+  to accumulate and reuse capabilities without fine-tuning.
 deep_research:
   method: paper-full-text
   text_length: 11000
   analyzed_at: '2026-04-04'
   original_source: papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md
+relevance_scores:
+  topic_relevance: 8
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 9
+  composite: 8.2
+  reason: >-
+    Voyager's skill library pattern (executable code indexed by embeddings,
+    composed through retrieval, verified before storage) is a directly
+    transferable architecture for self-improving agent systems with compounding
+    capability accumulation—highly relevant to skill libraries, SKILL.md
+    patterns, and self-improvement loops.
 ---
 
 ## Architecture Overview

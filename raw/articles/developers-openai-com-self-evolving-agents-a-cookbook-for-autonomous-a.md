@@ -18,16 +18,16 @@ key_insight: >-
   retraining loops—this is critical for regulated domains where iteration speed
   and auditability compound competitive advantage.
 relevance_scores:
-  topic_relevance: 8
+  topic_relevance: 9
   practitioner_value: 9
   novelty: 7
   signal_quality: 7
-  composite: 8
+  composite: 8.4
   reason: >-
-    This OpenAI cookbook directly addresses self-improving agentic systems with
-    concrete retraining loops, LLM-as-judge evaluation, and human feedback
-    instrumentation—core to topic area 5 (self-improving systems) and highly
-    actionable for practitioners building production agents.
+    This cookbook directly addresses self-improving agent loops with human
+    feedback, LLM-as-judge evals, and automated retraining—core patterns of the
+    Self-Improving Systems pillar—with actionable, modular implementation
+    guidance from OpenAI.
 ---
 ## Self-Evolving Agents - A Cookbook for Autonomous Agent Retraining
 

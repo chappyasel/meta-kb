@@ -24,16 +24,17 @@ images:
   - >-
     images/akoratana-context-graphs-will-be-to-the-2030s-what-databases/image.jpg
 relevance_scores:
-  topic_relevance: 8
-  practitioner_value: 5
+  topic_relevance: 9
+  practitioner_value: 6
   novelty: 7
-  signal_quality: 5
-  composite: 6.5
+  signal_quality: 6
+  composite: 7.4
   reason: >-
-    Directly addresses context graphs as a knowledge structuring paradigm and
-    frames the shift from document-centric to decision-centric KBs with decision
-    traces—highly relevant to context engineering and agent memory architecture,
-    though it's a conceptual tweet rather than an implementation guide.
+    Directly articulates context graphs as a knowledge substrate for multi-agent
+    coordination, framing the shift from document-centric to
+    decision-trace-centric knowledge bases—highly relevant to topics 1, 3, and
+    5, though the content is a tweet-length conceptual argument rather than an
+    implementation.
 ---
 ## Tweet by @akoratana
 

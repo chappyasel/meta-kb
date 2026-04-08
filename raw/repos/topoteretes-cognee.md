@@ -19,17 +19,16 @@ key_insight: >-
 stars: 14899
 forks: 1507
 relevance_scores:
-  topic_relevance: 10
+  topic_relevance: 9
   practitioner_value: 9
-  novelty: 8
+  novelty: 7
   signal_quality: 8
-  composite: 9.1
+  composite: 8.5
   reason: >-
-    Cognee is a core agent memory system (explicitly listed in the KB's scope)
-    combining vector search, knowledge graphs, and continuous learning for
-    dynamic AI agent memory, with 15K stars, active development, and a
-    production-ready Python library with docs.
-deep_researched: 'deep/repos/topoteretes-cognee.md'
+    Cognee is a production-ready, highly-starred Python library directly
+    addressing agent memory via graph-RAG combining vector search, knowledge
+    graphs, and continuous learning—core to topics 1, 2, and 3.
+deep_researched: deep/repos/topoteretes-cognee.md
 language: Python
 license: Apache-2.0
 ---

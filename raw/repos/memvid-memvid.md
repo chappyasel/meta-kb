@@ -20,16 +20,16 @@ stars: 14493
 forks: 1254
 deep_researched: true
 relevance_scores:
-  topic_relevance: 9
+  topic_relevance: 8
   practitioner_value: 8
   novelty: 7
   signal_quality: 7
-  composite: 8.1
+  composite: 7.7
   reason: >-
-    Memvid is a directly relevant agent memory tool offering a novel
-    single-file, serverless architecture with documented benchmarks (+35% SOTA
-    on LoCoMo), FAISS-based retrieval, and a production-ready Rust/Python
-    library that replaces complex RAG pipelines for agent long-term memory.
+    Memvid is a directly relevant agent memory system offering a novel
+    single-file, serverless approach to long-term memory with benchmarked recall
+    improvements, making it actionable for practitioners building LLM agents
+    without RAG infrastructure.
 ---
 ## memvid
 

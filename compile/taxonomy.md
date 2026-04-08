@@ -12,13 +12,14 @@ Each bucket has:
 
 ## Current buckets
 
-The current meta-kb instance defines 5 buckets:
+The current meta-kb instance defines 6 buckets:
 
-1. **knowledge-bases** — Karpathy pattern, markdown wikis, compiled vs curated, RAG alternatives
-2. **agent-memory** — Mem0, Letta, Graphiti, episodic/semantic/working memory
-3. **context-engineering** — CLAUDE.md standards, context graphs, compression
-4. **agent-systems** — Skill composition, registries, modular capabilities
-5. **self-improving** — Autoresearch, observe/correct/improve loops, health checks
+1. **knowledge-substrate** — Karpathy pattern, markdown wikis, RAG, graph retrieval, vector stores, registries
+2. **agent-memory** — Mem0, Letta, Graphiti, episodic/semantic/working memory, temporal awareness
+3. **context-engineering** — CLAUDE.md standards, context graphs, token budgeting, progressive disclosure
+4. **agent-architecture** — Skills, harnesses, SKILL.md, tool use patterns, modular capabilities
+5. **multi-agent-systems** — CORAL, coordination, shared state, delegation, conflict resolution, trust
+6. **self-improving** — Autoresearch, observe/correct/improve loops, fitness functions, Darwinian selection
 
 ## Neutrality rule
 

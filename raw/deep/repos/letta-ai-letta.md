@@ -11,13 +11,14 @@ tags:
   - self-improving
   - agent-systems
 key_insight: >-
-  Letta's core innovation is treating memory as editable text blocks injected directly
-  into the LLM system prompt, giving agents explicit tools to read and write their own
-  context window. Unlike mem0's vector-search or Graphiti's knowledge graph, Letta's
-  memory is literally part of the prompt that the agent can self-modify via tool calls
-  like core_memory_replace and rethink_memory. This makes memory management a first-class
-  agent capability rather than an external system, but bounds memory by character limits
-  rather than information-theoretic relevance.
+  Letta's core innovation is treating memory as editable text blocks injected
+  directly into the LLM system prompt, giving agents explicit tools to read and
+  write their own context window. Unlike mem0's vector-search or Graphiti's
+  knowledge graph, Letta's memory is literally part of the prompt that the agent
+  can self-modify via tool calls like core_memory_replace and rethink_memory.
+  This makes memory management a first-class agent capability rather than an
+  external system, but bounds memory by character limits rather than
+  information-theoretic relevance.
 stars: 21900
 deep_research:
   method: source-code-analysis
@@ -32,6 +33,18 @@ deep_research:
     - letta/constants.py
   analyzed_at: '2026-04-04'
   original_source: repos/letta-ai-letta.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 7
+  signal_quality: 8
+  composite: 8.3
+  reason: >-
+    Letta/MemGPT is a canonical agent memory platform with a detailed
+    architectural breakdown covering editable in-context memory blocks,
+    multi-agent orchestration patterns, and summarization strategies—directly
+    relevant to agent memory, context engineering, and multi-agent systems
+    topics.
 ---
 
 ## Architecture Overview

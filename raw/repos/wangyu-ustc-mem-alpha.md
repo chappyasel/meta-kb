@@ -17,7 +17,7 @@ key_insight: >-
   agents to dynamically decide when to encode information into episodic,
   semantic, or core memory based on task feedback, fundamentally changing how
   knowledge bases should be built for agentic systems versus static retrieval.
-deep_researched: 'deep/repos/wangyu-ustc-mem-alpha.md'
+deep_researched: deep/repos/wangyu-ustc-mem-alpha.md
 stars: 193
 forks: 17
 relevance_scores:
@@ -27,9 +27,10 @@ relevance_scores:
   signal_quality: 8
   composite: 8.5
   reason: >-
-    Mem-α directly addresses agent memory construction using RL to dynamically
-    choose episodic/semantic/core memory strategies—a genuinely novel approach
-    to a core topic with released model weights, training code, and benchmarks.
+    Mem-α directly advances agent memory systems (episodic/semantic/core memory)
+    with a novel RL-based memory construction approach, offering a released
+    model, training code, and datasets that practitioners can immediately use or
+    adapt.
 language: Python
 ---
 ## Mem-alpha

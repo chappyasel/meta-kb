@@ -24,12 +24,11 @@ relevance_scores:
   signal_quality: 9
   composite: 9.7
   reason: >-
-    Meta-agent is a production-ready open-source self-improving agent harness
-    system that uses LLM judges on unlabeled traces to continuously optimize
-    prompts, tools, and subagents—directly embodying the self-improvement loop
-    pattern that is a primary pillar of the knowledge base, with detailed
-    architecture, benchmarks (67%→87% on tau-bench), and an open-source
-    implementation.
+    Meta-agent is a directly on-topic self-improving agent system that
+    implements continuous harness optimization from production traces using LLM
+    judges—a novel, production-ready, open-source implementation of
+    self-improvement loops (topic 6) with agent architecture optimization (topic
+    4) and persistent filesystem memory across iterations.
 ---
 ## meta-agent: continual learning for agents
 

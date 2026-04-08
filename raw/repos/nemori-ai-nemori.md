@@ -28,10 +28,9 @@ relevance_scores:
   composite: 8.4
   reason: >-
     Nemori directly addresses agent episodic memory with a novel LLM-powered
-    boundary detection approach grounded in Event Segmentation Theory, offering
-    a production-ready Python implementation with PostgreSQL+Qdrant backends,
-    benchmarks against LoCoMo, and an arxiv paper—highly relevant to agent
-    memory architecture topic area.
+    boundary detection approach grounded in Event Segmentation Theory, backed by
+    a paper, production-ready implementation with PostgreSQL+Qdrant, and clear
+    architectural insight about memory granularity over complexity.
 language: Python
 license: MIT
 ---

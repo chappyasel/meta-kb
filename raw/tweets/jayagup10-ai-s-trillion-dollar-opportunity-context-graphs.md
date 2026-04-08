@@ -22,16 +22,17 @@ likes: 6941
 retweets: 860
 views: 4833783
 relevance_scores:
-  topic_relevance: 8
-  practitioner_value: 6
-  novelty: 7
-  signal_quality: 6
-  composite: 7
+  topic_relevance: 9
+  practitioner_value: 7
+  novelty: 8
+  signal_quality: 7
+  composite: 8
   reason: >-
-    Directly articulates a compelling architectural pattern—context graphs as
-    persistent, queryable decision-trace memory for agent systems—that is highly
-    transferable to agent memory and self-improving KB design, though it's a
-    conceptual tweet/essay rather than an implementation.
+    Directly articulates the 'context graph as organizational memory'
+    concept—capturing decision traces, exceptions, and precedents as a
+    queryable, compounding knowledge substrate for autonomous agents—which is
+    highly transferable to agent memory architecture and knowledge substrate
+    design.
 ---
 ## Tweet by @JayaGup10
 

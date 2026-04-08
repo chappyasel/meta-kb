@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What is meta-kb?
 
-A self-improving LLM knowledge base about self-improving LLM knowledge systems. Sources (tweets, repos, papers, articles) are ingested into `raw/` as markdown with YAML frontmatter, scored for relevance by LLM, then compiled into a structured wiki in `wiki/`.
+A self-improving knowledge base about LLM agent infrastructure. Sources (tweets, repos, papers, articles) are ingested into `raw/` as markdown with YAML frontmatter, scored for relevance by LLM, then compiled into a structured wiki in `wiki/`.
 
 ## Compiling the Wiki
 
@@ -21,7 +21,7 @@ which orchestrates 6 phase-specific skills via subagents:
 | `compile-wiki` | Orchestrator — scans sources, sequences phases, spawns subagents |
 | `compile-synthesis` | Writes one synthesis article per bucket (parallelizable — 5 subagents) |
 | `compile-cards` | Writes reference cards for entities (parallelizable) |
-| `compile-field-map` | Writes the systems overview connecting all 5 areas |
+| `compile-field-map` | Writes the systems overview connecting all 6 areas |
 | `compile-index` | Generates ROOT.md, indexes, README, comparison table |
 | `compile-claims` | Extracts claims from articles + runs self-eval |
 
@@ -103,8 +103,8 @@ build/                 Intermediate artifacts:
         ▼
 wiki/                  Compiled output:
   ROOT.md                Agent-optimized topic index (<2K tokens)
-  field-map.md           Flagship overview connecting all 5 areas
-  {bucket}.md            5 synthesis articles with abstracts + staleness markers
+  field-map.md           Flagship overview connecting all 6 areas
+  {bucket}.md            6 synthesis articles with abstracts + staleness markers
   projects/              Project reference cards with abstracts
   concepts/              Concept explainers with abstracts
   indexes/               Project, topic, missing coverage indexes

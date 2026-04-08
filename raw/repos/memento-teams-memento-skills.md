@@ -23,16 +23,16 @@ stars: 916
 forks: 84
 relevance_scores:
   topic_relevance: 9
-  practitioner_value: 9
-  novelty: 9
-  signal_quality: 9
-  composite: 9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 8
+  composite: 8.4
   reason: >-
-    Memento-Skills directly implements agentic skill registries with autonomous
-    self-evolution via read-write reflection loops at deployment time—a core
-    pattern covering topics 4 (skill composition/registries) and 5
-    (self-improving systems) with a production-ready Python framework, 916
-    stars, and detailed architecture documentation.
+    Directly implements self-improving agent loops via read-write skill
+    registries at deployment time—core to topics 4 (SKILL.md/agent
+    capabilities), 6 (self-improvement/reflection loops), and 3 (context
+    engineering)—with production-ready Python code, 916 stars, and clear
+    architectural documentation.
 language: Python
 deep_researched: deep/repos/memento-teams-memento-skills.md
 ---

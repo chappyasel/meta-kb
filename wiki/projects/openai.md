@@ -1,199 +1,211 @@
 ---
 entity_id: openai
 type: project
-bucket: agent-systems
+bucket: agent-architecture
 abstract: >-
-  OpenAI builds large language models (GPT-4, o-series), developer APIs, and
-  agent infrastructure (Agents SDK, Codex, GitHub Copilot) that form the
-  dominant foundation for production LLM applications.
+  OpenAI builds frontier language models (GPT-4, o-series), Codex, and agent
+  infrastructure (Agents SDK, Responses API). It sets capability benchmarks
+  others optimize against, but remains a black-box API dependency with
+  unpredictable pricing and policy changes.
 sources:
-  - repos/vectorspacelab-general-agentic-memory.md
   - repos/memodb-io-acontext.md
-  - repos/memorilabs-memori.md
-  - repos/greyhaven-ai-autocontext.md
+  - repos/transformeroptimus-superagi.md
+  - tweets/akshay-pachaar-the-anatomy-of-an-agent-harness.md
   - repos/topoteretes-cognee.md
+  - repos/greyhaven-ai-autocontext.md
   - repos/caviraoss-openmemory.md
-  - repos/yusufkaraaslan-skill-seekers.md
-  - repos/memvid-memvid.md
   - repos/evoagentx-evoagentx.md
+  - repos/yusufkaraaslan-skill-seekers.md
+  - repos/agent-on-the-fly-memento.md
   - repos/mem0ai-mem0.md
+  - repos/infiniflow-ragflow.md
+  - repos/letta-ai-lettabot.md
+  - repos/jackchen-me-open-multi-agent.md
   - >-
     articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md
-  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
-  - deep/repos/memodb-io-acontext.md
-  - deep/repos/supermemoryai-supermemory.md
   - deep/repos/getzep-graphiti.md
-  - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
+  - deep/repos/memodb-io-acontext.md
   - deep/repos/memorilabs-memori.md
   - deep/repos/greyhaven-ai-autocontext.md
-  - deep/repos/maximerobeyns-self-improving-coding-agent.md
   - deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md
   - deep/repos/mem0ai-mem0.md
 related:
   - anthropic
-  - mcp
+  - retrieval-augmented-generation
   - claude
-  - mem0
-  - openclaw
-  - locomo
+  - model-context-protocol
   - ollama
-  - gemini
-  - cursor
-  - langchain
-  - knowledge-graph
-  - langgraph
-  - vllm
-  - neo4j
-  - faiss
-  - pinecone
-  - entity-extraction
-  - github-copilot
-  - claude-code
-  - episodic-memory
-  - agent-skills
-  - semantic-memory
-  - codex
-  - graphrag
-  - context-engineering
-  - progressive-disclosure
   - vector-database
-  - zep
+  - openclaw
+  - langchain
+  - agent-memory
+  - vllm
+  - gemini
+  - multi-agent-systems
+  - abductive-context
+  - episodic-memory
+  - context-engineering
+  - knowledge-graph
+  - semantic-memory
+  - long-term-memory
+  - mem0
+  - human-in-the-loop
+  - langgraph
+  - neo4j
+  - chromadb
+  - pinatone
+  - claude-code
+  - agent-skills
+  - progressive-disclosure
+  - locomo
   - gepa
-  - postgresql
-  - pydantic
+  - continual-learning
   - crewai
-  - qdrant
-  - redis
-  - skill-md
-  - deepseek
+  - github-copilot
+  - community-detection
+  - cognitive-architecture
+  - reinforcement-learning
   - synthetic-data-generation
-  - memory-evolution
-  - memorybank
-last_compiled: '2026-04-07T11:35:31.772Z'
+  - entity-extraction
+  - deepseek
+  - meta-agent
+last_compiled: '2026-04-08T02:37:39.449Z'
 ---
 # OpenAI
 
 ## What It Is
 
-OpenAI is an AI research company and API provider whose models, tooling, and infrastructure underpin a substantial portion of the agent and knowledge-base ecosystem described in this wiki. Its core offerings split into three buckets: frontier models (GPT-4, GPT-4o, o1, o3, o4-mini), developer APIs (Chat Completions, Responses API, Embeddings, Structured Outputs), and agent-layer products (Agents SDK, [OpenAI Codex](../projects/codex.md), [GitHub Copilot](../projects/github-copilot.md)).
+OpenAI is an AI research company that trains and deploys large language models. For agent infrastructure practitioners, OpenAI is primarily two things: (1) the API endpoint powering the majority of production agent deployments, and (2) the company defining benchmark standards that the broader ecosystem optimizes against.
 
-Nearly every project in this wiki either depends on OpenAI APIs, benchmarks against them, or explicitly positions itself as an alternative. [Graphiti](../projects/graphiti.md) defaults to `gpt-4.1-mini` for graph construction and `gpt-4.1-nano` for lighter prompts. [Mem0](../projects/mem0.md), [Memori](../projects/mem0.md), [Supermemory](../projects/supermemory.md), [Acontext](../projects/openclaw.md), and [Autocontext](../projects/autoresearch.md) all use OpenAI as their default LLM and embedding provider. [LangChain](../projects/langchain.md), [LangGraph](../projects/langgraph.md), [CrewAI](../projects/crewai.md), and [DSPy](../projects/dspy.md) treat OpenAI models as their primary integration target.
+Its models span general reasoning (GPT-4.1, o3, o4-mini), code generation ([OpenAI Codex](../projects/codex.md)), and image generation (DALL-E). Its infrastructure products include the Responses API, [OpenAI Agents SDK](../projects/openai-agents-sdk.md), and Assistants API. Its research outputs — papers on [Reinforcement Learning](../concepts/reinforcement-learning.md) from human feedback, chain-of-thought prompting, and [Synthetic Data Generation](../concepts/synthetic-data-generation.md) — shape how competitors build and how practitioners think about agent capability.
 
-## Core Products Relevant to This Space
+## Architecturally Unique Aspects
 
-### GPT-4 / GPT-4o / o-series
+OpenAI's models are closed-weight, trained on undisclosed data with undisclosed architectures. This is deliberate. Unlike [Anthropic](../projects/anthropic.md) (which publishes interpretability research) or Meta (which releases weights), OpenAI treats model internals as proprietary. Practitioners interact through APIs with published pricing, rate limits, and capability tiers — never through inspectable code.
 
-The model family that most benchmarks in this wiki assume. When a system reports accuracy on [LongMemEval](../projects/longmemeval.md), [LoCoMo](../projects/locomo.md), or [SWE-bench](../projects/swe-bench.md), GPT-4 or GPT-4o is almost always the evaluation model. Supermemory's #1 ranking on LongMemEval and LoCoMo, Graphiti's 98.2% on Deep Memory Retrieval, and Memori's 81.95% on LoCoMo all used GPT-4o or GPT-4o-mini as the backbone. These are self-reported results on their respective evaluations, not independent third-party audits.
+The **Responses API** (launched 2025) is the architectural successor to Chat Completions. It adds built-in tool execution, stateful conversation management, and native file/web search tools at the API layer, reducing the amount of orchestration logic applications need to implement themselves. The Agents SDK wraps this into a higher-level Python framework supporting handoffs between agents, guardrails, and tracing.
 
-The o-series (o1, o3, o4-mini) added extended chain-of-thought reasoning, which made them relevant for [agentic RAG](../concepts/agentic-rag.md) and multi-step [task decomposition](../concepts/task-decomposition.md) scenarios where intermediate reasoning steps matter.
+The **o-series models** (o1, o3, o4-mini) implement chain-of-thought reasoning as a first-class capability: the model generates an internal reasoning trace before producing output. This reasoning trace is partially hidden from API consumers — a design choice that creates both capability gains and interpretability loss.
 
-### Structured Outputs / Pydantic Integration
+## Core Products Relevant to Agent Infrastructure
 
-OpenAI's Structured Outputs API enforces JSON schema compliance on model responses. This became load-bearing infrastructure for the agent memory space. Graphiti's entire pipeline (entity extraction, edge extraction, deduplication, contradiction detection) relies on Pydantic response models validated through OpenAI's structured output layer. [LangChain](../projects/langchain.md) and [CrewAI](../projects/crewai.md) both use it for typed tool-call returns. Projects that require this feature cannot straightforwardly swap to providers that do not support it.
+**GPT-4.1 / GPT-4.1-mini / GPT-4.1-nano**: The primary models used in production agent systems. The nano variant (default in [Mem0](../projects/mem0.md)'s extraction pipeline, cited across multiple agent memory libraries) represents the cost tier where per-call LLM overhead becomes viable for memory operations. GPT-4.1-mini is the default for [Graphiti](../projects/graphiti.md)'s graph construction pipeline.
 
-### Embeddings API (`text-embedding-3-small`, `text-embedding-3-large`)
+**o3 / o4-mini**: Reasoning models used for tasks requiring deliberate multi-step planning. In agent contexts, these appear in evaluation pipelines and complex tool-use scenarios where the reasoning trace improves reliability over standard generation.
 
-The default embedding provider for most vector-based retrieval in this ecosystem. [FAISS](../projects/faiss.md), [Pinecone](../projects/pinecone.md), [Qdrant](../projects/qdrant.md), and [ChromaDB](../projects/chromadb.md) integrations typically default to OpenAI embeddings. Graphiti uses 1024-dimensional embeddings for entity nodes. Acontext's pgvector extension stores OpenAI embeddings for skill retrieval. The Embeddings API is the infrastructure assumption that few projects document explicitly — it runs under the hood of most semantic search in this space.
+**[OpenAI Agents SDK](../projects/openai-agents-sdk.md)**: A Python framework for building multi-agent workflows. Implements agent handoffs, tool registration, guardrails, and distributed tracing. Several memory systems (Graphiti, Mem0) provide explicit integration adapters for it.
 
-### OpenAI Agents SDK
+**Embeddings API (text-embedding-3-small, text-embedding-3-large)**: Default embedding provider across the agent memory ecosystem. [Mem0](../projects/mem0.md), [Graphiti](../projects/graphiti.md), and most [Vector Database](../concepts/vector-database.md) integrations default to OpenAI embeddings unless explicitly configured otherwise.
 
-Released in 2025, the Agents SDK provides a Python framework for building multi-agent workflows with tool use, handoffs between agents, and built-in tracing. It competes directly with [LangGraph](../projects/langgraph.md), [CrewAI](../projects/crewai.md), and [AutoResearch](../projects/autoresearch.md) at the orchestration layer. Autocontext's ecosystem mode includes `--provider-b agent_sdk` for A/B comparison against Anthropic.
+**Structured Outputs**: The ability to constrain model outputs to a Pydantic schema via `response_format`. This is load-bearing infrastructure for agent memory systems — Graphiti's multi-stage LLM pipeline (entity extraction, edge extraction, deduplication, contradiction detection) depends entirely on structured output for reliable JSON parsing. Systems that require structured output are effectively locked to providers that support it.
 
-The SDK includes:
-- `Agent` class with system prompt, tools, and handoff definitions
-- `Runner.run()` for executing agent loops
-- Built-in tracing to the OpenAI dashboard
-- `Guardrails` for input/output validation
-
-It does not include persistent memory by default — that gap is what [Mem0](../projects/mem0.md), [Zep](../projects/zep.md), [Graphiti](../projects/graphiti.md), and others fill.
-
-### Responses API
-
-A newer API surface alongside Chat Completions that enables stateful multi-turn interactions and built-in tool use (web search, code interpreter, file search). The Responses API is what several agent frameworks use as their execution backend. Memori's recall injection handles the Responses API's `instructions` field separately from the Chat Completions `messages` array.
-
-### OpenAI Codex
-
-[OpenAI Codex](../projects/codex.md) is OpenAI's code-generation model and CLI agent, operating autonomously on software engineering tasks in a sandboxed environment. It competes with [Claude Code](../projects/claude-code.md) and [GitHub Copilot](../projects/github-copilot.md) at the code-agent layer. Codex is distinct from the original Codex model (which powered early Copilot) — the 2025 version is a full agentic system with filesystem access, test execution, and multi-step planning.
-
-### GitHub Copilot
-
-[GitHub Copilot](../projects/github-copilot.md), built on OpenAI models, is OpenAI's primary deployed product for developer tooling. It operates inside VS Code, JetBrains IDEs, and GitHub's web interface. Copilot's [Skill Files](../concepts/skill-md.md) and workspace context features are architectural cousins to the agent memory patterns described throughout this wiki.
+**Batch API**: Asynchronous job submission with 50% cost reduction for non-latency-sensitive workloads. Relevant for offline memory consolidation, [Synthetic Data Generation](../concepts/synthetic-data-generation.md), and evaluation pipelines.
 
 ## Key Numbers
 
-**Valuation**: ~$300B (as of early 2025, self-reported in funding rounds — not independently audited).
+- **GPT-4 family**: Self-reported scores dominate public benchmarks. GPT-4 scored 86.4% on MMLU and 90th percentile on bar exam — these are OpenAI-reported, not independently audited. [HumanEval](../projects/humaneval.md) scores for code generation are self-reported at 67% for GPT-4 and 87% for GPT-4 Turbo.
+- **o3**: Self-reported 87.7% on [SWE-bench](../projects/swe-bench.md) Verified (May 2025). Independent validation exists through the Metr evaluations, which showed lower numbers on safety-relevant tasks but did not contradict coding benchmarks.
+- **Context windows**: 128k tokens for GPT-4.1; 200k for some o-series variants. In practice, [Lost in the Middle](../concepts/lost-in-the-middle.md) degradation means effective utilization is lower than nominal limits.
+- **API availability**: 99.9% uptime SLA for paid tiers. Actual availability during high-demand periods (major model releases) has historically fallen below this.
 
-**API usage**: OpenAI does not publish MAU or API call volume publicly. Adoption claims come from partnership announcements and customer case studies.
-
-**Model benchmarks**: GPT-4o scores 57.1% on [SWE-bench](../projects/swe-bench.md) Verified (as of mid-2025, self-reported on the SWE-bench leaderboard). o3 scores higher on reasoning benchmarks (AIME, MMMU) — self-reported.
-
-**Ecosystem reach**: The number of projects in this wiki that default to OpenAI APIs without configuration change: approximately 80%. That's not a published figure — it's an observation from the source material in this analysis.
-
-## Architectural Role in the Agent Memory Ecosystem
-
-OpenAI occupies three distinct roles:
-
-**1. Foundation model provider**: The LLM that memory systems extract facts from, inject context into, and use as judge. When Graphiti's bi-temporal edge invalidation says "contradicted facts have `expired_at` set," the LLM making that contradiction judgment is almost always GPT-4o or gpt-4.1-mini.
-
-**2. Embedding infrastructure**: The vector representations that power semantic search in [FAISS](../projects/faiss.md), [Qdrant](../projects/qdrant.md), and [Pinecone](../projects/pinecone.md) typically come from OpenAI's embedding models. Systems like Memori achieve 81.95% accuracy on LoCoMo partly because OpenAI embeddings are high quality for English conversational text.
-
-**3. Agent orchestration layer**: With the Agents SDK, OpenAI now competes with the frameworks that were built on top of its APIs. [LangGraph](../projects/langgraph.md) and [CrewAI](../projects/crewai.md) provide richer graph-based orchestration; the Agents SDK provides simpler, tighter integration with OpenAI's own tracing and tooling.
+Treat all OpenAI benchmark figures as self-reported unless a specific independent evaluation is cited.
 
 ## Strengths
 
-**Structured Outputs reliability**: The Pydantic/JSON schema enforcement is more reliable across edge cases than most alternatives. Agent memory pipelines that require typed extraction (entity types, temporal bounds, relation types) depend on this working consistently.
+**Ecosystem integration density**: More third-party libraries default to OpenAI than any other provider. Switching away from OpenAI requires explicit configuration across every layer (LLM client, embedder, structured output format). This creates real switching costs for projects built without abstraction layers like [LiteLLM](../projects/litellm.md).
 
-**API stability and documentation**: The Chat Completions and Embeddings APIs have maintained backward compatibility long enough that most of the ecosystem builds against them as a stable interface. The `openai` Python SDK is the de facto standard that other providers clone (`OpenAI-compatible` base URL is a common configuration option across vLLM, Ollama, and OpenRouter).
+**Structured output reliability**: The JSON schema enforcement in structured outputs is more reliable than prompt-only approaches. For agent memory systems that parse LLM output programmatically, this reliability difference is architecturally significant. Graphiti's decision to use Pydantic structured output throughout its pipeline is partly a bet on OpenAI's implementation quality.
 
-**Ecosystem lock-in as a feature**: The breadth of integrations means OpenAI-compatible infrastructure (LangChain wrappers, Pydantic validators, tracing integrations) works out of the box. For teams building quickly, this reduces integration time.
+**Reasoning model tier**: o-series models provide chain-of-thought reasoning as a controllable parameter, not just an emergent property. For agent evaluation, complex tool use, and self-improvement harnesses like [AutoResearch](../projects/autoresearch.md), the reasoning trace improves reliability on tasks requiring deliberate planning.
 
-**Model capability at the frontier**: As of mid-2025, o3 and GPT-4o lead or near-lead most multi-step reasoning benchmarks (self-reported and partially validated on public leaderboards like MMLU, GPQA, SWE-bench).
+**Codex / code generation**: [OpenAI Codex](../projects/codex.md) and the code generation capabilities in GPT-4.1 set the baseline that tools like [GitHub Copilot](../projects/github-copilot.md) and [Cursor](../projects/cursor.md) are built on. SWE-bench performance is the primary metric here.
 
 ## Critical Limitations
 
-**Concrete failure mode — rate limits compound in agent pipelines**: Graphiti's `SEMAPHORE_LIMIT = 10` default and Autocontext's 5-agent-per-generation architecture both exist specifically because OpenAI's rate limits create bottlenecks. A Graphiti `add_episode()` call makes 4-5 LLM calls; community updates add more. At scale, 429 errors are not edge cases — they are a primary operational concern. The Graphiti documentation explicitly warns to adjust `max_coroutines` based on provider throughput capacity.
+**Concrete failure mode — context boundary behavior**: At long contexts (100k+ tokens), GPT-4-family models exhibit measurable [Lost in the Middle](../concepts/lost-in-the-middle.md) degradation — facts in the middle of long contexts are retrieved less reliably than facts at the beginning or end. This is not a claimed limitation but an empirically documented one across multiple research groups. Agent systems that assume uniform attention across 128k tokens will get incorrect results on long-context tasks. The Graphiti paper's 90% latency reduction result (115k → 1.6k tokens) is partly justified by this failure mode: shorter, targeted context retrieval outperforms full-context loading even when the full context theoretically fits.
 
-**Unspoken infrastructure assumption — embedding model lock-in**: Projects that store OpenAI embeddings in vector databases cannot switch embedding providers without re-embedding their entire corpus. This dependency is rarely stated explicitly. When Acontext stores pgvector embeddings or Memori stores fact embeddings, those vectors are tied to a specific OpenAI embedding model. Changing models (e.g., from `text-embedding-ada-002` to `text-embedding-3-large`) invalidates all existing vectors. No project in this wiki documents a migration path for this.
+**Unspoken infrastructure assumption — API dependency as critical path**: Every production agent system using OpenAI has OpenAI's API availability as its reliability ceiling. There is no local fallback, no open-weight equivalent of GPT-4.1 that can substitute under load. Practitioners building on OpenAI are building on a third-party service with pricing that changes unilaterally (multiple price changes in 2023-2024), policies that can block entire use cases (content policy enforcement is inconsistent across deployments), and rate limits that constrain throughput at scale. Systems like [vLLM](../projects/vllm.md) and [Ollama](../projects/ollama.md) exist specifically because this dependency is a real operational risk.
 
-## When NOT to Use OpenAI APIs
+## When NOT to Use OpenAI
 
-**Air-gapped or data-residency-constrained environments**: OpenAI has no on-premise deployment option. For healthcare, finance, or government workloads that cannot send data to external APIs, [Ollama](../projects/ollama.md) with local models or [vLLM](../projects/vllm.md) for self-hosted inference are the alternatives.
+**Data residency requirements**: All inference happens on OpenAI's infrastructure. HIPAA Business Associate Agreements exist for Enterprise tier, but GDPR Article 17 (right to erasure) and CCPA compliance for training data use remain legally ambiguous. For applications processing health data in the EU or storing sensitive PII, on-premise deployment via [vLLM](../projects/vllm.md) or local inference via [Ollama](../projects/ollama.md) reduces legal exposure.
 
-**Cost-sensitive high-volume memory pipelines**: Graphiti estimates 30-55 LLM calls per session learning cycle for Acontext. At GPT-4.1 pricing, that costs $0.10-0.30 per session. For applications with millions of sessions, this becomes prohibitive. Autocontext's frontier-to-local distillation exists specifically to address this — learn with GPT-4 models, run production on cheaper local models.
+**High-volume, cost-sensitive inference**: At scale, GPT-4.1 pricing makes it economically unviable for high-frequency operations. Memory extraction pipelines running on millions of daily messages need either GPT-4.1-nano (cheap but weaker) or a local alternative. The frontier-to-local distillation pattern in projects like Autocontext ([Source](../raw/deep/repos/greyhaven-ai-autocontext.md)) exists precisely because frontier model cost at scale forces migration to cheaper runtimes.
 
-**When you need truly open weights for fine-tuning control**: OpenAI's fine-tuning API allows some customization, but access to weights is not available. [DeepSeek](../projects/deepseek.md) and open-weight models on [Ollama](../projects/ollama.md) give full control over the training process. [Synthetic Data Generation](../concepts/synthetic-data-generation.md) pipelines that need to train specialized models for memory extraction or entity resolution benefit from open weights.
+**Agent systems requiring full observability**: OpenAI's reasoning trace is partially hidden from API consumers. For [Human-in-the-Loop](../concepts/human-in-the-loop.md) workflows requiring auditable reasoning or for interpretability research, the closed-box nature of o-series reasoning is a disqualifier. [Claude](../projects/claude.md)'s extended thinking is similarly limited but Anthropic publishes more interpretability research.
 
-**When latency below ~200ms matters**: OpenAI's API latency for GPT-4o averages 500ms-2s depending on load. Graphiti reports 3.2s total with Zep memory retrieval vs 31.3s full-context baseline — but that 3.2s includes the OpenAI call. For real-time applications (voice agents, latency-sensitive UX), this may be unacceptable. Local inference with quantized models trades quality for speed.
+**Latency-critical applications**: Even with streaming, cold-start latency for complex prompts through the OpenAI API exceeds what local inference via Ollama or vLLM can achieve on appropriate hardware. Latency SLAs under 100ms for LLM calls are not achievable via API.
+
+## Relationship to the Agent Memory Ecosystem
+
+OpenAI functions as the default runtime across the agent memory and infrastructure space:
+
+- [Mem0](../projects/mem0.md) defaults to `gpt-4.1-nano-2025-04-14` for memory extraction and reconciliation. Its structured output dependency makes OpenAI the easiest provider to use.
+- [Graphiti](../projects/graphiti.md) defaults to `gpt-4.1-mini` for graph construction, with `gpt-4.1-nano` as the small model for simpler pipeline stages. The paper benchmarks use gpt-4o-mini and gpt-4o.
+- [LangChain](../projects/langchain.md), [LangGraph](../projects/langgraph.md), and [CrewAI](../projects/crewai.md) are all built with OpenAI as the primary integration target.
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) patterns published by OpenAI (function calling, tool use, handoffs) have become de facto standards adopted by competing frameworks.
+- [Context Engineering](../concepts/context-engineering.md) practice developed substantially through observing GPT-4 context window behavior — what fits, what degrades, and how to structure prompts for reliable extraction.
+
+The [OpenAI Agents SDK](../projects/openai-agents-sdk.md) competes with [LangGraph](../projects/langgraph.md) and [CrewAI](../projects/crewai.md) at the orchestration layer, and with [Anthropic](../projects/anthropic.md)'s agent tooling at the model layer.
 
 ## Unresolved Questions
 
-**Governance and safety vs capability tradeoff**: OpenAI has repeatedly modified model behavior through RLHF and policy changes post-deployment. Projects that hardcode prompts against GPT-4 behavior may break when models are updated. Neither OpenAI's API versioning policy nor the specific details of mid-generation model updates are documented clearly enough for production reliability planning.
+**Training data governance**: OpenAI's training data composition, data provenance, and opt-out mechanisms are not publicly documented in auditable form. For enterprise deployments, understanding what the model was trained on matters for bias analysis and regulatory compliance.
 
-**Cost at scale for agentic workflows**: OpenAI publishes per-token pricing but not volume discounts below enterprise agreements. The true cost of running a Graphiti-style pipeline at 10M episodes/month or an Autocontext harness across thousands of concurrent runs is not publicly calculable without enterprise negotiation.
+**Pricing trajectory**: OpenAI has reduced prices multiple times (2023-2025) while increasing capability. The business model depends on scale economies from GPU infrastructure. Whether this pricing trajectory continues, plateaus, or reverses under competitive pressure from DeepSeek and open-weight models is unknown.
 
-**Structured Outputs schema conflict resolution**: When a Pydantic schema and an OpenAI model disagree — the model wants to return a value that does not fit the schema — the behavior is to refuse or hallucinate a valid-but-wrong value. The failure mode is subtle: the JSON validates but carries incorrect content. No official documentation explains how often this occurs or how to detect it in production.
+**Agentic safety at scale**: The o-series models are evaluated on safety benchmarks, but independent evaluations (Metr, Apollo Research) show that current evals do not adequately capture risks from long-horizon agentic behavior. What happens when o3 runs with tool access for hours on complex tasks is not well-characterized.
 
-**Long-term API compatibility**: OpenAI has deprecated models (davinci, code-davinci-002, the original Codex) with varying notice periods. Projects built on specific model behaviors (e.g., Graphiti's entity extraction prompts tuned for gpt-4.1-mini) may degrade silently when models are updated in place without version changes.
+**Model-to-model compatibility**: Each new model version changes output distributions. Prompts tuned for GPT-4-turbo may not transfer to GPT-4.1 without re-tuning. There is no compatibility guarantee across versions, and deprecation timelines for older models give practitioners 6-12 months before forced migration.
 
 ## Alternatives and Selection Guidance
 
-**Use [Anthropic](../projects/anthropic.md)/[Claude](../projects/claude.md)** when you need longer reliable context windows, more consistent instruction-following on complex structured prompts, or when Claude's specific refusal behaviors are less problematic for your use case. Claude 3.5 Sonnet is the default for Acontext's dual-backend support and [Claude Code](../projects/claude-code.md).
+- **Use [Anthropic](../projects/anthropic.md) / [Claude](../projects/claude.md)** when you need long-context reliability (Claude handles 200k tokens with better recall characteristics than GPT-4), extended thinking with visible reasoning traces, or when constitutional AI alignment properties matter for your use case.
+- **Use [Gemini](../projects/gemini.md)** when you need native multimodal handling, Google Cloud infrastructure integration, or 1M+ token context windows for document-heavy applications.
+- **Use [vLLM](../projects/vllm.md)** when you need high-throughput batch inference, OpenAI-compatible API on your own hardware, or cost control at scale (especially for inference on open-weight models).
+- **Use [Ollama](../projects/ollama.md)** when you need local development without API dependencies, privacy-sensitive applications, or air-gapped deployments.
+- **Use DeepSeek** when cost is the primary constraint and task complexity is within the capability range of smaller reasoning models.
+- **Use OpenAI** when you need maximum ecosystem compatibility, structured output reliability, the highest-capability reasoning models (o3), and are willing to accept third-party API dependency as an operational assumption.
 
-**Use [DeepSeek](../projects/deepseek.md)** when cost is the primary constraint and your workload is primarily text (not multimodal). DeepSeek V3 offers GPT-4-class performance at a fraction of the cost for many reasoning benchmarks.
 
-**Use [Ollama](../projects/ollama.md) or [vLLM](../projects/vllm.md)** when data privacy, air-gapped deployment, or weight-level control is required. Both provide OpenAI-compatible APIs that let you swap the base URL without code changes in most frameworks.
+## Related
 
-**Use [Gemini](../projects/gemini.md)** when you need Google ecosystem integration (Workspace, Drive, Docs) or when the 2M-token context window of Gemini 1.5 Pro is relevant for long-document processing.
-
-**Use [LiteLLM](../projects/litellm.md)** as a routing layer when you want to use multiple providers behind a single OpenAI-compatible interface — load balancing, fallbacks, and cost routing without changing application code.
-
-## Related Concepts
-
-- [Context Engineering](../concepts/context-engineering.md) — most context engineering practice assumes OpenAI model behavior
-- [Prompt Engineering](../concepts/prompt-engineering.md) — OpenAI's prompt guides shaped the field's defaults
-- Structured Outputs / Pydantic — the typed extraction layer that OpenAI's API enables
-- [Vector Database](../concepts/vector-database.md) — the storage layer for OpenAI embeddings
-- [Agent Skills](../concepts/agent-skills.md) — the knowledge artifacts that OpenAI-backed agents learn and execute
-- [Chain-of-Thought](../concepts/chain-of-thought.md) — popularized through GPT-3/4 research
-- [Reinforcement Learning](../concepts/reinforcement-learning.md) — RLHF is the training technique behind GPT-4's alignment
-- [Model Context Protocol](../concepts/mcp.md) — OpenAI's Agents SDK supports MCP for tool integration alongside Anthropic's standard
+- [Anthropic](../projects/anthropic.md) — competes_with (0.9)
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — part_of (0.5)
+- [Claude](../projects/claude.md) — competes_with (0.8)
+- [Model Context Protocol](../concepts/model-context-protocol.md) — part_of (0.5)
+- [Ollama](../projects/ollama.md) — alternative_to (0.6)
+- [Vector Database](../concepts/vector-database.md) — part_of (0.5)
+- [OpenClaw](../projects/openclaw.md) — part_of (0.4)
+- [LangChain](../projects/langchain.md) — part_of (0.6)
+- [Agent Memory](../concepts/agent-memory.md) — part_of (0.5)
+- [vLLM](../projects/vllm.md) — alternative_to (0.6)
+- [Gemini](../projects/gemini.md) — competes_with (0.8)
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — part_of (0.6)
+- [Context Generation](../concepts/abductive-context.md) — part_of (0.4)
+- [Episodic Memory](../concepts/episodic-memory.md) — part_of (0.5)
+- [Context Engineering](../concepts/context-engineering.md) — part_of (0.6)
+- [Knowledge Graph](../concepts/knowledge-graph.md) — part_of (0.5)
+- [Semantic Memory](../concepts/semantic-memory.md) — part_of (0.5)
+- [Long-Term Memory](../concepts/long-term-memory.md) — part_of (0.5)
+- [Mem0](../projects/mem0.md) — part_of (0.5)
+- [Human-in-the-Loop](../concepts/human-in-the-loop.md) — implements (0.5)
+- [LangGraph](../projects/langgraph.md) — part_of (0.6)
+- [Neo4j](../projects/neo4j.md) — part_of (0.5)
+- [ChromaDB](../projects/chromadb.md) — part_of (0.5)
+- [Pinecone](../projects/pinatone.md) — part_of (0.5)
+- [Claude Code](../projects/claude-code.md) — competes_with (0.7)
+- [Agent Skills](../concepts/agent-skills.md) — part_of (0.5)
+- [Progressive Disclosure](../concepts/progressive-disclosure.md) — implements (0.5)
+- [LoCoMo](../projects/locomo.md) — part_of (0.4)
+- [GEPA](../concepts/gepa.md) — part_of (0.5)
+- [Continual Learning](../concepts/continual-learning.md) — part_of (0.5)
+- [CrewAI](../projects/crewai.md) — part_of (0.5)
+- [GitHub Copilot](../projects/github-copilot.md) — part_of (0.7)
+- [Community Detection](../concepts/community-detection.md) — part_of (0.4)
+- [Cognitive Architecture](../concepts/cognitive-architecture.md) — part_of (0.5)
+- [Reinforcement Learning](../concepts/reinforcement-learning.md) — implements (0.7)
+- [Synthetic Data Generation](../concepts/synthetic-data-generation.md) — implements (0.6)
+- Entity Extraction — implements (0.5)
+- DeepSeek — competes_with (0.8)
+- [Meta-Agent](../concepts/meta-agent.md) — implements (0.5)

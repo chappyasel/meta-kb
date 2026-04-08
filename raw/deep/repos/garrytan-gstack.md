@@ -3,15 +3,20 @@ url: 'https://github.com/garrytan/gstack'
 type: repo
 author: garrytan
 date: '2026-04-04'
-tags: [agent-systems, agentic-skills, skill-composition, context-engineering, self-improving]
+tags:
+  - agent-systems
+  - agentic-skills
+  - skill-composition
+  - context-engineering
+  - self-improving
 key_insight: >-
-  gstack's core innovation is not individual skills but the sprint-as-DAG pattern:
-  skills are sequenced into a Think-Plan-Build-Review-Test-Ship-Reflect pipeline
-  where each skill's output feeds the next skill's context, combined with a
-  SKILL.md.tmpl template system that generates docs from source code metadata to
-  prevent documentation drift -- this creates a self-consistent process layer where
-  23 specialist roles compose into a repeatable software factory that one person
-  operates at 10-15 parallel instances.
+  gstack's core innovation is not individual skills but the sprint-as-DAG
+  pattern: skills are sequenced into a Think-Plan-Build-Review-Test-Ship-Reflect
+  pipeline where each skill's output feeds the next skill's context, combined
+  with a SKILL.md.tmpl template system that generates docs from source code
+  metadata to prevent documentation drift -- this creates a self-consistent
+  process layer where 23 specialist roles compose into a repeatable software
+  factory that one person operates at 10-15 parallel instances.
 stars: 63766
 deep_research:
   method: source-code-analysis
@@ -32,6 +37,18 @@ deep_research:
     - test/skill-e2e.test.ts
   analyzed_at: '2026-04-04'
   original_source: repos/garrytan-gstack.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 9
+  novelty: 8
+  signal_quality: 9
+  composite: 8.9
+  reason: >-
+    gstack is a direct implementation of SKILL.md-based agent architecture with
+    a multi-agent sprint-as-DAG pipeline, modular specialist roles, and
+    template-driven context engineering — core to topics 3 and 4, with
+    transferable patterns for multi-agent coordination and self-improving
+    workflows.
 ---
 
 ## Architecture Overview

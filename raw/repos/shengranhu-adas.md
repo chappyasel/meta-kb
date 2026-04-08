@@ -20,17 +20,17 @@ key_insight: >-
 stars: 1551
 forks: 234
 relevance_scores:
-  topic_relevance: 7
-  practitioner_value: 6
+  topic_relevance: 8
+  practitioner_value: 7
   novelty: 8
   signal_quality: 7
-  composite: 6.9
+  composite: 7.6
   reason: >-
-    ADAS/Meta Agent Search directly implements a self-improving loop where a
-    meta-agent iteratively programs novel agent architectures via code
-    generation—a transferable pattern for automated skill composition and agent
-    design optimization, though it's applied to benchmarks rather than KB
-    systems specifically.
+    ADAS/Meta Agent Search is a self-improving loop where a meta-agent
+    iteratively generates novel agent architectures via code—directly relevant
+    to the self-improving systems pillar and agent architecture design, with a
+    real implementation, ICLR 2025 recognition, and transferable patterns for
+    automated skill/architecture discovery.
 language: Python
 license: Apache-2.0
 ---

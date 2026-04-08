@@ -19,18 +19,19 @@ key_insight: >-
   to evolve agents efficiently without massive compute budgets.
 stars: 1336
 forks: 152
+deep_researched: true
 relevance_scores:
-  topic_relevance: 8
-  practitioner_value: 7
+  topic_relevance: 9
+  practitioner_value: 8
   novelty: 8
-  signal_quality: 7
-  composite: 7.6
+  signal_quality: 8
+  composite: 8.4
   reason: >-
-    AgentEvolver directly instantiates the self-improving loop pattern (Topic 5)
-    with autonomous task generation, experience reuse, and credit assignment,
-    achieving measurable benchmark gains with released Python code and an arXiv
-    paper, making its architecture transferable to KB and agent memory
-    self-improvement systems.
+    AgentEvolver directly instantiates the self-improving loop pattern (Topic 6)
+    with autonomous task generation, experience reuse, and credit assignment
+    yielding measurable benchmark gains, released as production-ready Python
+    code with docs, arXiv paper, and active development making it highly
+    transferable to agent self-improvement systems.
 ---
 ## AgentEvolver
 

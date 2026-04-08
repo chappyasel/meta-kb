@@ -3,9 +3,15 @@ url: 'https://github.com/gepa-ai/gepa'
 type: repo
 author: gepa-ai
 date: '2026-04-04'
-tags: [self-improving, agentic-skills, context-engineering]
+tags:
+  - self-improving
+  - agentic-skills
+  - context-engineering
 key_insight: >-
-  GEPA replaces RL reward signals with LLM-readable execution traces (Actionable Side Information), enabling 35x faster optimization than GRPO by letting a reflection LLM diagnose WHY candidates fail rather than just THAT they fail, combined with Pareto-efficient evolutionary search across task subsets.
+  GEPA replaces RL reward signals with LLM-readable execution traces (Actionable
+  Side Information), enabling 35x faster optimization than GRPO by letting a
+  reflection LLM diagnose WHY candidates fail rather than just THAT they fail,
+  combined with Pareto-efficient evolutionary search across task subsets.
 stars: 3200
 deep_research:
   method: source-code-analysis-plus-web
@@ -21,16 +27,32 @@ deep_research:
     - src/gepa/strategies/candidate_selector.py
     - src/gepa/strategies/batch_sampler.py
     - docs/docs/blog/posts/2026-02-18-introducing-optimize-anything/index.md
-    - docs/docs/blog/posts/2026-02-18-automatically-learning-skills-for-coding-agents/index.md
+    - >-
+      docs/docs/blog/posts/2026-02-18-automatically-learning-skills-for-coding-agents/index.md
   web_sources:
-    - https://gepa-ai.github.io/gepa/blog/2026/02/18/introducing-optimize-anything/
-    - https://gepa-ai.github.io/gepa/blog/2026/02/18/automatically-learning-skills-for-coding-agents/
-    - https://arxiv.org/abs/2507.19457
-    - https://pydantic.dev/articles/prompt-optimization-with-gepa
-    - https://dspy.ai/api/optimizers/GEPA/overview/
-    - https://arize.com/blog/gepa-vs-prompt-learning-benchmarking-different-prompt-optimization-approaches/
+    - >-
+      https://gepa-ai.github.io/gepa/blog/2026/02/18/introducing-optimize-anything/
+    - >-
+      https://gepa-ai.github.io/gepa/blog/2026/02/18/automatically-learning-skills-for-coding-agents/
+    - 'https://arxiv.org/abs/2507.19457'
+    - 'https://pydantic.dev/articles/prompt-optimization-with-gepa'
+    - 'https://dspy.ai/api/optimizers/GEPA/overview/'
+    - >-
+      https://arize.com/blog/gepa-vs-prompt-learning-benchmarking-different-prompt-optimization-approaches/
   analyzed_at: '2026-04-04'
   original_source: repos/gepa-ai-gepa.md
+relevance_scores:
+  topic_relevance: 8
+  practitioner_value: 8
+  novelty: 9
+  signal_quality: 8
+  composite: 8.1
+  reason: >-
+    GEPA's LLM-powered reflection-based optimization loop (using execution
+    traces as diagnostic signals rather than scalar rewards) is a directly
+    transferable self-improvement pattern for agent systems, prompt
+    optimization, and trace-driven optimization — all core to the self-improving
+    systems pillar.
 ---
 
 ## Architecture Overview

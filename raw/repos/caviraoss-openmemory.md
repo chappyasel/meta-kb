@@ -10,8 +10,19 @@ key_insight: >-
   Local persistent memory store for LLM applications including claude desktop,
   github copilot, codex, antigravity, etc.
 stars: 3860
-deep_researched: 'deep/repos/caviraoss-openmemory.md'
+deep_researched: deep/repos/caviraoss-openmemory.md
 forks: 439
+relevance_scores:
+  topic_relevance: 8
+  practitioner_value: 8
+  novelty: 6
+  signal_quality: 7
+  composite: 7.6
+  reason: >-
+    OpenMemory is a directly relevant local-first persistent memory store for
+    LLM agents with Python/Node SDKs, multi-framework integrations, and
+    self-hosted deployment options, making it highly actionable for agent memory
+    infrastructure practitioners.
 ---
 ## OpenMemory
 

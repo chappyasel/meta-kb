@@ -25,14 +25,15 @@ images:
 relevance_scores:
   topic_relevance: 10
   practitioner_value: 8
-  novelty: 8
+  novelty: 7
   signal_quality: 7
-  composite: 8.7
+  composite: 8.5
   reason: >-
-    Directly implements Karpathy's wiki pattern in a multi-agent swarm with a
-    blind supervisor review gate, episodic briefings, and self-improving
-    knowledge loop—covering topics 1, 2, 3, and 5 with concrete architectural
-    details.
+    Directly implements Karpathy wiki pattern in a multi-agent swarm with a
+    blind supervisor validation layer, per-agent briefings, and a
+    compile-validate-feedback loop—covering knowledge substrate, agent memory,
+    multi-agent coordination, and self-improving patterns all in one concrete
+    architecture.
 ---
 ## Tweet by @jumperz
 

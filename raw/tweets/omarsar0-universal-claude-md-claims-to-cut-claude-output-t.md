@@ -27,10 +27,10 @@ relevance_scores:
   signal_quality: 5
   composite: 7
   reason: >-
-    CLAUDE.md context engineering is a core topic area and the 63% token
-    reduction claim is immediately actionable for KB/agent builders, though the
-    source is a tweet pointing to an external resource rather than a detailed
-    technical breakdown.
+    Directly references CLAUDE.md context engineering with a concrete 63% token
+    reduction claim, highly relevant to context window management and knowledge
+    base builders, though the signal is a tweet pointing to an external resource
+    rather than the resource itself.
 ---
 ## Tweet by @omarsar0
 

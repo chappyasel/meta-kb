@@ -11,7 +11,7 @@ tags:
   - Karpathy-pattern
   - autonomous-iteration
   - verification-loop
-deep_researched: 'deep/repos/uditgoenka-autoresearch.md'
+deep_researched: deep/repos/uditgoenka-autoresearch.md
 key_insight: >-
   Autoresearch instantiates Karpathy's constraint-metric-loop pattern as a
   reusable Claude Code skill, enabling unbounded autonomous iteration across any
@@ -27,11 +27,10 @@ relevance_scores:
   signal_quality: 8
   composite: 8.7
   reason: >-
-    Directly implements Karpathy's autoresearch pattern as a reusable Claude
-    Code skill with the core self-improving loop architecture
-    (modify→verify→keep/discard→repeat), git-as-episodic-memory, and explicit
-    generalization beyond ML to any domain — hitting multiple primary pillars of
-    the KB with an active, production-ready tool.
+    Directly implements the Karpathy constraint-metric-loop pattern as a
+    reusable Claude Code skill with git-backed episodic memory, autonomous
+    iteration, and rollback — core architecture for self-improving agent systems
+    across the knowledge base's primary pillars.
 language: Shell
 license: MIT
 ---

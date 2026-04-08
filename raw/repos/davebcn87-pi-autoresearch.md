@@ -11,7 +11,7 @@ tags:
   - benchmark-driven-iteration
   - skill-composition
   - git-branching-strategy
-deep_researched: 'deep/repos/davebcn87-pi-autoresearch.md'
+deep_researched: deep/repos/davebcn87-pi-autoresearch.md
 key_insight: >-
   Pi-autoresearch implements a self-improving agent loop that enables autonomous
   optimization by decoupling measurements (via benchmarking scripts) from agent
@@ -27,10 +27,10 @@ relevance_scores:
   signal_quality: 8
   composite: 8.3
   reason: >-
-    Direct implementation of Karpathy's autoresearch pattern as a
-    production-ready TypeScript extension with clear try/measure/keep/revert
-    loop architecture, well-documented tools, and practical usage examples
-    highly relevant to Topic 5 self-improving systems.
+    Directly implements a self-improving autonomous loop pattern
+    (try/measure/keep/revert) that is core to the Self-Improving Systems pillar,
+    with a well-documented TypeScript implementation, live dashboard, and
+    reusable architecture decoupling measurement from agent decision-making.
 language: TypeScript
 license: MIT
 ---

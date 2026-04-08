@@ -19,7 +19,7 @@ key_insight: >-
   base retrieval, agent reasoning chains, and skill composition without
   prohibitive LLM costs.
 stars: 3157
-deep_researched: 'deep/repos/gepa-ai-gepa.md'
+deep_researched: deep/repos/gepa-ai-gepa.md
 forks: 269
 relevance_scores:
   topic_relevance: 8
@@ -28,10 +28,11 @@ relevance_scores:
   signal_quality: 8
   composite: 8
   reason: >-
-    GEPA is a self-improving optimization framework directly applicable to
-    prompt, agent architecture, and skill composition evolution—core to topics
-    3, 4, and 5—with production-ready code, benchmarks, and a clear pattern of
-    reflective mutation transferable to KB and agent memory systems.
+    GEPA's reflective trace-based mutation for optimizing textual parameters
+    (prompts, agent architectures, skill compositions) with 35x fewer
+    evaluations is directly applicable to self-improving agent systems, prompt
+    optimization, and skill/context engineering—core KB pillars—with a
+    production-ready PyPI library and documented architecture.
 language: Jupyter Notebook
 license: MIT
 ---

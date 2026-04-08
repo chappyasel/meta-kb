@@ -17,17 +17,17 @@ key_insight: >-
   prompts, and agent systems when you can measure outcomes, making it essential
   for builders creating self-improving LLM-based tools.
 relevance_scores:
-  topic_relevance: 8
-  practitioner_value: 7
-  novelty: 6
+  topic_relevance: 7
+  practitioner_value: 6
+  novelty: 5
   signal_quality: 5
-  composite: 7
+  composite: 6.1
   reason: >-
-    Directly analyzes Karpathy's autoresearch loop as a generalizable
-    self-improvement pattern applicable to knowledge bases, prompts, and agent
-    systems, which is a primary pillar of this KB, though the article is a
-    newsletter with mixed content (ads, Google Maps news) reducing signal
-    density.
+    The article analyzes Karpathy's autoresearch loop as a generalizable
+    self-improvement pattern applicable to agents, prompts, and knowledge
+    bases—directly relevant to self-improving systems pillar—but is a newsletter
+    article mixing multiple topics rather than a deep technical implementation
+    guide.
 ---
 ## The Ultimate Autoresearch Guide
 

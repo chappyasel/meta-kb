@@ -3,170 +3,146 @@ entity_id: continual-learning
 type: concept
 bucket: self-improving
 abstract: >-
-  Continual learning trains ML models on sequential data streams without
-  catastrophic forgetting — the key differentiator from standard training is
-  that knowledge accumulates rather than overwrites.
+  Continual learning lets AI agents accumulate knowledge across sessions without
+  catastrophic forgetting, using three distinct layers (model weights, harness
+  code, and context/memory) each with different update costs and stability
+  tradeoffs.
 sources:
   - tweets/hwchase17-continual-learning-for-ai-agents.md
+  - repos/memodb-io-acontext.md
   - repos/osu-nlp-group-hipporag.md
-  - repos/letta-ai-letta.md
+  - repos/kayba-ai-agentic-context-engine.md
+  - repos/agent-on-the-fly-memento.md
   - papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md
-  - articles/hugging-face-mem-agent-equipping-llm-agents-with-memory-using.md
-  - deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md
   - articles/x-twitter-meta-agent-continual-learning-for-agents.md
 related:
-  - rag
-  - agent-skills
-  - gpt-4
+  - continual-rag
   - claude-code
+  - openclaw
+  - openai
   - claude
-  - react
-last_compiled: '2026-04-07T11:44:03.391Z'
+  - context-engineering
+last_compiled: '2026-04-08T02:50:48.611Z'
 ---
 # Continual Learning
 
 ## What It Is
 
-Continual learning (also called lifelong learning or incremental learning) addresses a fundamental mismatch between how neural networks train and how knowledge actually accumulates. Standard training assumes a fixed dataset. The world does not cooperate: user behavior shifts, new domains emerge, and agents encounter situations their training data never covered. Retraining from scratch on each update is computationally prohibitive and discards hard-won representations. Training only on new data causes the model to overwrite what it previously learned.
+Continual learning is the capacity of a system to integrate new information over time without overwriting what it already knows. In machine learning, "catastrophic forgetting" names the failure mode: a neural network retrained on new data degrades on old tasks because gradient updates to shared weights corrupt previously learned representations. The field's core problem is that the same parameters that encode old knowledge must accommodate new knowledge.
 
-The field exists because of [Catastrophic Forgetting](../concepts/catastrophic-forgetting.md) — the empirically observed tendency of neural networks to lose performance on prior tasks when updated on new ones. Gradient descent on a new task moves weights toward a loss minimum for that task, which often moves them away from the loss minima of prior tasks. The problem scales with task dissimilarity: a code model fine-tuned on medical records loses coding ability faster than one fine-tuned on more code.
+For AI agents, the problem is both more tractable and more complex than the pure ML framing suggests. More tractable because agents can offload learning to external stores that don't share weights with the base model. More complex because "learning" now spans multiple interacting systems, each with different update costs, failure modes, and granularities.
 
-For [Agent Memory](../concepts/agent-memory.md) systems and self-improving agents, this is not a theoretical problem. It determines whether an agent can genuinely accumulate capability over time or merely appears to learn while quietly degrading.
+## The Three-Layer Model
 
-## Why It Matters Now
+[Harrison Chase's taxonomy](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md) identifies three distinct sites where an agent system can accumulate learning:
 
-Two forces make continual learning urgent for the LLM/agent space specifically.
+**Model weights** — the base LLM parameters. Updates here use supervised fine-tuning (SFT), reinforcement learning (GRPO, PPO), or LoRA adapters. This is what most ML literature means by "continual learning." Changes are expensive, slow to deploy, and carry genuine catastrophic forgetting risk. OpenAI's Codex models represent this approach applied to a specific agent domain.
 
-First, base model training is increasingly separated from deployment. GPT-4, Claude, and similar models train on static corpora, then deploy for months or years. The gap between training cutoff and current date grows constantly. [Retrieval-Augmented Generation](../concepts/rag.md) patches this for factual recall but does not give models new reasoning capabilities or procedural skills.
+**Harness** — the code, system prompts, tool definitions, and orchestration logic wrapping the model. Every agent instance shares this. Updates propagate universally and immediately. The Meta-Harness paper ([Lee et al. 2026](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)) demonstrates automated harness optimization: run agents over tasks, evaluate traces, use a proposer LLM to suggest targeted harness changes, validate on holdout, keep improvements. On TerminalBench-2, the best hand-engineered harness with Claude Haiku 4.5 reached 35.5% vs. 27.5% for vanilla Claude Code — purely from harness changes, no fine-tuning.
 
-Second, agent systems now accumulate interaction history at scale. A coding agent running thousands of sessions per day generates trace data that contains signal about what works and what does not. Discarding that signal — resetting to baseline at each session — leaves substantial capability gains on the table. As Harrison Chase's analysis notes, learning can happen at three independent layers: model weights, the agent harness, and context/memory. Most deployed systems only seriously address the context layer, leaving the other two largely static. [Source](../raw/tweets/hwchase17-continual-learning-for-ai-agents.md)
+**Context** — instructions, skills, and memory that live outside the harness and configure individual agent instances. This is the fastest feedback loop. Updates can happen mid-session or in offline batch jobs. Granularity ranges from agent-level (a single shared context), to tenant-level (per-user or per-org memory), to both simultaneously.
 
-## The Three-Layer Framework
+[Claude Code](../projects/claude-code.md) illustrates the architecture concretely: Claude Sonnet is the model layer, Claude Code itself is the harness, and `CLAUDE.md` plus `/skills` plus `mcp.json` form the context layer. [OpenClaw](../projects/openclaw.md) maps identically: Pi as harness, `SOUL.md` and Clawhub skills as context.
 
-Chase's taxonomy cleanly organizes what "continual learning for agents" actually means in practice:
+The three layers are independent. A system can update any combination. In practice, context updates are attempted first — lowest cost, fastest iteration, reversible. Harness updates come next. Weight updates are reserved for cases where the other two layers can't capture the required behavioral change.
 
-**Layer 1: Model weights.** This is what most ML literature means by continual learning. Techniques include supervised fine-tuning (SFT), reinforcement learning via [GRPO](../concepts/grpo.md) or similar, and parameter-efficient methods like LoRA. The catastrophic forgetting problem lives here. Updating weights for a new task degrades prior tasks. The research community has proposed three main mitigations:
+## Catastrophic Forgetting: The Weight-Layer Problem
 
-- *Replay methods*: Mix old training examples into new updates. Computationally expensive; requires storing or generating old data.
-- *Regularization methods*: Penalize weight changes on parameters important to prior tasks (Elastic Weight Consolidation is the canonical example). Requires estimating parameter importance, which adds overhead.
-- *Architectural methods*: Allocate separate parameters per task, or grow the network. Avoids interference but scales poorly.
+At the model layer, catastrophic forgetting is a genuine open research problem. When a network updates weights to improve on new tasks, gradient descent modifies the same parameters that support old tasks. The overlap between old and new task representations determines how much interference occurs.
 
-None of these fully solve the problem. Forgetting rates, acceptable task dissimilarity bounds, and replay ratios are all hyperparameters that require tuning per deployment.
+Current mitigations fall into three families:
 
-**Layer 2: The harness.** The harness is everything around the model that shapes behavior: system prompts, tool definitions, routing logic, lifecycle hooks, stop conditions. This layer is underappreciated because it is not "the model" but in practice it strongly determines what the model does. Recent work shows harness optimization alone can move agent benchmark scores by 8+ percentage points on the same base model, with no weight updates. [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
+**Regularization methods** (EWC, Synaptic Intelligence) add penalty terms to the loss function that resist changes to weights important for prior tasks. They preserve old knowledge but limit plasticity. Scaling to large transformer models is computationally expensive.
 
-The meta-agent approach to harness continual learning: run the agent over production traces, score traces with an LLM judge, identify failure patterns, propose one targeted harness update at a time, validate on a held-out set, keep updates that improve accuracy. Iterating this loop from a 67% baseline reached 87% on tau-bench airline tasks. The improvement came from three specific changes: a stop condition preventing premature exits, a rewritten system prompt with tool-use rules, and a skill containing domain-specific business rules. [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
+**Architectural methods** (Progressive Neural Networks, PackNet) reserve separate parameter subsets for different tasks or expand capacity to accommodate new knowledge. They avoid interference but require knowing task boundaries and don't generalize across tasks.
 
-**Layer 3: Context and memory.** Context sits outside the harness and configures it per agent, user, or organization. This includes CLAUDE.md files, skill libraries, memory blocks, and user-specific preferences. [Core Memory](../concepts/core-memory.md) in Letta's `memory_blocks` abstraction is a concrete implementation: the agent reads and writes named memory slots that persist across conversations. [Source](../raw/repos/letta-ai-letta.md)
+**Replay methods** (Experience Replay, DGR) maintain a buffer of old examples and interleave them with new training data. This is the most widely used approach in practice. The buffer composition and mixing ratio matter significantly for performance. Synthetic data generation can replace stored examples when storing real data is impractical.
 
-Context-layer learning has two update patterns:
-- *Offline batch updates*: After sessions complete, a background job synthesizes recent traces into updated context. Letta's documentation calls this "dreaming."
-- *In-session updates*: The agent updates its own memory mid-conversation. Faster feedback but introduces consistency risks if the agent writes contradictory memories across parallel sessions.
+For agent systems, none of these fully solve the problem. Fine-tuning a coding agent on new programming languages risks degrading its performance on existing languages if the training distribution shifts. This is why most production systems avoid weight updates entirely and push learning into the context layer.
 
-Context learning can be scoped at multiple levels simultaneously: agent-level (shared across all users), tenant-level (per user or org), and task-level (per specific project). Systems like [Mem0](../projects/mem0.md) and [Zep](../projects/zep.md) are built around tenant-level context learning.
+## Non-Parametric Continual Learning: The Context Layer
 
-## Core Mechanisms
+The most operationally practical form of continual learning for agents avoids touching model weights at all. Instead, knowledge accumulates in external stores the model reads at inference time.
 
-### Skill Libraries as Non-Parametric Continual Learning
+[HippoRAG](../projects/hipporag.md) frames this explicitly as "non-parametric continual learning" in its ICML '25 paper. The architecture builds a knowledge graph over ingested documents, uses personalized PageRank for multi-hop retrieval, and supports incremental document addition without reindexing everything. The graph structure enables associative recall — following connections between entities — rather than pure semantic similarity matching. HippoRAG 2 evaluates on factual memory (NaturalQuestions, PopQA), sense-making (NarrativeQA), and multi-hop associativity (MuSiQue, 2WikiMultiHop, HotpotQA), outperforming flat RAG and other graph-based approaches across all three dimensions.
 
-[Voyager](../projects/voyager.md) demonstrated a clean alternative to weight updates: store new capabilities as executable code, index by text embeddings, retrieve by semantic similarity. Skills never overwrite each other — the library is append-only. New skills can call existing ones, creating compounding capability growth without any gradient updates. Over 160 interaction iterations in Minecraft, this approach discovered 3.3x more unique items than ReAct/Reflexion baselines. [Source](../raw/deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md)
+[Continual RAG](../concepts/continual-rag.md) generalizes this to the retrieval pipeline: as new documents arrive, the retrieval index updates incrementally rather than requiring full recomputation.
 
-The key properties making this work:
-- **No interference**: Adding skill N cannot degrade skills 1 through N-1.
-- **Compositionality**: Skills that call prior skills compound capability hierarchically.
-- **Verifiability**: Skills enter the library only after a self-verification critic confirms they work. Without this quality gate, the library accumulates broken code that poisons future generation. The ablation shows removing self-verification causes a 73% performance drop.
+[Mem0](../projects/mem0.md), [Zep](../projects/zep.md), and [Letta](../projects/letta.md) implement context-layer learning as managed services. Each maintains user-level memory that updates across sessions. The difference from standard [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) is temporal: these systems track how information changes over time, not just what information exists.
 
-The tradeoff: skill libraries do not generalize the way weight updates do. A skill written for one environment may not transfer. And retrieval depends on text embedding similarity, which is an imperfect proxy for functional relevance — a skill that does what you need but has a dissimilar description will not be retrieved.
+## Harness-Layer Learning: Automated Improvement
 
-### Knowledge Graphs as Continuous Memory
+Harness optimization is the middle ground — more durable than context updates (changes persist across all users), less risky than weight updates (reversible, no interference with base model capabilities).
 
-[HippoRAG](../projects/hipporag.md) frames RAG itself as non-parametric continual learning. Rather than fine-tuning, the system builds a persistent knowledge graph where nodes are entities, edges are relations, and retrieval uses Personalized PageRank to find multi-hop connections. New documents extend the graph rather than trigger retraining. Ablations show this outperforms naive RAG on multi-hop reasoning tasks (MuSiQue, HotpotQA, 2WikiMultiHop) while matching or exceeding it on single-hop factual recall. [Source](../raw/repos/osu-nlp-group-hipporag.md) *(self-reported, ICML '25)*
+The [meta-agent](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md) library demonstrates the loop in practice: collect production traces, score them with an LLM judge, use a proposer LLM to identify failure patterns and write one targeted harness change, validate on a labeled holdout set, keep if it improves. On tau-bench v3 airline domain, starting from 67% baseline accuracy, judge-based search reached 87% holdout accuracy within 4-10 iterations. The key design choice: use LLM judge scoring on unlabeled traces for search, but use ground-truth labels on a holdout split for accept/reject decisions. This separates the signal quality problem from the validation problem.
 
-The neurobiological framing is intentional: the hippocampus binds memories through associative indexing, not overwriting prior memories. The analogy motivates why graph structure outperforms flat vector retrieval for tasks requiring multiple inference steps.
+The proposer tends to overfit to specific traces rather than generalizing. A simple prompt fix — "state your change as a behavioral rule; if you can only justify it by pointing to specific traces, it's too narrow" — reduces this. Persistent filesystem memory across iterations helps the proposer avoid re-proposing already-failed changes.
 
-### Harness Optimization Loop
+The [ACE framework](../projects/ace.md) implements a similar three-role loop: an Agent executes tasks, a Reflector analyzes traces (using Python code execution for pattern detection), and a SkillManager curates a Skillbook of reusable strategies. ACE's self-reported benchmark on tau2-bench shows doubled pass^4 consistency with 15 learned strategies and no reward signals. On a separate evaluation, ACE + Claude Code translated 14,000 lines of Python to TypeScript with zero build errors at ~$1.50 in learning costs. These results are self-reported.
 
-The meta-agent harness learning loop [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md) has four components:
+## Context-Layer Learning: Memory as Skill
 
-1. **Collect traces** from the running agent.
-2. **Score traces** with an LLM judge (replacing the need for labeled data).
-3. **Propose one change** targeting the most common failure pattern found in scored traces.
-4. **Validate** on a small labeled holdout set; keep only changes that improve accuracy.
+[Acontext](../raw/repos/memodb-io-acontext.md) represents a particular design philosophy: store learned knowledge as human-readable Markdown skill files, not opaque vector embeddings. After a task completes, a distillation LLM pass extracts what worked, what failed, and user preferences, then routes the output to the appropriate skill file according to a `SKILL.md` schema the user defines. Recall happens through explicit tool calls (`get_skill`, `get_skill_file`) rather than semantic similarity search. The agent decides what to retrieve; retrieval is by reasoning, not top-k embedding lookup.
 
-The single-change-per-iteration discipline matters. Early experiments found the proposer overfits to specific traces rather than writing general behavioral rules when given too much latitude. The fix — prompting the proposer to state changes as rules about agent behavior, not responses to specific cases — reduced overfitting. Even with this, results are from single runs on small splits; variance estimates are pending. [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
+This design makes memory inspectable and editable. Humans can read, correct, and share skill files directly. The tradeoff: the agent must reason about which skills to retrieve, adding a failure mode (the agent may not know what it doesn't know) absent in embedding-based retrieval.
 
-## Implementation Patterns
+[OpenClaw's](../projects/openclaw.md) "dreaming" process is an offline batch variant: after sessions end, an agent reviews recent traces and updates `SOUL.md` and skill files. This separates the learning compute from the task compute and avoids mid-session context pollution from learning operations.
 
-### Automatic Curriculum
+## Granularity Dimensions
 
-Learning order matters as much as learning mechanism. Voyager's automatic curriculum generates tasks at the frontier of the agent's current capability — not too easy, not impossible. This prevents the agent from wasting compute on mastered tasks or failing on tasks that require prerequisites it has not yet acquired. Removing the curriculum while keeping the skill library and self-verification causes a 93% drop in items discovered — larger than removing any other component. [Source](../raw/deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md)
+Context-layer learning operates at different scopes simultaneously:
 
-The [Automatic Curriculum](../concepts/automatic-curriculum.md) concept generalizes beyond Minecraft: any self-improving agent system needs a mechanism to propose next tasks at the right difficulty. Without it, learning is either wastefully redundant or stuck.
+**Agent-level**: One shared context for all instances of an agent. Changes from any user's session can potentially improve performance for all users. Risk: one user's bad experience contaminates shared state.
 
-### Memory Block Architecture
+**Tenant-level** (user, org, team): Each entity has its own context. No cross-contamination. Most production deployments use this model — Hex's Context Studio, Decagon's Duet, Sierra's Explorer all follow it.
 
-[Letta](../projects/letta.md)'s `memory_blocks` give each agent named, persistent slots (e.g., `human`, `persona`) that survive across conversations. The agent reads these at the start of each session and can write to them mid-session via tool calls. This is the simplest form of context-layer continual learning: the agent accumulates information about users and itself across interactions without any weight updates. [Source](../raw/repos/letta-ai-letta.md)
+**Hybrid**: Stack agent-level context (shared domain knowledge) with tenant-level context (individual preferences and history). Most flexible but requires explicit conflict resolution when contexts disagree.
 
-Concrete example from Letta's README: `memory_blocks=[{"label": "human", "value": "Name: Timber..."}, {"label": "persona", "value": "..."}]`. The agent that received these blocks on session 1 starts session 2 with that context intact, allowing it to build on prior interactions rather than treating each session as independent.
+**Timing**: Updates can happen in the hot path (the agent updates memory during task execution) or offline (batch processing of accumulated traces). Hot-path updates provide faster feedback but risk corrupting context mid-task. Offline updates are safer but delayed.
 
-### Trace-Based Learning Infrastructure
+## Failure Modes
 
-All three layers depend on traces — the full execution record of what an agent did, what tools it called, and what results it received. Chase identifies this as the shared substrate: traces feed weight updates, harness optimization, and context extraction equally. Without a trace collection and storage system, none of the other mechanisms can operate.
+**Catastrophic forgetting** (weight layer): The classical problem. New training overwrites old weights. Mitigated by replay, regularization, or avoiding weight updates entirely.
 
-This is an infrastructure assumption often left implicit in research papers. Production systems require trace logging, retention policies, privacy handling (traces contain user data), and tooling to query and filter traces before they can power any learning loop.
+**Context drift** (context layer): Accumulated context degrades over time as learned patterns become stale or contradictory. A coding agent that learns "always use library X" may be harmed if the user switches projects. Context needs expiration or versioning.
 
-## Who Implements This
+**Proposer overfitting** (harness layer): Automated proposers learn from specific failure traces rather than generalizing behavioral patterns. The resulting harness improvements don't transfer to the holdout distribution. Meta-agent addresses this with prompt instructions to state changes as behavioral rules, but the tendency persists.
 
-- **[Letta](../projects/letta.md)**: Memory blocks + offline dreaming pattern for context-layer continual learning.
-- **[Voyager](../projects/voyager.md)**: Code-indexed skill library for non-parametric capability accumulation.
-- **[HippoRAG](../projects/hipporag.md)**: Graph-based continual knowledge integration without fine-tuning.
-- **[Claude Code](../projects/claude-code.md)**: CLAUDE.md and `/skills` directories as user-configurable context layer.
-- **[Mem0](../projects/mem0.md)**, **[Zep](../projects/zep.md)**: Tenant-level context learning from conversation history.
-- **meta-agent** (Canvas): Automated harness optimization from production traces using LLM judges.
-- **[Darwin Gödel Machine](../projects/darwin-godel-machine.md)**: Applies continual self-improvement at the agent code layer itself.
+**Judge misalignment** (harness and context layer): When LLM judges replace ground-truth labels for scoring traces, judge quality gates everything. A judge that fails to detect a failure category will produce confident-looking scores for bad agent behavior, and the proposer will preserve or amplify the bad behavior.
 
-## Practical Failure Modes
+**Memory poisoning**: Malicious inputs or adversarial users can inject false information into shared context stores. Agent-level memory is particularly vulnerable.
 
-**Catastrophic forgetting during weight updates.** This remains unsolved. Weight updates for new tasks move parameters away from prior task minima. Regularization and replay reduce but do not eliminate the effect. For production agents, this means weight-layer continual learning requires careful monitoring of regressions on existing capabilities, not just improvement on new tasks.
+## When Not to Use Weight-Layer Continual Learning
 
-**Skill library pollution.** Skill libraries without quality gates accumulate broken code. Voyager's self-verification mitigates this, but self-verification can share the model's misconceptions — if the model generates a plausible-looking but subtly wrong skill, the same model used for verification may approve it. Catching these requires either human review or independent verification signals.
+Avoid fine-tuning base models for continual learning when:
 
-**Proposer overfitting.** When harness optimization proposes changes based on failure traces, it tends to write rules specific to those traces rather than general behavioral principles. The result: search accuracy improves while holdout accuracy stays flat or degrades. Meta-agent found a prompt-level fix, but this remains a fragile equilibrium that depends on the proposer's instruction-following.
+- The required knowledge can be stored in a context or harness layer instead. Weight updates are irreversible and expensive; context updates are not.
+- You lack sufficient new training data to avoid distributional shift. Small datasets cause catastrophic forgetting of existing capabilities.
+- Deployment latency for model updates is too slow for the feedback loop you need. Harness and context updates deploy in minutes; new model versions take days to weeks.
+- Multiple tenants share the same model and their learning signals conflict. Per-user LoRA adapters exist in theory but are rarely production-ready.
 
-**Unbounded context growth.** Context-layer learning that never prunes accumulates noise over time. A user's preferences from 6 months ago may contradict current preferences. Memory systems need consolidation logic — summarizing, de-duplicating, and deprecating stale context — or they drift toward incoherence.
+## Connections
 
-**Retrieval degradation in large skill libraries.** Embedding similarity degrades as a retrieval signal when the library grows large and contains many similar-sounding skills. Voyager's top-5 retrieval works at hundreds of skills; whether it holds at thousands requires testing. The [Agent Skills](../concepts/agent-skills.md) analysis notes a phase transition around 100+ skills where flat retrieval starts to underperform hierarchical organization.
+Continual learning at the context layer is a form of [Long-Term Memory](../concepts/long-term-memory.md) and [Agent Memory](../concepts/agent-memory.md) management. The skill accumulation pattern in ACE and Acontext relates to [Agent Skills](../concepts/agent-skills.md) and [Procedural Memory](../concepts/procedural-memory.md). Automated harness improvement connects to [Self-Improving Agents](../concepts/self-improving-agents.md). The trace-analysis loop depends on [Execution Traces](../concepts/execution-traces.md) and [Observability](../concepts/observability.md) infrastructure. [Context Engineering](../concepts/context-engineering.md) governs what learned knowledge gets surfaced at inference time.
 
-## When Not to Use This
-
-**Weight-layer continual learning for production agents** is the wrong choice when you need stability guarantees. Retraining and deploying updated weights requires evaluation infrastructure to catch regressions, a rollback mechanism, and tolerance for temporary performance variance during transitions. Teams without this infrastructure should stick to context and harness layers.
-
-**Skill libraries** are the wrong choice when tasks require genuine generalization rather than retrieval of similar past solutions. If each new task is structurally unlike any stored skill, retrieval-based approaches provide no benefit over baseline and add latency for failed retrievals.
-
-**Online in-session memory updates** create consistency problems in multi-session or parallel-session deployments. If the same agent serves multiple users simultaneously and each user's session can update shared memory, concurrent writes require locking or conflict resolution logic. Most agent frameworks do not provide this out of the box.
+For multi-hop knowledge integration across documents, [HippoRAG](../projects/hipporag.md) and [Knowledge Graph](../concepts/knowledge-graph.md) approaches represent the research frontier. [Memory Evolution](../concepts/memory-evolution.md) addresses how stored knowledge should update when new information contradicts old.
 
 ## Unresolved Questions
 
-**Evaluation standards**: Most benchmark results for continual learning systems are self-reported on specific datasets. The meta-agent tau-bench results (67% → 87%) used a single run on a 50-task split. Whether these results hold across runs, models, and domains is not established. [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
+**Conflict resolution**: When agent-level and tenant-level context disagree, which wins? No framework documents a principled resolution strategy.
 
-**Cost at scale**: GPT-4-level models driving self-verification, curriculum generation, and harness proposal are expensive. Voyager used GPT-4 for all core components; the paper does not report dollar costs. For production systems running thousands of sessions, the per-improvement cost needs quantification before the approach is feasible.
+**Forgetting in context stores**: How should stale or contradictory context be expired? Most implementations accumulate indefinitely. The cost of stale context — an agent confidently acting on outdated learned patterns — is underdocumented.
 
-**Skill library governance**: Who decides when a skill should be updated or deprecated? Skill libraries are typically append-only in research implementations. In production, skills may become outdated (API changes, policy updates, environmental shifts) and need revision. Voyager has no skill update mechanism — only addition. This is an open design problem.
+**Judge reliability at scale**: LLM judges scoring unlabeled traces are the key enabler for production continual learning. Their failure modes (systematic biases, sensitivity to framing) are not well-characterized across domains. Meta-agent's 87% result with judge-based search outperforming labeled search may reflect judge advantages on that specific domain rather than a general result.
 
-**Interference across tenants**: When context-layer learning is scoped at the tenant level, what prevents one tenant's updates from polluting another's? This is largely an infrastructure question that agent frameworks address with varying rigor.
+**Compute allocation**: Offline learning (trace distillation, harness optimization) competes for compute with agent execution. At scale, the cost of the learning loop relative to task execution cost is undiscussed in most implementations.
 
-**Long-horizon forgetting**: Most continual learning evaluations measure forgetting over short time horizons — hours or days of training. Whether forgetting is linear, accelerating, or bounded over months-long deployment is not well characterized for modern LLMs.
 
-## Related Concepts
+## Related
 
-- [Catastrophic Forgetting](../concepts/catastrophic-forgetting.md): The core problem continual learning addresses.
-- [Agent Memory](../concepts/agent-memory.md): The broader category of how agents store and access information.
-- [Memory Evolution](../concepts/memory-evolution.md): How memory systems update and improve over time.
-- [Self-Improving Agent](../concepts/self-improving-agent.md): Agents that use continual learning to improve their own capabilities.
-- [Automatic Curriculum](../concepts/automatic-curriculum.md): Task scheduling that supports efficient continual learning.
-- [Retrieval-Augmented Generation](../concepts/rag.md): Non-parametric alternative to weight-based learning.
-- [Agent Skills](../concepts/agent-skills.md): Skill libraries as a continual learning mechanism.
-- [GRPO](../concepts/grpo.md): Reinforcement learning technique used for weight-layer updates.
-- [Reinforcement Learning](../concepts/reinforcement-learning.md): The learning paradigm underlying weight-layer continual learning approaches.
-- [Procedural Memory](../concepts/procedural-memory.md): Where learned skills are stored in memory taxonomy.
-- [CLAUDE.md](../concepts/claude-md.md): Context-layer configuration file enabling per-user continual learning in Claude Code.
+- [Continual RAG](../concepts/continual-rag.md) — implements (0.8)
+- [Claude Code](../projects/claude-code.md) — implements (0.6)
+- [OpenClaw](../projects/openclaw.md) — implements (0.6)
+- [OpenAI](../projects/openai.md) — part_of (0.5)
+- [Claude](../projects/claude.md) — implements (0.6)
+- [Context Engineering](../concepts/context-engineering.md) — part_of (0.6)

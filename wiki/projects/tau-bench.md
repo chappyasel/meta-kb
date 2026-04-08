@@ -1,98 +1,103 @@
 ---
 entity_id: tau-bench
 type: project
-bucket: agent-systems
+bucket: agent-architecture
 abstract: >-
-  TAU-bench evaluates AI agents on realistic, multi-step customer service tasks
-  requiring policy-grounded tool use; its key differentiator is strict pass/fail
-  scoring based on database state verification, not just conversational quality.
+  Tau-bench is a multi-turn conversational agent benchmark for realistic
+  customer service tasks (retail, airline) that tests policy adherence and tool
+  use under simulated human interaction, distinct from static Q&A evals.
 sources:
   - tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md
-  - papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
-  - deep/repos/gepa-ai-gepa.md
-  - deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
   - repos/canvas-org-meta-agent.md
   - articles/x-twitter-meta-agent-continual-learning-for-agents.md
 related:
-  - meta-agent
-  - rag
   - claude
-last_compiled: '2026-04-07T11:58:10.753Z'
+last_compiled: '2026-04-08T02:58:26.433Z'
 ---
-# TAU-bench
+# Tau-bench
 
-## What It Does
+## What It Is
 
-TAU-bench (Tool-Augmented Understanding benchmark) tests AI agents on simulated customer service scenarios where the agent must use tools, follow domain policies, and resolve user requests across multi-turn conversations. The benchmark currently ships two domains: airline (50 tasks) and retail. Success requires both following the right procedure and producing the correct database state at conversation end.
+Tau-bench (originally tau-bench, now on v3 as tau2-bench) is a benchmark for evaluating tool-augmented language agents on realistic, multi-turn customer service workflows. Unlike static benchmarks where an agent answers a question once, tau-bench wraps each task in a simulated conversation: the agent must use tools to look up account state, apply business policy rules, and satisfy a synthetic customer user, all within a single session.
 
-The benchmark is maintained by Sierra Research and has become a standard harness for measuring agent reliability in realistic enterprise settings. It appears in published results from Anthropic, OpenAI, and third-party researchers, and serves as the primary evaluation target in multiple harness optimization systems including [meta-agent](../projects/tau-bench.md) and auto-harness.
+The benchmark ships two domains: **retail** (product returns, exchanges, order modifications) and **airline** (flight cancellations, rebookings, refunds under policy constraints). Each domain defines a policy document the agent is expected to follow, a set of tools for querying and mutating state, and a simulated user that the agent converses with to complete the task. Scoring is pass/fail per task, verified by the official tau evaluator against ground-truth state changes.
 
-## Architecture and Core Mechanism
+The project comes from Sierra Research and is available at `github.com/sierra-research/tau2-bench`.
 
-TAU-bench simulates a three-party interaction: a user (simulated by an LLM playing a persona with a specific goal), an agent under evaluation, and a tool environment backed by a structured database. The agent has access to tools for querying and mutating database records. Tasks are grounded in explicit policy documents the agent must consult and apply correctly.
+## Core Mechanism
 
-**Scoring** uses database state verification rather than LLM-as-judge conversation scoring. After a task completes, a verifier checks whether the database reflects the correct end state given the policy and the user's request. This is binary pass/fail per task. Aggregate score is the fraction of tasks passed, typically reported on a holdout split.
+Each task in tau-bench follows the same structure:
 
-TAU-bench v3 (the version used in recent harness optimization work) uses a 50-task airline domain split into search (35 tasks) and holdout (15 tasks) in the meta-agent experiments, or evaluated on the full 50 tasks as a benchmark split.
+1. The agent receives a system prompt containing the domain policy and tool definitions.
+2. A synthetic user (a separate LLM or scripted persona) opens a conversation with a customer request.
+3. The agent must call tools to inspect and modify a shared workspace state — account records, reservations, inventory.
+4. The task ends when the agent terminates the session. The evaluator compares final workspace state against expected state.
 
-The repository lives at `github.com/sierra-research/tau-bench`, with v3 installable via `pip install "tau2 @ git+https://github.com/sierra-research/tau2-bench.git"`.
+The difficulty is not pure reasoning. An agent that understands language but ignores the policy document (e.g., issues a refund without checking cancellation eligibility) fails. An agent that hallucinates account data rather than calling the lookup tool fails. The multi-turn loop also means early errors propagate: a wrong lookup leads to a wrong policy decision, which leads to an incorrect state mutation.
+
+The benchmark is composable. Tasks specify `instruction`, `workspace`, and `verify` fields, where `verify` is a command that exits zero on success. This design makes it straightforward to add new domains or swap in custom evaluation scripts.
 
 ## Key Numbers
 
-Published pass rates on the airline domain (Haiku 4.5 baseline, meta-agent experiments, single runs):
+Observed pass rates vary significantly by model and harness configuration:
 
-- Vanilla harness baseline: 67%
-- After harness optimization (LLM-judge search): 87%
-- After harness optimization (labeled search): 80%
+- Baseline Claude Haiku 4.5 on tau-bench v3 airline (50 tasks, 35-task search split): **67%** — reported by Canvas/meta-agent [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
+- Same model with optimized harness (meta-agent, judge-based search): **87%** holdout accuracy — self-reported, single run, no variance estimates
+- NeoSigma auto-harness on tau3: **0.56 → 0.78** (~40% relative improvement) — self-reported [Source](../raw/tweets/gauri-gupta-auto-harness-self-improving-agentic-systems-with.md)
 
-Auto-harness (NeoSigma) reports 0.56 → 0.78 (~40% improvement) on TAU-bench v3 tasks with a similar optimization loop.
+These numbers are self-reported by third parties using tau-bench as a test bed for harness optimization systems, not official Sierra Research figures. The benchmark itself does not publish a canonical leaderboard. Treat all pass rates as provisional until independently replicated at scale.
 
-**Credibility note:** All published numbers are self-reported by teams running their own optimization systems. No independent third-party audit of these figures exists in the sources reviewed. Both the 67%→87% claim and the 0.56→0.78 claim come from single experimental runs with small holdout splits (15 tasks in the meta-agent case). Variance estimates are absent. Treat these as directional, not definitive.
+## What It's Good At
 
-## Strengths
+**Policy adherence under realistic pressure.** Most benchmarks test whether a model can answer a question correctly in isolation. Tau-bench tests whether an agent follows a multi-page policy document across a live conversation, with a synthetic user pushing back or providing incomplete information. This catches a failure mode that static evals miss entirely.
 
-**Realistic failure modes.** Policy compliance requires the agent to handle edge cases that trip up real systems: cancellation window rules, refund eligibility conditions, conflicting user requests. The policy document is part of the task context, not baked into the prompt, so the agent must actively retrieve and apply it.
+**Harness sensitivity detection.** Tau-bench scores are measurably sensitive to system prompt changes, tool call ordering, and stop condition logic. This makes it a useful signal for [Prompt Optimization](../concepts/prompt-optimization.md) work and [Self-Improving Agents](../concepts/self-improving-agents.md) research. The meta-agent and auto-harness projects both use tau-bench specifically because small harness changes produce detectable score movement.
 
-**Verifiable ground truth.** Database state verification removes [LLM-as-judge](../concepts/llm-as-judge.md) noise from scoring. Pass/fail on state is deterministic given a correct policy interpretation, making results comparable across runs and systems.
-
-**Multi-step tool use pressure.** Tasks require sequences of tool calls in the right order. An agent that calls tools randomly or skips verification steps fails even if its conversational output sounds plausible.
-
-**Adoption as an optimization target.** TAU-bench has become the standard harness for agent self-improvement research. Meta-agent, auto-harness, and related systems all use it, which means published baselines and improvement trajectories are accumulating.
+**Reproducible task definition.** The YAML task format and deterministic verifier allow researchers to reproduce a specific task set, split it into search/holdout subsets, and run ablations without re-specifying evaluation criteria each time.
 
 ## Critical Limitations
 
-**Concrete failure mode: small holdout collapse.** The meta-agent experiments split 50 airline tasks into 35 search + 15 holdout. A 15-task holdout means each task is worth 6.7 percentage points. An agent that passes one additional holdout task gains 6.7 points. The 67%→87% improvement (a 20-point gain) represents approximately 3 additional tasks passing on a 15-task holdout. This is within the noise band for a single run.
+**Failure mode — synthetic user brittleness.** The simulated customer is itself an LLM. If the simulated user goes off-script, provides ambiguous information, or fails to respond as the task specifies, the agent's failure may reflect user simulation quality rather than agent capability. This introduces noise that is hard to separate from genuine agent errors without per-turn logging and manual inspection.
 
-**Unspoken infrastructure assumption: LLM user simulator quality.** TAU-bench's user is an LLM playing a persona. The fidelity of this simulation determines whether the benchmark reflects real user behavior. Users who stay on-script, never backtrack, and phrase requests clearly are easier to serve than real customers. The benchmark does not expose how much variance comes from user simulation quality versus agent policy compliance.
+**Unspoken infrastructure assumption.** Tau-bench tasks assume stateful workspace management — each task needs a clean workspace directory, a working verify script, and a correctly initialized state file. Running tau-bench at scale (across many agents, many models, many iterations) requires a task orchestration layer that the benchmark does not provide. The canvas/meta-agent repo handles this with a `task_runner` and `eval_runner`, but users running their own harnesses must build this scaffolding themselves.
 
-## When NOT to Use TAU-bench
+## When Not to Use It
 
-- When you need variance estimates: 50 tasks is too few for statistically reliable conclusions. Run multiple seeds or use a larger benchmark split before drawing conclusions about model improvements.
-- When your agent's task domain differs from customer service: TAU-bench is policy-grounded and tool-centric. Agents doing code generation, research synthesis, or open-ended reasoning face different failure modes that TAU-bench does not measure.
-- When you need cross-benchmark generalization evidence: Improvements on TAU-bench airline do not automatically transfer. Auto-harness and meta-agent both acknowledge they are measuring domain-specific harness tuning, not general agent capability.
-- As a final evaluation for production deployment decisions: The benchmark's small size and single-domain scope make it a development signal, not a deployment gate.
+Tau-bench is the wrong choice for:
+
+- **Measuring code generation.** It has no coding tasks. Use [SWE-bench](../projects/swe-bench.md) or [HumanEval](../projects/humaneval.md) for that.
+- **Open-domain QA or retrieval.** The benchmark is narrow: customer service in two domains. Scores don't transfer to [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) tasks or multi-hop reasoning. [HotpotQA](../projects/hotpotqa.md) covers that space.
+- **Long-horizon memory evaluation.** Tasks are single-session. The agent doesn't need to remember anything across separate conversations. [LongMemEval](../projects/longmemeval.md) covers persistent memory scenarios.
+- **Fast iteration cycles.** The 50-task airline domain with multi-turn simulation is slow to run. If you need a quick sanity check during development, the overhead is high relative to the feedback.
 
 ## Unresolved Questions
 
-**Leakage risk from optimization targets.** Both meta-agent and auto-harness use TAU-bench tasks as their search split during harness optimization, then report holdout numbers. The degree to which harness changes learned on the search split encode task-specific knowledge (rather than general behavioral rules) is not well characterized. The meta-agent writeup acknowledges the proposer tends to overfit to specific traces and requires explicit instructions to write general behavioral rules.
+The documentation doesn't explain several things that matter operationally:
 
-**User simulator variance.** The LLM user simulator introduces stochasticity that the benchmark does not report. Published results do not specify how many times each task was run or how user simulation variance was controlled.
+- **How the simulated user is implemented.** The benchmark description says tasks involve a synthetic customer, but the specific model, temperature, and persona configuration used for the user simulator are not publicly specified. This matters because user simulator quality directly affects score variance.
+- **Domain coverage rationale.** Why retail and airline? These cover narrow B2C service patterns. Whether tau-bench scores correlate with performance on other enterprise domains (financial services, healthcare scheduling, internal IT helpdesk) is untested.
+- **Score variance at small sample sizes.** Most published results use 50-task splits. A 67% → 87% improvement on 15 holdout tasks is 3 additional tasks. Single-run results at this scale have high variance, and neither Sierra Research nor the third-party users have published confidence intervals.
+- **Official leaderboard governance.** There is no maintained public leaderboard. Comparisons across papers are difficult because researchers use different task splits, holdout sizes, and user simulator configurations.
 
-**Policy document evolution.** It is unclear whether Sierra Research updates the policy documents across benchmark versions (v1 → v2 → v3), which would make cross-version comparisons invalid. The sources reference v3 without documenting what changed.
+## Relationship to Agent Infrastructure Work
 
-**Cost to run.** A full 50-task evaluation requires 50 multi-turn agent conversations plus tool calls plus verification. At frontier model prices (Haiku 4.5 for the agent, Opus 4.6 for the proposer in optimization loops), a single optimization run costs non-trivially. No cost estimates appear in the sources.
+Tau-bench has become a standard test bed for [Agent Harness](../concepts/agent-harness.md) optimization research. The meta-agent system ([AutoResearch](../projects/autoresearch.md)-style iterative harness refinement) uses tau-bench v3 airline as its primary benchmark. The auto-harness work from NeoSigma does the same. Both treat tau-bench scores as the optimization target for systems that modify system prompts, tool definitions, and lifecycle hooks.
 
-## Related Systems and Context
-
-TAU-bench occupies a niche between simple tool-calling benchmarks (one-shot, single tool) and full web agent benchmarks like [WebArena](../projects/webarena.md) (browser-based, open-ended). [SWE-bench](../projects/swe-bench.md) tests code agents against verifiable test suites; TAU-bench tests service agents against policy compliance. The two are complementary.
-
-The harness optimization literature (meta-agent, auto-harness, GEPA) treats TAU-bench as the primary evaluation surface for agent improvement loops. This creates a feedback dynamic where the benchmark increasingly reflects what harness optimizers are good at finding, rather than the full distribution of customer service failures.
-
-[ReAct](../concepts/react.md) and [Chain-of-Thought](../concepts/chain-of-thought.md) are common underlying reasoning patterns for agents evaluated on TAU-bench. [Context Engineering](../concepts/context-engineering.md) of the policy document retrieval step appears to be a significant leverage point based on harness evolution results.
+This reflects a broader pattern: tau-bench is useful less as a definitive capability benchmark and more as a stable task environment where harness changes produce measurable, reproducible signal. The [ReAct](../concepts/react.md) pattern of tool-augmented reasoning is directly exercised by the benchmark structure.
 
 ## Alternatives
 
-- **[WebArena](../projects/webarena.md):** Use when you need browser-based task completion with open-ended web navigation. More realistic environment fidelity, harder to instrument for rapid iteration.
-- **[SWE-bench](../projects/swe-bench.md):** Use when your agent targets software engineering tasks with test-verified correctness. Larger task set, better statistical power.
-- **[AppWorld](../projects/appworld.md):** Use when you need multi-app interaction and richer tool ecosystems beyond a single service domain.
-- **TAU-bench:** Use when you need a fast, instrumentable benchmark for conversational service agents with policy compliance requirements and want to run harness optimization loops.
+| Use case | Alternative |
+|---|---|
+| Code editing and software tasks | [SWE-bench](../projects/swe-bench.md) |
+| General agent capability across diverse domains | [GAIA](../projects/gaia.md) |
+| Long-context memory and retrieval | [LongMemEval](../projects/longmemeval.md) |
+| Multi-app enterprise workflows | [AppWorld](../projects/appworld.md) |
+| Terminal/system-level tasks | [TerminalBench](../projects/termination-bench.md) |
+
+Use tau-bench when your agent involves multi-turn conversation with tool use under explicit policy constraints, and you need a benchmark where harness changes produce detectable score movement without requiring large task counts.
+
+
+## Related
+
+- [Claude](../projects/claude.md) — part_of (0.5)

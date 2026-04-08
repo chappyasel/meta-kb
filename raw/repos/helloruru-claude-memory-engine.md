@@ -20,16 +20,16 @@ key_insight: >-
 stars: 110
 forks: 27
 relevance_scores:
-  topic_relevance: 7
+  topic_relevance: 8
   practitioner_value: 7
   novelty: 6
-  signal_quality: 6
-  composite: 6.7
+  signal_quality: 7
+  composite: 7.3
   reason: >-
-    A self-improving agent memory system using markdown+hooks with mistake-fix
-    pairs and reflection cycles—directly relevant to agent memory and
-    self-improving loop patterns, though the implementation is relatively
-    straightforward and domain-specific to Claude Code.
+    Directly implements agent memory with self-improving correction loops
+    (mistake-fix pairs + reflection cycles) using Claude Code hooks and
+    markdown—core to topics 2, 4, and 6 with a transferable student-loop
+    pattern.
 language: JavaScript
 license: MIT
 ---

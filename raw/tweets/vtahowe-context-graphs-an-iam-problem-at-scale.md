@@ -22,16 +22,17 @@ likes: 63
 retweets: 8
 views: 5946
 relevance_scores:
-  topic_relevance: 7
-  practitioner_value: 5
-  novelty: 6
+  topic_relevance: 9
+  practitioner_value: 6
+  novelty: 7
   signal_quality: 6
-  composite: 6.1
+  composite: 7.4
   reason: >-
-    Context graphs as decision-process memory stores are directly relevant to
-    agent memory and knowledge base architecture, but the article focuses
-    heavily on IAM/enterprise access management rather than implementation
-    patterns for building such systems.
+    Directly addresses context graphs as a knowledge substrate and agent memory
+    architecture, with meaningful analysis of IAM constraints on agent autonomy
+    and retrieval permissions—highly relevant to knowledge systems and agent
+    infrastructure, though the content is a conceptual article rather than an
+    implementation.
 ---
 ## Tweet by @vtahowe
 

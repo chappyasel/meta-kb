@@ -3,9 +3,19 @@ url: 'https://github.com/greyhaven-ai/autocontext'
 type: repo
 author: greyhaven-ai
 date: '2026-04-04'
-tags: [self-improving, agentic-skills, agent-memory, context-engineering, knowledge-bases]
+tags:
+  - self-improving
+  - agentic-skills
+  - agent-memory
+  - context-engineering
+  - knowledge-bases
 key_insight: >-
-  Autocontext implements a full multi-agent self-improvement harness with credit assignment: a competitor proposes strategies, an analyst explains outcomes, a coach updates playbooks, an architect proposes tooling changes, and a curator gates what knowledge persists -- with GEPA-inspired Pareto optimization, Elo-based progression gating, and frontier-to-local distillation to turn repeated frontier-model work into cheaper local runtimes.
+  Autocontext implements a full multi-agent self-improvement harness with credit
+  assignment: a competitor proposes strategies, an analyst explains outcomes, a
+  coach updates playbooks, an architect proposes tooling changes, and a curator
+  gates what knowledge persists -- with GEPA-inspired Pareto optimization,
+  Elo-based progression gating, and frontier-to-local distillation to turn
+  repeated frontier-model work into cheaper local runtimes.
 stars: 695
 deep_research:
   method: source-code-analysis-plus-web
@@ -36,12 +46,26 @@ deep_research:
     - autocontext/src/autocontext/analytics/credit_assignment.py
     - autocontext/tests/test_improvement_loop.py
   web_sources:
-    - https://github.com/greyhaven-ai/autocontext
-    - https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents
-    - https://github.com/alvinreal/awesome-autoresearch
-    - https://openreview.net/pdf?id=g9rEYVNn5T
+    - 'https://github.com/greyhaven-ai/autocontext'
+    - >-
+      https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents
+    - 'https://github.com/alvinreal/awesome-autoresearch'
+    - 'https://openreview.net/pdf?id=g9rEYVNn5T'
   analyzed_at: '2026-04-04'
   original_source: repos/greyhaven-ai-autocontext.md
+relevance_scores:
+  topic_relevance: 10
+  practitioner_value: 9
+  novelty: 9
+  signal_quality: 9
+  composite: 9.4
+  reason: >-
+    Autocontext is a textbook example of all three primary pillars
+    simultaneously: a multi-agent orchestration system with specialized roles, a
+    self-improving loop with credit assignment and Pareto optimization, and a
+    knowledge substrate with versioned playbooks, hints, and curator-gated
+    persistence — implemented end-to-end with distillation, scoring backends,
+    and ~4,400 tests.
 ---
 
 ## Architecture Overview

@@ -22,12 +22,13 @@ relevance_scores:
   topic_relevance: 8
   practitioner_value: 7
   novelty: 7
-  signal_quality: 6
-  composite: 7.3
+  signal_quality: 7
+  composite: 7.4
   reason: >-
-    Directly addresses agentic skill registries, progressive disclosure of skill
-    metadata, and governance patterns for modular agent composition—core to
-    topic 4, with transferable patterns for KB and context engineering.
+    Directly addresses progressive disclosure of agent skills, dynamic skill
+    loading, and registry governance—core to SKILL.md/agent architecture
+    patterns—with working ADK code and a concrete implementation of a curated
+    skills registry that practitioners can adapt.
 ---
 ## Why I Stopped Installing Agent Skills (and Built a Dynamic Skills Agent instead)
 

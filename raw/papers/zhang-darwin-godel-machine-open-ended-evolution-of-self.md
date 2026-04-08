@@ -21,16 +21,14 @@ key_insight: >-
 relevance_scores:
   topic_relevance: 9
   practitioner_value: 8
-  novelty: 10
-  signal_quality: 9
-  composite: 8.9
-  deep_researched: 'deep/papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md'
+  novelty: 9
+  signal_quality: 8
+  composite: 8.5
   reason: >-
-    DGM directly implements a self-improving loop where agents autonomously
-    evolve their own code, memory management, context handling, and skill
-    composition—achieving 50% on SWE-bench—making it a landmark paper for Topics
-    4 and 5 with clear transferable patterns for builders of self-improving
-    agent systems.
+    Darwin Gödel Machine directly implements self-improving agent loops that
+    autonomously evolve code editing tools, context window management, and
+    peer-review mechanisms—core self-improvement patterns highly transferable to
+    agent memory, skill composition, and context engineering domains.
 ---
 ## Darwin Godel Machine: Open-Ended Evolution of Self-Improving Agents
 

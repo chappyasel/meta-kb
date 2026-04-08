@@ -17,18 +17,17 @@ key_insight: >-
   forcing full-context dumps per query that degrade focus and inflate inference
   costs—the architecture itself is the bottleneck, not the agent's capacity.
 relevance_scores:
-  topic_relevance: 9
+  topic_relevance: 8
   practitioner_value: 7
   novelty: 6
   signal_quality: 6
-  composite: 7.5
+  composite: 7.1
   reason: >-
-    Directly critiques flat-file markdown memory architectures
-    (MEMORY.md/CLAUDE.md patterns) used in agent systems, identifying concrete
-    failure modes like poisoned retrieval (~48%), silent truncation, and compute
-    waste—highly relevant to context engineering and agent memory pillars with
-    actionable diagnostic insights even if the writing style obscures some
-    technical depth.
+    Directly critiques flat-file markdown memory architectures (MEMORY.md,
+    AGENTS.md patterns) used in LLM agent systems with specific failure metrics
+    (48% poisoned retrieval, 1/3 compute waste on todo.md), making it highly
+    relevant to context engineering and agent memory topics with actionable
+    diagnostic value for practitioners.
 ---
 ## Markdown Is Not Memory
 

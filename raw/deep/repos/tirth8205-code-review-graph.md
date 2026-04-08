@@ -3,13 +3,16 @@ url: 'https://github.com/tirth8205/code-review-graph'
 type: repo
 author: tirth8205
 date: '2026-04-04'
-tags: [knowledge-bases, context-engineering, agentic-skills]
+tags:
+  - knowledge-bases
+  - context-engineering
+  - agentic-skills
 key_insight: >-
-  Code-review-graph builds a persistent, incrementally-updated structural knowledge
-  graph of codebases using Tree-sitter ASTs stored in SQLite, then computes blast
-  radius via BFS to give AI assistants the minimal set of files needed for code
-  review — achieving 8.2x average token reduction with 100% recall on impact
-  analysis across 6 real-world repos.
+  Code-review-graph builds a persistent, incrementally-updated structural
+  knowledge graph of codebases using Tree-sitter ASTs stored in SQLite, then
+  computes blast radius via BFS to give AI assistants the minimal set of files
+  needed for code review — achieving 8.2x average token reduction with 100%
+  recall on impact analysis across 6 real-world repos.
 stars: 4200
 deep_research:
   method: source-code-analysis
@@ -30,6 +33,17 @@ deep_research:
     - evaluate/reports/summary.md
   analyzed_at: '2026-04-04'
   original_source: repos/tirth8205-code-review-graph.md
+relevance_scores:
+  topic_relevance: 7
+  practitioner_value: 8
+  novelty: 7
+  signal_quality: 8
+  composite: 7.5
+  reason: >-
+    Directly relevant to context engineering and knowledge substrate pillars —
+    builds a persistent structural codebase knowledge graph with MCP integration
+    for token-efficient context delivery to LLM agents, with concrete benchmarks
+    and production-ready implementation.
 ---
 
 ## Architecture Overview

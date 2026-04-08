@@ -19,17 +19,19 @@ key_insight: >-
   retuning.
 stars: 2697
 forks: 227
+deep_researched: true
 relevance_scores:
-  topic_relevance: 8
-  practitioner_value: 7
+  topic_relevance: 9
+  practitioner_value: 8
   novelty: 7
-  signal_quality: 7
-  composite: 7.4
+  signal_quality: 8
+  composite: 8.3
   reason: >-
     EvoAgentX directly implements self-evolving multi-agent workflows with
-    iterative evaluation/optimization loops—core to Topic 5 (self-improving
-    systems) and Topic 4 (agent orchestration)—with open-source Python code,
-    documentation, and a 2.7k-star community backing practical adoption.
+    automated optimization loops, evaluation harnesses, and modular agent
+    orchestration—core patterns for topics 5 and 6—with a production-ready
+    open-source Python framework, documentation, and substantial community
+    adoption (2.7k stars).
 ---
 ## EvoAgentX
 

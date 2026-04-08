@@ -24,14 +24,14 @@ images:
 relevance_scores:
   topic_relevance: 9
   practitioner_value: 8
-  novelty: 7
-  signal_quality: 7
-  composite: 8.1
+  novelty: 6
+  signal_quality: 6
+  composite: 7.8
   reason: >-
-    Directly addresses CLAUDE.md context engineering and modular skill/agent
-    decomposition patterns, offering actionable breakdown of Claude Code's four
-    mechanisms for offloading directives—highly relevant to context engineering
-    and agentic skills composition topics.
+    Directly addresses CLAUDE.md/SKILL.md context engineering patterns and agent
+    architecture decomposition—core to topics 3 and 4—with actionable guidance
+    on rules, hooks, skills, and agents as modular alternatives to monolithic
+    context files.
 ---
 ## Tweet by @PawelHuryn
 

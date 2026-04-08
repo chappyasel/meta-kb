@@ -13,11 +13,11 @@ tags:
   - contradiction-handling
   - multi-modal-ingestion
 key_insight: >-
-  Supermemory's core differentiator is treating forgetting as a first-class feature
-  rather than a bug -- memories have temporal validity, contradictions trigger
-  automatic supersession, and expired information is soft-deleted rather than
-  accumulated, enabling an actively curated memory graph that stays relevant over
-  time rather than degrading into a noisy fact store.
+  Supermemory's core differentiator is treating forgetting as a first-class
+  feature rather than a bug -- memories have temporal validity, contradictions
+  trigger automatic supersession, and expired information is soft-deleted rather
+  than accumulated, enabling an actively curated memory graph that stays
+  relevant over time rather than degrading into a noisy fact store.
 stars: 21000
 deep_research:
   method: source-code-analysis
@@ -40,9 +40,21 @@ deep_research:
     - packages/memory-graph/src/types.ts
     - packages/memory-graph/src/canvas/simulation.ts
     - packages/agent-framework-python/src/supermemory_agent_framework/tools.py
-    - packages/agent-framework-python/src/supermemory_agent_framework/middleware.py
+    - >-
+      packages/agent-framework-python/src/supermemory_agent_framework/middleware.py
   analyzed_at: '2026-04-04'
   original_source: repos/supermemoryai-supermemory.md
+relevance_scores:
+  topic_relevance: 8
+  practitioner_value: 8
+  novelty: 7
+  signal_quality: 8
+  composite: 7.9
+  reason: >-
+    Supermemory's three-tier memory ontology (static/dynamic/search), temporal
+    validity with supersession, and deduplication priority system are directly
+    applicable and novel patterns for agent memory systems, with a
+    well-documented architecture and SDK.
 ---
 
 ## Architecture Overview

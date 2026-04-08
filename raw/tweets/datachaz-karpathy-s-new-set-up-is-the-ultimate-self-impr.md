@@ -24,16 +24,16 @@ views: 192636
 images:
   - images/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr/image.jpg
 relevance_scores:
-  topic_relevance: 10
+  topic_relevance: 9
   practitioner_value: 8
-  novelty: 6
+  novelty: 7
   signal_quality: 7
-  composite: 8.4
+  composite: 8.1
   reason: >-
-    Directly describes Karpathy's canonical LLM knowledge base pattern (raw
-    sources → LLM-compiled markdown wiki → self-healing linting → index-based
-    Q&A) with clear architecture breakdown covering all 5 topic areas, though
-    it's a tweet summary rather than primary source documentation.
+    Directly describes Karpathy's LLM-compiled markdown wiki pattern with
+    self-healing linting loops—core to Knowledge Substrate and Self-Improving
+    Systems pillars—with actionable architecture details about RAG alternatives,
+    index maintenance, and agent memory scaling.
 ---
 ## Tweet by @DataChaz
 

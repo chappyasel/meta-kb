@@ -20,18 +20,17 @@ key_insight: >-
   adaptive computation graphs that evolve during execution based on verifier
   signals or trace-derived feedback.
 relevance_scores:
-  topic_relevance: 8
+  topic_relevance: 9
   practitioner_value: 7
   novelty: 7
   signal_quality: 7
-  composite: 7.4
-  deep_researched: 'deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md'
+  composite: 7.8
   reason: >-
-    This survey directly addresses agentic computation graphs, workflow
-    optimization for LLM agents, and dynamic vs. static structures—highly
-    relevant to agentic skills/composition and context engineering, with a
-    unified framework and vocabulary useful for practitioners building adaptive
-    agent systems.
+    This survey directly addresses agentic computation graphs, dynamic workflow
+    optimization, and trace-derived feedback loops—core concepts spanning agent
+    architecture, context engineering, and self-improving systems—providing a
+    unified vocabulary and framework highly transferable to practitioners
+    building adaptive LLM agent infrastructure.
 ---
 ## From Static Templates to Dynamic Runtime Graphs: A Survey of Workflow Optimization for LLM Agents
 

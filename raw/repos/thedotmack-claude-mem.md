@@ -25,12 +25,12 @@ relevance_scores:
   signal_quality: 7
   composite: 7.7
   reason: >-
-    Claude-Mem is a production TypeScript plugin that directly implements
-    persistent agent memory for coding workflows via automatic session context
-    compression and reinjection—directly relevant to agent memory (Topic 2) and
-    context engineering (Topic 3), with a novel approach of using Claude's own
-    API for compression plus ChromaDB/SQLite for retrieval.
-deep_researched: 'deep/repos/thedotmack-claude-mem.md'
+    Claude-Mem is a directly relevant agent memory system that automatically
+    captures, compresses, and reinjects session context for coding workflows,
+    addressing cross-session memory persistence—a core topic in agent memory and
+    context engineering—with a production-ready TypeScript plugin and
+    significant community adoption.
+deep_researched: deep/repos/thedotmack-claude-mem.md
 language: TypeScript
 license: NOASSERTION
 ---

@@ -18,18 +18,18 @@ key_insight: >-
   where knowledge reuse and continuous improvement are prerequisites for scaling
   agent capability.
 stars: 120
-deep_researched: 'deep/repos/human-agent-society-coral.md'
+deep_researched: deep/repos/human-agent-society-coral.md
 forks: 14
 relevance_scores:
   topic_relevance: 10
   practitioner_value: 9
   novelty: 9
-  signal_quality: 8
-  composite: 9.2
+  signal_quality: 9
+  composite: 9.4
   reason: >-
-    CORAL is a directly on-topic autoresearch/self-evolving multi-agent
-    framework with persistent shared knowledge infrastructure, paper, code, and
-    CLI—exactly the kind of self-improvement pattern the KB is built around.
+    CORAL is a core implementation of multi-agent self-evolution with persistent
+    shared knowledge, directly addressing topics 2, 4, 5, and 6 with a
+    production-ready Python framework, paper, and detailed documentation.
 language: Python
 license: MIT
 ---

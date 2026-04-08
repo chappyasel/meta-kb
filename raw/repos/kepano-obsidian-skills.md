@@ -17,20 +17,20 @@ key_insight: >-
   interactions—allowing agents to actively maintain and evolve personal
   knowledge systems rather than just query them, directly addressing the gap
   between static RAG and dynamic, agent-driven knowledge graphs.
-deep_researched: 'deep/repos/kepano-obsidian-skills.md'
+deep_researched: deep/repos/kepano-obsidian-skills.md
 stars: 19325
 forks: 1192
 relevance_scores:
   topic_relevance: 9
   practitioner_value: 9
-  novelty: 7
-  signal_quality: 7
-  composite: 8.4
+  novelty: 8
+  signal_quality: 8
+  composite: 8.7
   reason: >-
-    Directly implements SKILL.md-based modular agent skills for Obsidian
-    knowledge bases, covering agentic skill composition, Obsidian workflows, and
-    dynamic KB operations—core to topics 1, 3, and 4—with a production-ready,
-    installable library and clear documentation.
+    Directly implements the SKILL.md agent skills pattern for Obsidian knowledge
+    base operations—covering markdown, canvas, CLI, and web extraction—bridging
+    static RAG with agent-driven knowledge graph maintenance, with 19k stars and
+    clear installation docs making it immediately actionable.
 license: MIT
 ---
 ## obsidian-skills

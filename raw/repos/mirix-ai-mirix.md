@@ -29,10 +29,12 @@ relevance_scores:
   signal_quality: 8
   composite: 8.4
   reason: >-
-    MIRIX implements a production-ready six-component specialized agent memory
-    architecture with screen grounding, Docker deployment, Python client API,
-    and an arXiv paper—directly relevant to agent memory systems with a novel
-    multi-agent routing approach that addresses flat vector index limitations.
+    Mirix directly implements a multi-agent memory architecture with six
+    specialized memory stores (episodic, semantic, procedural, etc.),
+    production-ready Docker deployment, a Python client library, and an
+    accompanying paper—highly relevant to agent memory, multi-agent
+    coordination, and knowledge substrate topics with immediately actionable
+    patterns for practitioners.
 language: Python
 license: Apache-2.0
 ---

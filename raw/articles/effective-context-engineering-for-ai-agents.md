@@ -25,11 +25,10 @@ relevance_scores:
   signal_quality: 7
   composite: 8
   reason: >-
-    Directly addresses context engineering for LLM agents from Anthropic,
-    covering attention budget management, context rot, and multi-turn agent
-    loops—core to topic area 3 with strong practitioner guidance, though the
-    concepts are largely a synthesis of known ideas rather than genuinely novel
-    architecture.
+    Authoritative Anthropic article directly defining and operationalizing
+    context engineering for multi-turn agent loops, covering token budget
+    management, context rot, and agent state curation—core to topic area 3 and
+    immediately actionable for practitioners building LLM agents.
 ---
 ## Effective context engineering for AI agents
 

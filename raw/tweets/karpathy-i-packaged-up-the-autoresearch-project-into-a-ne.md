@@ -24,15 +24,15 @@ images:
   - images/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne/image.jpg
 relevance_scores:
   topic_relevance: 9
-  practitioner_value: 9
-  novelty: 9
-  signal_quality: 8
-  composite: 8.9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 7
+  composite: 8.3
   reason: >-
-    Karpathy's autoresearch project is a canonical example of Topic 5
-    (self-improving systems) — an autonomous agent loop that iterates on
-    code/hyperparameters with humans only engineering the prompt, directly
-    transferable to LLM KB and agent skill evolution patterns.
+    Karpathy's autoresearch directly instantiates a self-improving loop where an
+    AI agent autonomously iterates on code guided by human-engineered prompts—a
+    transferable pattern for trace-driven optimization and Darwinian selection
+    in agent systems, with a working open-source repo.
 ---
 ## Tweet by @karpathy
 

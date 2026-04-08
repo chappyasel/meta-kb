@@ -24,11 +24,10 @@ relevance_scores:
   signal_quality: 7
   composite: 7.2
   reason: >-
-    Directly addresses agentic RAG failure modes (retrieval thrash, tool storms,
-    context bloat) with actionable stopping rules and observability
-    signals—highly relevant to context engineering and agent memory system
-    reliability, with concrete production patterns transferable to KB/agent
-    builders.
+    Directly analyzes failure modes in agentic RAG control loops (retrieval
+    thrash, tool storms, context bloat) with actionable debugging signals and
+    stopping rules, highly transferable to agent architecture and context
+    engineering practice.
 ---
 ## Agentic RAG Failure Modes: Retrieval Thrash, Tool Storms, and Context Bloat (and How to Spot Them Early)
 

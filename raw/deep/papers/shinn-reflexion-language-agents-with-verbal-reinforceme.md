@@ -16,8 +16,8 @@ tags:
 key_insight: >-
   Reflexion demonstrates that verbal self-reflection stored in episodic memory
   enables LLM agents to learn from failures without weight updates -- achieving
-  91% pass@1 on HumanEval (vs GPT-4's 80%) through a simple three-component
-  loop (actor, evaluator, self-reflection). The critical finding: self-reflection
+  91% pass@1 on HumanEval (vs GPT-4's 80%) through a simple three-component loop
+  (actor, evaluator, self-reflection). The critical finding: self-reflection
   provides 8% absolute improvement beyond simple episodic memory on reasoning
   tasks, proving that the quality of failure analysis matters more than just
   remembering that you failed.
@@ -26,6 +26,17 @@ deep_research:
   text_length: 11000
   analyzed_at: '2026-04-04'
   original_source: papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
+relevance_scores:
+  topic_relevance: 8
+  practitioner_value: 8
+  novelty: 7
+  signal_quality: 8
+  composite: 7.9
+  reason: >-
+    Reflexion directly demonstrates episodic memory + verbal self-reflection as
+    a self-improving loop pattern for LLM agents—highly transferable
+    architecture covering agent memory, self-improvement loops, and
+    evaluator-actor patterns with concrete ablation results.
 ---
 
 ## Architecture Overview

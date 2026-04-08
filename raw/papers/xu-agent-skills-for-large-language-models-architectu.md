@@ -20,17 +20,17 @@ key_insight: >-
   formal governance frameworks—making security-first skill registries and trust
   models as critical as acquisition mechanisms for production deployments.
 relevance_scores:
-  topic_relevance: 9
-  practitioner_value: 8
+  topic_relevance: 10
+  practitioner_value: 9
   novelty: 8
   signal_quality: 9
-  composite: 8.6
-  deep_researched: 'deep/papers/xu-agent-skills-for-large-language-models-architectu.md'
+  composite: 9.3
   reason: >-
-    Directly addresses SKILL.md specification, progressive context loading,
-    skill registries, and self-improving skill ecosystems—core topics 3, 4, and
-    5—with a governance framework and security analysis that are immediately
-    applicable to production agent deployments.
+    This survey directly covers SKILL.md, progressive context loading, skill
+    composition, security governance, and self-improving skill ecosystems—core
+    topics across agent architecture, context engineering, and self-improving
+    systems pillars, with a concrete governance framework and open research
+    agenda that practitioners can act on immediately.
 ---
 ## Agent Skills for Large Language Models: Architecture, Acquisition, Security, and the Path Forward
 

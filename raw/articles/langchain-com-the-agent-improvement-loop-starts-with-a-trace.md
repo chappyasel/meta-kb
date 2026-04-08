@@ -19,16 +19,16 @@ key_insight: >-
   about what's broken into concrete, testable hypotheses about which layers
   (model, orchestration, context) need updating and by how much.
 relevance_scores:
-  topic_relevance: 7
+  topic_relevance: 8
   practitioner_value: 7
   novelty: 5
   signal_quality: 6
-  composite: 6.6
+  composite: 7
   reason: >-
-    Directly covers the self-improving agent loop pattern
-    (traces→evals→feedback→targeted changes→validation→repeat) which is highly
-    transferable to KB self-improvement systems, though it's a conceptual guide
-    rather than a novel architecture or production-ready implementation.
+    Directly covers trace-driven self-improvement loops for LLM agents—a core
+    topic in the Self-Improving Systems pillar—with actionable steps for the
+    collect→enrich→improve→validate cycle, though it's a guide/article rather
+    than a novel framework or implementation.
 ---
 ## The Agent Improvement Loop Starts with a Trace
 

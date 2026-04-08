@@ -31,10 +31,11 @@ relevance_scores:
   signal_quality: 6
   composite: 6.7
   reason: >-
-    GitNexus is a knowledge graph engine for codebases with MCP integration into
-    agent systems (Claude Code, Cursor), directly relevant to agent context
-    engineering and how agents discover/use structural knowledge, though it's
-    code intelligence rather than KB/memory architecture per se.
+    GitNexus addresses a genuine agent architecture gap—pre-computed knowledge
+    graphs for code dependency context injected via MCP into LLM coding
+    agents—which is directly relevant to context engineering and knowledge
+    substrate pillars, though it's narrowly focused on code intelligence rather
+    than general agent memory or multi-agent coordination.
 ---
 ## Tweet by @heygurisingh
 

@@ -3,14 +3,18 @@ url: 'https://github.com/Human-Agent-Society/CORAL'
 type: repo
 author: Human-Agent-Society
 date: '2026-04-04'
-tags: [agentic-skills, self-improving, agent-memory, context-engineering]
+tags:
+  - agentic-skills
+  - self-improving
+  - agent-memory
+  - context-engineering
 key_insight: >-
   CORAL orchestrates parallel autonomous coding agents in isolated git worktrees
-  with a shared .coral/ state directory (attempts/notes/skills) symlinked into each
-  worktree, using a heartbeat system with plateau detection to interrupt stalled agents
-  with reflection prompts -- creating an evolutionary multi-agent optimization loop
-  where agents independently explore, evaluate via graders, and share knowledge through
-  filesystem-based collaboration primitives.
+  with a shared .coral/ state directory (attempts/notes/skills) symlinked into
+  each worktree, using a heartbeat system with plateau detection to interrupt
+  stalled agents with reflection prompts -- creating an evolutionary multi-agent
+  optimization loop where agents independently explore, evaluate via graders,
+  and share knowledge through filesystem-based collaboration primitives.
 stars: 120
 deep_research:
   method: source-code-analysis
@@ -35,6 +39,18 @@ deep_research:
     - coral/agent/builtin/claude_code.py
   analyzed_at: '2026-04-04'
   original_source: repos/human-agent-society-coral.md
+relevance_scores:
+  topic_relevance: 10
+  practitioner_value: 9
+  novelty: 8
+  signal_quality: 9
+  composite: 9.3
+  reason: >-
+    CORAL is a direct implementation of the multi-agent coordination, shared
+    state management, and evolutionary self-improvement patterns that are core
+    pillars of this knowledge base, with detailed architecture documentation
+    covering worktree isolation, filesystem-based collaboration primitives,
+    heartbeat/plateau detection, and SKILL.md-based knowledge sharing.
 ---
 
 ## Architecture Overview

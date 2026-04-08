@@ -3,9 +3,16 @@ url: 'https://github.com/othmanadi/planning-with-files'
 type: repo
 author: othmanadi
 date: '2026-04-04'
-tags: [context-engineering, knowledge-bases, agentic-skills]
+tags:
+  - context-engineering
+  - knowledge-bases
+  - agentic-skills
 key_insight: >-
-  Codifies the Manus-style "filesystem as working memory" pattern into a portable agent skill: three persistent markdown files (plan, findings, progress) replace volatile context-window state, with lifecycle hooks that force re-reading the plan before every tool call -- turning context engineering from a manual discipline into an automated guardrail.
+  Codifies the Manus-style "filesystem as working memory" pattern into a
+  portable agent skill: three persistent markdown files (plan, findings,
+  progress) replace volatile context-window state, with lifecycle hooks that
+  force re-reading the plan before every tool call -- turning context
+  engineering from a manual discipline into an automated guardrail.
 stars: 18000
 deep_research:
   method: source-code-analysis
@@ -34,6 +41,17 @@ deep_research:
     - tests/test_path_fix.py
   analyzed_at: '2026-04-04'
   original_source: repos/othmanadi-planning-with-files.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 9
+  novelty: 7
+  signal_quality: 9
+  composite: 8.7
+  reason: >-
+    Directly implements and codifies the filesystem-as-working-memory pattern
+    with SKILL.md lifecycle hooks, session recovery, and multi-platform
+    distribution — a concrete, production-ready context engineering tool with
+    strong architectural detail.
 ---
 
 ## Architecture Overview

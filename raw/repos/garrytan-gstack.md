@@ -22,16 +22,17 @@ key_insight: >-
 stars: 63766
 forks: 8626
 relevance_scores:
-  topic_relevance: 6
-  practitioner_value: 7
-  novelty: 6
-  signal_quality: 7
-  composite: 6.5
+  topic_relevance: 8
+  practitioner_value: 9
+  novelty: 7
+  signal_quality: 8
+  composite: 8.2
   reason: >-
-    gstack demonstrates a concrete skill registry pattern (role-based slash
-    commands as specialist agents) directly applicable to agentic skill
-    composition and modular agent capabilities, with a real-world 23-tool
-    implementation that practitioners can fork and adapt.
+    gstack is a production-ready, role-based skill registry for Claude Code that
+    directly demonstrates SKILL.md-style agent architecture composition (CEO,
+    QA, security, etc.), highly relevant to Agent Architecture and Context
+    Engineering topic areas with strong practitioner value as an immediately
+    usable, MIT-licensed toolset with 63K stars.
 language: TypeScript
 license: MIT
 deep_researched: deep/repos/garrytan-gstack.md

@@ -3,7 +3,11 @@ url: 'https://github.com/agenticnotetaking/arscontexta'
 type: repo
 author: agenticnotetaking
 date: '2026-04-04'
-tags: [knowledge-bases, context-engineering, self-improving, agent-memory]
+tags:
+  - knowledge-bases
+  - context-engineering
+  - self-improving
+  - agent-memory
 key_insight: >-
   Ars Contexta replaces template-based knowledge system creation with a
   derivation engine that traverses 249 interconnected research claims to compose
@@ -16,7 +20,9 @@ deep_research:
   files_analyzed:
     - README.md
     - methodology/derivation-engine.md
-    - methodology/derivation generates knowledge systems from composable research claims not template customization.md
+    - >-
+      methodology/derivation generates knowledge systems from composable
+      research claims not template customization.md
     - methodology/memory-architecture.md
     - methodology/schema-enforcement.md
     - methodology/processing-workflows.md
@@ -27,6 +33,18 @@ deep_research:
     - methodology/wiki links implement GraphRAG without the infrastructure.md
   analyzed_at: '2026-04-04'
   original_source: repos/agenticnotetaking-arscontexta.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 9
+  novelty: 8
+  signal_quality: 9
+  composite: 8.9
+  reason: >-
+    Directly implements multiple core topics—knowledge substrate, context
+    engineering (CLAUDE.md/SKILL.md standards), agent-native cognitive
+    architecture, and self-improving derivation loops—with a production-ready
+    Claude Code plugin, 249-claim traversable research graph, and 16 skill
+    command templates.
 ---
 
 ## Architecture Overview

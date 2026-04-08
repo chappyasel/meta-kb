@@ -25,12 +25,11 @@ relevance_scores:
   novelty: 6
   signal_quality: 7
   composite: 6.9
-  deep_researched: 'deep/papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md'
   reason: >-
     Systematic benchmark comparing RAG vs GraphRAG with unified evaluation
-    protocol directly informs knowledge base architecture decisions, offering
-    actionable guidance on matching retrieval paradigm to query complexity,
-    though it's primarily evaluative rather than introducing a new architecture.
+    protocol directly informs knowledge base builders on when to use
+    graph-structured vs flat retrieval, with actionable selection/integration
+    strategies and failure mode analysis.
 ---
 ## RAG vs. GraphRAG: A Systematic Evaluation and Key Insights
 

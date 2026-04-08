@@ -15,19 +15,32 @@ tags:
   - verification-signals
 key_insight: >-
   The critical distinction is between three objects that practitioners often
-  conflate: reusable workflow templates (designed offline), run-specific realized
-  graphs (constructed per-query), and execution traces (what actually happened).
-  The survey shows that treating workflow structure as a first-class optimization
-  variable -- not just scaffolding -- unlocks systematic improvement through
-  MCTS-based template search, query-conditioned DAG generation, and in-execution
-  topology editing, with the choice of feedback signal (metrics, verifiers,
-  preferences, or trace analysis) determining how aggressively you can mutate
-  structure.
+  conflate: reusable workflow templates (designed offline), run-specific
+  realized graphs (constructed per-query), and execution traces (what actually
+  happened). The survey shows that treating workflow structure as a first-class
+  optimization variable -- not just scaffolding -- unlocks systematic
+  improvement through MCTS-based template search, query-conditioned DAG
+  generation, and in-execution topology editing, with the choice of feedback
+  signal (metrics, verifiers, preferences, or trace analysis) determining how
+  aggressively you can mutate structure.
 deep_research:
   method: paper-full-text
   text_length: 9500
   analyzed_at: '2026-04-04'
   original_source: papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 8
+  composite: 8.4
+  reason: >-
+    This survey introduces a unifying taxonomy for agentic computation graphs
+    distinguishing workflow templates, realized graphs, and execution
+    traces—directly relevant to agent architecture, self-improving systems, and
+    multi-agent coordination, with concrete transferable optimization patterns
+    (MCTS template search, dynamic DAG generation, in-execution topology
+    editing) that practitioners building LLM agent systems can apply.
 ---
 
 ## Architecture Overview

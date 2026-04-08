@@ -3,148 +3,196 @@ entity_id: synthetic-data-generation
 type: approach
 bucket: self-improving
 abstract: >-
-  Synthetic data generation uses LLMs or algorithmic methods to create
-  artificial training data, enabling model self-improvement without human
-  annotation at scale.
+  Synthetic data generation uses AI models to produce training or evaluation
+  data, enabling agent self-improvement without requiring large human-labeled
+  datasets; its key differentiator is closing the data flywheel loop so agents
+  can bootstrap capability gains from their own outputs.
 sources:
   - tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md
+  - tweets/himanshustwts-and-here-is-the-full-architecture-of-the-llm-knowl.md
   - tweets/datachaz-karpathy-s-new-set-up-is-the-ultimate-self-impr.md
-  - repos/memodb-io-acontext.md
-  - deep/repos/memodb-io-acontext.md
+  - repos/greyhaven-ai-autocontext.md
+  - deep/repos/greyhaven-ai-autocontext.md
 related:
-  - rag
   - andrej-karpathy
+  - retrieval-augmented-generation
+  - obsidian
+  - zettelkasten
+  - markdown-wiki
+  - marp
   - openai
-  - progressive-disclosure
-last_compiled: '2026-04-07T11:56:14.359Z'
+  - anthropic
+  - obsidian
+  - zettelkasten
+  - marp
+last_compiled: '2026-04-08T02:59:33.701Z'
 ---
 # Synthetic Data Generation
 
 ## What It Is
 
-Synthetic data generation produces artificial training examples using LLMs, templates, or simulation rather than human-labeled real-world data. In the context of building agent intelligence and knowledge systems, the term covers a spectrum: from GPT-4 generating question-answer pairs over a document corpus, to an agent's own execution traces being distilled into structured skill files, to [Andrej Karpathy](../concepts/andrej-karpathy.md) describing finetuning a model on a self-maintained markdown wiki so domain knowledge lives in weights rather than context windows.
+Synthetic data generation is the practice of using AI models to produce training examples, evaluation benchmarks, or structured knowledge that other models (or the same model) consume to improve. In the agent infrastructure context, this means an agent's successful runs, reasoning traces, or distilled knowledge become inputs to fine-tuning pipelines — creating a feedback loop where deployment generates its own training signal.
 
-The concept sits at the intersection of two trends. First, the cost of human annotation has always constrained what capabilities labs can train into models. Second, capable frontier models can now produce outputs good enough to train smaller or specialized models, creating feedback loops that compound over time. Synthetic data generation is the mechanism that closes those loops.
+The core insight is that frontier models are expensive to run repeatedly but cheap to learn from. If you can capture what a frontier model does well and encode that behavior into a cheaper model, you reduce ongoing inference cost while preserving quality. This is the logic behind every "student-teacher" distillation pipeline, every agent harness that exports successful traces, and every LLM-maintained knowledge base that Karpathy describes as wanting to "finetune to have your LLM 'know' the data in its weights instead of just context windows."
 
-## Why It Matters
+Synthetic data generation sits at the intersection of [Self-Improving Agents](../concepts/self-improving-agents.md), [Continual Learning](../concepts/continual-learning.md), and [Reinforcement Learning](../concepts/reinforcement-learning.md). It is the mechanism that makes those concepts operational.
 
-The core appeal: human annotation scales linearly with effort. Synthetic generation scales with compute. For domain-specific knowledge, annotation requires domain experts; synthetic generation requires a prompt and a capable base model. For self-improving agent systems, it enables a pipeline where an agent's successful runs directly improve its future performance without a human in the loop.
+## Why It Matters for Agent Systems
 
-[Karpathy's LLM knowledge base workflow](../raw/tweets/karpathy-llm-knowledge-bases-something-i-m-finding-very-us.md) illustrates the natural endpoint of this thinking. After describing how an LLM maintains a ~400K word markdown wiki through self-healing linting loops, he notes: "As the repo grows, the natural desire is to also think about synthetic data generation + finetuning to have your LLM 'know' the data in its weights instead of just context windows." The progression is explicit: context-based retrieval works at small scale, but incorporating knowledge into model weights requires synthetic data to bridge the gap.
+Traditional fine-tuning requires human-labeled datasets. For general capabilities, this scales — you hire annotators. For domain-specific agent behavior (how to handle a billing dispute, how to navigate a specific codebase, how to recover from a particular failure mode), human annotation is prohibitively slow relative to how fast the task space evolves.
+
+Synthetic generation sidesteps this by treating the agent's own execution as a data source. A successful run through a task becomes a training example. A frontier model's analysis of what went wrong becomes a negative example. The knowledge base an LLM compiles from raw documents becomes fine-tuning material for encoding that knowledge into weights.
+
+This creates three distinct value propositions:
+
+1. **Cost reduction**: Replace expensive frontier model calls with cheaper local model inferences once behavior is stable enough to distill.
+2. **Specialization**: Encode domain-specific behavior that no general-purpose training set would cover.
+3. **Compounding**: Each generation of runs produces training data, which improves the next generation, which produces better training data.
 
 ## How It Works
 
-### Data Generation Patterns
+### The Basic Pipeline
 
-**Distillation-based generation** uses a capable teacher model to produce outputs that train a smaller student. OpenAI's original InstructGPT work showed that human feedback could be bootstrapped; subsequent work showed that GPT-4 outputs could substitute for human labels in many settings. The quality ceiling is the teacher model's capability on that task.
+The minimal synthetic data pipeline has three stages:
 
-**Self-play and red-teaming** generates diverse scenarios by having models challenge themselves. Constitutional AI at [Anthropic](../projects/anthropic.md) uses a model to critique and revise its own outputs, generating preference data without human raters per example.
+**Collection**: Capture agent execution traces during frontier model runs. What was the input? What was the output? What was the score? Systems like autocontext implement this in `training/export.py` — extracting input-output pairs from high-scoring generations with rubric alignment. The key filtering step is quality gating: only successful runs become training data, not all runs.
 
-**Trace distillation** converts execution traces from successful agent runs into structured training examples. The [Acontext](../raw/deep/repos/memodb-io-acontext.md) system makes this concrete: when an agent completes a task, a three-stage pipeline extracts what happened, classifies it (SOP, failure warning, or factual content), and writes it to structured skill files. The distillation stage (`llm/prompt/skill_distillation.py`) calls an LLM-as-judge that decides whether to `skip_learning`, `report_success_analysis`, `report_failure_analysis`, or `report_factual_content`. Each category generates different structured output: success analyses extract `generalizable_pattern` and `applies_when` fields; failure analyses extract `flawed_reasoning` and `prevention_principle`. This is synthetic data generation operating at the skill/knowledge layer rather than the weight layer, but the logic is identical: execution experience gets converted to reusable structured knowledge.
+**Formatting**: Convert raw traces into a format suitable for fine-tuning. JSONL with instruction-input-output triples is standard. The challenge is that agent traces often contain reasoning steps, tool calls, and multi-turn context that needs to be structured coherently for the training signal to be meaningful.
 
-**Question-answer pair generation** takes a corpus and generates Q&A pairs covering it. This is the most common pattern for domain-specific finetuning. A model reads documentation, generates questions a user might ask, generates ideal answers, and the pairs become finetuning data. Filtering pass (another LLM call, or heuristics) removes low-quality pairs.
+**Training**: Fine-tune a target model on the formatted examples. Autocontext uses MLX for Apple Silicon and CUDA backends, managed through `training/runner.py`. The trained model is tracked in `training/model_registry.py` with metadata about which scenario it was trained on and what validation scores it achieved.
 
-**Augmentation** expands existing datasets by paraphrasing, translation, or transforming examples. Less powerful than generation from scratch but lower risk of hallucination.
+### Data Quality as the Core Problem
 
-### The Self-Improvement Loop
+Raw execution traces are noisy. A run that scored well might have succeeded for the wrong reasons — the task was easy, the evaluation was lenient, or the strategy was lucky rather than generalizable. Feeding that into training produces a model that overfits to specific instances rather than learning transferable patterns.
 
-In agent systems, synthetic data generation enables a closed loop:
+The better systems address this through multiple mechanisms:
 
-1. Agent runs on real tasks
-2. Successful traces get distilled into training examples (or, in Acontext's case, skill files)
-3. Future agent instances load those skills or get finetuned on them
-4. Performance improves on similar tasks
-5. New tasks generate new traces
+**Score filtering**: Only export traces above a quality threshold. Autocontext gates on quality threshold before export; outputs below the threshold are logged but not included in training data.
 
-The loop's quality depends entirely on the distillation step. Bad distillation produces garbage training data that degrades performance. Acontext's `skip_learning` classification specifically exists to prevent noise accumulation; the system prompt enforces that trivial tasks ("simple lookups, small talk, calculations") don't generate skill entries.
+**Rubric alignment**: Score against explicit rubrics rather than holistic LLM judgment. This makes the quality filter more reliable and gives the training signal structure — the model can learn which rubric dimensions its output satisfied.
 
-The [Darwin Gödel Machine](../projects/darwin-godel-machine.md), [Voyager](../projects/voyager.md), and [EvoAgentX](../projects/evoagentx.md) all implement variants of this loop. Voyager generates skill code from Minecraft execution; Darwin Gödel Machine generates and tests self-modifications; EvoAgentX evolves agent workflows. Synthetic data generation is the substrate they all share.
+**Diversity sampling**: A training set dominated by similar high-scoring examples overfits. The data export step should sample across different strategies, failure modes, and task variations.
 
-### Finetuning Integration
+**Curator gating**: In autocontext's multi-agent architecture, the `Curator` agent quality-gates knowledge before it can persist to the playbook. This same gating logic extends to what gets exported as training data — the curator rejects low-quality or contradictory lessons before they contaminate the training set.
 
-Generating data is only half the work. Incorporating it into model weights requires a finetuning pipeline. The typical sequence:
+### Knowledge Base → Weights
 
-1. Generate candidate examples (Q&A pairs, instruction-response pairs, preference pairs)
-2. Filter by quality (perplexity, another LLM-as-judge pass, human spot-check)
-3. Format for the target model's training format
-4. Run supervised finetuning (SFT) or [GRPO](../concepts/grpo.md)-style reinforcement learning
-5. Evaluate on held-out tasks before deploying
+[Andrej Karpathy](../concepts/andrej-karpathy.md) describes a concrete use case: an LLM-maintained markdown wiki grows to ~100 articles and ~400K words through incremental compilation from raw documents. At that scale, context-window-based Q&A works. As the wiki grows further, the natural next step is synthetic data generation plus fine-tuning — converting the wiki's structured knowledge into model weights so the LLM "knows" the domain rather than reading it on each query.
 
-The filtering step is where most production pipelines diverge from toy examples. Without filtering, finetuning on synthetic data often produces models that are confidently wrong. [LLM-as-Judge](../concepts/llm-as-judge.md) filtering helps but introduces the teacher model's biases as selection pressure.
+This is a specific instantiation of the general pattern: structured knowledge artifacts (markdown files, playbooks, knowledge graphs) become training data when they grow large enough that context-window-based access becomes expensive or unreliable. The wiki becomes a curriculum.
 
-### Knowledge Base as Synthetic Data Source
+The pipeline:
+1. LLM compiles raw sources into structured markdown (this is itself synthetic generation — the LLM synthesizes the wiki)
+2. Wiki grows through query-and-file-back cycles (each query output filed back enhances the corpus)
+3. At scale threshold, export wiki as fine-tuning examples (Q&A pairs, concept summaries, cross-references)
+4. Fine-tune a local model on the exported data
+5. Local model handles future queries against the domain; frontier model handles novel edge cases
 
-Karpathy's workflow treats the wiki itself as a pre-finetuning artifact. The LLM maintains a coherent, interlinked, linted knowledge base. That knowledge base becomes training data. The linting loop (finding inconsistencies, imputing missing data, discovering connections for new articles) functions as a quality pass over the synthetic corpus before it ever hits a training pipeline. Outputs from queries get filed back into the wiki, accumulating into a richer training set over time.
+### Reinforcement Learning Integration
 
-This differs from naive synthetic data generation in one key way: the wiki has structure (backlinks, categories, articles) that makes it a higher-quality training signal than raw Q&A pairs. Structure encodes relationships between concepts that flat pairs miss.
+The most powerful synthetic data pipelines connect to reinforcement learning signals. [GRPO](../concepts/grpo.md) and similar algorithms treat model outputs as rollouts and optimize against a reward function. The "synthetic" element is that the reward function itself can be model-based — an LLM judge that scores outputs.
 
-## Who Uses It
+This creates a self-referential loop: model generates outputs → LLM judge scores them → scores become training signal → model improves. The risk is reward hacking: the model learns to maximize the judge's score rather than actual task quality. Mitigations include diverse judge models, rubric-based scoring that's harder to game, and periodic human validation of the reward signal.
 
-**Model training labs** like [OpenAI](../projects/openai.md) and Anthropic use synthetic data at scale to extend coverage into domains where human annotation is expensive or sparse. [DeepSeek](../projects/deepseek.md)'s R1 training used synthetic chain-of-thought data to bootstrap reasoning capabilities. [GPT-4](../projects/gpt-4.md) itself was trained on data that included synthetic components.
+[Voyager](../projects/voyager.md) demonstrates a related pattern in Minecraft: the agent generates skill code, executes it, and the successful skills become a library that future agent runs build on. The "synthetic data" here is the skill library itself — agent-generated, agent-consumable.
 
-**Agent memory systems** like Acontext treat distillation as operational synthetic data generation, running continuously in production rather than as a one-time training pipeline.
+### Distillation from Multi-Agent Traces
 
-**Domain-specific finetuning** practitioners use synthetic generation to extend models into narrow verticals (legal, medical, financial) without requiring thousands of annotated expert examples.
+In systems with multiple specialized agents (like autocontext's competitor/analyst/coach/architect/curator architecture), the multi-agent traces are richer training data than single-agent traces. Each agent's output represents a specialized reasoning step:
 
-**RAG pipeline builders** generate synthetic Q&A pairs from their document corpus to evaluate retrieval quality before deploying. If the model can't answer questions that were generated from the documents, retrieval is the bottleneck.
+- The **analyst's** output is training data for "explain what went wrong in this execution"
+- The **coach's** output is training data for "update this playbook given these lessons"
+- The **architect's** output is training data for "propose tooling improvements given this performance profile"
+
+Distilling this into a local model means the local model can handle each agent role without separate frontier model calls — the frontier-to-local distillation preserves not just what to do but the specialized reasoning patterns for each role.
+
+### Evaluation Data Generation
+
+Synthetic generation applies equally to evaluation data, not just training data. Generating diverse test cases for agent capabilities is hard with human effort but tractable with LLMs:
+
+- Generate edge cases by asking the model to produce examples that would challenge a baseline approach
+- Generate adversarial examples by prompting for inputs designed to trigger failure modes
+- Generate coverage-directed examples by identifying underrepresented regions of the input space
+
+[LLM-as-Judge](../concepts/llm-as-judge.md) patterns lean heavily on synthetic evaluation — using one model to evaluate another's outputs, which is itself a form of synthetic data generation (generating quality labels).
+
+## Who Implements It
+
+[OpenAI](../projects/openai.md) and [Anthropic](../projects/anthropic.md) use synthetic data generation extensively in their pre-training and RLHF pipelines — though details of their specific approaches are proprietary. What's public: both use model-generated data to scale instruction following and preference learning beyond what human annotation can produce.
+
+At the research level:
+- [DSPy](../projects/dspy.md) generates synthetic training data for prompt optimization — the optimizer generates candidate demonstrations and selects the best-performing ones as few-shot examples
+- [Voyager](../projects/voyager.md) generates skill code that becomes a self-expanding skill library
+- [Darwin Gödel Machine](../projects/darwin-godel-machine.md) generates agent variants that compete and whose successful code modifications become training signal
+- [EvoAgentX](../projects/evoagentx.md) and [AgentEvolver](../projects/agentevolver.md) evolve agent configurations using performance data from prior runs
 
 ## Practical Implications
 
-### For [Self-Improving Agents](../concepts/self-improving-agent.md)
+### The Feedback Loop Requires a Quality Gate
 
-The critical design question is whether synthetic data lives in context (skill files, retrieved documents) or weights (finetuned model). Context-based approaches are faster to update and more transparent; weight-based approaches generalize better across phrasings and don't require retrieval infrastructure. Most production systems will need both.
+Without filtering, synthetic data generation amplifies noise. A model trained on its own unfiltered outputs drifts — the errors in generation 1 become training signal for generation 2, which generates worse outputs, which become worse training signal. This is "model collapse." Every production synthetic data pipeline needs explicit quality filtering before data enters training.
 
-The Acontext architecture illustrates context-based synthetic data well: skill files are generated from execution traces, human-readable, and immediately usable without any training run. Karpathy's endpoint (finetuning the wiki into weights) is weight-based. Neither is complete alone: context-based systems struggle as knowledge scales; weight-based systems require periodic expensive retraining.
+The practical fix: score outputs against external rubrics (not just the generating model's self-assessment), maintain a held-out validation set of human-labeled examples to catch drift, and implement rollback mechanisms when trained model performance degrades.
 
-### For Knowledge Base Quality
+### Compute Budget Shapes What's Feasible
 
-Synthetic data quality correlates directly with source quality. Generating Q&A pairs from a poorly written, internally inconsistent document corpus produces unreliable training data. Karpathy's linting loop addresses this by running health checks before treating the wiki as a data source. The practical lesson: invest in source quality before investing in generation pipelines.
+Frontier model runs are expensive. The calculus for synthetic data generation: does the cost of running frontier model to generate training data amortize over the cost savings from running the distilled local model? For high-frequency tasks (millions of inference calls), yes. For low-frequency tasks (dozens of calls), no.
 
-### For [Continual Learning](../concepts/continual-learning.md)
+Autocontext's named presets (`config/presets.py`) encode this tradeoff — quick presets minimize generation cost, while long-run presets budget for many frontier model generations specifically because the expected savings from distillation justify the upfront cost.
 
-Finetuning on synthetic data risks [catastrophic forgetting](../concepts/catastrophic-forgetting.md): the model forgets general capabilities while learning the new domain. Standard mitigations include mixing synthetic domain data with general capability data during training, using LoRA-style parameter-efficient methods that update fewer weights, and evaluating on general benchmarks after domain finetuning. Ignoring this produces models that answer domain questions well but fail at adjacent reasoning tasks.
+### Domain Specificity is the Main Advantage
+
+Synthetic data generation for agent self-improvement is not competitive with general-purpose pre-training on broad tasks. Its advantage is domain specificity. A model fine-tuned on successful billing dispute resolution traces will outperform a general model on billing disputes, even if the general model is larger. The synthetic data encodes task-specific patterns that no general training set would contain.
+
+This means synthetic data generation is most valuable in production agent deployments where the task distribution is narrow and stable enough to accumulate meaningful training signal.
 
 ## Failure Modes
 
-**Hallucination amplification.** If the teacher model generates factually incorrect examples and the filter doesn't catch them, finetuning bakes those errors into the student model. Unlike retrieval systems where bad data can be corrected by updating the corpus, finetuned errors require retraining to fix.
+**Reward hacking**: The generated quality signal (LLM judge, rubric scores) is itself imperfect. Models learn to maximize the proxy rather than the actual task. Mitigation: diverse judges, rubric decomposition, periodic human validation.
 
-**Distribution collapse.** A model trained primarily on its own outputs loses diversity. Responses converge toward certain phrasings, formats, and reasoning patterns. This shows up as a model that handles common cases well but fails on edge cases its synthetic training data didn't cover. The problem compounds across generations if the loop runs without injection of real-world data.
+**Distribution shift**: The training distribution (successful runs during development) diverges from the deployment distribution (novel inputs in production). The model performs well on the synthetic training set but fails on real queries. Mitigation: monitor deployment distribution and regenerate training data periodically.
 
-**Distillation quality bottleneck.** In trace-distillation systems like Acontext, if the distillation LLM misclassifies a failure as a success, a misleading SOP gets written to the skill files with no validation step before it's used by future agents. The quality of the distillation prompt directly determines the quality of everything downstream.
+**Overfitting to lucky strategies**: A strategy that succeeded because the task was easy, not because the strategy was good, becomes training data. The model learns brittle patterns. Mitigation: score filtering, diversity sampling, and rubric-based evaluation rather than holistic scoring.
 
-**Coverage gaps from generation bias.** LLMs generate synthetic examples that reflect their training distribution. If the teacher model has weak coverage of certain subdomains, synthetic generation from that model will also have weak coverage. Evaluating coverage requires knowing what you don't know, which is difficult to automate.
+**Credit misattribution in multi-agent traces**: When multiple agents contribute to a successful outcome, attributing credit to the right agent's reasoning is hard. Training on the full trace might reinforce reasoning patterns that were incidental rather than causal. Autocontext's `analytics/credit_assignment.py` addresses this but acknowledges the attribution is correlational, not causal.
 
-**Annotation artifacts.** Models trained heavily on synthetic data sometimes learn stylistic artifacts from the generator (specific phrases, formatting patterns, reasoning templates) rather than the underlying capability. This shows up as high benchmark scores but poor performance on real-world tasks with different surface form.
+**Knowledge contamination across tasks**: If training data from different tasks is mixed without task-level scoping, the model learns conflicting patterns. A playbook lesson from customer support tasks contaminates billing dispute behavior. Mitigation: per-task knowledge scoping (autocontext uses per-scenario storage in `knowledge/<scenario>/`).
 
 ## When Not to Use It
 
-Synthetic data generation is the wrong default when the task requires factual grounding the teacher model doesn't have. Generating synthetic medical training data from a general-purpose LLM produces confident-sounding but unreliable examples that could actively harm a specialized model's calibration.
+Skip synthetic data generation when:
 
-For small, well-defined domains where expert annotation is feasible (a few hundred examples from subject-matter experts), human annotation typically produces better data than synthetic generation, with less risk of amplifying errors.
-
-For agent systems where transparency and correctability matter more than knowledge compression, context-based skill files (Acontext's approach) are more appropriate than finetuning. Finetuned knowledge is opaque; skill files are inspectable and editable.
-
-If your context window is large enough and your knowledge base is small enough, [RAG](../concepts/rag.md) or direct file loading is simpler and more maintainable than a synthetic data pipeline. Karpathy's own experience: at ~100 articles and ~400K words, direct LLM reasoning over the wiki worked without RAG. Finetuning becomes attractive when the corpus exceeds what fits in context reliably.
+- The task distribution is too broad or rapidly changing for accumulated examples to stay relevant
+- You lack a reliable quality signal (no rubric, no ground truth, unreliable LLM judge)
+- Task volume is too low to amortize the compute cost of generating training data
+- The risk of reward hacking is high relative to the benefit (safety-critical tasks where proxy optimization is dangerous)
+- You need the full reasoning capability of the frontier model — distilled local models sacrifice capability for cost, and some tasks require the frontier model's full capability
 
 ## Unresolved Questions
 
-**Verification at scale.** Filtering synthetic data with another LLM call is the standard approach, but it's unclear how much verification quality degrades as data volume grows. Most practitioners run spot-check sampling rather than exhaustive verification.
+**How much data is enough?** No published guidance exists on how many synthetic examples are needed to achieve meaningful distillation for agent tasks. The answer is task-dependent, but practitioners have no principled way to estimate sample requirements before committing to a generation campaign.
 
-**Loop stability.** How many iterations of self-improvement via synthetic data can run before quality degrades? Some research suggests instability appears after 3-5 model generations trained on their own outputs, but the threshold is task-dependent and not well characterized for production agent systems.
+**Does synthetic data quality plateau?** After N generations of self-improvement, does the quality of synthetic data stop improving? Or can systems compound indefinitely? The theoretical answer (yes, it plateaus at the frontier model's capability ceiling) conflicts with empirical observations from some systems showing continued gains. The resolution likely depends on whether the task has a clear ground truth signal.
 
-**Attribution and licensing.** Synthetic data generated from proprietary models may inherit licensing restrictions from those models. Whether finetuning on GPT-4 outputs to create a competing model violates OpenAI's terms of service has been legally contested. The field lacks settled norms here.
+**Governance of generated training data**: Who owns data generated by AI systems trained on human data? When synthetic examples derived from proprietary content enter a fine-tuning pipeline, the provenance chain is unclear. This is unresolved legally and practically.
 
-**Evaluation contamination.** If benchmarks are used to generate synthetic training data, benchmark performance no longer measures generalization. As synthetic data pipelines become more automated, tracking which benchmarks have been contaminated becomes harder.
+## Alternatives
+
+**Human annotation**: Use when you need ground truth labels that synthetic methods cannot reliably produce, or when your task distribution is too broad for efficient synthetic coverage.
+
+**[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)**: Use when the knowledge base is large and changes frequently (synthetic fine-tuning encodes a static snapshot; RAG stays current). Karpathy's framing is accurate: at small-to-medium scale, RAG and LLM-maintained wikis work without fine-tuning. Synthetic generation becomes relevant when the knowledge base is large enough that context-window access is expensive.
+
+**[Prompt Optimization](../concepts/prompt-optimization.md)**: Use when the problem is prompt quality rather than model capability. DSPy's approach of optimizing prompts using synthetic demonstrations is often cheaper than fine-tuning and reversible.
+
+**[Continual Learning](../concepts/continual-learning.md)**: Use when you need the model to adapt continuously rather than in discrete training batches. Synthetic data generation typically feeds batch fine-tuning pipelines; continual learning addresses online adaptation.
 
 ## Related Concepts
 
-- [Self-Improving Agent](../concepts/self-improving-agent.md): synthetic data generation is the primary mechanism agents use to improve from experience
-- [LLM-as-Judge](../concepts/llm-as-judge.md): the standard filtering and classification mechanism in synthetic data pipelines
-- [Karpathy Loop](../concepts/karpathy-loop.md): the iterative knowledge base maintenance workflow that motivates synthetic finetuning
-- [Chain-of-Thought](../concepts/chain-of-thought.md): synthetic reasoning traces are among the most effective forms of synthetic data
-- [Reinforcement Learning](../concepts/reinforcement-learning.md): RLHF and RLAIF pipelines treat synthetic preference data as reward signal
-- [GRPO](../concepts/grpo.md): training method that can consume synthetic preference data for reasoning improvement
-- [Memory Evolution](../concepts/memory-evolution.md): the broader concept of agent knowledge changing over time, of which synthetic data generation is one mechanism
-- [Continual Learning](../concepts/continual-learning.md): incorporating synthetic data without catastrophic forgetting
-- [Retrieval-Augmented Generation](../concepts/rag.md): the alternative to weight incorporation; synthetic data generation becomes relevant when RAG reaches scale limits
-- [Automatic Curriculum](../concepts/automatic-curriculum.md): structuring synthetic data generation so difficulty increases progressively
+- [Self-Improving Agents](../concepts/self-improving-agents.md): The broader framework that synthetic data generation enables
+- [Reinforcement Learning](../concepts/reinforcement-learning.md): Provides the optimization algorithm that consumes synthetic reward signals
+- [LLM-as-Judge](../concepts/llm-as-judge.md): The quality signal generator that gates what becomes training data
+- [Execution Traces](../concepts/execution-traces.md): The raw material that synthetic data pipelines process
+- [GRPO](../concepts/grpo.md): A specific RL algorithm used with model-generated training data
+- [GEPA](../concepts/gepa.md): Evolutionary prompt optimization that generates synthetic candidate solutions
+- [Agent Skills](../concepts/agent-skills.md): What synthetic data generation produces when applied to skill acquisition
+- [Continual Learning](../concepts/continual-learning.md): The ongoing adaptation process that synthetic data feeds

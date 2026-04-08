@@ -20,18 +20,18 @@ key_insight: >-
   bases that improve agent behavior over time.
 stars: 20994
 forks: 1914
-deep_researched: 'deep/repos/supermemoryai-supermemory.md'
+deep_researched: deep/repos/supermemoryai-supermemory.md
 relevance_scores:
-  topic_relevance: 9
+  topic_relevance: 8
   practitioner_value: 8
   novelty: 7
   signal_quality: 7
-  composite: 8.1
+  composite: 7.7
   reason: >-
-    Supermemory is a production-ready agent memory engine with benchmark-leading
-    performance, temporal/contradiction handling, and a unified memory
-    ontology—directly addressing core agent memory architecture patterns (topic
-    2) with a deployable API and clear docs.
+    Supermemory is a production-ready agent memory engine with temporal
+    reasoning, contradiction handling, and automatic forgetting—directly
+    addressing core gaps in agent memory systems (Topic 2) and knowledge
+    substrate evolution (Topic 1), with benchmark leadership and a usable API.
 language: TypeScript
 license: MIT
 ---

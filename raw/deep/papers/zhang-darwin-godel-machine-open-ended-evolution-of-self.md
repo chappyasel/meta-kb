@@ -16,13 +16,26 @@ key_insight: >-
   validate changes empirically (not formally) produces a 2.5x improvement on
   SWE-bench (20% to 50%). The critical insight is that maintaining an archive of
   all discovered agents -- not just the best one -- prevents local optima traps
-  and enables stepping-stone innovations that only become useful many generations
-  later, making open-ended exploration essential for recursive self-improvement.
+  and enables stepping-stone innovations that only become useful many
+  generations later, making open-ended exploration essential for recursive
+  self-improvement.
 deep_research:
   method: paper-full-text
   text_length: 11000
   analyzed_at: '2026-04-04'
   original_source: papers/zhang-darwin-godel-machine-open-ended-evolution-of-self.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 9
+  signal_quality: 8
+  composite: 8.5
+  reason: >-
+    DGM is a directly on-topic self-improving agent system using empirical
+    validation, population-based archive maintenance to avoid local optima, and
+    recursive self-modification — all core patterns for the Self-Improving
+    Systems pillar with concrete benchmark results and reusable architectural
+    insights.
 ---
 
 ## Architecture Overview

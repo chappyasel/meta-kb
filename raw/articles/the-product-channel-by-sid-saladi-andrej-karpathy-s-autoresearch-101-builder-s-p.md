@@ -24,9 +24,9 @@ relevance_scores:
   signal_quality: 7
   composite: 8.1
   reason: >-
-    Directly describes the Karpathy Loop applied to self-improving prompts,
-    skills, and agent workflows—core to topics 1, 4, and 5—with actionable setup
-    guidance and concrete cost/cycle estimates for practitioners.
+    Directly describes the Karpathy Loop as applied to prompts, skills, and
+    agent workflows—core self-improving systems content with actionable
+    overnight automation patterns for KB components.
 ---
 ## Andrej Karpathy’s Autoresearch 101 Builder’s Playbook: Make Your AI Skills, Prompts, and Agents Improve Themselves Overnight
 

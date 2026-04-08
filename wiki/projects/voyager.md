@@ -3,148 +3,126 @@ entity_id: voyager
 type: project
 bucket: self-improving
 abstract: >-
-  Voyager is a lifelong learning agent in Minecraft that accumulates executable
-  JavaScript skills via GPT-4, achieving 3.3x more exploration and 15.3x faster
-  tech-tree progression than prior methods without any model fine-tuning.
+  Voyager is an LLM-powered lifelong learning agent in Minecraft that builds a
+  self-growing library of executable JavaScript skills, achieving 3.3x more
+  exploration and 15.3x faster tech-tree progression than prior agents without
+  any model fine-tuning.
 sources:
   - papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md
   - deep/repos/bingreeky-memevolve.md
   - deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md
-related:
-  - agent-skills
-last_compiled: '2026-04-07T11:52:16.956Z'
+related: []
+last_compiled: '2026-04-08T02:57:45.067Z'
 ---
 # Voyager
 
-## What It Does
+## What It Is
 
-Voyager is a lifelong learning agent that plays Minecraft indefinitely, building a growing library of reusable JavaScript skills without any gradient updates or fine-tuning. Published in May 2023 by Guanzhi Wang et al. from NVIDIA and Caltech, it is the first demonstration that an LLM-powered agent can compound capabilities over time through code accumulation rather than weight updates.
+Voyager is an open-ended embodied agent that plays Minecraft autonomously, continuously discovering skills and applying them to progressively harder goals. Published in May 2023 by researchers at NVIDIA, Caltech, UT Austin, and MIT, it demonstrated that an LLM agent could achieve genuine lifelong learning through three interacting components rather than model weight updates.
 
-The architectural insight: store skills as executable code indexed by text embeddings, gate additions through self-verification, and let a learned curriculum decide what to attempt next. The three components create a feedback loop where each new skill lowers the cost of acquiring the next one.
+The architectural bet is that **executable code is a better skill representation than neural weights**. Every behavior the agent successfully learns gets stored as JavaScript in a growing library. New tasks retrieve and compose prior skills. Capability compounds without catastrophic forgetting because skills are appended, never overwritten.
 
-## Core Mechanism
+[Source](../raw/deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md)
 
-### Skill Library
+## Core Architecture
 
-The skill library is append-only JavaScript code. Each function (e.g., `mineWoodLog`, `craftIronPickaxe`) represents a temporally extended behavior that accomplishes a meaningful sub-goal. Skills are:
+Three components work together. Remove any one and performance collapses.
 
-- Stored with natural language descriptions
-- Indexed by `text-embedding-ada-002` embeddings
-- Retrieved by embedding similarity (top-5) when generating code for a new task
-- Compositional: skills call other skills, creating hierarchical capability growth
+**Automatic Curriculum** proposes the next task by reading current game state: inventory, equipment, biome, nearby entities, time of day, completed and failed tasks. GPT-4 generates the next objective most likely to extend exploration. GPT-3.5 handles self-questioning to inject Minecraft domain knowledge (recipes, biome rules, progression dependencies). A warm-up schedule phases in environmental complexity as the agent gains basic capabilities. Failed tasks are queued for later retry rather than permanently dropped.
 
-This is why capabilities compound. When the agent needs to "smelt iron ingots," it retrieves skills for "mine iron ore" and "craft furnace" as context. The new smelting skill can call those functions, so the library builds a tree of increasingly complex behaviors on top of verified primitives.
+**Skill Library** stores every verified behavior as executable JavaScript, indexed by text embeddings (`text-embedding-ada-002`) of their natural language descriptions. When the agent faces a new objective, it retrieves the top-5 most relevant skills by cosine similarity and injects them as context for code generation. New skills can call existing library skills, creating a compositional hierarchy. "Smelt iron ingots" calls "mine iron ore" and "craft furnace" as sub-routines.
 
-No skill enters the library without passing a verification gate. This quality control is load-bearing -- the ablation shows removing self-verification causes a 73% performance drop, the second largest degradation after removing the curriculum.
+**Iterative Prompting Mechanism** refines generated code across up to four iterations, pulling from three feedback channels simultaneously:
+- Environment feedback (game state diffs: "I need 7 more iron ingots")
+- Execution errors (JavaScript runtime and syntax exceptions)
+- Self-verification (a separate GPT-4 critic that assesses task completion and outputs specific improvement instructions)
 
-### Automatic Curriculum
+A skill enters the library only after the self-verification critic confirms completion. This quality gate prevents broken code from polluting future retrievals.
 
-The curriculum is adaptive, not predetermined. GPT-4 receives the agent's current state (inventory, equipment, biome, nearby blocks, time of day, completed vs. failed tasks) and proposes the next objective that maximally extends exploration. A warm-up schedule progressively incorporates environmental information as capabilities grow. GPT-3.5 supplements the curriculum with domain knowledge via self-questioning (recipes, biome characteristics, tech tree paths).
-
-Failed tasks are not discarded -- they re-enter the queue for later retry. Removing the curriculum entirely drops performance by 93%, making it the most critical component.
-
-### Iterative Prompting Mechanism
-
-Code generation runs up to 4 refinement iterations per task, incorporating three feedback types:
-
-1. **Environment feedback** -- game state changes ("I cannot make iron chestplate because I need 7 more iron ingots")
-2. **Execution errors** -- JavaScript runtime and syntax errors from the code interpreter
-3. **Self-verification** -- a dedicated GPT-4 critic that assesses task completion and provides improvement suggestions
-
-If the task is not solved in 4 iterations, it is abandoned and returned to the curriculum queue. Tasks that pass self-verification have their generating code added to the skill library as a new entry.
+[Source](../raw/deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md)
 
 ## Key Numbers
 
-All results are self-reported from the paper (no independent replication found at the time of publication).
+All results below are self-reported from the paper (arXiv:2305.16291). No independent third-party replication is documented in the sources reviewed.
 
-**Exploration over 160 prompting iterations:**
+**Exploration (160 prompting iterations):**
+- Voyager discovers 63 unique items vs ~19 for AutoGPT, ReAct, and Reflexion (3.3x)
+- Traverses 2.3x longer distances than the best baseline
 
-| Metric | Voyager | Best Baseline (AutoGPT) |
-|--------|---------|------------------------|
-| Unique items discovered | 63 | ~19 |
-| Distance traversed | 2.3x baseline | baseline |
-| Relative multiplier | 3.3x | -- |
-
-**Tech tree milestones (iterations to achieve, 3 seeds):**
+**Tech tree progression (iterations to achieve, 3 seeds):**
 
 | Tool Level | Voyager | AutoGPT | ReAct | Reflexion |
-|-----------|---------|---------|-------|-----------|
-| Wooden | 6 ± 2 | 92 ± 72 | 0/3 succeed | 0/3 succeed |
+|---|---|---|---|---|
+| Wooden | 6 ± 2 | 92 ± 72 | 0/3 | 0/3 |
 | Stone | 11 ± 2 | 94 ± 72 | 0/3 | 0/3 |
 | Iron | 21 ± 7 | 135 ± 103 | 0/3 | 0/3 |
-| Diamond | 1/3 seeds | 0/3 | 0/3 | 0/3 |
+| Diamond | 102 (1/3) | 0/3 | 0/3 | 0/3 |
 
-Speed improvements: 15.3x faster to wooden tools, 8.5x to stone, 6.4x to iron.
+Voyager reaches wooden tools 15.3x faster than AutoGPT. Only Voyager ever reaches diamond tools.
 
-**Zero-shot generalization (new Minecraft worlds, 4 unseen tasks):** Voyager achieves 100% success across all tasks. AutoGPT with access to Voyager's skill library achieves partial success on 2 of 4 tasks; AutoGPT alone and other baselines achieve 0%. This result demonstrates that the skill library transfers to novel contexts, and that the library alone is insufficient without curriculum and iterative refinement.
+**Zero-shot generalization (new worlds, unseen tasks):** Voyager completes all four novel tasks (Diamond Pickaxe, Golden Sword, Lava Bucket, Compass) at 100% success rate (3/3 seeds). AutoGPT with Voyager's skill library grafted in succeeds on at most 2/3 seeds across tasks, and fails entirely on Lava Bucket. Every other baseline fails all tasks.
 
-**Ablation summary:**
+**Ablation results:**
 
-| Component removed | Impact |
+| Component removed | Effect |
 |---|---|
-| Automatic curriculum | -93% items discovered |
+| Automatic curriculum | -93% unique items discovered |
 | Self-verification | -73% performance |
 | Skill library | Plateaus in later stages |
-| GPT-4 → GPT-3.5 for code | 5.7x fewer unique items |
+| GPT-4 → GPT-3.5 for code gen | 5.7x fewer unique items |
+
+The curriculum loss (-93%) exceeds the verification loss (-73%), which means knowing what to learn matters more than how to learn it.
 
 ## Strengths
 
-**No catastrophic forgetting by design.** Because skills are stored as code files rather than model weights, new skills cannot overwrite old ones. Capability is monotonically additive. This solves the core problem in [Continual Learning](../concepts/continual-learning.md) through representation choice rather than algorithmic innovation.
+**Compounding without forgetting.** The append-only skill library means capabilities accumulate monotonically. A skill added at iteration 10 remains fully functional at iteration 160. Neural fine-tuning approaches cannot make this guarantee.
 
-**Compositional reuse compounds returns.** Skills that invoke other skills create hierarchical structures. The marginal cost of a new skill decreases as the library grows, which is the opposite of most learned systems where new task acquisition becomes harder.
+**Generalization through composition.** The zero-shot results show that skills built from Minecraft's early tech tree transfer to novel crafting goals the agent has never seen. The retrieval mechanism lets the agent assemble new behaviors from existing primitives rather than generating everything from scratch.
 
-**Domain-general architecture.** The three-component pattern (curriculum + skill library + iterative verification) does not depend on Minecraft-specific structures. The pattern maps onto any agent system that generates code: web automation, DevOps tooling, data analysis pipelines. The [Agent Skills](../concepts/agent-skills.md) specification draws directly from this design.
+**Interpretable skills.** JavaScript code is human-readable. A developer can inspect any skill in the library, understand what it does, and audit for correctness. This is a meaningful advantage over latent skill representations.
 
-**Zero-shot generalization.** Skills learned in one Minecraft world transfer to novel worlds with novel tasks. This is non-trivial -- it demonstrates the skills are genuinely general rather than overfitting to specific environmental configurations.
+**No fine-tuning required.** All learning happens through skill library growth and prompt construction. The underlying models stay frozen. This means capability improvements do not require GPU infrastructure for training.
 
 ## Critical Limitations
 
-**Concrete failure mode: hallucinated game knowledge.** GPT-4 occasionally proposes non-existent items ("copper sword") or invalid crafting recipes. The self-verification critic does not reliably catch these because it shares the same misconceptions as the generation model. Both models have the same training distribution, so systematic errors propagate unchecked. This is not just a Minecraft problem -- any domain where the LLM's internal model diverges from ground truth will produce plausible-sounding but incorrect skills.
+**Concrete failure mode: skill library contains unrevised bugs.** The library is append-only. If a skill passes self-verification despite a subtle defect (the paper notes the critic "occasionally misses success signals, e.g., acquiring spider string from a spider kill"), that skill persists forever. Later tasks retrieve it, the bug propagates, and there is no correction path short of manually deleting the skill. The system has no mechanism for skill revision based on downstream failure evidence.
 
-**Unspoken infrastructure assumption: clean binary feedback.** Minecraft provides unusually sharp success signals: inventory changes, crafting outcomes, and block state transitions are deterministic and immediately observable. The self-verification critic can reliably assess "did you mine 3 iron ore" because the game state says so unambiguously. Most production domains (web automation, document processing, customer-facing agents) have ambiguous, delayed, or probabilistic feedback. Porting Voyager's architecture to those domains requires solving the verification problem from scratch.
+**Unspoken infrastructure assumption: clean, deterministic feedback signals.** Minecraft provides crisp game-state diffs (inventory changes, crafting success flags, error messages). The iterative prompting mechanism depends on this. Real production domains (web automation, file systems, APIs) produce noisier, less structured feedback. The self-verification critic also depends on well-defined success criteria -- "mine 3 iron ore" has an obvious completion signal; "improve this codebase" does not. The architecture does not address how to construct equivalent feedback in ambiguous domains.
 
-**The skill library has no deletion or update mechanism.** If an early skill passes self-verification but has subtle bugs -- incorrect edge case handling, wrong resource counts, off-by-one in loops -- it stays in the library permanently. Later skills may be generated with this buggy code as context or call it directly. There is no mechanism for skill revision based on downstream failure evidence.
+## When Not to Use It
 
-**API cost is significant.** GPT-4 is called for curriculum generation, code generation (up to 4 iterations), and self-verification for every task. The paper uses GPT-4 for curriculum, code, and verification, with GPT-3.5 only for supplementary domain knowledge queries. At 160+ prompting iterations with multiple model calls per iteration, total costs are substantial. The paper does not report dollar figures.
+**Cost-sensitive deployments.** Voyager calls GPT-4 for curriculum generation, code generation, and self-verification -- multiple calls per iteration across 160+ iterations. The paper does not publish total API costs, but GPT-4 is 15x more expensive than GPT-3.5, and GPT-3.5 alone cuts performance by 5.7x. For high-throughput or budget-constrained agents, this tradeoff is unfavorable.
 
-## When NOT to Use This Architecture
+**Domains without verifiable task completion.** Self-verification is the quality gate for the entire skill library. If your domain cannot produce reliable success/failure signals -- subjective quality assessments, long-horizon outcomes, ambiguous task specs -- the library will accumulate low-quality skills. The 73% performance drop from removing self-verification shows how badly this matters.
 
-**Ambiguous completion criteria.** If your domain cannot produce unambiguous task success/failure signals, self-verification becomes unreliable and the library will accumulate broken skills. Minecraft is close to a best case; most real domains are not.
+**Environments that change state underneath stored skills.** Voyager's skills are written against a fixed Minecraft API version. An API change or game update invalidates stored code without warning. Any environment with evolving interfaces (web pages, changing APIs, updated databases) introduces skill rot that the append-only library cannot detect.
 
-**Single-session tasks.** The compounding benefit of the skill library requires many tasks over many sessions. If your agent handles one-off requests rather than building persistent capability, the overhead of curriculum management and library indexing adds cost without benefit.
-
-**Latency-sensitive applications.** Each task requires multiple GPT-4 calls -- curriculum generation, code generation (×4 iterations max), and verification. Total latency per task ranges from seconds to tens of seconds depending on task complexity and iteration count.
-
-**Domains where code is not the right skill representation.** Voyager's skills are JavaScript functions. This works when the target environment has a code-callable API (Minecraft's Mineflayer library). For agents operating over natural language, images, or physical actions, code-as-skill needs a different execution substrate.
+**Tasks requiring precise, time-sensitive coordination.** Voyager's four-iteration refinement limit means tasks requiring more than four debugging cycles get abandoned. The curriculum retries them, but the agent may cycle through many retry attempts without progress on genuinely hard tasks.
 
 ## Unresolved Questions
 
-**Library scale management.** The paper reaches ~60 unique items discovered; the skill library grows to dozens of functions. What happens at hundreds or thousands of skills? Retrieval by embedding similarity over a large library degrades in precision, and skill naming collisions become more likely. There is no guidance on hierarchical organization, skill pruning, or library maintenance at scale.
+**Skill library scaling.** The paper evaluates at 63 skills across 160 iterations. Production deployments might accumulate thousands. At that scale, top-5 embedding retrieval faces precision problems: many skills match superficially by text description but differ functionally. The paper does not address hierarchical organization, clustering, or how retrieval quality degrades at scale. The [Agent Skills](../concepts/agent-skills.md) literature notes that libraries beyond a few hundred skills require structural intervention to remain useful.
 
-**Skill conflict resolution.** If two skills accomplish the same sub-goal via different code paths, how does the system decide which to retrieve and use? There is no deduplication or merging logic described.
+**Cross-domain transfer.** All experiments run in Minecraft. The paper claims the architecture is domain-general but does not demonstrate it. For teams considering adaptation to web automation, code execution, or API orchestration, the key unknowns are: how to construct a curriculum for an environment without a defined tech tree, and how to write a self-verification critic for tasks without binary success signals.
 
-**Cost at production scale.** A 160-iteration run costs how much? The paper is silent on this. For organizations evaluating whether to adopt this architecture, the absence of cost reporting is a gap.
+**Cost accounting.** No published cost per skill acquired, cost per hour of autonomous operation, or comparison of API spend to value of capability gained.
 
-**Generalization beyond Minecraft.** The architecture is claimed to be domain-general, but the paper only validates it in Minecraft. The claim that the pattern transfers to other domains -- software engineering, web navigation, robotics -- is not supported by experiments.
-
-**Curriculum convergence.** Does the automatic curriculum eventually run out of meaningful objectives, or does it keep proposing novel tasks indefinitely? In Minecraft, the tech tree is finite. In open-ended real-world domains, how does the curriculum avoid cycling?
+**Skill library governance at deployment.** If multiple agent instances share a skill library, who controls write access? The paper assumes a single agent and single library owner. Multi-agent deployments raise questions about merge conflicts, quality standards per contributor, and rollback when a bad skill is added.
 
 ## Alternatives
 
-**[Reflexion](../concepts/reflexion.md):** Stores verbal experience summaries rather than executable code. Use Reflexion when your domain cannot run code, or when natural language summaries are more transferable across contexts than code.
+**[Reflexion](../concepts/reflexion.md)** stores verbal reflection traces rather than executable code. Use it when your domain produces natural language feedback and you do not need composable, replayable skills -- or when the cost of GPT-4 code generation per task is prohibitive.
 
-**[Agent Workflow Memory](../projects/agent-workflow-memory.md):** Extracts reusable workflows from demonstrations. Use when you have demonstration data and want to bootstrap skill discovery rather than learn from scratch.
+**[Agent Workflow Memory](../projects/agent-workflow-memory.md)** stores reusable workflows extracted from task execution. Use it when tasks follow recognizable procedural patterns and you want human-auditable workflow templates rather than generated code.
 
-**[ReAct](../concepts/react.md):** Simple thought-action-observation loop without skill accumulation. Use when you need a one-session agent that does not require persistent capability growth.
+**[MemEvolve](../projects/memevolve.md)** goes further: it uses LLMs to generate entirely new memory system architectures, not just populate an existing skill library. Use it when the memory system design itself is the bottleneck, and you have the compute budget for multi-round evolution with tournament selection.
 
-**[MemEvolve](../projects/memevolve.md):** Operates one level up -- evolves the memory system architecture itself rather than accumulating skills within a fixed architecture. Use MemEvolve when the memory strategy needs to adapt, not just the memory contents.
-
-**[GEPA](../concepts/gepa.md) / [Darwin Gödel Machine](../projects/darwin-godel-machine.md):** Apply Voyager's self-improvement intuition to the agent's own code rather than in-game behavior. Use when the agent itself (not just its skills) needs to improve over time.
+**[ReAct](../concepts/react.md)** with a fixed tool set. Use it when tasks are relatively constrained, skill accumulation across sessions is not a requirement, and you want simpler infrastructure without a growing code library to maintain.
 
 ## Related Concepts
 
-[Agent Skills](../concepts/agent-skills.md) · [Procedural Memory](../concepts/procedural-memory.md) · [Automatic Curriculum](../concepts/automatic-curriculum.md) · [Continual Learning](../concepts/continual-learning.md) · [Self-Improving Agent](../concepts/self-improving-agent.md) · [LLM-as-Judge](../concepts/llm-as-judge.md) · [Catastrophic Forgetting](../concepts/catastrophic-forgetting.md)
-
-## Sources
-
-[Deep analysis](../raw/deep/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md) · [Paper abstract](../raw/papers/wang-voyager-an-open-ended-embodied-agent-with-large-l.md) · [MemEvolve context](../raw/deep/repos/bingreeky-memevolve.md)
+- [Agent Skills](../concepts/agent-skills.md): The broader pattern of storing, retrieving, and composing agent capabilities
+- [Procedural Memory](../concepts/procedural-memory.md): The memory type Voyager's skill library instantiates
+- [Continual Learning](../concepts/continual-learning.md): The research tradition Voyager contributes to
+- [Self-Improving Agents](../concepts/self-improving-agents.md): The broader category Voyager exemplifies
+- [Compositional Skill Synthesis](../concepts/composable-skills.md): The compounding mechanism at the core of the skill library

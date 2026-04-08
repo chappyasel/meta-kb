@@ -9,7 +9,7 @@ type: repo
 author: owner
 date: 'YYYY-MM-DD'
 tags:
-  - agent-memory          # at least one taxonomy bucket
+  - knowledge-substrate    # at least one taxonomy bucket (see config/domain.ts)
   - specific-tag
 key_insight: >-
   1-2 sentences on why this matters, based on deep analysis not just README.
@@ -70,7 +70,7 @@ type: paper
 author: 'Author Names'
 date: 'YYYY-MM-DD'
 tags:
-  - agent-memory
+  - agent-memory             # at least one taxonomy bucket (see config/domain.ts)
 key_insight: >-
   Based on full paper analysis, not just abstract.
 deep_research:

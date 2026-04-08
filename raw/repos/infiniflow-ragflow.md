@@ -17,6 +17,18 @@ key_insight: >-
 deep_researched: deep/repos/infiniflow-ragflow.md
 stars: 77126
 forks: 8673
+relevance_scores:
+  topic_relevance: 7
+  practitioner_value: 8
+  novelty: 5
+  signal_quality: 8
+  composite: 7.2
+  reason: >-
+    RAGFlow is a mature, widely-used open-source RAG+agent engine directly
+    relevant to knowledge substrate and context engineering topics, with strong
+    documentation and production-ready implementation, though it represents
+    solid execution of known RAG patterns rather than a genuinely novel
+    architecture.
 ---
 ## ragflow
 

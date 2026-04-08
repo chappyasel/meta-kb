@@ -30,11 +30,11 @@ relevance_scores:
   signal_quality: 7
   composite: 7.2
   reason: >-
-    SWE-Pruner introduces a task-aware, self-adaptive context pruning framework
-    for coding agents with a transferable pattern (agent articulates explicit
-    goals to guide compression) directly relevant to context engineering and
-    agent memory, backed by benchmarks and integration examples for real agents
-    like Claude Code and OpenHands.
+    SWE-Pruner introduces a genuinely novel task-aware, self-adaptive context
+    pruning pattern with a lightweight skimmer trained on explicit
+    goals—directly transferable to context engineering and self-improving agent
+    KB selection mechanisms, with working code and benchmark results across
+    multiple agent tasks.
 language: Python
 ---
 ## swe-pruner

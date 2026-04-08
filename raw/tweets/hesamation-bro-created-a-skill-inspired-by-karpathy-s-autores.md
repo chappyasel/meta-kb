@@ -22,15 +22,16 @@ retweets: 263
 views: 755951
 relevance_scores:
   topic_relevance: 9
-  practitioner_value: 7
+  practitioner_value: 8
   novelty: 9
-  signal_quality: 5
-  composite: 7.8
+  signal_quality: 6
+  composite: 8.3
   reason: >-
-    Directly describes Karpathy's autoresearch pattern applied to agent skill
-    self-improvement (closed-loop TDD iteration improving skill reliability
-    56%→92%), hitting topics 4 and 5 squarely, but the tweet itself is thin on
-    implementation details with the core content behind an external link.
+    Directly describes a self-improving skill loop (Karpathy autoresearch
+    pattern applied to SKILL.md/Claude Code skills) with concrete results
+    (56%→92% in 4 rounds), hitting multiple primary pillars—self-improving
+    systems, skill composition, and knowledge substrate—though the tweet itself
+    is thin on implementation details.
 ---
 ## Tweet by @Hesamation
 

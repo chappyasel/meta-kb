@@ -15,20 +15,20 @@ key_insight: >-
   state that survives across conversations—critical for building agents that
   genuinely learn and improve rather than resetting context each turn, making
   continual self-improvement feasible at scale.
-deep_researched: 'deep/repos/letta-ai-letta.md'
+deep_researched: deep/repos/letta-ai-letta.md
 stars: 21873
 forks: 2312
 relevance_scores:
   topic_relevance: 9
-  practitioner_value: 9
+  practitioner_value: 8
   novelty: 7
   signal_quality: 8
-  composite: 8.5
+  composite: 8.3
   reason: >-
-    Letta is a production-ready, highly-starred platform for building stateful
-    agents with persistent memory_blocks, directly addressing agent memory,
-    self-improvement, and cross-session knowledge retention—core topics 1, 2,
-    and 5.
+    Letta is a production-ready stateful agent platform with memory_blocks
+    abstraction, skills, subagents, and cross-session persistence—directly
+    relevant to agent memory, self-improving systems, and multi-agent
+    coordination pillars.
 language: Python
 license: Apache-2.0
 ---

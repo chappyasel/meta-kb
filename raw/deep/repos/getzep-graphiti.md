@@ -11,12 +11,14 @@ tags:
   - context-engineering
   - community-detection
 key_insight: >-
-  Graphiti is architecturally the most sophisticated of the major agent-memory libraries:
-  it implements a proper bi-temporal data model where edges carry both valid_at and
-  invalid_at timestamps, uses a multi-stage LLM pipeline (extract entities, extract
-  edges, deduplicate nodes, resolve edge contradictions) with Pydantic structured output,
-  and implements label-propagation community detection for automatic graph summarization.
-  This is a genuine knowledge graph system, not a vector store with graph features bolted on.
+  Graphiti is architecturally the most sophisticated of the major agent-memory
+  libraries: it implements a proper bi-temporal data model where edges carry
+  both valid_at and invalid_at timestamps, uses a multi-stage LLM pipeline
+  (extract entities, extract edges, deduplicate nodes, resolve edge
+  contradictions) with Pydantic structured output, and implements
+  label-propagation community detection for automatic graph summarization. This
+  is a genuine knowledge graph system, not a vector store with graph features
+  bolted on.
 stars: 24500
 deep_research:
   method: source-code-analysis
@@ -36,6 +38,16 @@ deep_research:
     - CLAUDE.md
   analyzed_at: '2026-04-04'
   original_source: repos/getzep-graphiti.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 9
+  novelty: 8
+  signal_quality: 9
+  composite: 8.9
+  reason: >-
+    Graphiti/Zep is a production-grade agent memory library with a formal
+    bi-temporal knowledge graph architecture directly relevant to agent memory
+    and knowledge substrate pillars, with deep architectural detail provided.
 ---
 
 ## Architecture Overview

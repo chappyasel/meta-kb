@@ -17,7 +17,10 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import type { RawSourceType } from "./types.js";
 
-const RAW_DIRS = ["raw/tweets", "raw/repos", "raw/articles", "raw/papers"];
+const RAW_DIRS = [
+  "raw/tweets", "raw/repos", "raw/articles", "raw/papers",
+  "raw/deep/repos", "raw/deep/papers",
+];
 
 interface ScoreResult {
   file: string;
@@ -68,12 +71,15 @@ async function main() {
   let scored = 0;
   let failed = 0;
 
-  for (const file of toScore) {
+  // Parallel scoring with concurrency limit
+  const CONCURRENCY = 15;
+  const startTime = Date.now();
+
+  async function scoreFile(file: string): Promise<void> {
     const raw = await Bun.file(file).text();
     const { data, content: body } = matter(raw);
     const sourceType = (data.type as RawSourceType) ?? "article";
 
-    // Build content for scoring: key_insight + body (truncated by scoreRelevance internally)
     const contentForScoring = [
       data.key_insight ?? "",
       body.slice(0, 3000),
@@ -84,13 +90,14 @@ async function main() {
     if (!relevance) {
       console.log(`  FAIL: ${file}`);
       failed++;
-      continue;
+      return;
     }
 
     scored++;
     const shortFile = file.replace("raw/", "");
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
     console.log(
-      `  [${relevance.composite.toFixed(1)}] ${shortFile} (topic=${relevance.topic_relevance} practitioner=${relevance.practitioner_value} novelty=${relevance.novelty} signal=${relevance.signal_quality})`,
+      `  [${relevance.composite.toFixed(1)}] ${shortFile} (topic=${relevance.topic_relevance} practitioner=${relevance.practitioner_value} novelty=${relevance.novelty} signal=${relevance.signal_quality}) [${scored + failed}/${toScore.length} ${elapsed}s]`,
     );
 
     results.push({
@@ -103,7 +110,6 @@ async function main() {
       reason: relevance.reason,
     });
 
-    // Write scores into frontmatter
     const updatedData = {
       ...data,
       relevance_scores: {
@@ -118,6 +124,12 @@ async function main() {
 
     const updatedContent = matter.stringify(body, updatedData as unknown as Record<string, unknown>);
     await Bun.write(file, updatedContent);
+  }
+
+  // Process in batches of CONCURRENCY
+  for (let i = 0; i < toScore.length; i += CONCURRENCY) {
+    const batch = toScore.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(scoreFile));
   }
 
   // Summary

@@ -23,13 +23,13 @@ relevance_scores:
   topic_relevance: 9
   practitioner_value: 9
   novelty: 8
-  signal_quality: 8
-  composite: 8.7
+  signal_quality: 9
+  composite: 8.9
   reason: >-
-    Anthropic's official Agent Skills repository is a canonical reference for
-    SKILL.md-based modular skill composition, skill registries, and dynamic
-    skill loading—directly addressing core topics 3 and 4 (context engineering
-    and agentic skills) with 110k stars and production-grade examples.
+    This is Anthropic's official SKILL.md-based agent skills repository—directly
+    implementing the modular, composable capability pattern central to Agent
+    Architecture topic area, with production examples, a formal spec, and 110k
+    stars indicating broad real-world adoption.
 language: Python
 deep_researched: deep/repos/anthropics-skills.md
 ---

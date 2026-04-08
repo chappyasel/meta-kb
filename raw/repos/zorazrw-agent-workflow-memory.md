@@ -28,10 +28,10 @@ relevance_scores:
   signal_quality: 7
   composite: 7.6
   reason: >-
-    AWM directly addresses agent memory via reusable workflow abstraction with
-    both offline/online modes, SOTA benchmarks, and runnable code—highly
-    relevant to agentic skill composition, self-improving loops, and episodic
-    memory patterns.
+    AWM directly addresses agent memory architecture with a novel workflow
+    abstraction and reuse pattern (offline/online induction of reusable
+    sub-routines) that is highly transferable to general agent systems beyond
+    web navigation, backed by SOTA benchmarks and runnable Python code.
 language: Python
 license: Apache-2.0
 ---

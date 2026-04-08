@@ -17,20 +17,22 @@ key_insight: >-
   for retrieval—this matters for knowledge bases because it achieves semantic
   relevance rather than similarity, avoiding the lossy chunking and opaque
   embedding space that plague traditional RAG systems.
-deep_researched: 'deep/repos/vectifyai-pageindex.md'
+deep_researched: deep/repos/vectifyai-pageindex.md
 stars: 23899
 forks: 1982
 relevance_scores:
-  topic_relevance: 7
-  practitioner_value: 7
+  topic_relevance: 8
+  practitioner_value: 8
   novelty: 8
-  signal_quality: 7
-  composite: 7.2
+  signal_quality: 8
+  composite: 8
   reason: >-
-    PageIndex offers a genuinely novel vectorless, reasoning-based RAG approach
-    using hierarchical tree indexing that directly addresses chunking and
-    embedding limitations in knowledge base retrieval systems, with a
-    production-ready Python library and strong community adoption.
+    PageIndex implements a genuinely novel vectorless, reasoning-based RAG
+    approach using hierarchical tree indexing that directly addresses core
+    knowledge substrate and context engineering challenges—highly relevant to
+    LLM agent knowledge systems with a production-ready library, strong
+    community traction (24k stars), and clear alternative to embedding-based
+    RAG.
 language: Python
 license: MIT
 ---

@@ -150,11 +150,9 @@ export async function ingestArticles(
       if (isXArticleUrl(url)) {
         console.log(`  detected X article, using Xquik extraction...`);
         try {
-          // Xquik needs the TWEET ID, not the article ID.
-          // If a tweetId was passed via opts, use it. Otherwise try the article ID as tweet ID.
           const articleId = extractArticleId(url);
-          const tweetId = (opts as any).tweetId ?? articleId;
-          const article = await fetchXArticle(tweetId);
+          const tweetUrl = (opts as any).tweetUrl as string | undefined;
+          const article = await fetchXArticle(articleId, tweetUrl);
           markSeen(seen, url);
           const { key_insight, tags } = await generateInsightAndTags(article.bodyText, "article");
           const frontmatter: RawSourceFrontmatter = {

@@ -3,122 +3,157 @@ entity_id: llm-as-judge
 type: approach
 bucket: self-improving
 abstract: >-
-  LLM-as-Judge uses a language model to score or critique another model's
-  outputs, enabling automated quality evaluation without human annotation at
-  each step.
+  LLM-as-Judge uses a language model to automatically score agent outputs
+  against defined criteria, replacing human annotators in evaluation and
+  optimization loops with scalable but bias-prone automated assessment.
 sources:
+  - tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md
   - tweets/philschmid-agent-skills-are-powerful-but-they-are-often-ai-ge.md
-  - repos/langchain-ai-langgraph-reflection.md
-  - articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md
   - >-
     articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md
-  - deep/repos/anthropics-skills.md
-related:
-  - agent-skills
-  - langchain
-last_compiled: '2026-04-07T11:54:44.608Z'
+related: []
+last_compiled: '2026-04-08T03:01:56.863Z'
 ---
 # LLM-as-Judge
 
 ## What It Is
 
-LLM-as-Judge is an evaluation technique where one language model assesses the output quality of another. You feed the judge a rubric, the original input, and the output to grade, then interpret the returned score or critique. The approach substitutes for human annotation in cases where quality is hard to specify as a deterministic rule but easy to describe in natural language.
+LLM-as-Judge is an evaluation pattern where a language model scores the outputs of another model or agent. You provide a rubric, the output under review, and optionally reference material; the judge returns a score, a pass/fail verdict, or both. The approach trades annotator time for API calls, enabling evaluation at the speed of generation rather than the speed of human review.
 
-The technique appears across the evaluation stack: as an online monitor scoring live production traces, as an offline evaluator validating prompt changes before deployment, as a grader inside self-improvement loops that iterate on prompts until a threshold is reached, and as a signal source for fine-tuning pipelines.
+The pattern appears across several contexts: offline quality benchmarking, online feedback loops where scores drive prompt updates, A/B testing between model versions, and production monitoring for model drift. Its defining feature is that the evaluation criteria live in a prompt rather than in hand-coded logic, so the judge can assess qualities that resist deterministic measurement: tone, factual coherence, regulatory compliance, domain-appropriate terminology.
 
-Its key differentiator from alternatives is coverage. Deterministic checks (exact match, regex, schema validation, cosine similarity) test narrow, specifiable properties. Human annotation tests everything but costs time. LLM-as-Judge covers the gap: qualitative properties like coherence, helpfulness, regulatory appropriateness, or factual plausibility that have no clean programmatic definition but can be described to a model in a few sentences.
+## How It Works
 
-## Core Mechanism
+A judge invocation has four components:
 
-The judge receives a structured prompt containing:
+**System prompt (rubric)**: Defines the evaluation criteria and scoring scale. A well-specified rubric names the qualities being measured, gives anchors for each score level, and specifies output format (usually a single number). Without rubric specificity, the judge defaults to surface-level impressions.
 
-1. A **rubric** describing what good looks like (scoring criteria, scale, and what to penalize)
-2. The **task input** (the question or instruction the main agent received)
-3. The **output under evaluation**
-4. Optionally, a **reference answer** for correctness checks
+**Input context**: What the generator received. Including this lets the judge check faithfulness and relevance, not just standalone quality.
 
-The judge returns a score on a numeric scale (0–1 is standard) and sometimes a textual rationale. Systems that require traceable decisions collect both.
+**Output under review**: The text being scored.
 
-From the OpenAI self-evolving agents cookbook, a concrete rubric:
+**Score range and threshold**: Usually 0-1 with a pass threshold (0.85 is common in practice). Binary pass/fail is simpler but loses gradient information useful for comparing candidates.
 
+A concrete example from the OpenAI self-evolving agents cookbook illustrates the structure:
+
+```python
+{
+    "name": "llm_as_judge",
+    "type": "score_model",
+    "model": "gpt-4.1",
+    "input": [
+        {
+            "role": "system",
+            "content": (
+                "You are an expert technical summarization evaluator. "
+                "Evaluate whether the summary captures and preserves the important "
+                "technical facts... Return a numerical score between 0 and 1..."
+                "\n- 1.0: comprehensive, faithful, technically accurate"
+                "\n- 0.75-0.99: all main facts, trivial omissions only"
+                "\n- 0.5-0.75: most technical information retained"
+                "\n- 0.3-0.5: significant information missing"
+                "\n- 0.0-0.3: major omissions or misunderstandings"
+            ),
+        },
+        {
+            "role": "user",
+            "content": "Section:\n{{item.section}}\nSummary:\n{{sample.output_text}}",
+        },
+    ],
+    "range": [0, 1],
+    "pass_threshold": 0.85,
+}
 ```
-"A score of 1 means the summary is almost flawless: comprehensive, highly faithful, 
-and technically accurate, with virtually no important details missing.
-0.75-0.99 indicates excellent work: all main facts represented, trivial omissions possible.
-0.5-0.75 indicates good but imperfect..."
-```
 
-This is the `score_model` grader type in OpenAI Evals, called with `gpt-4.1` and a pass threshold of `0.85`. The grader lives alongside deterministic graders (Python-based chemical name checking, word length deviation, cosine similarity) rather than replacing them. Each grader type catches different failure modes; LLM-as-Judge provides the holistic failsafe for edge cases that rule-based metrics miss. [Source](../raw/articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md)
+The judge runs after each generation. Its score triggers downstream logic: accept the output, reject it, or feed the failure back to a meta-prompt agent that rewrites the generator's system prompt.
 
-In [LangGraph reflection loops](../projects/langgraph.md), the judge plays a different role: instead of returning a score, it returns either nothing (pass) or a critique message that gets injected back into the main agent's conversation as a new user turn. The main agent then revises its answer. The loop terminates when the judge returns empty. [Source](../raw/repos/langchain-ai-langgraph-reflection.md)
+## Role in Optimization Loops
 
-For [Agent Skills](../concepts/agent-skills.md) evaluation, the judge runs as one tier in a three-tier testing stack. Tier 3 (~$0.15, ~30 seconds) uses LLM-based quality scoring to assess qualitative skill output improvements. A comparator subagent runs blind evaluation of two outputs without knowing which had the skill active. [Source](../raw/deep/repos/anthropics-skills.md)
+LLM-as-Judge becomes more consequential when embedded in an automated improvement loop. The pattern, described in the self-evolving agents cookbook from OpenAI, looks like this:
 
-## Four Roles in Practice
+1. A generator produces an output
+2. One or more graders score it (mix of deterministic Python checks and LLM judge)
+3. If the score falls below threshold, a meta-prompt agent receives the judge's reasoning and rewrites the generator's system prompt
+4. The updated generator runs again on the same input
+5. The loop continues until pass or retry limit
 
-**Online monitoring**: Evaluators run continuously on production traces. In LangSmith, you configure them to score all traces, a sampled subset, or a filtered set based on criteria. The judge assesses the full agent trajectory, not just the final output: did the agent use the right tools, in the right order, with the right parameters? This catches quality drift that metrics like latency or error rate miss entirely. [Source](../raw/articles/langchain-com-the-agent-improvement-loop-starts-with-a-trace.md)
+The LLM judge is usually the last grader applied, serving as a holistic failsafe after deterministic checks catch obvious failures. Deterministic graders (word count, entity presence, regex matches) are cheaper, faster, and consistent, so they filter easy failures before the more expensive judge call.
 
-**Offline evaluation**: Before shipping a prompt change or model update, you run the updated agent against a dataset of real production failures and compare judge scores to the baseline. Passing evaluations accumulate into a permanent regression test suite. A change that improves scores on targeted failures but drops scores on other cases fails the gate before reaching users.
+The same loop structure underpins the Karpathy Loop pattern: score, commit on improvement, reset on regression, repeat at scale. In that framing the evaluation function is the critical investment; the LLM judge expands what that function can measure.
 
-**Self-improvement loops**: The OpenAI cookbook implements a loop where the summarization agent generates output, four graders score it (including LLM-as-Judge at threshold 0.85), and if the lenient pass threshold fails, a metaprompt agent rewrites the system prompt. The loop retries up to `MAX_OPTIMIZATION_RETRIES = 3` per section. The prompt evolves from "You are a summarization assistant. Given a section of text, produce a summary." to a 400-word specification that preserves exact chemical nomenclature, isotopic labels, and regulatory citations verbatim. [Source](../raw/articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md)
+## Where LLM-as-Judge Fits in a Grader Stack
 
-**Skill evaluation**: @_philschmid's practical guide recommends 10-12 test prompts with deterministic checks combined with LLM-as-Judge for qualitative assessment, then iterating on skill implementations based on eval failures. The combination matters because AI-generated skills often lack rigor, and judge-driven iteration catches failures that the skill author wouldn't anticipate. [Source](../raw/tweets/philschmid-agent-skills-are-powerful-but-they-are-often-ai-ge.md)
+Production eval stacks typically combine multiple grader types. From the OpenAI cookbook example evaluating pharmaceutical document summaries:
 
-## Implementation Variants
+| Grader | Type | What it catches |
+|---|---|---|
+| Entity presence check | Deterministic Python | Missing chemical names |
+| Length deviation | Deterministic Python | Verbosity or truncation |
+| Cosine similarity | Text similarity metric | Semantic drift from source |
+| LLM-as-judge | Score model | Holistic factual fidelity |
 
-**Direct scoring**: Judge returns a number on a defined scale. The rubric anchors each score range to specific observable properties to reduce variance between runs.
+The LLM judge handles what the others cannot: cases where all entities are present, length is acceptable, and semantic similarity passes, but the summary distorts a relationship or misattributes a property. It also produces natural-language reasoning that feeds directly into meta-prompt rewriting.
 
-**Binary pass/fail**: `create_llm_as_judge` from `openevals` with `feedback_key="pass"` returns a boolean plus a comment. Used in the LangGraph reflection example with `o3-mini` as the judge model.
+## Strengths
 
-**Comparative judgment**: Two outputs are shown side-by-side and the judge picks the better one without knowing which was produced by which system. Used in the Anthropic skills-creator for blind evaluation of with-skill vs. baseline. Reduces position bias compared to absolute scoring.
+**Evaluates non-decomposable quality.** Tone, regulatory compliance, factual coherence, and domain appropriateness do not reduce cleanly to rules. A judge can assess all four in a single call.
 
-**Trajectory evaluation**: Judge sees the full execution trace (tool calls, intermediate outputs, final response) rather than just the final answer. More expensive but catches cases where the right answer came from wrong reasoning, or the wrong tool sequence happened to produce an acceptable output.
+**Generates actionable feedback.** Unlike a cosine similarity score, a judge reasoning trace says "the summary omits the CAS registry number and misattributes the molecular weight." That text can feed directly into a meta-prompt optimization step.
 
-## Calibration Against Human Judgment
+**Scales with generation.** Human annotation throughput does not scale with API call volume. A judge runs at the same speed as the generator and costs a fraction of human review.
 
-Raw judge scores are unreliable without calibration. LangSmith's annotation workflow explicitly routes traces where human reviewers and the automated judge disagree into a calibration queue. Reviewers label those cases, the labeled examples retune the judge prompt, and the loop repeats until judge scores match human ratings within an acceptable margin. Without this process, you're optimizing against a metric that may not track actual quality.
+**Enables A/B evaluation without labeled data.** You can compare two model versions on the same inputs by running the judge against both outputs and comparing aggregate scores.
 
-The GEPA optimization variant (Genetic-Pareto) in the OpenAI cookbook uses a more sophisticated approach: it trains candidate prompts on one data split and validates on another, then uses judge scores on the validation split to select prompts that generalize rather than overfit to the training graders. The best GEPA prompt scored 0.235 on the full validation set compared to 0.218 for the baseline, with the judge playing the same role as the other graders but contributing to a multi-objective optimization across all four criteria simultaneously. [Source](../raw/articles/developers-openai-com-self-evolving-agents-a-cookbook-for-autonomous-a.md)
+## Limitations
 
-## Failure Modes
+**Positional and self-enhancement bias.** Judges prefer outputs that appear first in pairwise comparisons and tend to favor outputs from their own model family. These biases are well-documented (independently validated) and affect absolute scores and rankings in predictable ways. A judge from model family A rating output from model family A versus family B is not a neutral evaluation.
 
-**Sycophancy bias**: Judges tend to favor outputs that match their own generation style. A GPT-4 judge evaluating GPT-4 outputs will score them higher than equivalent outputs from smaller models. Position bias is a related problem: in comparative evaluation, judges favor the first option at rates above chance.
+**Sycophancy toward confident-sounding text.** Outputs that use assertive phrasing and dense domain vocabulary score higher even when factually incorrect. A judge optimizing for "sounds authoritative" and one optimizing for "is accurate" produce different rankings for the same outputs.
 
-**Domain blindness**: A judge without domain expertise will fail to catch specialized errors. A legal agent citing plausible but nonexistent precedents, or a medical agent giving technically correct but clinically dangerous guidance, may score well on a general-purpose rubric. The OpenAI cookbook's `chemical_name_grader` is a Python grader specifically because the judge couldn't reliably verify exact isotopic notation like `[1-¹³C]Pyruvate` vs `[1-13C]Pyruvate`.
+**Rubric sensitivity.** Small wording changes in the system prompt produce different score distributions. A rubric that says "comprehensive" elicits different behavior than one that says "exhaustive." This makes cross-run comparisons unreliable unless the rubric is versioned and frozen.
 
-**Rubric gaming**: If the same judge model runs the improvement loop and the final evaluation, the loop can produce outputs that score well on the judge's rubric while degrading on held-out human quality assessments. The train/test split in GEPA and the blind comparative evaluation in skill-creator both attempt to mitigate this.
+**Circular optimization risk.** When a generator and judge share the same base model, optimizing the generator against the judge's scores may improve performance on the judge without improving performance on actual task success. The judge can be gamed.
 
-**Score compression**: Judges avoid extreme scores. Outputs that are clearly excellent or clearly terrible often cluster in the 0.7-0.9 range rather than separating at 0.0 and 1.0. This reduces the discriminative power of absolute scoring for corner cases. Comparative judgment tends to perform better for ranking fine-grained quality differences.
+**Concrete failure mode.** A judge scoring pharmaceutical summaries with a rubric emphasizing "technical completeness" will reward verbose outputs that repeat source material nearly verbatim. The word-count grader and the LLM judge can pull in opposite directions, with the judge consistently failing short but accurate summaries that the word-count grader passes. Score aggregation logic needs to handle this tension explicitly rather than averaging.
 
-**Inconsistency at scale**: Running the same judge prompt on the same input multiple times produces different scores. The skill-creator documentation addresses this directly: running 3x per query to get reliable trigger rates, using mean ± stddev for variance analysis. Single-run scores are insufficient for high-stakes decisions.
+## Unspoken Infrastructure Assumption
+
+LLM-as-Judge assumes the judge model is stable across evaluation runs. In practice, model providers update weights, change safety filters, and deprecate versions. A score distribution produced with `gpt-4.1` in one month may not reproduce with the same model identifier six months later. Evaluation pipelines that depend on LLM-as-Judge scores for regression detection need to pin model versions and re-establish baseline distributions after any model update, which adds operational overhead that most implementations ignore.
 
 ## When Not to Use It
 
 Skip LLM-as-Judge when:
 
-- The property you're measuring has a deterministic ground truth. Use exact match, schema validation, or Python checks instead. They're faster, cheaper, and not subject to judge variance.
-- Your budget can't absorb the cost. The OpenAI cookbook's full eval loop (20 queries × 3 runs × 5 iterations) costs ~$0.15 for the judge tier but compounds quickly at scale. At 10,000 traces per day with a judge on every trace, costs accumulate before calibration confirms the judge is actually measuring what you care about.
-- The domain requires expertise the judge model lacks and you can't encode that expertise into the rubric. Some failure modes in specialized regulated domains need human review. LLM-as-Judge is a complement to human annotation queues, not a replacement.
-- You need real-time evaluation at low latency. Judge calls add 1-5 seconds per evaluation. Sampling rather than evaluating every trace is the standard workaround.
+- **The success criterion is fully deterministic.** If the correct answer is a regex match, a number within tolerance, or a specific string, a deterministic check is cheaper, faster, and more consistent.
+- **You need legal defensibility.** LLM scores cannot be audited in the way human annotations can. Regulated contexts (clinical trials, financial disclosures) that require documented evaluation methodology should not rely on LLM judgment as primary evidence.
+- **The generator and judge are from the same model family and you care about cross-model comparison.** Self-preference bias will distort results.
+- **Your eval budget is tight and deterministic graders cover the failure modes you actually care about.** Adding an LLM judge call for every output increases cost and latency without proportional benefit if the failures are detectable by simpler means.
+- **The rubric is unstable.** If your quality criteria are still being debated, you will produce an eval infrastructure that measures a moving target. Stabilize criteria before automating measurement.
 
 ## Unresolved Questions
 
-The documentation from all sources leaves several operational questions unanswered:
+**Score calibration across judges.** There is no standard for what a 0.8 means across different judge models or rubrics. Comparing scores from different evaluation setups requires re-calibration work that most teams do not do.
 
-- **Judge model selection**: Which model should judge? The OpenAI cookbook uses `gpt-4.1` for the LLM judge and `o3-mini` in the LangGraph reflection example. There's no published guidance on when to use a stronger judge vs. a cheaper one, or whether the judge should match, exceed, or differ from the model being evaluated.
+**Cost at scale.** A judge call per generation is affordable in a notebook; it becomes significant in a continuous monitoring loop processing thousands of production outputs daily. The cost structure is rarely modeled before deployment.
 
-- **Calibration cadence**: How often should judge prompts be recalibrated against human labels? None of the implementations specify a maintenance cycle. A judge calibrated at launch may drift as the underlying model updates or as the distribution of inputs shifts.
+**Conflict resolution in multi-grader stacks.** When deterministic graders pass and the LLM judge fails, or vice versa, which signal governs? The OpenAI cookbook uses a lenient pass ratio (75% of graders must pass) as a heuristic. Whether this is the right aggregation strategy for a given domain is not addressed by most implementations.
 
-- **Score aggregation**: When combining deterministic and LLM-based graders, the OpenAI cookbook uses a simple average. The GEPA variant uses multi-objective Pareto optimization. There's no guidance on which aggregation method is appropriate for which use cases.
+**Judge version governance.** Who decides when to update the judge model, and how are historical scores adjusted? This is unaddressed in most LLM-as-Judge deployments.
 
-- **Governance at scale**: Who controls the rubric in a production system, and how do rubric changes get reviewed? A rubric change can silently shift the optimization target across the entire agent improvement loop.
+## Alternatives
+
+- **Deterministic graders**: Faster, cheaper, consistent, but cannot measure holistic quality. Use when success criteria decompose into rules.
+- **Human annotation**: Gold standard for accuracy and defensibility. Use when sample size is small, stakes are high, or you are calibrating an LLM judge.
+- **Reward models trained on human preferences** (e.g., RLHF reward heads): More stable than prompt-based judges once trained, but require labeled data to build and re-train on distribution shift.
+- **Reference-based metrics** (BLEU, ROUGE, BERTScore): Cheap and reproducible but correlate poorly with human judgment on open-ended generation. Use for sanity checks, not primary evaluation.
+- **[GRPO](../concepts/grpo.md) and similar RL-from-model-feedback approaches**: Use the judge signal to fine-tune the generator rather than just prompt it. More expensive but produces durable improvements rather than prompt-level patches.
 
 ## Related Concepts
 
-- [Self-Improving Agent](../concepts/self-improving-agent.md): LLM-as-Judge is the feedback signal that makes self-improvement loops possible without human annotation at each step.
-- [Agent Skills](../concepts/agent-skills.md): The skill-creator meta-skill uses LLM-as-Judge as one component of its three-tier evaluation framework.
-- [Reflexion](../concepts/reflexion.md): A related pattern where the same model generates verbal self-criticism rather than using a separate judge.
-- [GEPA](../concepts/gepa.md): Extends LLM-as-Judge signals into Pareto-based prompt optimization.
-- [Prompt Engineering](../concepts/prompt-engineering.md): Rubric design for judges is itself a prompt engineering problem; rubric quality directly determines judge reliability.
-- [LangChain](../projects/langchain.md): The `openevals` library provides `create_llm_as_judge` used in LangGraph reflection examples.
-- [Decision Traces](../concepts/decision-traces.md): Judge evaluation of full trajectories rather than final outputs requires trace-level visibility.
+- [Self-Improving Agents](../concepts/self-improving-agents.md): LLM-as-Judge is the primary feedback signal that enables automated self-improvement without human annotation.
+- [Prompt Optimization](../concepts/prompt-optimization.md): Judge scores drive automated prompt rewriting in meta-prompt loops.
+- [GEPA](../concepts/gepa.md): A structured prompt evolution framework that uses LLM-as-Judge scores as its fitness function.
+- [Synthetic Data Generation](../concepts/synthetic-data-generation.md): Judges are used to filter synthetic data quality before it enters training sets.
+- [Human-in-the-Loop](../concepts/human-in-the-loop.md): The practical alternative or complement when LLM judgment is insufficient.
+- [Reinforcement Learning](../concepts/reinforcement-learning.md): LLM-as-Judge extends naturally into reward modeling for RL-based fine-tuning.
+- [Observability](../concepts/observability.md): Production judge scores feed monitoring dashboards for drift detection.

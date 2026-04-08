@@ -25,10 +25,11 @@ relevance_scores:
   signal_quality: 6
   composite: 7
   reason: >-
-    Directly addresses agentic skill composition patterns (topic 4) with a
-    detailed conceptual guide covering skills vs tools vs plugins distinctions,
-    modular capability packaging, and delegation architectures—though it's an
-    article rather than a production-ready implementation.
+    This article directly addresses SKILL.md-adjacent architectural
+    patterns—skills as modular, self-governing capability packages with decision
+    logic—which maps squarely to Agent Architecture (topic 4) and context
+    engineering via context pollution reduction, with transferable patterns for
+    skill composition and versioned capability management.
 ---
 ## AI Agent Skills Complete Guide 2026: Building Reusable Agent Capabilities
 

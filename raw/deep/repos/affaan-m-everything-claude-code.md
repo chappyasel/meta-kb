@@ -3,15 +3,20 @@ url: 'https://github.com/affaan-m/everything-claude-code'
 type: repo
 author: affaan-m
 date: '2026-04-04'
-tags: [agent-systems, agentic-skills, context-engineering, self-improving, agent-memory]
+tags:
+  - agent-systems
+  - agentic-skills
+  - context-engineering
+  - self-improving
+  - agent-memory
 key_insight: >-
   Everything Claude Code reveals the emergent architecture of large-scale skill
   curation: 156 skills + 38 agents + 72 legacy commands organized across 12
   language ecosystems with a manifest-driven selective install system -- the key
   pattern is that at this scale, the hard problem shifts from individual skill
-  quality to skill governance (conflict detection, install profiles, hook runtime
-  controls, cross-harness parity) and the continuous learning loop where sessions
-  automatically extract reusable patterns into the skill library.
+  quality to skill governance (conflict detection, install profiles, hook
+  runtime controls, cross-harness parity) and the continuous learning loop where
+  sessions automatically extract reusable patterns into the skill library.
 stars: 136116
 deep_research:
   method: source-code-analysis
@@ -34,6 +39,17 @@ deep_research:
     - ecc2/Cargo.toml
   analyzed_at: '2026-04-04'
   original_source: repos/affaan-m-everything-claude-code.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 9
+  novelty: 8
+  signal_quality: 9
+  composite: 8.9
+  reason: >-
+    Directly implements the SKILL.md/agent harness pattern at scale (156 skills,
+    38 agents, cross-harness parity) with continuous session-to-skill extraction
+    loops — a core reference architecture for agent capability organization,
+    governance, and self-improvement patterns covered in topics 3, 4, and 6.
 ---
 
 ## Architecture Overview

@@ -24,16 +24,16 @@ likes: 329
 retweets: 67
 views: 57182
 relevance_scores:
-  topic_relevance: 7
-  practitioner_value: 5
-  novelty: 6
+  topic_relevance: 9
+  practitioner_value: 6
+  novelty: 7
   signal_quality: 6
-  composite: 6.1
+  composite: 7.4
   reason: >-
-    Directly engages with Karpathy's KB pattern and extends it toward shared
-    context graphs and decision lineage—relevant to knowledge bases and agent
-    memory, though the promotional angle for OriginTrail DKG reduces its
-    standalone instructional value.
+    Directly addresses shared context graphs, decision lineage, and
+    decentralized knowledge protocols for multi-agent coordination—core pillars
+    of the KB—with a concrete multi-agent coding use case, though it's a
+    tweet/article hybrid without deep technical implementation details.
 ---
 ## Tweet by @BranaRakic
 

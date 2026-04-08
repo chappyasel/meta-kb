@@ -22,18 +22,17 @@ key_insight: >-
   must be architected to work around limited output sophistication, not just
   input capacity.
 relevance_scores:
-  topic_relevance: 10
-  practitioner_value: 8
-  novelty: 7
-  signal_quality: 8
-  composite: 8.7
-  deep_researched: 'deep/papers/mei-a-survey-of-context-engineering-for-large-language.md'
+  topic_relevance: 9
+  practitioner_value: 7
+  novelty: 6
+  signal_quality: 7
+  composite: 7.7
   reason: >-
-    A comprehensive 1400-paper survey that formally taxonomizes context
-    engineering—covering retrieval, processing, management, RAG, memory systems,
-    and multi-agent systems—directly mapping to the core topics of this
-    knowledge base, with the asymmetry insight being practically actionable for
-    KB architects.
+    This survey directly formalizes context engineering as a discipline covering
+    RAG, memory systems, tool-integrated reasoning, and multi-agent systems—core
+    topics of the knowledge base—and the asymmetry insight between comprehension
+    and generation has direct architectural implications for KB builders, though
+    as a survey paper it lacks implementation artifacts.
 ---
 ## A Survey of Context Engineering for Large Language Models
 

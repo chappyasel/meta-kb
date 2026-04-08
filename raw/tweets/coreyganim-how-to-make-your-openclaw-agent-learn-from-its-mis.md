@@ -23,12 +23,14 @@ relevance_scores:
   topic_relevance: 9
   practitioner_value: 8
   novelty: 7
-  signal_quality: 7
-  composite: 8.1
+  signal_quality: 6
+  composite: 8
   reason: >-
-    Directly implements a self-improving agent memory pattern using structured
-    markdown files and AGENTS.md promotion—hitting topics 2, 3, 4, and 5
-    simultaneously with a concrete, immediately actionable workflow.
+    Directly describes a self-improving agent loop using structured markdown
+    logging (ERRORS.md, LEARNINGS.md, AGENTS.md) with promotion to permanent
+    memory—hitting topics 4, 5, and 6 (SKILL.md/AGENTS.md standards,
+    self-improving loops, institutional memory) with a concrete, actionable
+    60-second setup pattern.
 ---
 ## Tweet by @coreyganim
 

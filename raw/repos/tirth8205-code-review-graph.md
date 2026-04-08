@@ -23,16 +23,16 @@ deep_researched: deep/repos/tirth8205-code-review-graph.md
 stars: 4176
 forks: 381
 relevance_scores:
-  topic_relevance: 7
-  practitioner_value: 8
+  topic_relevance: 8
+  practitioner_value: 9
   novelty: 7
   signal_quality: 8
-  composite: 7.5
+  composite: 8.2
   reason: >-
-    Directly addresses context window management via persistent code graphs and
-    blast-radius dependency analysis for LLM agents—highly relevant to context
-    engineering and knowledge base compilation patterns, with production-ready
-    tooling and measurable token reduction benchmarks.
+    Directly implements context engineering via persistent code knowledge graphs
+    and blast-radius dependency traversal to minimize token consumption—core to
+    context window management and knowledge substrate topics, with a
+    production-ready MCP-compatible tool and concrete benchmarks.
 language: Python
 license: MIT
 ---

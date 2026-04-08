@@ -28,6 +28,18 @@ deep_research:
   text_length: 12000
   analyzed_at: '2026-04-04'
   original_source: papers/lee-meta-harness-end-to-end-optimization-of-model-har.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 9
+  novelty: 9
+  signal_quality: 9
+  composite: 9
+  reason: >-
+    Meta-Harness directly addresses automated harness/context engineering
+    optimization via a self-improving outer loop with full execution trace
+    access — a core pattern for agent infrastructure practitioners covering
+    context engineering, self-improving systems, and agent architecture
+    simultaneously.
 ---
 
 ## Architecture Overview

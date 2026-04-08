@@ -209,7 +209,7 @@ Missing source types that limit the wiki's ability to answer practitioner questi
 
 Four findings from implementing prompt surgery and switching to Opus for synthesis:
 
-15. **Opus synthesis eliminated formulaic writing without reducing accuracy.** Em dashes dropped from 1600+ lines to 1. Banned words dropped to 1 occurrence ("ecosystem", once) across all 5 synthesis articles. Claim accuracy held at 80.0%. The $3.30 incremental cost is negligible.
+15. **Opus synthesis eliminated formulaic writing without reducing accuracy.** Em dashes dropped from 1600+ lines to 1. Banned words dropped to 1 occurrence ("ecosystem", once) across all synthesis articles. Claim accuracy held at 80.0%. The $3.30 incremental cost is negligible.
 
 16. **Opening variation works when assigned deterministically.** Three opening strategies (surprising finding, concrete failure, strongest disagreement) assigned by bucket index produced 5 distinct article openings. No two articles use the same rhetorical formula. Deterministic assignment avoids non-reproducible compilations.
 
@@ -223,7 +223,7 @@ Four findings from implementing prompt surgery and switching to Opus for synthes
 
 ### Phase 1: Prompt Surgery + Quick Fixes ✓
 
-Completed. Results: writing quality improved (em dashes 1600+ → 1, banned words eliminated from synthesis), 53 broken links fixed to zero, 15 entity cards restored from V3, accuracy maintained at 80.0%, all 5 synthesis articles have 10 sections including new Deprecated Approaches. See Learnings from V5 below.
+Completed. Results: writing quality improved (em dashes 1600+ → 1, banned words eliminated from synthesis), 53 broken links fixed to zero, 15 entity cards restored from V3, accuracy maintained at 80.0%, all synthesis articles have 10 sections including new Deprecated Approaches. See Learnings from V5 below.
 
 ### Phase 2: Source Acquisition
 

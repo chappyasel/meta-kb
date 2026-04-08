@@ -18,7 +18,7 @@ key_insight: >-
   models—autocontext turns ephemeral agent runs into a self-improving asset that
   compounds reliability and reduces frontier-model dependency over time.
 stars: 695
-deep_researched: 'deep/repos/greyhaven-ai-autocontext.md'
+deep_researched: deep/repos/greyhaven-ai-autocontext.md
 forks: 50
 relevance_scores:
   topic_relevance: 9
@@ -27,10 +27,10 @@ relevance_scores:
   signal_quality: 7
   composite: 8.3
   reason: >-
-    autocontext directly implements a self-improving agent harness with
-    knowledge persistence, credit assignment, playbook distillation, and model
-    compression—hitting topics 2, 4, and 5 with high fidelity and a real Python
-    implementation.
+    autocontext directly implements a self-improving agent harness with credit
+    assignment, knowledge persistence, playbook distillation, and cost-aware
+    loop control—core patterns for self-improving systems and context
+    engineering with a real Python implementation and active development.
 language: Python
 license: Apache-2.0
 ---

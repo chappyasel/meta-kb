@@ -23,16 +23,17 @@ key_insight: >-
 stars: 419
 forks: 60
 relevance_scores:
-  topic_relevance: 9
-  practitioner_value: 7
-  novelty: 8
+  topic_relevance: 8
+  practitioner_value: 6
+  novelty: 7
   signal_quality: 7
-  composite: 8
+  composite: 7.1
   reason: >-
-    MemoryBank's Ebbinghaus-inspired selective forgetting/reinforcement
-    mechanism is a genuinely novel approach to agent episodic memory with
-    working code, paper, and evaluation data, directly addressing long-horizon
-    memory management in LLM agents.
+    MemoryBank's Ebbinghaus-inspired selective memory reinforcement/decay is a
+    transferable pattern directly relevant to agent memory systems
+    (cross-session retention, episodic memory evolution), with working code,
+    paper, and evaluation data, though it's research-oriented and requires
+    adaptation for general agent use.
 language: Python
 license: MIT
 ---

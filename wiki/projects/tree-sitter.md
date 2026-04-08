@@ -1,47 +1,53 @@
 ---
 entity_id: tree-sitter
 type: project
-bucket: agent-systems
+bucket: agent-architecture
 abstract: >-
-  Tree-sitter is a parser generator and incremental parsing library that builds
-  concrete syntax trees for source code, used by AI coding tools to enable
-  syntax-aware analysis, navigation, and editing across 100+ languages.
+  Tree-sitter is an incremental, error-tolerant parser generator that produces
+  concrete syntax trees for 100+ languages; its key differentiator is
+  sub-millisecond re-parsing of changed code regions without full file
+  re-processing.
 sources:
   - tweets/heygurisingh-breaking-someone-open-sourced-a-knowledge-graph.md
+  - repos/safishamsi-graphify.md
   - repos/tirth8205-code-review-graph.md
   - deep/repos/tirth8205-code-review-graph.md
 related:
   - claude-code
+  - model-context-protocol
   - cursor
-  - mcp
+  - knowledge-graph
   - windsurf
-last_compiled: '2026-04-07T12:01:30.713Z'
+  - windsurf
+last_compiled: '2026-04-08T02:50:32.809Z'
 ---
 # Tree-sitter
 
 ## What It Is
 
-Tree-sitter is a C library that generates and executes incremental parsers for programming languages. Given source code, it produces a concrete syntax tree (CST) that represents every character, including whitespace and comments, with precise byte offsets and row/column positions. When code changes, Tree-sitter re-parses only the affected regions rather than the full file.
+Tree-sitter is a parser generator and incremental parsing library originally written at GitHub by Max Brunsfeld. It takes language grammar definitions and compiles them into C parsers that produce concrete syntax trees (CSTs) — full parse trees that preserve every token including whitespace and comments, unlike abstract syntax trees which elide structural noise.
 
-Max Brunsfeld created it at GitHub (now Neovim's core editor parser and used in GitHub's code search). It ships as a runtime library (`libtree-sitter`) paired with a separate parser generator (`tree-sitter generate`) that compiles grammar definitions (written in JavaScript) into C parsers. Each language gets its own grammar repository, e.g., `tree-sitter-python`, `tree-sitter-typescript`.
+The library's defining property: when source code changes, it re-parses only the affected regions. Editing a function body doesn't re-parse the file's imports. This makes it practical for editor integrations where parsing runs on every keystroke.
 
-The project has ~21K GitHub stars. Benchmark figures published by the project are self-reported; independent validation exists through widespread editor adoption (Neovim, Helix, Zed, VS Code extensions) where real-world performance is observable.
+Two repositories matter: `tree-sitter/tree-sitter` (the runtime and grammar authoring toolkit, ~20K GitHub stars) and the constellation of `tree-sitter/tree-sitter-{language}` grammar repos covering Python, JavaScript, TypeScript, Go, Rust, Java, C/C++, Ruby, and 100+ others. The `tree_sitter_language_pack` Python package bundles these grammars for programmatic use.
 
 ## Core Mechanism
 
-### Parsing Pipeline
+### Grammar Compilation
 
-The generator reads a grammar defined in JavaScript (`grammar.js`), where rules describe the language's syntax using combinators (`seq`, `choice`, `repeat`, `optional`, etc.). It produces a set of LR(1) parse tables, serialized as C source files (`parser.c`). At runtime, the `ts_parser_parse()` function takes a source string (or callback-based reader) and these tables, producing a `TSTree`.
+Authors write grammars in JavaScript using Tree-sitter's DSL (`grammar.js`). The `tree-sitter generate` command compiles these to C source files — a `parser.c` and optional `scanner.c` for languages with context-sensitive tokens. The generated C is checked into the grammar repository. Consumers compile it into a shared library or link it statically.
 
-The tree is a concrete syntax tree: every byte of input maps to a leaf node. Named nodes (declared with `$._` prefix in the grammar) correspond to meaningful constructs like `function_declaration` or `import_statement`. Anonymous nodes correspond to literals like `(`, `;`, or `->`. The distinction matters for code analysis tools that want to ignore punctuation.
+The grammar DSL exposes rules for defining syntax nodes, named fields, and precedence relationships. For example, a Python function definition rule names its `name`, `parameters`, and `body` fields — these become queryable fields on parsed nodes.
 
-### Incremental Re-parsing
+### Incremental Parsing
 
-When source changes, callers pass the old tree and an edit range to `ts_parser_parse()`. The parser reuses subtrees whose byte ranges were not affected, re-parsing only the changed region plus enough context to resolve ambiguities. In practice, editing a function body does not reparse the file header. This is what makes Tree-sitter viable inside editors for keystroke-level responsiveness.
+The core algorithm is documented in `lib/src/parser.c`. Tree-sitter uses a GLR-derived algorithm that tracks multiple parse states in parallel to handle ambiguous grammars. After an initial parse, the library stores the old tree alongside the new source. When `ts_parser_parse` is called with edit ranges (via `ts_tree_edit`), the parser reuses subtrees whose byte ranges weren't touched. A change to line 47 of a 3,000-line file re-uses all syntax nodes outside that edit range.
 
-### Query Language
+The `Tree` struct exposes `ts_tree_get_changed_ranges`, which returns the minimal set of ranges that differ between old and new trees. Downstream tools (editors, language servers, code intelligence systems) use this to invalidate only affected state.
 
-Tree-sitter provides a Lisp-style query language (`ts_query_new()`) that matches against the CST using S-expression patterns:
+### Query System
+
+Tree-sitter includes a pattern-matching query language written in S-expression syntax. Queries match node types, field names, and arbitrary nesting. For example:
 
 ```scheme
 (function_definition
@@ -49,94 +55,95 @@ Tree-sitter provides a Lisp-style query language (`ts_query_new()`) that matches
   body: (block) @function.body)
 ```
 
-Captures (the `@name` suffixes) extract matched nodes. Tools can then iterate over captures rather than walking the tree manually. Predicates (`#eq?`, `#match?`, `#is-not?`) filter captures by text content or regex.
+The `ts_query` API compiles queries to a finite automaton. `ts_query_cursor_exec` runs a compiled query against a tree, returning captures. This is how editors implement syntax highlighting, code folding, and symbol extraction.
 
-The code-review-graph project explicitly chose to walk the AST manually rather than use queries, citing robustness across grammar versions as the reason. Both approaches are valid; queries are more concise, manual walks are more defensive against grammar changes.
+### Concrete vs Abstract Syntax Trees
 
-### Grammar Architecture
+Tree-sitter produces CSTs, not ASTs. Every token appears in the tree. Named nodes (those with grammar-assigned names like `function_definition`) are distinguished from anonymous nodes (punctuation, keywords). The `is_named` property on nodes reflects this. Most code intelligence tools walk named nodes and skip anonymous ones, approximating AST traversal while retaining the ability to reconstruct exact source from the tree.
 
-Each grammar lives in a separate repository with a predictable structure: `grammar.js` defines the rules, `src/parser.c` is the generated parser, `src/node-types.json` describes the node type schema. Grammars can inherit from others via `externals` and `extras` to handle embedded languages (e.g., JSX inside TypeScript, SQL inside Python f-strings).
+### Error Recovery
 
-The `tree_sitter_language_pack` Python package bundles precompiled parsers for ~100 languages as a single install, which is why projects like code-review-graph can support 19 languages without requiring users to compile individual grammars.
+Grammars declare `ERROR` nodes for sequences the parser can't match. Tree-sitter continues parsing after errors, wrapping unrecognized tokens in `ERROR` nodes. This means a file with syntax errors still produces a mostly-valid tree, which is why it works in editor contexts where files are frequently in intermediate invalid states.
 
-## How AI Coding Tools Use It
+## How Coding Agents Use It
 
-### Syntax-Aware Context Extraction
+The deep implementation analysis from code-review-graph illustrates the dominant pattern: build a structural knowledge graph from Tree-sitter ASTs, then query the graph rather than re-parsing files.
 
-AI tools need to slice code into meaningful chunks for embedding, retrieval, or prompt assembly. Tree-sitter lets them cut at function or class boundaries rather than arbitrary line counts. A function starting at byte 1240 and ending at byte 1890 can be extracted exactly, preserving the complete syntactic unit.
+In `parser.py` of code-review-graph:
 
-[Context Engineering](../concepts/context-engineering.md) depends on this: sending an LLM a complete function is better than sending lines 40-80 of a file that starts mid-expression.
+1. **Language detection** — file extension maps to grammar via `EXTENSION_TO_LANGUAGE`
+2. **Grammar loading** — `tree_sitter_language_pack` loads the compiled grammar
+3. **AST walk** — recursive walk pattern-matches on language-specific node type sets (`_CLASS_TYPES`, `_FUNCTION_TYPES`, `_IMPORT_TYPES`, `_CALL_TYPES`)
+4. **Entity extraction** — each matched node yields a `NodeInfo` dataclass (name, file path, line range, parent, params, modifiers)
+5. **Edge extraction** — call expressions within function bodies become `EdgeInfo` records
 
-### Structural Navigation for Agent Tools
+The code-review-graph author made a specific choice to use a recursive AST walk with explicit node type mappings rather than Tree-sitter's query language, citing robustness across grammar version changes. The tradeoff: more code per language, fewer surprises when grammars update.
 
-[Claude Code](../projects/claude-code.md), [Cursor](../projects/cursor.md), and [Windsurf](../projects/windsurf.md) use Tree-sitter (directly or via language servers that wrap it) to answer agent tool calls like "find all call sites of `validate()`" or "list all class definitions in this file." Without a parser, these require regex heuristics that fail on multiline expressions, string literals containing code-like text, or nested scopes.
+Graphify ([source](../raw/repos/safishamsi-graphify.md)) combines Tree-sitter AST extraction with an LLM-powered concept extraction pass and stores results in a NetworkX graph. Its "AST via tree-sitter + call-graph pass" extracts structural facts (function definitions, call sites, imports), then Claude fills in semantic relationships the AST can't express.
 
-The code-review-graph architecture built on top of Tree-sitter demonstrates the downstream value: its `parser.py` walks Tree-sitter ASTs to extract `NodeInfo` records (kind, name, qualified name, line range, parent name, params, return type) and `EdgeInfo` records (CALLS, IMPORTS_FROM, INHERITS, IMPLEMENTS), which it stores in SQLite. The blast-radius BFS that achieves 8.2x token reduction operates on these extracted structures, not on raw source.
-
-### [Model Context Protocol](../concepts/mcp.md) Tool Integration
-
-MCP servers that expose code structure to agents commonly rely on Tree-sitter for the extraction layer. A dedicated "Tree-sitter MCP Server" (Joshua M. Dotson) exposes raw AST access over MCP, while higher-level tools like code-review-graph use Tree-sitter internally and expose derived tools (`get_impact_radius_tool`, `query_graph_tool`).
-
-### Language-Agnostic Symbol Extraction
-
-The same extraction code works across languages by switching the grammar. Adding Python support and Go support requires mapping language-specific node type names (`function_definition` vs `function_declaration`) to a common schema, not rewriting the extraction logic. code-review-graph's `_CLASS_TYPES`, `_FUNCTION_TYPES`, `_IMPORT_TYPES`, `_CALL_TYPES` dictionaries per language are the full extent of per-language work on top of Tree-sitter.
+[Claude Code](../projects/claude-code.md), [Cursor](../projects/cursor.md), and [Windsurf](../projects/windsurf.md) use Tree-sitter for syntax highlighting and code navigation. More relevantly for agent workflows, they consume Tree-sitter-backed tools (via [Model Context Protocol](../concepts/model-context-protocol.md)) that expose structural queries: callers-of, callees-of, inheritance chains, test coverage gaps.
 
 ## Key Numbers
 
-- ~21K GitHub stars (as of 2025, self-reported by the project and consistent with public GitHub data)
-- Ships as the default parser in Neovim (since 0.9), Helix, and Zed
-- Grammars exist for 100+ languages in the official and community grammar repositories
-- `tree_sitter_language_pack` bundles ~100 precompiled parsers
-- Parse latency at the C library level is typically sub-millisecond for files under 10K lines, though this depends heavily on grammar complexity and is not independently benchmarked in a standardized way
-- code-review-graph, which uses Tree-sitter as its extraction layer, reports sub-millisecond search latency and 95-128ms flow detection on graphs with 1,250-6,285 nodes (self-reported, reproducible via `code-review-graph eval`)
+| Metric | Value | Source |
+|--------|-------|--------|
+| GitHub stars (tree-sitter/tree-sitter) | ~20K | Self-reported |
+| Languages with maintained grammars | 100+ | Self-reported |
+| Incremental re-parse latency (typical edit) | Sub-millisecond | Self-reported, plausible for in-process C parser |
+| code-review-graph flow detection on 6K node graph | 95–130ms | Self-reported, reproducible via `eval --all` |
+| code-review-graph search latency | 0.4–1.5ms | Self-reported, reproducible |
+
+The latency numbers from code-review-graph are self-reported but include reproduction instructions (`code-review-graph eval --all`), which raises credibility. The core Tree-sitter latency claims are consistent with running a compiled C parser in-process; independently plausible though not independently benchmarked in these sources.
 
 ## Strengths
 
-**Universal syntax access without language-specific infrastructure.** A single API, one set of bindings, and a grammar switch covers Python, TypeScript, Go, Rust, and 96 others. No language server daemon required, no JVM, no Node process.
+**Universal grammar coverage.** A single API works across 100+ languages with consistent node traversal. Code intelligence tools don't implement per-language parsers; they implement once against the Tree-sitter node API.
 
-**Error recovery.** Tree-sitter parsers produce trees for syntactically invalid code, representing errors as `ERROR` nodes. This matters for AI tools that process partially-written code mid-edit. A language server would fail to parse; Tree-sitter provides the best available tree.
+**Incremental correctness.** Re-parsing only changed regions is not an approximation — the algorithm guarantees the resulting tree matches what a full re-parse would produce. This matters for systems that build derived state (call graphs, type indexes) on top of parse results.
 
-**Precise byte offsets.** Every node carries `start_byte`, `end_byte`, `start_point` (row, column), `end_point`. Agents that need to apply edits at specific positions get exact coordinates without text scanning.
+**Error tolerance.** Partial parses in the presence of syntax errors mean agents working with in-progress code still get useful structure. An LLM editing a function that temporarily has missing closing braces doesn't break the entire code graph.
 
-**Stable, embeddable C library.** The runtime is ~5K lines of C with no dependencies, suitable for embedding in editors, language tools, and compiled agents. Bindings exist for Python, Rust, Go, JavaScript, and others.
+**In-process C library.** No language server daemon required. Tree-sitter links as a C library with bindings for Python, Node.js, Rust, Go, and others. This eliminates the per-language server management overhead that LSP-based tools require.
+
+**Separation of grammar and runtime.** Grammar authors publish compiled grammars; consumers pull them. Adding a new language is adding a grammar, not modifying the runtime.
 
 ## Critical Limitations
 
-**Static structure only.** Tree-sitter parses syntax. It knows nothing about types, values at runtime, or dynamic dispatch. A Python call like `obj.method()` is an `attribute` node followed by an `argument_list`; Tree-sitter cannot tell you what class `obj` is without type inference from a separate layer. This means tools built on Tree-sitter alone will miss call edges from `getattr()`, dependency injection, and method dispatch through interfaces. code-review-graph explicitly names this as a failure mode: "dynamic dispatch creates edges that the parser can't see, potentially missing impact paths."
+**Static structure only.** Tree-sitter sees what's in the source text. Dynamic dispatch — Python's `getattr()`, JavaScript's `obj[method]()`, dependency injection containers, metaclass-generated methods — produces no AST edges. Code intelligence systems built on Tree-sitter miss these paths. In code-review-graph's impact analysis, this means blast radius calculations can miss dependencies that only exist at runtime. The failure mode: a function appears to have zero callers in the graph but has dozens via dynamic dispatch; a change to it ships without review of its actual dependents.
 
-**Grammar version brittleness.** Grammars change. A node type named `function_definition` in Python grammar 0.20 might split into multiple node types in 0.23. Tools that hardcode node type names break silently on grammar updates: the extraction code runs without error but produces empty results for the new node type. The code-review-graph team chose manual AST walking over query language specifically because they found queries less robust across grammar version changes; but the underlying problem affects any approach that names specific node types.
+**Infrastructure assumption: grammar freshness.** Tree-sitter grammar repos are community-maintained. When languages add syntax (TypeScript's `satisfies` operator, Python's structural pattern matching), the grammar must be updated before Tree-sitter understands the new construct. Using a stale grammar silently produces ERROR nodes for valid code, degrading code graph quality without explicit failure. Projects depending on `tree_sitter_language_pack` inherit whatever grammar versions were pinned at that package's last release.
 
 ## When NOT to Use It
 
-**When type information is required.** If the task needs to know that `x` is of type `Optional[User]` or that a call resolves to a specific overloaded method, Tree-sitter cannot help. Use a language server (LSP) or language-specific type checker instead. The Serena project takes this path, using LSP to provide type-aware analysis that Tree-sitter alone cannot deliver.
+**Type-aware analysis at scale.** Tree-sitter resolves syntax, not semantics. It can't tell you that `x.foo()` calls `MyClass.foo` specifically — that requires type inference. For agents that need precise type-level impact analysis (e.g., verifying a signature change doesn't break callers with incompatible types), a Language Server Protocol backend with full type resolution is more appropriate. Serena's LSP approach handles this; Tree-sitter-based tools don't.
 
-**When a language server is already available.** For a single-language codebase where running a language server is acceptable infrastructure overhead, LSP provides richer information: go-to-definition resolves through dynamic dispatch, find-references is type-aware, and hover information includes inferred types. Tree-sitter's advantage is breadth and zero-infrastructure cost; if you only need one language and can run its toolchain, LSP is more accurate.
+**Dynamically-typed codebases with heavy metaprogramming.** Python codebases that generate classes via `type()`, Ruby codebases using `method_missing`, or JavaScript codebases with extensive Proxy usage will have significant portions of their call graph invisible to static AST analysis. A Tree-sitter-backed code graph of such a codebase gives confident-looking but structurally incomplete results.
 
-**For semantic similarity search.** Tree-sitter extracts structure; it produces no embeddings. For "find code that does something similar to this function," you need an [Embedding Model](../concepts/embedding-model.md) over function bodies. Tree-sitter can help by extracting clean function text for embedding, but the similarity computation is entirely outside its scope.
+**When you need query expressiveness over speed.** Tree-sitter's query language is pattern-based, not relational. Complex queries — "find all functions that call any method on objects of type X where X implements interface Y" — require walking the tree programmatically. For these analyses, CodeQL or Semgrep's analysis engines offer richer query semantics.
 
 ## Unresolved Questions
 
-**Grammar maintenance and ownership.** Many language grammars are maintained by volunteers in separate repositories with no SLA. A grammar that was accurate for Python 3.9 may not correctly parse Python 3.12 match statements. There is no centralized status dashboard showing grammar accuracy against language spec versions, and no formal process for reporting or tracking grammar correctness issues.
+**Cross-language edge resolution.** When a Python module calls a C extension, or TypeScript imports a JavaScript module through a barrel export, Tree-sitter-based tools resolve these edges incompletely or not at all. Code-review-graph documents partial resolution for TypeScript path aliases via `tsconfig_resolver.py` but doesn't address the general cross-language case. The documentation doesn't explain how agents should reason about confidence in edges that cross language boundaries.
 
-**Performance at very large scale.** Tree-sitter's incremental re-parsing is fast for single-file edits. For full-repository initial indexing of codebases with 100K+ files, the bottleneck shifts to I/O and the extraction layer above Tree-sitter. There are no published benchmarks for this regime from the Tree-sitter project itself. code-review-graph notes a 50K-file soft limit for their SQLite+NetworkX layer and considers graph database migration for larger codebases, but this is a downstream architectural constraint rather than a Tree-sitter limitation.
+**Grammar version governance.** No centralized compatibility matrix exists between `tree_sitter_language_pack` versions and language grammar versions. A tool that worked correctly on Python 3.11 syntax may silently produce ERROR nodes for Python 3.12 match statements if the grammar wasn't updated. There's no documented mechanism for detecting this degradation in production.
 
-**Embedded language handling.** Vue single-file components, MDX, SQL inside Python strings, and HTML templates in JavaScript are partially supported through "injection grammars" that Tree-sitter can apply to subranges of a file. The mechanism works but requires per-combination grammar configuration that not all downstream tools implement. Code in embedded positions is frequently missed by tools that use Tree-sitter without configuring injections.
+**Scale ceiling for NetworkX-backed systems.** Tools like code-review-graph that load Tree-sitter-extracted graphs into NetworkX for BFS/community detection have an undocumented memory scaling ceiling. The code-review-graph documentation cites ~50K files as a soft limit before graph database migration becomes necessary, but the Tree-sitter parsing step itself has no documented node count limits.
 
 ## Alternatives
 
-**Language Server Protocol (LSP):** Use when type-aware analysis is required and running language-specific tooling (Node, JVM, clangd) is acceptable. Serena takes this path for 30+ languages. Higher setup overhead, better accuracy for type-resolved call graphs.
+**Language Server Protocol (LSP)** — Use when type-aware analysis matters. LSP-backed tools (Serena, standard IDE integrations) run language-specific servers that understand types, generics, and overload resolution. Higher infrastructure overhead (one server process per language) and more complex lifecycle management, but accurate for the analyses Tree-sitter can't do. Choose LSP when your agents need to verify type compatibility across call sites.
 
-**Semantic code search via embeddings:** Use when the goal is finding semantically similar code rather than structural navigation. Tree-sitter and embeddings are complementary: Tree-sitter extracts function text; embedding models produce vectors over that text. See [Embedding Model](../concepts/embedding-model.md).
+**CodeQL / Semgrep** — Use when the analysis question is security or pattern-matching at the semantic level. These tools ingest Tree-sitter grammars internally but expose SQL-like (CodeQL) or YAML pattern (Semgrep) query interfaces with dataflow analysis. Significantly slower than Tree-sitter for code graph construction; not suitable for real-time or incremental use. Choose when you need "does tainted data flow from user input to SQL query" rather than "what functions call this function."
 
-**Regular expressions / line-based heuristics:** Appropriate only for simple, single-language, controlled-format code where speed of implementation matters more than correctness. Breaks on multiline expressions, nested structures, and string literals containing code-like content.
+**ctags / universal-ctags** — Use for symbol indexing in resource-constrained environments. ctags produces flat symbol tables (function names, line numbers) without structural edges. Much simpler to deploy; lacks call graph construction. Choose when you only need jump-to-definition, not impact analysis.
 
-**ANTLR / hand-written parsers:** Use when grammar precision and formal specification matter more than availability of prebuilt grammars. ANTLR is common in compiler toolchains and static analysis frameworks (SonarQube, CodeQL). Not incremental by default; better suited to batch analysis than keystroke-level editor use.
+**Rope (Python), rust-analyzer, typescript-compiler API** — Language-specific semantic analysis tools. Full type inference within a single language. Use when operating on a homogeneous codebase and needing type-level accuracy. Not portable across languages; unsuitable for polyglot repositories.
 
-## Related
+## Related Concepts and Projects
 
-- [Model Context Protocol](../concepts/mcp.md): Primary integration surface for exposing Tree-sitter-derived tools to agents
-- [Claude Code](../projects/claude-code.md): Uses Tree-sitter-based context extraction for code analysis tools
-- [Cursor](../projects/cursor.md): Relies on Tree-sitter for syntax-aware code navigation and editing
-- [Windsurf](../projects/windsurf.md): Uses Tree-sitter for structural code understanding
-- [Context Engineering](../concepts/context-engineering.md): Tree-sitter enables function-boundary chunking for better context assembly
-- [Knowledge Graph](../concepts/knowledge-graph.md): code-review-graph demonstrates Tree-sitter as the extraction layer for code knowledge graphs
+- [Knowledge Graph](../concepts/knowledge-graph.md) — Tree-sitter ASTs are the extraction layer; knowledge graphs are what code intelligence tools build from them
+- [Model Context Protocol](../concepts/model-context-protocol.md) — Standard interface for exposing Tree-sitter-backed code intelligence to LLM agents
+- [Claude Code](../projects/claude-code.md) — Uses Tree-sitter for syntax highlighting and code navigation; consumes Tree-sitter-backed MCP tools
+- [Cursor](../projects/cursor.md) — Integrates Tree-sitter for code intelligence; accepts MCP servers exposing structural queries
+- [Windsurf](../projects/windsurf.md) — Same pattern as Cursor
+- [Context Engineering](../concepts/context-engineering.md) — Code graph construction via Tree-sitter is a form of context pre-computation that reduces token costs at query time

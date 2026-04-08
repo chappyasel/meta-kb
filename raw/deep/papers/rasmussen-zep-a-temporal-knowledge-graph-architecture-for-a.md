@@ -24,6 +24,17 @@ deep_research:
   text_length: 12500
   analyzed_at: '2026-04-04'
   original_source: papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 9
+  novelty: 8
+  signal_quality: 9
+  composite: 8.9
+  reason: >-
+    Graphiti/Zep's three-tier bi-temporal knowledge graph is a core production
+    agent memory architecture with detailed design choices, benchmarks, and
+    transferable patterns for temporal reasoning, entity resolution, and
+    episodic-semantic memory integration.
 ---
 
 ## Architecture Overview

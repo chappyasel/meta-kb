@@ -28,11 +28,11 @@ relevance_scores:
   signal_quality: 7
   composite: 7.7
   reason: >-
-    Directly implements agentic skill composition and a skills registry pattern
-    (topic 4) with an autoresearch category touching topic 5, providing 87
-    production-ready SKILL.md-style documents that developers can immediately
-    load into Claude/Codex agents—highly transferable to knowledge base and
-    agent memory system builders.
+    A production-ready SKILL.md-style library of 87 domain-specific agent skills
+    for AI research workflows directly instantiates the Agent Architecture and
+    Context Engineering pillars (SKILL.md standards, skill composition,
+    progressive disclosure), with strong practitioner value for builders
+    constructing research-oriented LLM agents.
 language: TeX
 license: MIT
 ---

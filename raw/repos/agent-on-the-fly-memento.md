@@ -28,11 +28,11 @@ relevance_scores:
   signal_quality: 8
   composite: 8.1
   reason: >-
-    Memento implements a genuinely novel self-improving agent loop—using
-    case-based reasoning over stored trajectories as a learned policy to enable
-    continual improvement without weight updates—which is highly transferable to
-    agent memory and self-improving KB systems, with production-ready
-    open-source code, benchmarks, and clear architecture.
+    Memento is a highly novel self-improving agent framework that decouples
+    continual learning from weight updates via case-based reasoning in a
+    memory-augmented MDP—directly transferable to agent memory and
+    self-improvement topics with production-ready open-source code, benchmarks,
+    and active development.
 language: Python
 license: MIT
 ---

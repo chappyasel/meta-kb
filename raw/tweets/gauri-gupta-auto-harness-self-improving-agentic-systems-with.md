@@ -22,16 +22,16 @@ retweets: 124
 views: 137866
 relevance_scores:
   topic_relevance: 9
-  practitioner_value: 9
+  practitioner_value: 8
   novelty: 8
-  signal_quality: 8
-  composite: 8.7
+  signal_quality: 7
+  composite: 8.3
   reason: >-
-    Auto-harness is a direct implementation of the self-improving agent loop
-    pattern (Topic 5) with open-sourced code, concrete 40% benchmark gains, and
-    a detailed description of the mine-cluster-eval-fix flywheel that is
-    immediately transferable to knowledge base and agent memory improvement
-    systems.
+    Auto-harness is a directly relevant self-improving agent system that
+    implements trace-driven failure clustering, auto-eval generation, and
+    regression-safe harness evolution—core patterns for self-improving
+    systems—with open-sourced code and a concrete 40% benchmark improvement
+    demonstrating real production applicability.
 ---
 ## Tweet by @gauri__gupta
 

@@ -3,158 +3,192 @@ entity_id: claude-md
 type: concept
 bucket: context-engineering
 abstract: >-
-  CLAUDE.md is a persistent configuration file that injects project-specific
-  instructions, constraints, and context into Claude-based agents across
-  sessions; its key differentiator is loading automatically without explicit
-  invocation, making it the primary mechanism for durable agent behavior
-  shaping.
+  CLAUDE.md is a markdown file loaded into Claude-based agents at session start
+  to provide persistent instructions, project context, and configuration —
+  distinguished from other memory mechanisms by its static, human-authored
+  nature and zero-retrieval cost.
 sources:
   - tweets/pawelhuryn-your-claude-md-is-doing-jobs-that-rules-hooks-an.md
   - tweets/omarsar0-universal-claude-md-claims-to-cut-claude-output-t.md
-  - tweets/hwchase17-continual-learning-for-ai-agents.md
-  - repos/anthropics-skills.md
   - repos/kevin-hs-sohn-hipocampus.md
   - repos/jmilinovich-goal-md.md
   - papers/xu-agent-skills-for-large-language-models-architectu.md
-  - repos/letta-ai-lettabot.md
-  - articles/agent-skills-overview.md
   - articles/martinfowler-com-context-engineering-for-coding-agents.md
-  - articles/ai-by-aakash-the-ultimate-autoresearch-guide.md
-  - deep/repos/snarktank-compound-product.md
-  - deep/repos/anthropics-skills.md
   - deep/repos/kevin-hs-sohn-hipocampus.md
+  - deep/repos/snarktank-compound-product.md
+  - deep/repos/garrytan-gstack.md
+  - deep/repos/anthropics-skills.md
   - deep/repos/jmilinovich-goal-md.md
   - deep/papers/xu-agent-skills-for-large-language-models-architectu.md
 related:
-  - claude
   - claude-code
-  - agent-skills
   - cursor
-  - anthropic
+  - agent-skills
+  - skill-book
+  - claude
+  - context-management
   - andrej-karpathy
   - openclaw
-  - mcp
+  - retrieval-augmented-generation
+  - anthropic
   - autoresearch
-  - episodic-memory
-  - opencode
-  - bm25
-  - vector-database
-  - context-engineering
-last_compiled: '2026-04-07T11:49:14.414Z'
+  - model-context-protocol
+last_compiled: '2026-04-08T02:46:03.615Z'
 ---
 # CLAUDE.md
 
 ## What It Is
 
-CLAUDE.md is a markdown file that [Claude Code](../projects/claude-code.md) reads automatically at the start of every session. It sits at the project root (or in parent directories, user home, or subdirectories) and provides instructions, constraints, project context, and behavioral guidelines that persist across conversations without requiring the user to re-explain them.
+CLAUDE.md is a markdown file that Claude-based coding agents load at the start of every session. It sits at the root of a project (or in `~/.claude/CLAUDE.md` for global configuration) and injects its contents directly into the agent's context window before any user input arrives. The result: the agent knows your project's conventions, preferred tools, forbidden patterns, and architectural decisions without being told each time.
 
-The file is not a feature unique to Claude. [Cursor](../projects/cursor.md) uses `.cursorrules`, [Windsurf](../projects/windsurf.md) uses `.windsurfrules`, and [OpenCode](../projects/opencode.md) follows a similar pattern. But CLAUDE.md is the most actively discussed instance because [Claude Code](../projects/claude-code.md)'s agentic capabilities make persistent instructions both more powerful and more consequential than in a simple autocomplete context.
+The name is Claude-specific, but the pattern is universal. [Cursor](../projects/cursor.md) calls it `.cursorrules`. [Gemini CLI](../projects/gemini-cli.md) uses `GEMINI.md`. [Windsurf](../projects/windsurf.md) uses `.windsurfrules`. Each is the same idea: a static file that shapes agent behavior across sessions through persistent context injection.
 
-The name is literal: it is a markdown file named CLAUDE.md, and [Claude](../projects/claude.md) reads it.
+What distinguishes CLAUDE.md from other memory mechanisms is its simplicity. No database, no retrieval pipeline, no embeddings. The file loads completely, every time, at zero retrieval cost. This makes it predictable in a way that [RAG](../concepts/retrieval-augmented-generation.md)-based memory is not — the agent either has the context or it does not, and you can inspect exactly what it has by reading the file.
 
 ## How It Works
 
-Claude Code scans for CLAUDE.md files in a specific order: the current directory, then parent directories up to the filesystem root, then the user's home directory. This creates a layered instruction hierarchy where repository-level rules override or extend user-level defaults.
+When [Claude Code](../projects/claude-code.md) starts a session, it reads CLAUDE.md from the current directory (and any parent directories up to the repo root, plus the global `~/.claude/CLAUDE.md`). The contents become part of the system prompt or early conversation context. Claude treats instructions in CLAUDE.md as authoritative guidance with higher weight than ad-hoc user messages.
 
-When loaded, CLAUDE.md content enters the system prompt before the conversation begins. This means its instructions influence every response in the session, including tool use decisions, file modification behavior, which commands Claude will run autonomously, and how Claude communicates.
+The file is plain markdown. Common contents include:
 
-A typical CLAUDE.md contains:
+- **Project overview**: What this codebase does, its main entry points, key dependencies
+- **Code style rules**: Naming conventions, preferred patterns, linting requirements
+- **Workflow instructions**: How to run tests, what CI checks exist, branch naming conventions
+- **Tool permissions**: Which shell commands are safe to run without asking, which require confirmation
+- **Architectural constraints**: What not to touch, deprecated modules to avoid, API surfaces under active change
+- **Subagent delegation**: Instructions for spawning sub-agents, which tasks to parallelize
 
-- **Project architecture summary**: directory layout, key files, naming conventions
-- **Behavioral constraints**: what Claude should never do (e.g., "do not modify migrations without confirmation")
-- **Command references**: how to run tests, lint, build
-- **Code style**: patterns to follow or avoid
-- **Agent permissions**: which tools and shell commands are pre-approved
+The loading mechanism in [Claude Code](../projects/claude-code.md) supports `@import` directives, which pull in additional files. Projects like Hipocampus use this to load `memory/ROOT.md` (a compressed topic index), `SCRATCHPAD.md`, and `WORKING.md` alongside the main CLAUDE.md — building a tiered [context management](../concepts/context-management.md) system on top of the basic file-loading primitive.
 
-The file also supports `@import` syntax to pull in additional files on load. This is how projects like Hipocampus structure their memory system: CLAUDE.md imports `memory/ROOT.md`, `SCRATCHPAD.md`, `WORKING.md`, and `TASK-QUEUE.md` at session start, making the agent's accumulated knowledge available immediately without explicit invocation. [Source](../raw/deep/repos/kevin-hs-sohn-hipocampus.md)
+## Context Engineering Role
 
-## CLAUDE.md as Context Engineering
+CLAUDE.md sits at the base of any [context engineering](../concepts/context-engineering.md) stack. It handles what you know at project-start time and can specify statically. Dynamic knowledge — what happened in previous sessions, what files changed yesterday, what the user prefers — requires additional mechanisms layered on top.
 
-CLAUDE.md is the simplest implementation of [Context Engineering](../concepts/context-engineering.md): structured text placed in a predictable location that shapes agent behavior by controlling what information enters the context window.
+[Andrej Karpathy](../concepts/andrej-karpathy.md) popularized framing LLM context construction as an engineering problem analogous to code optimization. In this framing, CLAUDE.md is the static segment of working memory: high-value, always-loaded, never retrieved. The complementary pieces are dynamic: [episodic memory](../concepts/episodic-memory.md) from past sessions, [semantic memory](../concepts/semantic-memory.md) from vector search, and runtime state from tool calls.
 
-Its relationship to [Agent Skills](../concepts/agent-skills.md) illustrates a broader architectural pattern. The Agent Skills specification uses a three-tier progressive disclosure model where metadata (~100 tokens) loads always, instructions (~5000 tokens) load on trigger, and resources load on demand. [Source](../raw/deep/repos/anthropics-skills.md) CLAUDE.md sits at the top of this hierarchy: it is the always-loaded tier. When Claude Code integrates with skills, CLAUDE.md contains the imports or configuration that makes those skills available.
+Hipocampus makes this layering explicit. Its `memory/ROOT.md` — a ~3K token compressed topic index of everything the agent has ever discussed — loads via `@import` in CLAUDE.md. The always-loaded index costs roughly 300 tokens after prompt caching and provides O(1) awareness of past context. On implicit recall benchmarks (MemAware), this architecture scores 17-21% versus 3-4% for vector search alone — the difference between knowing you know something and having to search for it.
 
-[Andrej Karpathy](../concepts/andrej-karpathy.md) identified this pattern as part of what he calls "context engineering" — the deliberate construction of what an agent sees at each step of reasoning. CLAUDE.md is the static, persistent layer of that construction. Dynamic layers (tool outputs, retrieved memories, task state) build on top of it.
+[gstack](../projects/anthropic.md) uses CLAUDE.md and skill files to encode an entire software development process: Think → Plan → Build → Review → Test → Ship → Reflect. Each SKILL.md (a CLAUDE.md variant for individual skills) locks the agent into a specialist role — Staff Engineer, CSO, QA Lead — with distinct goals and review criteria. The file's contents become the agent's professional identity for that session.
 
-## AGENTS.md: The Persistent Memory Variant
+## The Agent Skills Connection
 
-A related file pattern that appears across the ecosystem is AGENTS.md. Where CLAUDE.md is a human-authored configuration file that engineers maintain deliberately, AGENTS.md accumulates knowledge the agent discovers during work: codebase patterns, API gotchas, architectural decisions, things to avoid.
+[Anthropic](../projects/anthropic.md)'s Agent Skills system extends the CLAUDE.md pattern into a [progressive disclosure](../concepts/progressive-disclosure.md) architecture. A SKILL.md file has the same markdown structure as CLAUDE.md but introduces YAML frontmatter:
 
-The Compound Product system writes to AGENTS.md after each iteration: "update AGENTS.md with discovered patterns" is a step in the execution loop. [Source](../raw/deep/repos/snarktank-compound-product.md) This makes AGENTS.md a form of [Episodic Memory](../concepts/episodic-memory.md) encoded as a static file — knowledge gained from prior sessions that re-enters context at the start of new ones.
+```yaml
+---
+name: my-skill
+description: What this skill does and when to use it
+---
+```
 
-The distinction matters for agent system design:
+The description field — typically 100–200 characters — is the only part that loads into every session. The full skill body loads only when Claude determines the description matches the user's request. This solves a real problem: you want the agent to know about dozens of specialized capabilities, but loading every skill's full instructions into every session would exhaust the context window.
 
-| File | Author | Content | Update pattern |
-|------|--------|---------|----------------|
-| CLAUDE.md | Human engineer | Project setup, constraints, permissions | Manual, infrequent |
-| AGENTS.md | Agent | Discovered patterns, codebase knowledge | Automatic, each session |
-| SKILL.md | Human or meta-skill | Procedural instructions for a specific capability | Curated |
+The three-tier architecture this creates:
 
-All three share the same loading mechanism — they are markdown files read into context — but serve different memory functions. CLAUDE.md is closer to [Procedural Memory](../concepts/procedural-memory.md) (how to work in this repo), AGENTS.md closer to [Semantic Memory](../concepts/semantic-memory.md) (facts about the codebase), and session logs closer to [Episodic Memory](../concepts/episodic-memory.md).
+1. **Metadata tier** (~100 tokens, always loaded): Name and description for routing
+2. **Instructions tier** (full SKILL.md body, loaded on trigger): The working procedural knowledge
+3. **Resources tier** (scripts, reference docs, loaded on demand): Deep domain content that never enters context directly
 
-## The `allowed-tools` Pattern
+This is [context management](../concepts/context-management.md) applied at the skill level. The same principle that makes CLAUDE.md valuable — putting the right information in context before the agent needs it — extends to a marketplace of hundreds of skills without linear context cost growth.
 
-The Agent Skills specification includes an experimental `allowed-tools` field in SKILL.md frontmatter (e.g., `Bash(git:*) Read`) that pre-approves specific tool invocations. [Source](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md) CLAUDE.md serves an analogous role at the project level: by listing approved shell commands or specifying `--dangerously-skip-permissions` contexts, it controls what the agent can do autonomously.
+The `allowed-tools` frontmatter field (experimental) lets skills pre-approve specific tool invocations like `Bash(git:*) Read`, giving skills a lightweight capability governance mechanism.
 
-Compound Product's `compound.config.json` specifies `qualityChecks` (commands the agent runs without confirmation), and its prompt template reads this configuration. But the actual permission grants live in CLAUDE.md, which tells Claude Code which tools and commands require confirmation. [Source](../raw/deep/repos/snarktank-compound-product.md) This makes CLAUDE.md a security boundary as much as an instruction file.
+## Relationship to Other Memory Types
+
+CLAUDE.md occupies a specific niche in the [agent memory](../concepts/agent-memory.md) taxonomy:
+
+**[Procedural memory](../concepts/procedural-memory.md)**: CLAUDE.md primarily encodes procedures — how to run this project, which commands to use, what patterns to follow. It is the most common vehicle for procedural knowledge in Claude-based agents.
+
+**[Semantic memory](../concepts/semantic-memory.md)**: Less suited. Factual knowledge about a domain is better served by retrieval systems like [RAG](../concepts/retrieval-augmented-generation.md) because it can be updated and queried selectively. Static facts in CLAUDE.md become stale.
+
+**[Episodic memory](../concepts/episodic-memory.md)**: Not suited. Past session events require [long-term memory](../concepts/long-term-memory.md) systems like [Mem0](../projects/mem0.md), [Letta](../projects/letta.md), or Hipocampus. CLAUDE.md cannot record what happened — only what should always be true.
+
+**[Core memory](../concepts/core-memory.md)**: CLAUDE.md is essentially the agent's core memory in [MemGPT](../projects/memgpt.md) terminology — the always-in-context facts that define identity and persistent constraints.
+
+The practical design question is: what belongs in CLAUDE.md versus what belongs in a retrieval system? Rules of thumb from observed practice:
+
+- Put it in CLAUDE.md if it is always relevant regardless of what the user asks
+- Put it in CLAUDE.md if it is stable (changes less than weekly)
+- Put it in a retrieval system if it is conditional on the current task
+- Put it in a retrieval system if the corpus is larger than ~10K tokens
 
 ## Failure Modes
 
-**Instructions the agent ignores under pressure.** Long CLAUDE.md files with many constraints tend to have some constraints violated when task complexity is high. The agent's attention distributes across all context, and a constraint buried in line 300 of a 400-line CLAUDE.md file competes with active tool outputs and conversation history. Critical constraints belong near the top; comprehensive documentation belongs in imported reference files.
+**Context budget exhaustion**: A badly maintained CLAUDE.md accumulates instructions over time. Projects that add rules without auditing regularly end up with files exceeding 50K tokens — consuming context that could be used for actual work. The agent loads it completely regardless of relevance. Unlike RAG, there is no filtering.
 
-**Conflicting instructions across layers.** When a user-level CLAUDE.md sets `always use TypeScript` and a project-level CLAUDE.md says nothing about language, Claude must resolve the ambiguity. Claude Code's resolution is generally "more specific wins," but the behavior is not guaranteed when instructions conflict substantively rather than merely extend each other.
+**Stale instructions**: CLAUDE.md has no freshness mechanism. Instructions written six months ago may conflict with current codebase conventions, deprecated dependencies, or changed team standards. The agent follows them anyway. This is the [lost in the middle](../concepts/lost-in-the-middle.md) problem in reverse — instructions are never lost, even when they should be.
 
-**Stale instructions.** CLAUDE.md is a static file. If the project's test command changes from `npm test` to `vitest run`, CLAUDE.md keeps pointing to the old command until a human updates it. AGENTS.md has the same problem. Neither file has a mechanism for detecting when its contents are outdated, and the agent will follow stale instructions confidently.
+**Security injection**: In agentic workflows where CLAUDE.md is generated or updated programmatically, malicious content can be injected. Anthropic's Agent Skills security analysis found 26.1% of community skill files contain vulnerabilities, with prompt injection the most common vector. CLAUDE.md loaded from an untrusted source is an attack surface.
 
-**Security boundary assumption.** CLAUDE.md is text. An agent reading a compromised CLAUDE.md file executes the compromised instructions with the same confidence as a legitimate one. The 26.1% vulnerability rate in community-contributed skill files applies equally to CLAUDE.md files shared across teams or pulled from templates. [Source](../raw/deep/papers/xu-agent-skills-for-large-language-models-architectu.md) Organizations treating CLAUDE.md as a security control surface should treat it with the same review discipline as code.
+**Invisible configuration**: Teams that add workflow instructions to CLAUDE.md create implicit dependencies that new contributors do not know exist. The agent behaves differently in the presence of CLAUDE.md, and diagnosing unexpected behavior requires knowing to look there.
 
-**Context budget pressure.** A CLAUDE.md that imports ROOT.md (3K tokens), SCRATCHPAD.md, WORKING.md, and TASK-QUEUE.md alongside inline project documentation can consume 5–10K tokens before the first user message. On models with prompt caching this cost is partially offset (stable content gets cached), but for cost-sensitive deployments, CLAUDE.md size has direct token cost implications every session.
+**No conflict resolution**: CLAUDE.md, parent-directory CLAUDE.md files, and global `~/.claude/CLAUDE.md` all load and merge. When they conflict, there is no formal precedence rule — the model's behavior is empirically determined, not specified.
 
-## When NOT to Use It
+## Infrastructure Assumptions
 
-**When instructions need to vary by task.** CLAUDE.md applies to every conversation in the session. If you need different behavior for code review versus greenfield development, CLAUDE.md is the wrong layer. Use skills with explicit trigger conditions, or invoke different instruction files per task.
+Two assumptions underlie CLAUDE.md's utility that documentation rarely states:
 
-**When the project has multiple agents with different roles.** A single CLAUDE.md cannot serve both a "strict code reviewer" agent and a "exploratory brainstorming" agent well. Multi-agent systems with distinct roles need per-agent configuration, not a shared file.
+**Prompt caching**: The value proposition assumes the model caches the static file content across sessions. Without caching, loading a 10K-token CLAUDE.md into every API call costs real money at scale. Claude's prompt caching makes stable CLAUDE.md content effectively free after the first call. If you are using a different model or a provider that does not implement caching, the economics change significantly.
 
-**When you want the agent to discover its own operating constraints.** CLAUDE.md front-loads all constraints. For domains where the agent should learn what constraints are appropriate (early-stage, poorly-specified projects), pre-loading constraints can be counterproductive. [goal-md's](../raw/deep/repos/jmilinovich-goal-md.md) "open mode" explicitly avoids prescribing measurement criteria upfront for this reason.
+**Single-user scope**: CLAUDE.md assumes one developer, one project, one agent. In multi-agent systems where several Claude instances work the same repository in parallel, CLAUDE.md becomes a shared configuration file with no concurrency mechanism. If two agents are instructed to update CLAUDE.md based on what they learn, they will overwrite each other's changes. Projects like [AutoGen](../projects/autogen.md) and [CrewAI](../projects/crewai.md) need coordination layers that CLAUDE.md does not provide.
 
-## Relationship to Other Projects
+## When Not to Use It
 
-- **[Claude Code](../projects/claude-code.md)**: Primary consumer. Claude Code's auto-loading of CLAUDE.md from project root and parent directories is what makes the file useful.
-- **[Context Engineering](../concepts/context-engineering.md)**: CLAUDE.md is the simplest, most widely deployed instance of the broader practice.
-- **[Agent Skills](../concepts/agent-skills.md)**: CLAUDE.md configures which skills are available; skills implement specific capabilities via SKILL.md. The two are complementary layers.
-- **[Skill Files](../concepts/skill-md.md)**: SKILL.md is the per-skill analog to CLAUDE.md's project-level role. CLAUDE.md can import or reference SKILL.md files.
-- **[OpenClaw](../projects/openclaw.md)**: Uses CLAUDE.md alongside MEMORY.md and USER.md as the always-loaded tier of its memory architecture.
-- **[OpenCode](../projects/opencode.md)**: Implements the same pattern under the same filename.
-- **[AutoResearch](../projects/autoresearch.md)**: Uses CLAUDE.md as the agent's persistent instruction file in its autonomous optimization loop.
-- **[Episodic Memory](../concepts/episodic-memory.md)**: AGENTS.md (the agent-maintained sibling of CLAUDE.md) implements a form of episodic memory as a static file.
-- **[Procedural Memory](../concepts/procedural-memory.md)**: CLAUDE.md's primary function is procedural — it encodes how to work in this specific repository.
-- **[Context Management](../concepts/context-management.md)**: CLAUDE.md is a concrete tool within the broader context management problem.
+CLAUDE.md is the wrong primary mechanism when:
+
+- **The context is user-specific, not project-specific**: A project file cannot encode individual user preferences, history, or expertise. Use a memory system like [Mem0](../projects/mem0.md) or Hipocampus for this.
+- **The domain knowledge is large and conditional**: API reference documentation, schema files, or large style guides belong in a retrieval system. Loading 50K tokens of reference material unconditionally wastes context on tasks that do not need it.
+- **The team size is greater than one**: Shared CLAUDE.md creates merge conflicts and conflicting opinions about what "always true" means. Team-scale agent configuration requires more structured governance.
+- **The agent will update its own configuration**: Self-modifying CLAUDE.md is a security and stability risk. Use a purpose-built memory system with append semantics and conflict detection.
+- **You need the agent to forget**: CLAUDE.md has no expiry. Instructions you load today load forever until manually removed. If you need time-bounded guidance, encode it in the session rather than the file.
+
+## Relationship to Broader Patterns
+
+[SkillBook](../concepts/skill-book.md) formalizes what practitioners do informally with CLAUDE.md: maintaining a curated library of reusable agent instructions. The [Markdown Wiki](../concepts/markdown-wiki.md) pattern extends it to knowledge bases. [Context Graphs](../concepts/context-graphs.md) attempt to make the relationships between context fragments explicit rather than relying on flat file concatenation.
+
+[OpenClaw](../projects/openclaw.md) and [AutoResearch](../projects/autoresearch.md) both use CLAUDE.md (or equivalent files) as the primary mechanism for configuring autonomous agent behavior. The self-improvement loop in AutoResearch — where agents modify their own instructions based on task outcomes — represents the most ambitious use of the pattern, but also the highest-risk one.
+
+[Model Context Protocol](../concepts/model-context-protocol.md) provides a complementary mechanism: rather than encoding tool knowledge in CLAUDE.md, MCP servers expose tools directly to the agent. A well-designed system uses CLAUDE.md for procedural and project-specific knowledge, and MCP for tool connectivity — the same separation the Agent Skills survey recommends between "what to do" (skills) and "how to connect" (MCP).
 
 ## Unresolved Questions
 
-**No standardized schema.** CLAUDE.md is free-form markdown. Two projects using the same file name may have completely different structures, making it impossible to programmatically analyze or validate CLAUDE.md files across a codebase portfolio.
+The documentation does not address several practical problems:
 
-**No versioning or migration.** When Claude's behavior changes across model versions, instructions in CLAUDE.md that relied on specific model behaviors may silently stop working. There is no mechanism to flag or migrate stale behavioral assumptions.
+**Optimal size**: What token count maximizes the context-vs-cost tradeoff? Empirically, projects range from 500 tokens to 100K+ tokens of CLAUDE.md content. There is no published analysis of where returns diminish.
 
-**Governance in multi-contributor repos.** In open-source projects or large engineering teams, who owns CLAUDE.md? What review process applies to changes? An instruction like `pre-approve all git push commands` in CLAUDE.md has meaningful security implications but may not receive code review attention proportionate to its risk.
+**Content prioritization under truncation**: If CLAUDE.md exceeds available context, what gets truncated? The loading order and truncation behavior under context pressure are not specified.
 
-**Interaction with agentic memory systems.** When projects use memory systems like Mem0, Letta, or Hipocampus alongside CLAUDE.md, the agent receives instructions from multiple sources with different update cadences and authority levels. The resolution order when these sources conflict is not specified.
+**Multi-agent coordination**: How should multiple agents share a CLAUDE.md? Should they have separate files? How do you merge agent-generated updates without conflicts?
+
+**Versioning semantics**: CLAUDE.md is committed to git, so you have history, but there is no semantic versioning of the agent's behavior. A CLAUDE.md change can silently change how the agent behaves on every subsequent task without any test coverage.
+
+**Cross-project learning**: Hipocampus and gstack both accumulate per-project knowledge in CLAUDE.md-adjacent files. How this knowledge should transfer across projects — which patterns are universal, which are project-specific — has no standard answer.
+
+## Alternatives
+
+| Alternative | Use when |
+|---|---|
+| [RAG](../concepts/retrieval-augmented-generation.md) / [Semantic Search](../concepts/semantic-search.md) | Context is large, conditional, or task-specific — retrieve only what the current task needs |
+| [Mem0](../projects/mem0.md) / [Letta](../projects/letta.md) | You need episodic memory across sessions, user-specific preferences, or multi-user scale |
+| [Model Context Protocol](../concepts/model-context-protocol.md) | Context is better framed as tool access rather than instructions |
+| [Agent Skills](../concepts/agent-skills.md) (SKILL.md with progressive disclosure) | You have many specialized capabilities and cannot afford to load all of them in every session |
+| System prompt injection via API | You control the deployment and do not need file-based configuration — cleaner for production systems |
+| [MemGPT](../projects/memgpt.md) / Hipocampus | You need the agent to maintain and update its own knowledge across sessions with structured memory management |
+
+CLAUDE.md works best as the foundation of a layered context system, not as the entire system. It handles what you know statically. Everything else — session history, dynamic retrieval, user-specific preferences — requires additional infrastructure built on top of it.
 
 
 ## Related
 
-- [Claude](../projects/claude.md) — implements (0.8)
-- [Claude Code](../projects/claude-code.md) — implements (0.9)
-- [Agent Skills](../concepts/agent-skills.md) — part_of (0.8)
+- [Claude Code](../projects/claude-code.md) — implements (0.8)
 - [Cursor](../projects/cursor.md) — implements (0.6)
-- [Anthropic](../projects/anthropic.md) — created_by (0.8)
+- [Agent Skills](../concepts/agent-skills.md) — part_of (0.7)
+- [SkillBook](../concepts/skill-book.md) — part_of (0.7)
+- [Claude](../projects/claude.md) — implements (0.9)
+- [Context Management](../concepts/context-management.md) — implements (0.8)
 - [Andrej Karpathy](../concepts/andrej-karpathy.md) — part_of (0.4)
-- [OpenClaw](../projects/openclaw.md) — implements (0.5)
-- [Model Context Protocol](../concepts/mcp.md) — part_of (0.6)
+- [OpenClaw](../projects/openclaw.md) — implements (0.6)
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — part_of (0.4)
+- [Anthropic](../projects/anthropic.md) — created_by (0.8)
 - [AutoResearch](../projects/autoresearch.md) — implements (0.5)
-- [Episodic Memory](../concepts/episodic-memory.md) — part_of (0.4)
-- [OpenCode](../projects/opencode.md) — implements (0.5)
-- [BM25](../concepts/bm25.md) — part_of (0.3)
-- [Vector Database](../concepts/vector-database.md) — part_of (0.3)
-- [Context Engineering](../concepts/context-engineering.md) — implements (0.7)
+- [Model Context Protocol](../concepts/model-context-protocol.md) — implements (0.7)

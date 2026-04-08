@@ -14,9 +14,9 @@ tags:
 key_insight: >-
   Hipocampus solves the 'unknown unknowns' problem by maintaining a 3K-token
   compressed topic index (ROOT.md) that acts as a biological hippocampus for AI
-  agents -- always-loaded, zero-search-cost awareness of everything the agent has
-  ever discussed, enabling proactive context surfacing that is 21x better than no
-  memory and 5x better than search alone on implicit recall benchmarks.
+  agents -- always-loaded, zero-search-cost awareness of everything the agent
+  has ever discussed, enabling proactive context surfacing that is 21x better
+  than no memory and 5x better than search alone on implicit recall benchmarks.
 stars: 145
 deep_research:
   method: source-code-analysis
@@ -38,6 +38,19 @@ deep_research:
     - templates/ROOT.md
   analyzed_at: '2026-04-04'
   original_source: repos/kevin-hs-sohn-hipocampus.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 9
+  novelty: 8
+  signal_quality: 9
+  composite: 8.9
+  reason: >-
+    This is a directly relevant implementation of agent memory architecture with
+    a novel compaction-tree approach for proactive context surfacing, ships as a
+    working Claude Code plugin with detailed architecture documentation covering
+    ROOT.md as always-loaded topic index, hierarchical summarization, and
+    zero-infrastructure design patterns immediately applicable to LLM agent
+    builders.
 ---
 
 ## Architecture Overview

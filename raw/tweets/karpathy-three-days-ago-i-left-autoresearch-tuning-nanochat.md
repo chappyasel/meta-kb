@@ -24,17 +24,16 @@ views: 3569194
 images:
   - images/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat/image.jpg
 relevance_scores:
-  topic_relevance: 10
-  practitioner_value: 9
+  topic_relevance: 9
+  practitioner_value: 8
   novelty: 8
   signal_quality: 8
-  composite: 9.1
+  composite: 8.4
   reason: >-
-    Karpathy's firsthand account of autoresearch autonomously discovering 20
-    compounding improvements to nanochat is a canonical example of the
-    self-improving loop pattern (Topic 5), with concrete results, replicable
-    architecture details, and explicit generalization to any
-    efficiently-evaluable metric.
+    Karpathy's autoresearch experiment is a concrete, high-signal demonstration
+    of self-improving agent loops (topic 6) with explicit discussion of
+    multi-agent parallelism and cascading validation patterns (topics 4 and 5),
+    directly transferable to any efficiently-evaluable metric domain.
 ---
 ## Tweet by @karpathy
 

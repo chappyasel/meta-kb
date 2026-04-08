@@ -25,10 +25,11 @@ relevance_scores:
   signal_quality: 7
   composite: 8
   reason: >-
-    Membrane is a directly relevant agent memory substrate implementing typed,
-    decayable, revisable memory with trust-aware retrieval and self-improvement
-    patterns in a production-ready Go gRPC service — core to topics 2 and 5 with
-    genuinely novel architecture beyond standard RAG/append-only approaches.
+    Membrane is a directly on-topic agent memory substrate implementing typed,
+    decayable, revisable memory with trust-gated retrieval as a production-ready
+    Go gRPC service — genuinely novel beyond append-only/RAG patterns and
+    directly applicable to topics 2 (Agent Memory) and 6 (Self-Improving
+    Systems).
 ---
 ## membrane
 

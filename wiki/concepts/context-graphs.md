@@ -3,133 +3,133 @@ entity_id: context-graphs
 type: concept
 bucket: context-engineering
 abstract: >-
-  Context graphs are graph-structured records of organizational decision
-  traces—capturing not just outcomes but the reasoning, exceptions, and
-  cross-system context that produced them—enabling agents to retrieve
-  organizational judgment, not just data.
+  Context graphs are structured representations of decision traces and
+  conceptual relationships that give agents queryable organizational memory —
+  differentiating from knowledge graphs by recording *why* decisions were made,
+  not just *what* exists.
 sources:
   - tweets/akoratana-context-graphs-will-be-to-the-2030s-what-databases.md
-  - tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md
   - tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md
+  - tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md
   - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
   - repos/origintrail-dkg-v9.md
   - papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md
   - deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md
 related:
   - execution-traces
-  - organizational-memory
-last_compiled: '2026-04-06T02:09:26.399Z'
+  - openclaw
+last_compiled: '2026-04-08T02:54:09.177Z'
 ---
 # Context Graphs
 
 ## What They Are
 
-A context graph is a graph-structured representation where nodes are organizational entities (accounts, policies, agents, people, tasks, decisions) and edges are decision events: the moments when context from multiple sources was synthesized into an action, with the "why" preserved as a first-class record.
+A context graph is a data structure that represents not just facts but the reasoning connecting facts to actions. Where a [Knowledge Graph](../concepts/knowledge-graph.md) stores entities and relationships ("customer X is in healthcare"), a context graph stores decision events and their justification ("we gave customer X a 10% discount because their procurement cycle is 90 days, approved by VP Jones, consistent with precedent from deal Y in Q3").
 
-The key distinction from other graph structures is temporal and causal. A [Knowledge Graph](../concepts/knowledge-graph.md) stores what is true. A context graph stores how it became true and why it was allowed to happen. Your CRM stores a 20% discount. A context graph stores: the three SEV-1 incidents pulled from PagerDuty, the open "cancel unless fixed" escalation in Zendesk, the VP who approved the exception on a Zoom call, and the prior renewal that set the precedent. [Source](../raw/tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md)
+The distinction sounds subtle but changes what you can do with the structure downstream. A knowledge graph answers "what is true?" A context graph answers "why did we decide that, under what conditions, and what happened next?"
 
-This distinction matters because agents operating without decision traces hit a wall that governance frameworks cannot solve. The agent knows the rule. It does not know when and why the rule was overridden, who approved it, or whether this situation matches a prior exception. That reasoning currently lives in Slack threads, side conversations, and people's heads. Context graphs treat it as data.
+Three components make up a context graph:
 
-## Why It Matters Now
+1. **Entities** — the objects the organization already tracks: accounts, tickets, policies, agents, approvers
+2. **Decision events** — the moments when context turned into action, with inputs, policy applied, exception route invoked, and outcome recorded
+3. **Causation links** — edges connecting prior decisions to current ones (precedent), inputs to decisions (rationale), and decisions to outcomes (consequence)
 
-Large organizations already pay enormous coordination overhead to manage exactly what context graphs would automate. At 10,000 people, roughly 60% of payroll covers coordination rather than production. Hierarchy functions as a lossy compression algorithm: a manager compresses their team's reality into a 30-minute summary, their manager compresses eight such summaries, and by the time information reaches a decision-maker, five or six layers of human interpretation have filtered it. [Source](../raw/tweets/akoratana-context-graphs-will-be-to-the-2030s-what-databases.md)
+This structure is closely related to [Execution Traces](../concepts/execution-traces.md), which record what an agent did during a run. The relationship is specific: execution traces are raw material; a context graph is what you get when you index and connect those traces across time, entities, and runs into a queryable structure.
 
-Agents sitting in the execution path can capture decision context at commit time, not after the fact via ETL. This is architecturally different from what warehouses like Snowflake do. A warehouse receives data via ETL after decisions are made; the decision context is gone by the time the data lands. An orchestration layer in the execution path sees the full picture as it happens: what inputs were gathered across systems, what policies applied, what exceptions were granted, who approved.
+## Why This Matters
 
-The practical consequence is a compounding feedback loop. Captured decision traces become searchable precedent. Every automated decision adds another trace to the graph. Over time, the graph shifts from retrieval ("how did we handle this last time?") toward prediction ("if we structure the deal this way, what's likely to happen?")—grounded in the organization's actual decision history rather than generic training data.
+Large organizations have a coordination problem that scales badly. At ten people, everyone knows what everyone is doing. At ten thousand, most headcount exists to relay and compress information up and down a hierarchy. Each layer in that hierarchy compresses context: a manager distills a week of team activity into a 30-minute summary, their manager compresses eight such summaries, and by the time information reaches a decision-maker it has passed through five or six lossy translations. [Source](../raw/tweets/akoratana-context-graphs-will-be-to-the-2030s-what-databases.md)
 
-## How It Works
+Agents don't automatically fix this. An agent can automate a workflow, but if the reasoning behind decisions never gets recorded, the agent inherits the same blindspots. The CRM stores the final deal value, not the negotiation. The ticket system stores "resolved," not why escalation went to Tier 3. The codebase stores current state, not the architectural debate that produced it.
 
-### Graph Structure
+Context graphs address this by treating reasoning as data. Once decision traces accumulate into a queryable graph, an agent handling a new exception can retrieve prior decisions, check what exceptions were granted under similar conditions, and act consistently with organizational precedent rather than starting from scratch. [Source](../raw/tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md)
 
-The basic structure connects:
-
-- **Entity nodes**: accounts, employees, policies, agent runs, approvers, tickets, incidents
-- **Decision event edges**: the moments when context was synthesized into action, carrying "why" links
-- **State snapshots**: what the world looked like at decision time, enabling replay
-
-Unlike a standard [Knowledge Graph](../concepts/knowledge-graph.md) optimized for querying current state, a context graph indexes by decision context, making precedent searchable. "Find all prior deals where a similar exception was approved under policy v3.2" is a query type that current CRM or data warehouse architectures cannot answer.
+## How They Work
 
 ### Construction
 
-Context graphs are built by instrumented orchestration layers that emit a structured trace on every agent run. The trace records:
+Context graphs are built by agents that sit in the execution path at decision time. This is the critical architectural requirement. A warehouse that receives ETL after the fact cannot build a context graph because decision context is gone by the time data lands. The agent must observe the decision as it happens, capture:
 
-1. Inputs gathered across systems and their sources
-2. Policies evaluated and how they resolved
-3. Exception routes invoked and who approved
-4. Final state written and where
+- Inputs gathered (from which systems, at what state)
+- Policy evaluated (which version, which clauses applied)
+- Exceptions invoked (who requested, who approved, on what grounds)
+- Precedent referenced (which prior decision justified the exception)
+- Outcome written back to systems of record
 
-This is structurally related to what the agentic computation graph literature calls [Execution Traces](../concepts/execution-traces.md): the actual sequence of LLM calls, tool invocations, and data flows during a run. The distinction is that execution traces describe what happened mechanically, while context graph records describe why a decision was permitted, linking to the organizational entities and precedents that governed it. [Source](../raw/deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md)
+These captured traces get indexed by entity, time, policy version, and outcome, then linked to prior decisions on the same entities or under the same policy.
 
 ### Retrieval
 
-At query time, an agent or human asks questions that require reasoning across the graph: tracing why a policy was applied, finding analogous historical decisions, or understanding which approver has precedent for a given exception class. This retrieval is more complex than standard [Vector Database](../concepts/vector-database.md) similarity search because the relevant context is relational and temporal, not just semantically similar.
+When an agent faces a new decision, it queries the graph for relevant precedent. A renewal agent proposing a discount can ask: "What discount exceptions were granted to healthcare accounts with open escalations, and who approved them?" The graph returns specific prior decisions rather than generic policy text. The agent can then propose a discount grounded in actual precedent, surface that precedent in its explanation, and route the exception to the same approver who handled similar cases before.
 
-[GraphRAG](../projects/graphrag.md) and [HippoRAG](../projects/hipporag.md) address related problems—using graph structure to improve retrieval quality—but focus on document-level knowledge rather than decision-level organizational traces. Projects like [Graphiti](../projects/graphiti.md) and [Zep](../projects/zep.md) implement temporal knowledge graphs for agent memory and are closer architecturally, though not specifically designed around enterprise decision lineage.
+This is meaningfully different from [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) over documents. RAG retrieves text that contains relevant information. Context graph retrieval returns structured decision records with provenance, approver identity, policy version, and outcome, which an agent can reason over rather than summarize.
 
-## Relationship to Adjacent Concepts
+### Compounding
 
-**[Organizational Memory](../concepts/organizational-memory.md)**: Context graphs are one implementation strategy for organizational memory—specifically the component that captures procedural and episodic knowledge about decision-making. Other implementations (wikis, document stores) capture explicit knowledge but not the decision traces connecting observations to actions.
+The feedback loop is the key property. Each decision adds a trace to the graph. As traces accumulate, the graph gains density. Dense graphs enable prediction: not just "how did we handle this last time?" but "if we structure the deal this way, what outcome is likely?" — grounded in the organization's actual decision history rather than generic training data. [Source](../raw/tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md)
 
-**[Execution Traces](../concepts/execution-traces.md)**: Execution traces are the raw material from which context graphs are built. A context graph stitches execution traces across entities and time to make precedent searchable and causal relationships explicit.
+## Relation to Agentic Computation Graphs
 
-**[Agent Memory](../concepts/agent-memory.md)**: Context graphs extend agent memory from individual session or user scope to organizational scope. Where [Episodic Memory](../concepts/episodic-memory.md) captures what an agent experienced in a prior session, a context graph captures what the organization decided across all agents and humans over time.
+A parallel but distinct use of graph structure appears in agentic workflow optimization. Here, the graph represents a computational workflow: nodes are LLM calls, tool invocations, or memory updates; edges represent data dependencies. [Source](../raw/deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md)
 
-**[Agentic RAG](../concepts/agentic-rag.md)**: Standard [Retrieval-Augmented Generation](../concepts/rag.md) retrieves documents. Agentic RAG adds multi-hop and iterative retrieval. Context graph retrieval adds organizational decision provenance—not just "here's a relevant document" but "here's the precedent, who approved it, and under what conditions."
+This framing distinguishes three objects that practitioners often conflate:
 
-**[Context Engineering](../concepts/context-engineering.md)**: Context graphs represent one end of the context engineering spectrum. Rather than compressing information to fit a context window (Prompt Compression) or selecting relevant chunks ([Progressive Disclosure](../concepts/progressive-disclosure.md)), a context graph maintains a persistent external structure that agents query at decision time, keeping the relevant organizational judgment outside the model and close to the action.
+- **Workflow templates** — reusable designs specifying components and dependencies, designed offline
+- **Realized graphs** — run-specific instances of a template, potentially pruned or extended per query
+- **Execution traces** — what actually happened during a run, which may differ from the realized graph due to failures and retries
 
-## Implementation Challenges
+Optimizing at the template level (e.g., AFlow's MCTS-based search over typed operator graphs) is design-time work. Optimizing at the realized graph level (e.g., selecting from a pre-built super-graph, or generating a query-conditioned DAG) is pre-execution work. Optimizing during execution (e.g., regenerating topology when validity checks fail) is runtime work.
 
-### IAM at Scale
+The organizational context graph described above and the agentic computation graph are different concepts that share the graph metaphor. An organizational context graph accumulates decision traces across time and becomes a memory layer. An agentic computation graph represents the structure of a single workflow execution. [Execution Traces](../concepts/execution-traces.md) connect both: traces from agentic computation graphs can feed into organizational context graphs.
 
-The most concrete blocker for enterprise context graph adoption is identity and access management. Context graphs create two distinct IAM problems that current architectures cannot both solve simultaneously. [Source](../raw/tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md)
+## Implementation Considerations
 
-First, **discovery**: agents need sufficient access to traverse enterprise systems and collect decision context. This requires wide access grants, which security teams resist.
+### IAM Is the Blocking Problem
 
-Second, **retrieval**: once context exists in a shared memory layer, access control must be fine-grained and context-aware. A junior engineer should not retrieve a leadership mandate to cut 30% of engineering that an executive's agent captured from a private channel. Simple role-based access control breaks because the relevant boundary is not the user's role but the decision's sensitivity and the requestor's relationship to it.
+Building a context graph requires agents with three properties simultaneously: autonomy to traverse systems and discover context, capability to access fragmented data sources, and security controls to enforce fine-grained retrieval permissions. Current IAM architectures handle two out of three badly. [Source](../raw/tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md)
 
-Current IAM architectures give agents two of three required properties: autonomy, capability, and security. Providing all three simultaneously at the scale required to build useful context graphs remains unsolved.
+The access control problem on retrieval is particularly sharp. A context graph is valuable precisely because it creates shared organizational memory. But if an agent's context graph includes the contents of private Slack threads, executive email, or confidential negotiation tactics, unrestricted retrieval is not acceptable. The permissions model for context graph retrieval needs to be context-aware and task-scoped, not just role-based.
 
-### The Backchannel Problem
+### The Backchannel Gap
 
-The most valuable organizational judgment often never emits a trace. It lives in intuition, politics, and side conversations: Signal messages, private Slack channels, a CEO's reasoning that never touches a system of record. A context graph built only from instrumented digital workflows will systematically miss the most consequential decisions. Agents can only capture what they can observe, and the observation problem is real.
+The most important organizational decisions often leave no trace. A VP approves a discount on a video call. An architectural direction gets set in a Slack DM. A precedent gets established in a conversation that never enters any system. A context graph built only from instrumented agent workflows misses this entirely. Getting coverage on the full decision surface requires connecting agents to communication channels that have historically been off-system. This remains largely unsolved. [Source](../raw/tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md)
 
 ### Structural Credit Assignment
 
-Determining *why* a decision succeeded or failed, and attributing that to specific graph structures versus other factors, is hard. This is the same problem the workflow optimization literature identifies for agentic computation graphs: when a workflow fails, it is difficult to distinguish structural causes from parameter causes. [Source](../raw/deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md)
+When a workflow succeeds or fails, attributing the outcome to specific structural choices versus local parameter settings is hard. This makes learning from decision traces noisy: the context graph might record that a particular deal structure led to churn, but the causal path between structure and outcome runs through market conditions, rep quality, and competitor pricing that the graph may not capture. [Source](../raw/deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md)
 
-### Incumbent Lock-in
+### Incumbents Can't Bolt This On
 
-Existing enterprise software vendors (Salesforce, ServiceNow, Workday) store current state, not decision history. Their agent frameworks inherit this limitation: they can tell you what an opportunity looks like now, not what the world looked like when the discount was approved. Building a context graph across a fragmented enterprise requires either replacing incumbents (difficult, slow) or sitting in the orchestration path above them (possible, but contingent on API access that incumbents may restrict).
+Existing systems of record are built around current-state storage. Salesforce knows what an opportunity looks like now, not what it looked like when the decision was made. Warehouse platforms like Snowflake have time-based views but receive data via ETL after decision context is gone. Building a context graph requires being in the execution path at commit time, which means the orchestration layer. This is a structural advantage for agent-native systems over incumbents adding AI features. [Source](../raw/tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md)
 
-## When to Use This Approach
+## Projects Using This Pattern
 
-Context graphs earn their complexity in environments where:
+[OpenClaw](../projects/openclaw.md) is cited as an implementation that runs without environment-file-stored credentials, with agent identity managed externally — an approach that addresses the IAM requirements context graph construction demands.
 
-- Decisions are exception-heavy and precedent-dependent (deal desks, underwriting, compliance review, escalation management)
-- Cross-system synthesis happens manually today, with humans carrying context that software does not capture
-- "Why did we do that?" is a question that currently requires finding the right person and asking them
-- Coordination costs are measurably high relative to production output
+[Graphiti](../projects/graphiti.md) and [Zep](../projects/zep.md) build persistent, queryable memory layers for agents, approaching the context graph from the memory-system direction rather than the decision-trace direction.
 
-For simple deterministic workflows, a context graph is unnecessary overhead. The decision logic is fixed, exceptions are rare, and a standard rule engine or static workflow template suffices.
+[GraphRAG](../projects/graphrag.md) uses community detection over document graphs to enable reasoning across large corpora. This addresses a different problem (document understanding at scale) but uses related graph structure for retrieval.
 
-## What the Documentation Doesn't Explain
+[LangGraph](../projects/langgraph.md) represents agent workflows as stateful graphs, which captures the agentic computation graph framing rather than the organizational decision trace framing.
 
-The concept is better articulated as a vision than as a specification. Open questions:
+## Failure Modes
 
-- **Conflict resolution**: When two decision traces set contradictory precedent, which governs? No framework for precedent ranking exists.
-- **Graph maintenance**: Decision traces become stale when policies, personnel, or business context changes. How to expire or reweight outdated precedent is unaddressed.
-- **Evaluation**: How do you measure whether a context graph is improving agent decision quality? No benchmarks exist.
-- **Latency at scale**: Retrieval from a dense graph of organizational decisions is a complex query; performance characteristics at scale are unexplored in public literature.
-- **Governance of the graph itself**: Who can correct a captured decision trace? Who audits the auditor?
+**Sparse graphs are useless.** A context graph with one hundred decision traces covering ten edge cases provides no useful precedent for the eleven hundredth case. Coverage requires high agent adoption across workflows, which requires solving IAM and trust issues first.
 
-## Alternatives and Selection Guidance
+**Stale precedent.** A context graph that records decisions made under old policies can actively mislead agents. The graph needs versioning on policy documents and needs mechanisms to deprecate or flag precedent that no longer applies.
 
-| Approach | Use when |
-|----------|----------|
-| **Standard RAG / [Vector Database](../concepts/vector-database.md)** | Decisions are document-retrievable; organizational history is less relevant than semantic similarity |
-| **[Knowledge Graph](../concepts/knowledge-graph.md)** | Relationships between entities matter more than decision provenance; current state is sufficient |
-| **[GraphRAG](../projects/graphrag.md)** | Multi-hop reasoning over document collections; no need for temporal decision traces |
-| **[Graphiti](../projects/graphiti.md) / [Zep](../projects/zep.md)** | Temporal agent memory at user or session scope; enterprise-scale decision lineage not required |
-| **Context graph** | Agents need to reason from organizational precedent; exceptions and approvals are common; the "why" matters as much as the "what" |
+**Garbage in.** If agents record the wrong inputs (missing a system that was actually consulted, omitting the Slack context that drove the decision), the graph grows dense but inaccurate. Decisions appear to follow a pattern that wasn't the real causal structure.
+
+**Over-reliance.** An agent that surfaces precedent without surfacing the conditions under which that precedent was established can recommend decisions that were appropriate in 2023 but not in 2025. Precedent is not policy.
+
+## Related Concepts
+
+- [Knowledge Graph](../concepts/knowledge-graph.md) — stores entities and relationships; context graphs extend this with decision events and causation
+- [Execution Traces](../concepts/execution-traces.md) — raw material that feeds context graph construction
+- [Context Engineering](../concepts/context-engineering.md) — the broader practice of managing what information agents have access to
+- [Episodic Memory](../concepts/episodic-memory.md) — stores specific past events; context graphs are a structured, queryable form of episodic memory at organizational scale
+- [Organizational Memory](../concepts/organizational-memory.md) — the broader concept of which context graphs are one implementation approach
+- [Semantic Memory](../concepts/semantic-memory.md) — general fact storage, complementary to the decision-trace focus of context graphs
+- [Long-Term Memory](../concepts/long-term-memory.md) — persistence layer that context graphs depend on
+- [Community Detection](../concepts/community-detection.md) — graph algorithm used in related systems like GraphRAG to cluster related nodes
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — the coordination problems context graphs are designed to address at scale

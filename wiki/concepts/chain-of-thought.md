@@ -1,191 +1,184 @@
 ---
 entity_id: chain-of-thought
-type: concept
+type: approach
 bucket: context-engineering
 abstract: >-
-  Chain-of-Thought prompting instructs LLMs to produce explicit intermediate
-  reasoning steps before answering, improving accuracy on multi-step tasks by
-  allocating more computation to problem decomposition.
+  Chain-of-Thought prompting instructs LLMs to generate explicit intermediate
+  reasoning steps before answering, improving multi-step task performance by
+  making computation visible and correctable.
 sources:
   - repos/aiming-lab-agent0.md
   - papers/mei-a-survey-of-context-engineering-for-large-language.md
-  - articles/lil-log-llm-powered-autonomous-agents.md
   - deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
 related:
-  - rag
-  - react
-  - reflexion
-  - agent-memory
-  - task-decomposition
   - context-engineering
-last_compiled: '2026-04-07T11:53:16.123Z'
+  - agent-memory
+  - retrieval-augmented-generation
+  - react
+last_compiled: '2026-04-08T02:59:16.047Z'
 ---
-# Chain-of-Thought (CoT)
+# Chain-of-Thought
 
 ## What It Is
 
-Chain-of-Thought is a prompting technique where an LLM generates a sequence of intermediate reasoning steps before producing a final answer. Instead of mapping a question directly to an answer, the model produces a scratchpad — "let me work through this step by step" — that decomposes the problem into smaller inference moves. Wei et al. (2022) introduced the term in "Chain of thought prompting elicits reasoning in large language models," demonstrating that this technique substantially improved performance on arithmetic, commonsense, and symbolic reasoning benchmarks.
+Chain-of-thought (CoT) prompting elicits intermediate reasoning steps from a language model before it produces a final answer. Instead of asking a model to jump from question to answer, you ask it to "think through" the problem step by step. This makes the model's computation explicit and auditable, and it turns out that surfacing the reasoning process also improves accuracy on tasks that require it.
 
-The core mechanism is forcing the model to allocate more computation to a problem. Transformers predict one token at a time. A model that jumps directly to an answer has one forward pass worth of computation available for the problem. A model that first generates a 200-token reasoning trace has 200 forward passes — each token can attend to all previous tokens and perform further transformation. CoT exploits this by making the model do its "thinking" in visible token space rather than implicitly inside a single decoding step.
+The technique was described formally in Wei et al. (2022) "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models," though the underlying idea appeared in earlier work on scratchpads. The core observation: for tasks like arithmetic, commonsense reasoning, and symbolic manipulation, adding a handful of worked examples with intermediate steps to the prompt caused large models to spontaneously produce similar step-by-step reasoning on new inputs. The same GPT-3 (540B parameters) that failed to solve a multi-step math word problem directly solved it correctly when given CoT examples. Smaller models showed little benefit, pointing to an emergent capability threshold around 100B parameters.
 
-## Why It Works: The Computational Account
+CoT sits at the intersection of [Context Engineering](../concepts/context-engineering.md) and [Agent Memory](../concepts/agent-memory.md) because it occupies context window space with reasoning traces that substitute for internal computation the model cannot perform in a single forward pass. Understanding when and how to use it requires understanding that tradeoff.
 
-Standard autoregressive generation produces each output token conditioned on the input and all previous output tokens. When CoT is applied, the model generates a reasoning chain R = (r₁, r₂, ..., rₙ) before the answer A. Each reasoning token rᵢ attends to the full context including all prior reasoning tokens, allowing the model to build on intermediate conclusions.
+## Why It Matters
 
-This gives CoT two distinct advantages:
+Three reasons CoT matters practically:
 
-**Error surface flattening.** Multi-step problems solved in a single decoding step require all the reasoning to happen inside the residual stream. A single incorrect "hidden" inference step silently contaminates the output. CoT externalizes each step, making it visible in the context for the model to condition subsequent reasoning on.
+**It makes multi-step reasoning tractable.** Models cannot hold arbitrarily complex state across a single forward pass. Externalizing intermediate results to the context window lets the model build on those results in subsequent steps, effectively using the context as working memory. This is why CoT works on arithmetic: the model can "write down" a partial result rather than holding it implicitly.
 
-**Implicit verification.** The model's attention mechanism can catch contradictions between a stated reasoning step and the input, in a way that hidden computation cannot.
+**It shifts the bottleneck from generation to comprehension.** The survey in [Source](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md) identifies a fundamental asymmetry: LLMs understand complex context far better than they can generate equally sophisticated outputs. CoT exploits this by breaking generation into smaller, more tractable chunks. Each step is a simpler generation problem than producing the final answer directly.
 
-This also explains CoT's primary failure mode: the model can generate a plausible-sounding but factually wrong chain that leads confidently to the wrong answer. Generating text that "looks like reasoning" is not the same as performing correct reasoning.
+**It enables verification and error correction.** When reasoning is explicit, you can check it. Users, downstream systems, and the model itself can identify where a chain goes wrong. [Reflexion](../concepts/reflexion.md) builds on this directly: it stores self-reflection on failed reasoning traces in episodic memory, providing verbal feedback that improves subsequent attempts by 8-12 percentage points over simply remembering that a prior attempt failed.
 
-## Core Variants
+## How It Works
 
-### Standard CoT (Few-Shot)
-Provide 2–8 worked examples where each example includes the reasoning trace alongside the answer. Wei et al.'s original finding: this alone produces large accuracy gains on benchmarks like GSM8K (grade school math) and AquA (algebra word problems). The examples teach the model the expected reasoning format, problem decomposition style, and answer format simultaneously.
+### The Basic Mechanism
 
-### Zero-Shot CoT
-Append "Let's think step by step." to the prompt. Kojima et al. (2022) showed this single phrase suffices to elicit CoT behavior from large models without any worked examples. It works because modern models trained on reasoning-heavy corpora have already internalized CoT-like patterns; the phrase activates them. Zero-shot CoT is noisier than few-shot CoT but requires no example curation.
+**Few-shot CoT:** Include 3-8 examples in the prompt where each example shows both the reasoning chain and the final answer. The model learns the format from examples and applies it to new inputs. Example structure:
 
-### Self-Consistency
-Generate multiple independent reasoning chains (typically 10–40) with temperature > 0, then take the majority vote answer. Wang et al. (2022) showed this consistently improves on single-chain CoT by 2–10 percentage points on math and commonsense benchmarks. The intuition: if diverse reasoning paths converge on the same answer, that answer is more likely correct. Self-consistency does not require the individual chains to agree on intermediate steps — only on the final answer.
-
-### Tree of Thoughts (ToT)
-Yao et al. (2023) generalize CoT from a single linear chain to a tree of reasoning steps. The model generates multiple continuations at each step, evaluates them (via a separate prompt asking "is this reasoning path promising?"), and uses BFS or DFS to explore the tree. ToT enables backtracking, which standard CoT cannot do — once a reasoning step is generated, the model proceeds from it without revisiting. Effective for tasks with structured search spaces (puzzles, planning) but computationally expensive: a depth-5 BFS with branching factor 3 requires 3⁵ = 243 continuations.
-
-### Graph of Thoughts (GoT)
-Extends ToT by allowing arbitrary graph connections between reasoning nodes, enabling aggregation and merging of branches. More expressive than ToT but significantly harder to implement and control.
-
-## Relationship to Other Agent Patterns
-
-CoT underlies several more complex agent architectures:
-
-**[ReAct](../concepts/react.md)** interleaves CoT reasoning traces with environment actions. The reasoning step (Thought) tells the model what to do next; the action step executes it; the observation feeds back into the next reasoning step. CoT is what makes the Thought step coherent rather than arbitrary.
-
-**[Reflexion](../concepts/reflexion.md)** uses CoT as the mechanism for self-reflection. After a failed attempt, the model generates a CoT trace analyzing what went wrong and what to do differently. The Reflexion paper shows that self-reflection adds 12 percentage points beyond episodic memory alone on HotPotQA — the quality of CoT-style failure analysis is what drives improvement, not merely remembering that you failed. [Source](../raw/deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md)
-
-**[Task Decomposition](../concepts/task-decomposition.md)** frequently uses CoT as its decomposition mechanism. "What are the subgoals for achieving X?" with chain-of-thought produces more coherent subtask breakdowns than asking for a list directly.
-
-**[Agent Memory](../concepts/agent-memory.md)** architectures store CoT traces as [Decision Traces](../concepts/decision-traces.md) — the reasoning chain becomes a record of why a decision was made, retrievable later for context.
-
-**[Context Engineering](../concepts/context-engineering.md)** treats CoT as one component of the knowledge generation layer (c_know in the formal framework C = A(c_instr, c_know, c_tools, c_mem, c_state, c_query)). The survey framing: CoT is a way of generating reasoning context that the model uses to condition its final answer. [Source](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md)
-
-**[Retrieval-Augmented Generation](../concepts/rag.md)** pairs naturally with CoT: retrieve relevant documents, then use CoT to reason over them. Without CoT, models often retrieve correctly but fail to synthesize retrieved information. With CoT, the model can explicitly trace how retrieved facts combine into an answer.
-
-**[DSPy](../projects/dspy.md)** treats CoT as an optimizable module. Its `dspy.ChainOfThought` module wraps the CoT pattern and allows automated prompt optimization over the reasoning format and examples.
-
-## Capability Threshold
-
-CoT is an emergent capability. Wei et al.'s original paper found that CoT produced no benefit on models below approximately 100B parameters; smaller models generated reasoning traces that were incoherent or counterproductive. This scaling threshold has shifted significantly since 2022 — instruction-tuned models like GPT-3.5, Claude, and Llama 3 8B now exhibit CoT-like behavior at much smaller scales because they were trained on reasoning-heavy data.
-
-The pattern from [Reflexion](../concepts/reflexion.md) research confirms this dependency: StarChat-beta showed zero improvement from verbal self-reflection (which requires CoT-quality reasoning analysis), while GPT-3.5/4 showed substantial gains. Capability determines whether the model can produce coherent reasoning chains or merely plausible-looking but unreliable ones. [Source](../raw/deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md)
-
-## Benchmarks and Performance
-
-Key results from the original Wei et al. paper and subsequent work (all self-reported unless noted):
-
-| Task | Standard Prompting | Chain-of-Thought | Gain |
-|------|-------------------|------------------|------|
-| GSM8K (GPT-3 175B) | ~17% | ~48% | +31pp |
-| AquA (PaLM 540B) | 26% | 35% | +9pp |
-| StrategyQA (PaLM 540B) | 86% | 87% | +1pp |
-| CommonsenseQA (PaLM 540B) | 79% | 80% | +1pp |
-
-The gains are largest on arithmetic and symbolic reasoning. CoT helps less on commonsense benchmarks where the task doesn't decompose into sequential steps.
-
-Self-consistency improves further: GSM8K with self-consistency (GPT-3 + CoT + majority vote over 40 samples) reaches ~74%, versus ~48% for single-chain CoT. These are self-reported figures from the original papers.
-
-HotPotQA results from Reflexion research: CoT with ground-truth context reaches 61% base, rising to 75% with self-reflection — but this conflates CoT with the Reflexion mechanism, not CoT alone.
-
-## Failure Modes
-
-**Plausible but wrong chains.** The model can generate confident-sounding reasoning that is internally consistent but factually incorrect. A student can write "3 × 4 = 11, therefore the answer is 22" and the chain "looks like math." Nothing in the basic CoT mechanism catches this.
-
-**Step-level hallucination in multi-hop tasks.** In reasoning chains requiring 5+ steps, errors in early steps compound. The model at step 4 conditions on the (incorrect) output of step 2, making further correction unlikely. Self-consistency partially mitigates this by averaging over multiple chains.
-
-**Verbose reasoning that obscures the answer.** When CoT chains get long (50+ steps), models lose track of the original question. The final answer may technically be present somewhere in the generation but not in the expected position.
-
-**Sensitivity to reasoning format.** Few-shot CoT examples encode a specific reasoning style. If the style doesn't match the task structure, performance can degrade versus zero-shot. Prompts that show mathematical reasoning may not transfer to causal reasoning tasks.
-
-**No guarantee of faithfulness.** A model can produce a post-hoc rationalization that "explains" its answer without the answer being causally derived from the reasoning. Turpin et al. (2023) showed LLM reasoning traces are often unfaithful to the actual computation — the chain describes what the answer is, not why the model reached it. This matters for explainability applications but less for accuracy.
-
-**Weaker models perform worse with CoT than without.** Models below a capability threshold produce chains that mislead rather than guide. Adding zero-shot CoT to an underpowered model on a task requiring genuine synthesis can hurt accuracy relative to direct prompting.
-
-## When to Use CoT
-
-Use CoT when:
-- The task decomposes into sequential steps (arithmetic, multi-step logic, code tracing)
-- Errors in individual steps are diagnosable from the chain
-- Latency budget permits longer generation (CoT increases token count 3–10×)
-- The model is large/capable enough to generate coherent chains
-
-Skip CoT when:
-- The task requires a single factual lookup (CoT adds tokens without benefit)
-- Latency is critical (CoT approximately doubles generation time at minimum)
-- You need guaranteed faithful explanations (CoT traces are not reliably causal)
-- The model is small and untested for reasoning quality (may hurt vs. help)
-
-Use self-consistency when you have budget for multiple calls and the task has a verifiable final answer. The 3–10× cost is worth paying for high-stakes reasoning tasks where errors are expensive.
-
-## Implementation Patterns
-
-**Minimal few-shot CoT prompt:**
 ```
 Q: Roger has 5 tennis balls. He buys 2 more cans of 3 balls each. How many does he have?
-A: Roger starts with 5 balls. 2 cans × 3 balls = 6 more balls. 5 + 6 = 11.
-The answer is 11.
+A: Roger starts with 5 balls. 2 cans of 3 balls each is 6 balls. 5 + 6 = 11. The answer is 11.
 
-Q: [Your question here]
-A:
+Q: [New question]
+A: [Model generates reasoning chain, then answer]
 ```
 
-**Zero-shot trigger phrases** (order by reliability, most to least):
-1. "Let's think step by step."
-2. "Please reason through this carefully."
-3. "Break this into steps:"
+**Zero-shot CoT:** Kojima et al. (2022) showed that appending "Let's think step by step" to a prompt, without any examples, substantially improves performance. This finding was significant because it demonstrated that the capability is latent in sufficiently large models, not learned from demonstration format. The phrase serves as a mode-switch signal.
 
-**Self-consistency implementation sketch:**
-```python
-answers = []
-for _ in range(n_samples):
-    chain = llm.generate(prompt, temperature=0.7)
-    answer = extract_final_answer(chain)
-    answers.append(answer)
-return Counter(answers).most_common(1)[0][0]
-```
+**Self-consistency:** Wang et al. (2022) extended CoT by sampling multiple independent reasoning chains and taking a majority vote on the final answers. Self-consistency consistently improves over greedy single-chain CoT by 1-17 percentage points on arithmetic and commonsense benchmarks, because diversity in reasoning paths surfaces the correct answer even when individual chains make errors.
 
-**[DSPy](../projects/dspy.md) integration:**
-```python
-cot = dspy.ChainOfThought("question -> answer")
-```
-DSPy handles prompt optimization and example selection automatically, removing the need for manual few-shot curation.
+### Structural Variants
 
-## Unresolved Questions
+The basic linear chain has spawned a family of more complex structures:
 
-**Faithfulness vs. accuracy tradeoff.** CoT reliably improves accuracy on reasoning benchmarks. It does not reliably produce faithful explanations of model computation. No published technique fully bridges this gap. Users who want both accurate answers and explanations they can trust need to treat CoT traces as useful heuristics, not proofs.
+**Tree of Thought (ToT):** Yao et al. (2023) frames reasoning as tree search. The model generates multiple candidate next steps at each decision point, evaluates them, and selectively expands promising branches. This enables backtracking, which linear CoT cannot do. Effective for tasks with discrete structure like game-playing and creative writing where some branches are clearly wrong. Computationally expensive: requires many LLM calls.
 
-**Optimal chain length.** There is no principled guidance on how many steps a CoT chain should have. Too short: insufficient decomposition. Too long: the model loses track. Practitioners set this by trial and error.
+**Graph of Thought:** Extends ToT to allow arbitrary graph connections between thoughts, enabling the model to synthesize across branches. Adds implementation complexity with limited empirical evidence of consistent improvement over ToT on standard benchmarks.
 
-**Cross-task transfer of reasoning formats.** Few-shot CoT examples encode format and style. Whether math-focused examples help or hurt on code reasoning tasks is not well characterized. Using domain-matched examples improves performance but requires per-domain curation work.
+**Program of Thought / Program-aided Language Models (PAL):** Rather than natural language reasoning steps, the model generates code that is then executed by an interpreter. The interpreter handles arithmetic and symbolic manipulation reliably, eliminating one of CoT's main failure modes (arithmetic errors within the chain). Strong for quantitative tasks; requires a code execution environment.
 
-**Interaction with [Prompt Optimization](../concepts/dspy-optimization.md).** Automated prompt optimizers (DSPy) improve few-shot example selection and phrasing but the optimal examples are often non-intuitive and not human-interpretable. The relationship between example quality and CoT reliability is underspecified.
+**ReAct:** [ReAct](../concepts/react.md) interleaves reasoning traces with tool actions (search, calculator, API calls). Each action yields an observation, which feeds back into the next reasoning step. This extends CoT beyond pure internal reasoning to handle tasks requiring external information retrieval.
+
+### Training-Time vs. Inference-Time CoT
+
+The original CoT papers treat reasoning steps as a prompting technique applied at inference time. A parallel development treats long reasoning chains as training data:
+
+**Reasoning-trained models** (OpenAI o1/o3, Anthropic Claude 3.7 Sonnet with extended thinking, DeepSeek-R1) are fine-tuned or trained with reinforcement learning on problems where longer internal reasoning chains produce better outcomes. These models generate reasoning tokens that are sometimes hidden from the user but visible to the model during generation. The [GRPO](../concepts/grpo.md) training algorithm is used in some of these systems to optimize for correct final answers without requiring step-level supervision.
+
+This distinction matters for practitioners: prompting-based CoT is universally available but model-dependent; training-based reasoning is baked into specific model variants and not user-configurable.
+
+### Implementation in Agent Systems
+
+In [Context Engineering](../concepts/context-engineering.md) terms, CoT reasoning traces are a form of the `c_state` component, dynamic state that the model generates and conditions subsequent generation on. The survey formalizes this: `C = A(c_instr, c_know, c_tools, c_mem, c_state, c_query)`, where the reasoning trace occupies `c_state`.
+
+In agent loops, CoT typically appears in two places:
+
+1. **Planning:** The agent reasons through a multi-step task before beginning execution, producing a plan as a structured reasoning trace.
+2. **Per-step reasoning:** Before each action, the agent reasons about the current state and what to do next (the pattern [ReAct](../concepts/react.md) codifies).
+
+[Reflexion](../concepts/reflexion.md) adds a third location: after failure, the evaluator prompts the model to reason about *why* it failed. This post-hoc reasoning stored in [Episodic Memory](../concepts/episodic-memory.md) produced 91% pass@1 on HumanEval versus GPT-4's 80%. The reflection mechanism is architecturally simple: one additional LLM call per retry, with the output appended to the memory buffer for subsequent attempts.
+
+[DSPy](../projects/dspy.md) treats reasoning steps as learnable prompt components, automatically optimizing few-shot CoT examples and chain structure for a target task. This addresses one of CoT's manual burdens: crafting good example chains requires effort proportional to task complexity.
+
+## Key Numbers
+
+Accuracy gains from CoT are task-dependent and model-dependent. From Wei et al. (2022) on PaLM 540B:
+
+- GSM8K (grade school math): from ~17% to ~58% with few-shot CoT (self-reported)
+- SVAMP (adversarial math): from ~65% to ~79% (self-reported)
+- StrategyQA (commonsense): from ~73% to ~76% (modest; task is less chain-dependent)
+
+Self-consistency on GPT-3 code-davinci-002:
+- GSM8K: 78% with self-consistency vs 63% with greedy CoT (self-reported, Wang et al. 2022)
+
+Reflexion on HumanEval (Python, GPT-4 backbone):
+- 91% pass@1 vs 80.1% without Reflexion (self-reported, Shinn et al. 2023 per [Source](../raw/deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md))
+
+These numbers are largely self-reported by paper authors. Independent replication has generally confirmed the qualitative finding (CoT helps on multi-step reasoning) but exact numbers vary with model versions and evaluation details.
+
+One well-established finding, replicated across many groups: CoT provides near-zero benefit on models below roughly 100B parameters. This has been confirmed independently enough to treat as reliable.
+
+## Strengths
+
+**Reliable improvement on decomposable tasks.** Any task that decomposes into a sequence of subtasks where getting each subtask right contributes to getting the whole task right benefits from CoT. Mathematical reasoning, multi-hop question answering, code debugging, and planning all fit this pattern.
+
+**Interpretability as a byproduct.** The reasoning trace tells you *how* the model arrived at an answer. This is practically valuable: you can often spot errors in the chain before checking the final answer, and you can use chain quality as a signal for output reliability. An incoherent reasoning chain is a red flag even if the final answer looks correct.
+
+**No training required.** Prompting-based CoT works on any sufficiently large model with no fine-tuning. You can layer it onto existing inference infrastructure.
+
+**Composability with other techniques.** CoT pairs well with retrieval (retrieve relevant context, then reason over it), tool use (reason about what tool to call, call it, reason about the result), and self-correction (reason about why a prior attempt failed). The [ReAct](../concepts/react.md) pattern is just CoT with tool calls inserted into the chain.
+
+## Limitations
+
+**Token cost scales with chain length.** Each reasoning step consumes tokens both during generation and as context for subsequent steps. For long chains or many parallel self-consistency samples, this becomes expensive quickly. A 40-step reasoning chain might use 10x the tokens of direct generation. At scale, this is a real infrastructure cost.
+
+**Arithmetic errors within chains persist.** Even with CoT, models make arithmetic errors inside reasoning steps. PAL-style code execution removes this failure mode, but natural language chains do not. An error in step 3 of a 10-step chain typically propagates to an incorrect final answer, and the model rarely detects it.
+
+**Quality depends on example quality.** Few-shot CoT is only as good as the examples provided. Poor examples lead to shallow, incorrect, or stylistically wrong reasoning chains. Constructing good few-shot CoT examples for a new domain requires non-trivial expertise and evaluation effort.
+
+**Verbosity does not equal correctness.** A confident, fluent, detailed reasoning chain can be completely wrong. Users who interpret chain length or sophistication as a reliability signal will be misled. The ablation in [Source](../raw/deep/papers/shinn-reflexion-language-agents-with-verbal-reinforceme.md) showed that self-reflection *without reliable evaluation signals* actually hurt performance by -8pp, because the model generated plausible-sounding but incorrect self-analysis.
+
+**Concrete failure mode:** A model given a math problem writes a 6-step chain, makes an arithmetic error in step 2, correctly follows the flawed result through steps 3-6, and arrives at a confident wrong answer with a fully coherent-looking trace. Self-consistency helps but does not eliminate this because multiple chains may share the same systematic error pattern on problems where one operation is non-obvious.
+
+**Unspoken infrastructure assumption:** CoT works best when outputs are deterministic or near-deterministic enough that self-consistency majority voting is meaningful. At high temperature (for creative tasks) or with very long chains where entropy accumulates, self-consistency degrades and the core verification mechanism breaks down.
+
+## When NOT to Use It
+
+**Simple lookup tasks.** If the task is factual retrieval with no multi-step reasoning requirement, CoT adds token cost without benefit and can introduce hallucinated reasoning steps that pull the model away from a direct correct answer.
+
+**Latency-constrained production paths.** Chain generation takes time. An API with strict latency SLAs cannot absorb a 2-5x generation overhead for reasoning traces. Direct generation with a better prompt or retrieval is usually the right trade.
+
+**Tasks requiring exploration over refinement.** The WebShop failure in Reflexion illustrates this directly: when the problem requires trying diverse strategies (searching with different query types, exploring a broad space), linear CoT locks the model into incremental refinement of whatever approach it starts with. It cannot backtrack or try fundamentally different approaches without tree-structured variants that are much more expensive.
+
+**Very small models.** Below the emergent capability threshold (roughly sub-70B for most benchmarks), CoT provides no reliable benefit. Using CoT with a small model wastes tokens.
+
+## Relationship to Related Concepts
+
+CoT is listed as `part_of` [Context Engineering](../concepts/context-engineering.md) because it is a specific strategy for how to use context window space. The survey's six-component model (`c_instr, c_know, c_tools, c_mem, c_state, c_query`) places reasoning traces under `c_state`.
+
+It is `part_of` [Agent Memory](../concepts/agent-memory.md) in the sense that reasoning traces within a session serve as working memory, and stored reflection traces (as in Reflexion) serve as [Episodic Memory](../concepts/episodic-memory.md) across attempts.
+
+It is `part_of` [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) indirectly: RAG systems often use CoT to reason over retrieved context, and agentic RAG uses ReAct-style chains to decide *what* to retrieve.
+
+[ReAct](../concepts/react.md) extends CoT by adding action steps. Where CoT produces `Thought → Answer`, ReAct produces `Thought → Action → Observation → Thought → Action → ...`. The reasoning mechanism is the same; ReAct adds the tool call/observe loop.
 
 ## Alternatives
 
-- **Direct prompting**: Use when the task is single-step or the model is small. Lower latency, no risk of misleading chains.
-- **[ReAct](../concepts/react.md)**: Use when reasoning requires interleaving with external actions (search, code execution). CoT without grounding hallucinates facts; ReAct grounds reasoning in retrieved observations.
-- **[Reflexion](../concepts/reflexion.md)**: Use when you have an evaluation signal and need iterative improvement. Reflexion requires CoT internally but adds the trial-error-reflection loop.
-- **[Task Decomposition](../concepts/task-decomposition.md) with explicit subtasks**: Use when the problem structure is known in advance and can be hardcoded into a pipeline. More reliable than CoT-generated decomposition but less flexible.
-- **Fine-tuning on reasoning traces**: Use when you have labeled CoT data and serve high-traffic production. A fine-tuned smaller model can match large-model CoT performance at lower cost and latency.
+**Direct prompting:** For simple tasks, a well-crafted direct prompt outperforms CoT by being faster and cheaper. Use when the task has no meaningful intermediate steps.
+
+**PAL / code generation:** Generates executable code instead of natural language reasoning. Stronger for quantitative tasks because execution handles arithmetic reliably. Use when arithmetic correctness matters more than interpretability in natural language.
+
+**[ReAct](../concepts/react.md):** Use when tasks require information from external sources mid-reasoning. ReAct adds tool calls into the chain at appropriate points.
+
+**[DSPy](../projects/dspy.md):** Automates construction and optimization of prompting pipelines including CoT examples. Use when you want to optimize CoT for a specific task without manual example engineering.
+
+**Reasoning-specialized model variants:** OpenAI o3, Anthropic Claude with extended thinking. Use when chain quality matters more than latency or cost, and you want training-time rather than prompting-time optimization. The reasoning is internal and partially optimized, not user-configurable.
+
+**[Reflexion](../concepts/reflexion.md):** Use when your agent operates in a trial-and-error loop and you want it to learn from failures within a session without fine-tuning. Adds one LLM call per retry; provides 4-12pp improvement on tasks with reliable evaluation signals.
+
+## Unresolved Questions
+
+**Optimal chain length.** There is no principled guidance on how many steps a reasoning chain should contain for a given problem complexity. Too short and the model skips important steps; too long and the model fills space with low-value elaboration or introduces error. Practitioners tune this empirically.
+
+**When does reasoning actually help vs. when does it just look like helping?** Some work suggests that on certain tasks, CoT provides surface-level plausibility to an answer the model would have given anyway, rather than genuinely altering the computational process. Distinguishing these cases is an open research question.
+
+**Token cost at production scale.** The literature reports accuracy gains but rarely discusses total token cost per query at production volume. A system running 10M queries/day with 4x CoT overhead versus direct generation has substantially different infrastructure costs. This is rarely acknowledged in benchmark papers.
+
+**Conflict resolution across self-consistency samples.** Self-consistency takes a majority vote, but some tasks have non-binary outcomes where majority voting is poorly defined. How to aggregate diverse chains for open-ended generation is not settled.
 
 
 ## Related
 
-- [Retrieval-Augmented Generation](../concepts/rag.md) — part_of (0.4)
-- [ReAct](../concepts/react.md) — extends (0.7)
-- [Reflexion](../concepts/reflexion.md) — extends (0.6)
+- [Context Engineering](../concepts/context-engineering.md) — part_of (0.7)
 - [Agent Memory](../concepts/agent-memory.md) — part_of (0.5)
-- [Task Decomposition](../concepts/task-decomposition.md) — part_of (0.7)
-- [Context Engineering](../concepts/context-engineering.md) — part_of (0.6)
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — part_of (0.5)
+- [ReAct](../concepts/react.md) — extends (0.7)

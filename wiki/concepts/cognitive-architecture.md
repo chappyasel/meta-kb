@@ -1,160 +1,146 @@
 ---
 entity_id: cognitive-architecture
 type: concept
-bucket: agent-systems
+bucket: agent-architecture
 abstract: >-
-  Cognitive architecture defines how an AI agent structures memory, reasoning,
-  planning, and action into coordinated subsystems — analogous to how cognitive
-  science models the human mind's functional organization.
+  Cognitive architecture defines how an AI agent perceives, remembers, reasons,
+  and acts — distinguishing modern LLM-based agents from pure prompt chains
+  through structured, persistent, and composable mental subsystems.
 sources:
+  - tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md
   - repos/agenticnotetaking-arscontexta.md
   - repos/topoteretes-cognee.md
   - repos/caviraoss-openmemory.md
-related: []
-last_compiled: '2026-04-05T23:11:58.955Z'
+related:
+  - retrieval-augmented-generation
+  - openai
+  - context-engineering
+  - knowledge-graph
+last_compiled: '2026-04-08T02:56:29.327Z'
 ---
 # Cognitive Architecture
 
 ## What It Is
 
-Cognitive architecture is the structural blueprint for an intelligent agent's mental capabilities. It specifies which components exist (memory, perception, reasoning, planning, action), how they interact, and what constraints govern their coordination. The term originates from cognitive science, where researchers like Allen Newell and John Anderson developed models such as SOAR and ACT-R to explain human cognition. In AI agent systems, cognitive architecture has become the dominant design vocabulary for agents that must maintain state, reason across sessions, and act in dynamic environments.
+Cognitive architecture is the structural blueprint governing how an intelligent agent processes information across perception, memory, reasoning, and action. The term originates in cognitive science, where researchers like Allen Newell and John Anderson built computational models of human cognition (SOAR, ACT-R) to explain how memory retrieval, attention, and goal-directed behavior compose into general intelligence.
 
-A cognitive architecture is not a single algorithm or module. It is a system of systems, each handling a distinct cognitive function, integrated through defined interfaces. When builders talk about an agent "having memory" or "being able to plan," they are implicitly describing architectural choices about which cognitive subsystems the agent has and how those subsystems communicate.
+Applied to LLM agents, cognitive architecture answers a concrete engineering question: given that a language model is stateless and amnesiac by default, what persistent structures and processing loops make it capable of purposeful, coherent behavior across time?
+
+The distinction matters. A single prompt-response cycle is not an architecture. An architecture specifies *how* information flows between subsystems, *what* gets persisted, *when* reasoning strategies switch, and *who* coordinates multiple agents working in parallel.
 
 ## Why It Matters
 
-Stateless LLM calls produce agents that forget everything between turns. A user mentions an allergy in one session; the agent acts oblivious in the next. A coding assistant learns a codebase's conventions; they vanish when the context window clears. Cognitive architecture is the answer to this problem at a structural level.
+Without deliberate cognitive architecture, LLM agents hit a ceiling fast. They forget prior context, repeat mistakes, cannot plan beyond what fits in a context window, and fail to accumulate skill over time. Every session starts blank.
 
-Beyond persistence, cognitive architecture determines an agent's ceiling. An agent without a planning subsystem can react but not strategize. An agent without episodic memory can answer questions but cannot learn from its own history. An agent without a reflective component cannot detect when its own beliefs are inconsistent. The architecture sets what is even possible before any specific capability is implemented.
+The core problem: language models are powerful reasoning engines but terrible memories. Cognitive architecture is the scaffolding that compensates for this, layering durable storage, retrieval logic, and coordination mechanisms on top of raw model capability. Projects like [MemGPT](../projects/memgpt.md) and [Letta](../projects/letta.md) were built precisely because prompt-stuffing context windows does not scale.
 
 ## Core Components
 
+### Perception
+
+Perception is the intake layer: parsing raw inputs (text, tool outputs, API responses, file contents) into representations the agent can reason about. In LLM agents this is less complex than in robotics, but preprocessing decisions matter. Chunking strategies, embedding quality, and modality handling all happen here. Poor perception degrades every downstream component.
+
 ### Memory Systems
 
-Most cognitive architectures distinguish several memory types, borrowed from cognitive science:
+Memory is where most cognitive architecture engineering happens, and where the field borrows most directly from cognitive science. Four types appear consistently across frameworks:
 
-**Episodic memory** stores specific past events and their context: "On March 5, the user asked for a refund and was escalated to tier 2." It is sequential and contextually rich.
+**Working / Short-Term Memory** is the active context window. Information here is immediately accessible but strictly bounded and ephemeral. The [Lost in the Middle](../concepts/lost-in-the-middle.md) problem is a working memory failure mode: models attend less to information placed in the middle of long contexts, regardless of relevance. [Context Engineering](../concepts/context-engineering.md) addresses this by controlling what enters and where.
 
-**Semantic memory** stores general facts and knowledge structures: "The user prefers TypeScript. The codebase uses PostgreSQL." It is declarative and topic-indexed.
+**Episodic Memory** stores specific past events: conversation turns, actions taken, outcomes observed. [Episodic Memory](../concepts/episodic-memory.md) enables agents to say "last Tuesday I tried X and it failed." OpenMemory implements this as time-indexed entries with `valid_from`/`valid_to` fields on a temporal knowledge graph, allowing point-in-time queries. Without episodic memory, agents repeat the same errors.
 
-**Procedural memory** stores learned routines and skills: "To analyze a SQL query, first check the FROM clause, then joins, then WHERE conditions." It is action-oriented and often implicit.
+**Semantic Memory** stores general knowledge: facts, concepts, relationships. [Semantic Memory](../concepts/semantic-memory.md) is typically encoded in vector stores or knowledge graphs and retrieved via similarity search. [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) is the dominant implementation pattern: embed documents, retrieve relevant chunks at query time, inject into context. The limitation is that pure vector retrieval is semantic similarity, not logical reasoning over relationships.
 
-**Working memory** is the agent's active context window: what it currently holds in attention. This is the most constrained resource, bounded by context length.
+**Procedural Memory** encodes how to do things: skills, workflows, tool-use patterns. [Procedural Memory](../concepts/procedural-memory.md) manifests as saved prompts, workflow templates, or function libraries the agent can invoke. [Voyager](../projects/voyager.md) maintains a skill library that grows as the agent successfully completes new tasks in Minecraft, representing procedural memory accumulation in practice.
 
-Some systems add **emotional memory** (valence-tagged events that shape future responses) and **reflective memory** (meta-cognitive insights the agent has developed about its own patterns). OpenMemory's architecture, for instance, implements all five sectors with separate classification, scoring, and decay logic for each.
+Projects like [Cognee](../projects/graphiti.md) attempt to unify these by combining vector search with graph databases, capturing not just what things mean but how they relate. The `cognee.cognify()` pipeline ingests documents and builds relationship structures that evolve as knowledge changes, rather than treating memory as a static embedding index.
+
+[Agent Memory](../concepts/agent-memory.md), [Core Memory](../concepts/core-memory.md), and [Long-Term Memory](../concepts/long-term-memory.md) represent increasingly persistent tiers: core memory is always in context, long-term memory requires retrieval.
 
 ### Reasoning
 
-Reasoning components process inputs against current knowledge to produce conclusions or inferences. In practice, this is often the LLM itself, but architecturally distinct from memory retrieval. A reasoning component might perform:
+Reasoning is where the model applies its intelligence to current context. Several patterns structure this:
 
-- **Deductive reasoning**: applying rules to facts to derive new facts
-- **Analogical reasoning**: mapping a current problem to a solved prior problem
-- **Abductive reasoning**: inferring the most likely cause of observed evidence
+**[Chain-of-Thought](../concepts/chain-of-thought.md)** prompts the model to reason step-by-step before answering, improving performance on complex tasks by externalizing intermediate reasoning into the context window.
 
-The Cognee system grounds reasoning in a hybrid graph/vector structure, where queries traverse relationship edges rather than operating purely on semantic similarity. This forces the reasoning component to consider how concepts connect, not just how similar they are.
+**[ReAct](../concepts/react.md)** (Reason + Act) interleaves reasoning traces with tool calls: the agent thinks, acts, observes, thinks again. This loop is the backbone of most tool-using agents.
 
-### Planning
+**[Reflexion](../concepts/reflexion.md)** adds a self-evaluation loop: after acting, the agent reflects on outcomes and stores verbal self-feedback as episodic memory, enabling learning from failure without gradient updates.
 
-Planning generates a sequence of actions to achieve a goal. It requires the agent to model future states, not just current ones. Planning architectures vary along several dimensions:
+**Planning** extends reasoning across multiple future steps. Tree-of-Thought, MCTS-based planners, and hierarchical task decomposition all fall here.
 
-- **Depth**: single-step (reactive) vs. multi-step (deliberative)
-- **Revision**: fixed plans vs. re-planning when the environment changes
-- **Representation**: symbolic plans (steps listed explicitly) vs. latent plans (encoded in model weights or prompts)
-
-The Ars Contexta plugin implements a 6-phase processing pipeline (Record → Reduce → Reflect → Reweave → Verify → Rethink) that functions as a procedural plan for knowledge management. Each phase runs in its own context window via subagent spawning, addressing a real constraint: LLM attention degrades as context fills, so fresh contexts per phase maintain reasoning quality.
+The distinction between these patterns matters for architecture: Chain-of-Thought happens inside a single inference call. ReAct spans multiple calls with tool interleaving. Reflexion requires persistent memory between episodes. Each demands different infrastructure.
 
 ### Action
 
-Action components translate plans into effects: API calls, file writes, database queries, tool invocations. In agent systems, the action component must handle:
+Action is the output layer: the agent's interface with the world. This includes tool calls (APIs, web browsers, code execution), file operations, spawning subagents, and producing final responses. Action capability defines an agent's surface area.
 
-- **Tool selection**: which tool achieves the current sub-goal
-- **Error handling**: what to do when an action fails
-- **Side effects**: tracking what changed in the world after acting
+[Agent Skills](../concepts/agent-skills.md) are reusable action patterns. [Tool Registry](../concepts/tool-registry.md) is the cataloguing mechanism. Action without robust error handling and [Loop Detection](../concepts/loop-detection.md) produces agents that spin indefinitely or corrupt state.
 
-### Perception
+### Metacognition
 
-Perception is the interface between the agent and its environment. For LLM agents, this includes text inputs, tool call results, retrieved memories, and structured data from external systems. Perception components may perform filtering, summarization, or classification before passing information to reasoning.
+Metacognition is the agent's capacity to monitor and adjust its own processing. This includes uncertainty estimation, recognizing when to ask for help versus proceed, detecting when a strategy is failing, and updating beliefs about its own capabilities. [Human-in-the-Loop](../concepts/human-in-the-loop.md) is a metacognitive checkpoint. [Self-Improving Agents](../concepts/self-improving-agents.md) formalize this: the agent's architecture includes mechanisms to modify its own components based on performance.
 
-## How Components Interact
+The [Darwin Gödel Machine](../projects/darwin-godel-machine.md) pushes this to its limit, attempting genuine self-modification of code. [EvoAgentX](../projects/evoagentx.md) and [AgentEvolver](../projects/agentevolver.md) explore evolutionary approaches. The critical unsolved problem: tracking which self-modifications succeed, and preventing degenerate feedback loops. Memory architecture becomes the bottleneck for self-improvement.
 
-The interaction topology matters as much as the components themselves. Two major patterns:
+## Multi-Agent Coordination
 
-**Sequential pipelines** pass information through components in fixed order: perceive → remember → reason → plan → act. Ars Contexta's `/ralph` orchestrator exemplifies this: read queue, spawn subagent for each phase, parse handoff, advance. The structure is predictable and debuggable, but struggles with tasks that require cycling back.
+When multiple agents collaborate, cognitive architecture scales into [Multi-Agent Systems](../concepts/multi-agent-systems.md). Each agent has its own cognitive architecture, but the system needs coordination primitives: shared memory, message passing, role assignment, and conflict resolution.
 
-**Blackboard architectures** have components read from and write to a shared working memory. Any component can trigger any other based on what appears in the shared space. SOAR, the classic cognitive architecture, uses a variant of this. It is more flexible but harder to trace.
+[MetaGPT](../projects/metagpt.md) assigns software development roles (PM, engineer, QA) to distinct agents, each with specialized reasoning patterns. [CrewAI](../projects/crewai.md) formalizes agent crews with explicit role definitions. [LangGraph](../projects/langgraph.md) models agent workflows as directed graphs, making coordination structure explicit and debuggable.
 
-Modern LLM agent frameworks tend toward a hybrid: a primary reasoning loop with access to memory retrieval and tool execution, plus hooks that fire on specific events. The hooks in Ars Contexta (Session Orient, Write Validate, Auto Commit, Session Capture) implement this pattern: components that react to specific events rather than running in every cycle.
+[Organizational Memory](../concepts/organizational-memory.md) is the shared-memory problem at the multi-agent level: how do agents pool what they learn without interfering with each other's working memory?
 
-## Memory Retrieval Mechanisms
+## Implementation Patterns
 
-The retrieval strategy is where most cognitive architecture implementations differ in practice.
+**Context Management** decides what enters working memory at each step. [Context Compression](../concepts/context-compression.md) reduces token cost. [Progressive Disclosure](../concepts/progressive-disclosure.md) injects detail progressively rather than dumping everything upfront. [Context Engineering](../concepts/context-engineering.md) is the discipline of doing this well.
 
-**Vector similarity search** embeds memories and queries in the same space, then retrieves by cosine distance. Fast and general, but retrieves by semantic surface similarity rather than structural relevance. Two facts that sound similar retrieve together even if their relationship is irrelevant to the query.
+**Knowledge Graphs** add relational structure to memory. [Knowledge Graph](../concepts/knowledge-graph.md) nodes represent entities; edges represent relationships. [GraphRAG](../projects/graphrag.md) and [HippoRAG](../projects/hipporag.md) use graph traversal to retrieve more coherent context than flat vector search. The tradeoff: graph construction and maintenance costs are significant.
 
-**Graph traversal** retrieves by relationship structure. Cognee combines vector search with graph databases so queries can follow edges: "what entities is this concept connected to, and how?" This captures relational reasoning that pure embedding retrieval misses.
+**[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)** is the dominant pattern for semantic memory access. [Hybrid Search](../concepts/hybrid-search.md) combines dense vector search with sparse keyword matching (BM25) to improve retrieval recall. [Vector Database](../concepts/vector-database.md) systems like [ChromaDB](../projects/chromadb.md) and [Pinecone](../projects/pinatone.md) provide the storage layer.
 
-**Composite scoring** weights multiple signals: recency, salience, co-activation frequency, embedding similarity. OpenMemory's recall engine computes composite scores across these dimensions rather than relying on any single signal. This mimics the human memory observation that we recall things that are recent, emotionally salient, and frequently associated with current context.
+**[Continual Learning](../concepts/continual-learning.md)** updates the agent's knowledge without full retraining. [Memory Evolution](../concepts/memory-evolution.md) handles how stored memories should change as new information arrives, including conflict resolution and temporal reasoning.
 
-**Temporal indexing** is a less common but important mechanism. OpenMemory's temporal knowledge graph tracks `valid_from` and `valid_to` for facts, supports point-in-time queries, and handles contradictions by closing old validity windows when new facts arrive. This lets an agent reason about what was true at a specific time, not just what is currently known.
+## Concrete Implementations
 
-## Memory Decay and Reinforcement
+Several projects demonstrate how these components assemble into working architectures:
 
-Cognitive systems do not treat all memories as equally persistent. Human memory strengthens with use and fades with disuse. Architecturally, decay mechanisms prevent memory stores from accumulating noise indefinitely. Reinforcement mechanisms strengthen memories that prove relevant.
+[Letta](../projects/letta.md) (MemGPT's evolution) implements explicit memory tiers: core memory always in context, archival memory retrieved on demand. The OS-inspired metaphor treats the context window as RAM and external storage as disk, with explicit read/write operations.
 
-OpenMemory implements adaptive forgetting per sector: episodic memories decay faster than semantic ones, matching the cognitive science observation that event details fade faster than general knowledge. The `reinforce` operation strengthens a memory's salience weight when it proves useful. This is not cosmetic — without decay, retrieval quality degrades as stores grow, because low-quality memories dilute high-quality results.
+The [Ars Contexta](../repos/agenticnotetaking-arscontexta.md) plugin generates domain-specific cognitive architectures through conversation, producing folder structure, processing pipelines, templates, and hooks calibrated to how a user actually thinks. Its three-space architecture (self/, notes/, ops/) separates agent identity, knowledge, and operational state. The `/ralph` command runs phases in isolated context windows via subagent spawning, preventing attention degradation across the processing pipeline.
 
-## Grounding in Cognitive Science
+OpenMemory distinguishes itself by typing memory into sectors (episodic, semantic, procedural, emotional, reflective) rather than treating all memories as undifferentiated embeddings, and adding a temporal knowledge graph with `valid_from`/`valid_to` timestamps. This supports queries like "what did the agent know on a specific date."
 
-Several cognitive architectures in active AI research trace directly to human cognitive models:
-
-**ACT-R** (Adaptive Control of Thought-Rational) separates declarative memory (facts) from procedural memory (production rules) and simulates how each is retrieved and fired. Modern LLM agent systems often implement this split implicitly.
-
-**SOAR** uses a single universal learning mechanism: impasse-driven chunking. When SOAR cannot resolve a problem with existing knowledge, it explores sub-goals until it finds a solution, then compiles that solution into a new production rule. This is a model for how agents can learn from failure.
-
-**Global Workspace Theory** proposes that consciousness corresponds to information being broadcast to many specialized modules simultaneously. Some agent architectures implement this as a shared context that all reasoning modules can read, with competitive selection determining what gets broadcast.
-
-Ars Contexta's 249 research claims include cognitive science grounding for specific design choices: context-switching cost research (Leroy 2009) justifies the MOC hierarchy, spreading activation theory justifies wiki-link structures, progressive disclosure principles justify the description field architecture.
-
-## Implementation Decisions and Tradeoffs
-
-**Context window as working memory**: The LLM's context window is not infinite. Every architectural choice about what to load into context is a working memory decision. Systems that naively load everything degrade at scale. Ars Contexta addresses this by spawning fresh subagents per pipeline phase, preventing context saturation from degrading reasoning quality.
-
-**Separation of spaces**: Ars Contexta's three-space architecture (self/, notes/, ops/) implements a functional separation between identity/methodology, knowledge, and operational state. This maps to the architectural principle that different memory types require different access patterns and update frequencies.
-
-**Distributed vs. centralized memory**: OpenMemory supports both embedded local memory (SQLite) and a central server for multi-user scenarios. The architectural tradeoff: local memory has no latency and no privacy risk, but cannot be shared across agents. Central memory enables cross-agent knowledge sharing but introduces coordination overhead.
-
-**Graph vs. vector retrieval**: Pure vector retrieval is simpler to implement but misses relational structure. Cognee's graph-RAG approach adds complexity but enables queries like "what concepts are adjacent to this one, and through what relationships?" The tradeoff is operational: graph databases require more infrastructure than vector stores.
+[ACE](../projects/ace.md) (Autonomous Cognitive Entity) implements a layered model directly inspired by cognitive science, with explicit aspiration, global strategy, agent model, executive function, cognitive control, and task prosecution layers.
 
 ## Failure Modes
 
-**Memory store degradation**: Without decay mechanisms, memory stores accumulate low-quality entries. Retrieval quality falls as noise accumulates. This is the cognitive equivalent of a cluttered desk: technically everything is there, but finding what matters gets harder.
+**Memory-Reasoning Mismatch**: The agent retrieves plausible memories but reasons incorrectly from them. Vector similarity retrieves semantically similar content, not necessarily relevant content. A query about "project deadline" retrieves everything mentioning deadlines, not specifically the current project's.
 
-**Context window overflow**: Naively designed pipelines load all relevant memories into a single context, which eventually exceeds the window or degrades quality before the limit. Systems without fresh-context strategies per task suffer from this silently — the agent produces outputs but reasoning quality has degraded.
+**Context Window Saturation**: Aggressive memory injection fills the context window, degrading reasoning quality. The [Lost in the Middle](../concepts/lost-in-the-middle.md) effect worsens with longer contexts. Architectures that inject too many retrieved memories without compression hit this ceiling quickly.
 
-**Retrieval mismatch**: Vector similarity retrieves semantically similar content, not contextually relevant content. An agent asked about a user's preference for dark mode may retrieve all their aesthetic preferences, diluting the specific fact with tangentially related material. Composite scoring partially addresses this; graph traversal addresses it more directly.
+**Degenerate Self-Improvement Loops**: Self-improving architectures that modify their own prompts or skill libraries based on performance feedback can enter feedback loops where a bad modification produces worse outputs, which the evaluation loop misinterprets as good. Tracking modification history and maintaining rollback capability is essential infrastructure most frameworks do not provide out of the box.
 
-**Architectural drift**: In systems with reflective memory or self-modifying architectures, the agent's behavior can drift from its intended design over time. Ars Contexta's `/reseed` command exists specifically for this: re-deriving the architecture from first principles when accumulated drift makes the system unreliable.
+**Cross-Agent Memory Pollution**: In multi-agent systems, shared memory stores allow agents to overwrite each other's memories. Without isolation or versioning, a specialized agent's domain-specific writes corrupt generalizable memory.
 
-**Memory isolation failures**: In multi-agent or multi-user systems, improper isolation can leak memories across users or agents. This is both a security failure and a cognitive architecture failure — the agent's episodic memory becomes contaminated with events that belong to a different identity.
+## Unresolved Questions
 
-## Who Implements It
+How memory conflicts get resolved remains underspecified across frameworks. When two episodic memories contradict each other, most systems either overwrite (last-write-wins) or accumulate (both stored, retrieval returns both). Neither is principled.
 
-The major frameworks approach cognitive architecture differently:
+Evaluation methodology for cognitive architectures is immature. [SWE-bench](../projects/swe-bench.md), [GAIA](../projects/gaia.md), and [Tau-bench](../projects/tau-bench.md) test agent capabilities but not specific architectural choices. It is difficult to isolate the contribution of a particular memory design versus a better base model.
 
-**Cognee** builds around a graph/vector hybrid knowledge engine, emphasizing the relational structure of memory. Its architecture treats knowledge as a dynamic graph that evolves as data changes. [Source](../raw/repos/topoteretes-cognee.md)
+The cost of maintaining rich cognitive architectures at scale is rarely discussed in framework documentation. Graph databases, vector stores, temporal knowledge graphs, and multi-sector memory classifiers each add latency and cost. Real-world deployments often collapse sophisticated architectures back to simpler patterns under production constraints.
 
-**OpenMemory** implements a multi-sector memory model with temporal indexing, decay, and composite scoring, prioritizing biological plausibility and explainability. Its architecture separates memory sectors by type and handles time as a first-class dimension. [Source](../raw/repos/caviraoss-openmemory.md)
+## Related Concepts
 
-**Ars Contexta** implements cognitive architecture at the level of the agent's persistent thinking system — the folder structure, processing pipeline, hooks, and navigation maps that constitute how an agent reasons about a specific domain over time. Its architecture derives from research claims rather than templates. [Source](../raw/repos/agenticnotetaking-arscontexta.md)
-
-## Practical Implications
-
-When designing or evaluating an agent system, cognitive architecture questions translate directly into product decisions:
-
-- Does the agent need to remember user preferences across sessions? Semantic memory with persistence.
-- Does the agent need to learn from its own mistakes? Episodic memory plus reflective memory.
-- Does the agent coordinate with other agents? Shared semantic memory with isolation guarantees.
-- Does the agent work in a domain where facts change over time? Temporal knowledge graph.
-- Does the agent run long, complex tasks? Fresh-context planning with working memory management.
-
-The architecture is not separable from the product. An agent without a planning component cannot reliably complete multi-step tasks. An agent without memory decay will degrade over time. An agent without episodic memory cannot adapt to individual users. These are not implementation details — they determine what the agent can and cannot do, regardless of the model quality underneath.
+- [Agent Memory](../concepts/agent-memory.md)
+- [Context Engineering](../concepts/context-engineering.md)
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md)
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
+- [ReAct](../concepts/react.md)
+- [Reflexion](../concepts/reflexion.md)
+- [Self-Improving Agents](../concepts/self-improving-agents.md)
+- [Knowledge Graph](../concepts/knowledge-graph.md)
+- [Episodic Memory](../concepts/episodic-memory.md)
+- [Procedural Memory](../concepts/procedural-memory.md)
+- [Context Management](../concepts/context-management.md)
+- [Human-in-the-Loop](../concepts/human-in-the-loop.md)

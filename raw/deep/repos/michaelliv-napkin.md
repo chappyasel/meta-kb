@@ -3,12 +3,16 @@ url: 'https://github.com/michaelliv/napkin'
 type: repo
 author: michaelliv
 date: '2026-04-04'
-tags: [knowledge-bases, context-engineering, agent-memory]
+tags:
+  - knowledge-bases
+  - context-engineering
+  - agent-memory
 key_insight: >-
   Napkin proves that BM25 on structured markdown with progressive disclosure
-  (L0-L3) outperforms embedding-based RAG on long-term memory benchmarks by
-  91% on LongMemEval-S, without any preprocessing, vector databases, or graph
-  construction — the cheapest possible retrieval architecture that actually works.
+  (L0-L3) outperforms embedding-based RAG on long-term memory benchmarks by 91%
+  on LongMemEval-S, without any preprocessing, vector databases, or graph
+  construction — the cheapest possible retrieval architecture that actually
+  works.
 stars: 264
 deep_research:
   method: source-code-analysis
@@ -26,6 +30,17 @@ deep_research:
     - src/templates/coding.ts
   analyzed_at: '2026-04-04'
   original_source: repos/michaelliv-napkin.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 9
+  novelty: 8
+  signal_quality: 8
+  composite: 8.7
+  reason: >-
+    Napkin directly implements a novel BM25+progressive-disclosure retrieval
+    architecture for agent memory on markdown vaults, with benchmark evidence
+    outperforming embedding RAG, a production TypeScript SDK, and clear
+    architectural patterns transferable to any agent knowledge system.
 ---
 
 ## Architecture Overview

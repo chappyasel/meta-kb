@@ -18,7 +18,7 @@ key_insight: >-
   to build persistent, interconnected knowledge representations that improve
   over time without fine-tuning.
 stars: 3332
-deep_researched: 'deep/repos/osu-nlp-group-hipporag.md'
+deep_researched: deep/repos/osu-nlp-group-hipporag.md
 forks: 333
 relevance_scores:
   topic_relevance: 9
@@ -27,11 +27,11 @@ relevance_scores:
   signal_quality: 8
   composite: 8.4
   reason: >-
-    HippoRAG 2 is a production-ready, MIT-licensed Python framework directly
-    targeting persistent LLM memory via knowledge graphs and personalized
-    PageRank, with benchmarks, papers, Colab demos, and clear architecture
-    documentation—highly relevant to both agent memory and RAG-alternative
-    knowledge base patterns.
+    HippoRAG 2 is a production-ready Python framework (MIT, 3.3k stars) that
+    directly advances agent memory and knowledge substrate topics by combining
+    KG-based RAG with personalized PageRank for multi-hop retrieval and
+    continual non-parametric learning, with benchmarks, Colab, and clear
+    architecture documentation.
 language: Python
 license: MIT
 ---

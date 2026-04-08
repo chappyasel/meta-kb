@@ -82,7 +82,7 @@ describe("claim content hash", () => {
 
   test("same content, different bucket = different hash", () => {
     expect(claimContentHash("Mem0 has 51K stars", "agent-memory"))
-      .not.toBe(claimContentHash("Mem0 has 51K stars", "knowledge-bases"));
+      .not.toBe(claimContentHash("Mem0 has 51K stars", "knowledge-substrate"));
   });
 
   test("produces 12 hex chars", () => {
@@ -127,13 +127,13 @@ describe("source diff detection", () => {
 });
 
 describe("dirty bucket computation (stopusingmarkdownformemory.com test case)", () => {
-  const articleTags = ["agent-memory", "context-engineering", "knowledge-bases", "semantic-retrieval", "attention-budget", "self-improving", "information-decay"];
-  const repoTags = ["agent-memory", "self-improving", "knowledge-bases", "competence-learning", "trust-gating", "semantic-extraction", "audit-trails"];
+  const articleTags = ["agent-memory", "context-engineering", "knowledge-substrate", "semantic-retrieval", "attention-budget", "self-improving", "information-decay"];
+  const repoTags = ["agent-memory", "self-improving", "knowledge-substrate", "competence-learning", "trust-gating", "semantic-extraction", "audit-trails"];
 
   test("article maps to expected buckets", () => {
     const buckets = tagsToBuckets(articleTags);
     expect(buckets).toContain("agent-memory");
-    expect(buckets).toContain("knowledge-bases");
+    expect(buckets).toContain("knowledge-substrate");
     expect(buckets).toContain("context-engineering");
     expect(buckets).toContain("self-improving");
   });

@@ -22,15 +22,14 @@ relevance_scores:
   topic_relevance: 10
   practitioner_value: 9
   novelty: 8
-  signal_quality: 9
-  composite: 9.3
-  deep_researched: 'deep/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md'
+  signal_quality: 8
+  composite: 9.1
   reason: >-
-    Zep/Graphiti is a core agent memory system (directly named in topic area 2)
-    with a temporal knowledge graph architecture that addresses dynamic
-    multi-source memory, cross-session context inheritance, and long-term
-    reasoning—all central to building production agent memory systems—with
-    strong benchmark results and a clear architectural paper.
+    Zep/Graphiti is a core named technology in the Agent Memory topic area, and
+    this paper provides detailed benchmarks (DMR, LongMemEval), architectural
+    description of a temporal knowledge graph engine, and quantified
+    improvements over MemGPT—directly actionable for practitioners building
+    production agent memory systems.
 ---
 ## Zep: A Temporal Knowledge Graph Architecture for Agent Memory
 

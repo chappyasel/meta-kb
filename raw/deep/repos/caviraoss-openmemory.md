@@ -12,11 +12,11 @@ tags:
 key_insight: >-
   OpenMemory implements a Hierarchical Sector Graph (HSG) that automatically
   classifies memories into cognitive sectors (episodic, semantic, procedural,
-  emotional, reflective) using regex-based routing, applies biologically-inspired
-  dual-phase exponential decay with configurable lambda rates per sector, and
-  performs automatic reflection by clustering similar memories and consolidating
-  patterns -- achieving a cognitively-grounded memory system that self-organizes
-  without requiring explicit user curation.
+  emotional, reflective) using regex-based routing, applies
+  biologically-inspired dual-phase exponential decay with configurable lambda
+  rates per sector, and performs automatic reflection by clustering similar
+  memories and consolidating patterns -- achieving a cognitively-grounded memory
+  system that self-organizes without requiring explicit user curation.
 stars: 3860
 deep_research:
   method: source-code-analysis
@@ -34,6 +34,17 @@ deep_research:
     - packages/openmemory-js/src/server/routes/memory.ts
   analyzed_at: '2026-04-04'
   original_source: repos/caviraoss-openmemory.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 8
+  composite: 8.4
+  reason: >-
+    OpenMemory implements a cognitively-grounded agent memory system with HSG
+    sector classification, dual-phase decay, and automatic reflection — directly
+    relevant to agent memory infrastructure with a detailed, production-oriented
+    architecture and dual-SDK support.
 ---
 
 ## Architecture Overview

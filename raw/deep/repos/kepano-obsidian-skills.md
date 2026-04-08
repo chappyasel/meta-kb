@@ -3,9 +3,15 @@ url: 'https://github.com/kepano/obsidian-skills'
 type: repo
 author: kepano
 date: '2026-04-04'
-tags: [knowledge-bases, agentic-skills, context-engineering]
+tags:
+  - knowledge-bases
+  - agentic-skills
+  - context-engineering
 key_insight: >-
-  Demonstrates the emerging pattern of encoding domain-specific knowledge as declarative markdown skill files that teach LLM agents how to work with proprietary formats -- turning documentation into executable agent capabilities without writing code.
+  Demonstrates the emerging pattern of encoding domain-specific knowledge as
+  declarative markdown skill files that teach LLM agents how to work with
+  proprietary formats -- turning documentation into executable agent
+  capabilities without writing code.
 stars: 19300
 deep_research:
   method: source-code-analysis
@@ -25,6 +31,17 @@ deep_research:
     - skills/json-canvas/references/EXAMPLES.md
   analyzed_at: '2026-04-04'
   original_source: repos/kepano-obsidian-skills.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 8
+  composite: 8.4
+  reason: >-
+    Directly demonstrates the SKILL.md/agent skills pattern for encoding domain
+    knowledge as declarative markdown—a core context engineering and agent
+    architecture pattern—with a real-world production example from a major
+    knowledge tool vendor.
 ---
 
 ## Architecture Overview

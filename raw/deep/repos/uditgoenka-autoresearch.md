@@ -3,9 +3,18 @@ url: 'https://github.com/uditgoenka/autoresearch'
 type: repo
 author: uditgoenka
 date: '2026-04-04'
-tags: [self-improving, agentic-skills, context-engineering]
+tags:
+  - self-improving
+  - agentic-skills
+  - context-engineering
 key_insight: >-
-  Generalizes Karpathy's constraint-metric-loop to any domain by encoding the entire autoresearch protocol as a Claude Code skill (markdown prompts with reference docs), implementing 10 specialized subcommands (plan, debug, fix, security, ship, scenario, predict, learn, reason) that compose the same core loop primitives -- commit-before-verify, git-revert-as-memory, mechanical-metric-only -- into fundamentally different agent behaviors including adversarial multi-agent debate with blind judging.
+  Generalizes Karpathy's constraint-metric-loop to any domain by encoding the
+  entire autoresearch protocol as a Claude Code skill (markdown prompts with
+  reference docs), implementing 10 specialized subcommands (plan, debug, fix,
+  security, ship, scenario, predict, learn, reason) that compose the same core
+  loop primitives -- commit-before-verify, git-revert-as-memory,
+  mechanical-metric-only -- into fundamentally different agent behaviors
+  including adversarial multi-agent debate with blind judging.
 stars: 3100
 deep_research:
   method: source-code-analysis
@@ -20,6 +29,18 @@ deep_research:
     - claude-plugin/skills/autoresearch/references/reason-workflow.md
   analyzed_at: '2026-04-04'
   original_source: repos/uditgoenka-autoresearch.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 9
+  composite: 8.6
+  reason: >-
+    Pure-markdown SKILL.md implementation that generalizes Karpathy's
+    autoresearch loop across domains via Claude Code subcommands — directly
+    relevant to skill composition, self-improving loops, and context engineering
+    patterns with adversarial multi-agent debate as a transferable coordination
+    primitive.
 ---
 
 ## Architecture Overview

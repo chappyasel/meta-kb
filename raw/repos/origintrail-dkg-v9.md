@@ -21,17 +21,17 @@ key_insight: >-
 stars: 15
 forks: 2
 relevance_scores:
-  topic_relevance: 6
-  practitioner_value: 5
-  novelty: 6
-  signal_quality: 6
-  composite: 5.7
+  topic_relevance: 8
+  practitioner_value: 6
+  novelty: 7
+  signal_quality: 7
+  composite: 7.1
   reason: >-
-    Decentralized knowledge graph for agent memory is tangentially relevant to
-    agent memory systems (topic 2), but the blockchain/cryptographic anchoring
-    approach is a niche pattern not directly transferable to typical LLM KB or
-    agent memory implementations, and the project is beta/testnet with limited
-    production applicability.
+    Directly addresses decentralized shared memory for multi-agent systems using
+    knowledge graphs with cryptographic verifiability—highly relevant to
+    Knowledge Substrate and Multi-Agent Systems pillars—though it's beta/testnet
+    with limited production readiness.
+deep_researched: true
 ---
 ## dkg-v9
 

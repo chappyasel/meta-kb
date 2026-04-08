@@ -76,10 +76,11 @@ the changes, not just hash-diff.
    ```
    Impact analysis:
      agent-memory: DIRTY — new contrarian source challenges flat-file memory
-     knowledge-bases: DIRTY — new project (Membrane) with novel architecture
+     knowledge-substrate: DIRTY — new project (Membrane) with novel architecture
      context-engineering: DIRTY — tagged but low impact (no contradiction)
+     agent-architecture: CLEAN
+     multi-agent-systems: DIRTY — new coordination patterns from CORAL
      self-improving: DIRTY — tagged but marginal relevance
-     agent-systems: CLEAN
    
    Contradictions detected:
      - Existing: "BM25 on markdown achieves 91% accuracy"

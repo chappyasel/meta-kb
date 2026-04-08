@@ -25,14 +25,14 @@ key_insight: >-
 relevance_scores:
   topic_relevance: 8
   practitioner_value: 8
-  novelty: 5
+  novelty: 6
   signal_quality: 7
-  composite: 7.4
+  composite: 7.6
   reason: >-
-    Directly addresses context engineering for coding agents (Topic 3) with
-    practical distinctions between instructions vs. guidance, LLM-controlled vs.
-    human-controlled context loading, and skills as on-demand context
-    interfaces—immediately applicable to anyone building agent systems.
+    Directly addresses context engineering for coding agents including
+    CLAUDE.md/SKILL.md patterns, instructions vs guidance distinction,
+    progressive disclosure, and token budgeting—core topic areas with actionable
+    practitioner guidance from a credible source.
 ---
 ## Context Engineering for Coding Agents
 

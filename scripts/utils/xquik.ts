@@ -1,16 +1,18 @@
 /**
- * Xquik API client for extracting X (Twitter) article content.
+ * X Article extraction — Xquik primary, Apify browser fallback.
+ *
  * X Articles (x.com/i/article/XXXXXXX) are long-form posts that require
  * authenticated access — standard scrapers and Jina can't fetch them.
  *
- * IMPORTANT: Xquik's article_extractor takes the TWEET ID that contains
- * the article link, not the article ID itself. When called from tweet
- * auto-chain, we have the tweet ID. When called with a bare article URL,
- * the article ID IS the tweet ID in most cases.
+ * Primary: Xquik article_extractor API (fast, cheap).
+ * Fallback: Apify website-content-crawler with Playwright (slower, but
+ *           renders JS and extracts article text from the tweet page).
  *
  * Requires XQUIK_API_KEY in .env. Get one at https://xquik.com
- * Cost: ~$0.00075 per article (5 credits).
+ * Cost: ~$0.00075 per article (5 credits) via Xquik.
  */
+
+import { runApifyActor } from "./apify.js";
 
 const XQUIK_BASE = "https://xquik.com/api/v1";
 const POLL_INTERVAL_MS = 2000;
@@ -51,11 +53,33 @@ export interface XArticleResult {
 }
 
 /**
- * Fetch an X article's full text via Xquik.
- * @param tweetId - The tweet ID that contains/links to the article.
- *                  For x.com/i/article/ URLs, the article ID often works as tweet ID too.
+ * Fetch an X article's full text. Tries Xquik first, falls back to
+ * Apify website-content-crawler (Playwright) if Xquik returns no results.
+ *
+ * @param tweetId - The article's tweet ID (from /i/article/XXXXX URL).
+ * @param tweetUrl - Optional tweet URL for the Apify browser fallback.
  */
-export async function fetchXArticle(tweetId: string): Promise<XArticleResult> {
+export async function fetchXArticle(
+  tweetId: string,
+  tweetUrl?: string,
+): Promise<XArticleResult> {
+  // Try Xquik first (fast + cheap)
+  try {
+    return await fetchXArticleViaXquik(tweetId);
+  } catch (err) {
+    console.warn(`    xquik failed: ${(err as Error).message}`);
+  }
+
+  // Fallback: Apify website-content-crawler with Playwright
+  if (tweetUrl) {
+    console.log(`    falling back to Apify browser crawl...`);
+    return await fetchXArticleViaBrowser(tweetUrl);
+  }
+
+  throw new Error(`Xquik extraction failed and no tweet URL available for browser fallback (tweet ${tweetId})`);
+}
+
+async function fetchXArticleViaXquik(tweetId: string): Promise<XArticleResult> {
   const headers: Record<string, string> = {
     "x-api-key": getXquikKey(),
     "Content-Type": "application/json",
@@ -80,6 +104,7 @@ export async function fetchXArticle(tweetId: string): Promise<XArticleResult> {
   // 2. Poll until complete
   console.log(`    xquik: polling extraction ${id}...`);
   let totalResults = 0;
+  let completed = false;
   for (let i = 0; i < MAX_POLLS; i++) {
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
     const statusRes = await fetch(`${XQUIK_BASE}/extractions/${id}`, { headers });
@@ -89,11 +114,15 @@ export async function fetchXArticle(tweetId: string): Promise<XArticleResult> {
     };
     if (statusData.job.status === "completed") {
       totalResults = statusData.job.totalResults;
+      completed = true;
       break;
     }
     if (statusData.job.status === "failed") throw new Error(`Xquik extraction ${id} failed`);
   }
 
+  if (!completed) {
+    throw new Error(`Xquik extraction ${id} timed out after ${MAX_POLLS * POLL_INTERVAL_MS / 1000}s for tweet ${tweetId}`);
+  }
   if (totalResults === 0) {
     throw new Error(`Xquik extraction completed but found no article content for tweet ${tweetId}`);
   }
@@ -117,5 +146,40 @@ export async function fetchXArticle(tweetId: string): Promise<XArticleResult> {
     author: (first.xDisplayName ?? "unknown") as string,
     authorHandle: (first.xUsername ?? "unknown") as string,
     followers: (first.xFollowersCount ?? 0) as number,
+  };
+}
+
+async function fetchXArticleViaBrowser(tweetUrl: string): Promise<XArticleResult> {
+  const items = await runApifyActor(
+    "apify/website-content-crawler",
+    {
+      startUrls: [{ url: tweetUrl }],
+      maxCrawlPages: 1,
+      crawlerType: "playwright:firefox",
+    },
+    { maxItems: 1, waitSecs: 60 },
+  );
+
+  const page = items[0];
+  if (!page) throw new Error("Apify browser crawl returned no results");
+
+  const text = (page.text ?? page.markdown ?? "") as string;
+  if (text.length < 100) throw new Error("Apify browser crawl returned too little content");
+
+  // Parse title from first line (format: "author on X: "Title"")
+  const titleMatch = text.match(/on X:\s*"([^"]+)"/);
+  const title = titleMatch?.[1] ?? "Untitled X Article";
+
+  // Extract author from the page metadata or first line
+  const authorMatch = text.match(/^(\S+)\s+on X:/);
+  const author = authorMatch?.[1] ?? "unknown";
+
+  return {
+    title,
+    previewText: "",
+    bodyText: text,
+    author,
+    authorHandle: author.replace("@", ""),
+    followers: 0,
   };
 }

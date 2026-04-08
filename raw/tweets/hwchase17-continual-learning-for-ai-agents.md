@@ -24,9 +24,9 @@ relevance_scores:
   signal_quality: 8
   composite: 8.5
   reason: >-
-    Directly maps continual learning to the three-layer agentic architecture
-    (model/harness/context) with concrete examples like CLAUDE.md and skills,
-    making it immediately actionable for builders of self-improving agent
+    Directly maps continual learning to the three-layer agent architecture
+    (model/harness/context) with concrete examples like CLAUDE.md and SKILL.md,
+    providing immediately actionable mental models for self-improving agent
     systems.
 ---
 ## Continual learning for AI agents

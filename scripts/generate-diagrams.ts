@@ -29,6 +29,7 @@ const D2_PALETTE: Record<string, { fill: string; stroke: string }> = {
   "#2ecc71": { fill: "#d1fae5", stroke: "#10b981" },
   "#f39c12": { fill: "#fee2e2", stroke: "#ef4444" },
   "#9b59b6": { fill: "#ede9fe", stroke: "#8b5cf6" },
+  "#1abc9c": { fill: "#d1faf0", stroke: "#14b8a6" },
 };
 
 const BUCKET_COLORS: Record<string, { fill: string; stroke: string; label: string }> = Object.fromEntries(
@@ -200,7 +201,7 @@ function generateD3Html(graph: KnowledgeGraph): string {
 </head>
 <body>
 <h1>${domain.name} Knowledge Graph</h1>
-<div class="stats">${entityCount} entities · 5 clusters · ${edgeCount} relationships</div>
+<div class="stats">${entityCount} entities · ${domain.buckets.length} clusters · ${edgeCount} relationships</div>
 <div class="tooltip" id="tooltip"></div>
 <svg></svg>
 <script src="https://d3js.org/d3.v7.min.js"></script>

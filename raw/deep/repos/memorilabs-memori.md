@@ -16,9 +16,9 @@ key_insight: >-
   Memori achieves 81.95% accuracy on LoCoMo with only 4.97% of the full-context
   token footprint by intercepting LLM calls at the SDK level, transparently
   extracting semantic triples and facts from conversations, and re-injecting
-  relevant memories into system prompts -- a middleware pattern that makes memory
-  invisible to application code while enabling entity-attributed, temporally-aware
-  recall across any LLM provider.
+  relevant memories into system prompts -- a middleware pattern that makes
+  memory invisible to application code while enabling entity-attributed,
+  temporally-aware recall across any LLM provider.
 stars: 13000
 deep_research:
   method: source-code-analysis
@@ -43,6 +43,18 @@ deep_research:
     - memori-ts/src/engines/augmentation.ts
   analyzed_at: '2026-04-04'
   original_source: repos/memorilabs-memori.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 7
+  signal_quality: 8
+  composite: 8.3
+  reason: >-
+    Memori is a production-ready agent memory middleware implementing
+    episodic/semantic memory with cross-session retention via SDK-level
+    interception, directly relevant to topic areas 2 (Agent Memory) and 3
+    (Context Engineering), with a novel transparent middleware pattern
+    benchmarked on LoCoMo at high accuracy with minimal token overhead.
 ---
 
 ## Architecture Overview

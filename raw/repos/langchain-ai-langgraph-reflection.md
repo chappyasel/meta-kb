@@ -26,10 +26,10 @@ relevance_scores:
   signal_quality: 7
   composite: 6.7
   reason: >-
-    A reflection-style self-improvement loop in LangGraph is a transferable
-    pattern for self-improving KB/agent systems, with a working pip-installable
-    library and clear architecture documentation, though it's general-purpose
-    output refinement rather than KB/memory-specific.
+    A reflection/critique loop embedded in an agent graph is a directly
+    transferable self-improvement pattern for agent systems, and the
+    pip-installable LangGraph prebuilt with clear examples makes it immediately
+    actionable for practitioners building self-improving agents.
 ---
 ## langgraph-reflection
 

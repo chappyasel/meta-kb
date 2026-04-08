@@ -34,6 +34,19 @@ deep_research:
     - CLAUDE.md
   analyzed_at: '2026-04-04'
   original_source: repos/thedotmack-claude-mem.md
+relevance_scores:
+  topic_relevance: 8
+  practitioner_value: 8
+  novelty: 7
+  signal_quality: 8
+  composite: 7.9
+  reason: >-
+    Claude-mem is a directly relevant implementation of agent memory and context
+    engineering patterns—specifically cross-session memory retention,
+    observation compression, and context injection—with a well-documented
+    architecture covering worker services, lifecycle hooks, token budgeting, and
+    semantic search that practitioners building persistent LLM agent systems can
+    study and adapt.
 ---
 
 ## Architecture Overview

@@ -34,6 +34,18 @@ deep_research:
     - CLAUDE.md
   analyzed_at: '2026-04-04'
   original_source: repos/topoteretes-cognee.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 7
+  signal_quality: 8
+  composite: 8.3
+  reason: >-
+    Cognee is a production-ready, open-source agent memory framework
+    implementing a three-store architecture (relational+vector+graph) with a
+    composable ECL pipeline and feedback-weighted self-reinforcement, directly
+    addressing knowledge substrate, agent memory, and self-improving system
+    patterns central to the KB's scope.
 ---
 
 ## Architecture Overview

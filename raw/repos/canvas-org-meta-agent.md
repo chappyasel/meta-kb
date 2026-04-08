@@ -25,10 +25,10 @@ relevance_scores:
   signal_quality: 8
   composite: 8.7
   reason: >-
-    This is a direct implementation of a self-improving meta-agent loop that
-    treats system prompts and harness configs as learnable parameters, with
-    documented 67%→87% improvement on tau-bench, clear API, and reusable
-    patterns directly applicable to agent systems and context engineering.
+    Directly implements a self-improving agent harness optimization loop
+    (trace-driven, meta-agent proposes config updates) with documented 67%→87%
+    benchmark improvement, SKILL.md reference, and runnable Python code—core to
+    topics 4 and 6.
 ---
 ## meta-agent
 

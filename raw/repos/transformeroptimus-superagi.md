@@ -25,10 +25,10 @@ relevance_scores:
   signal_quality: 6
   composite: 5
   reason: >-
-    SuperAGI is a general autonomous agent framework with memory and tool
-    orchestration features tangentially relevant to agent memory and context
-    management, but lacks focus on KB construction, self-improving loops, or
-    novel memory architectures.
+    SuperAGI is a broad autonomous agent framework with memory and tool
+    orchestration features, but lacks specific focus on KB construction, agent
+    memory architectures, context engineering standards, or self-improving loops
+    that define the core topic areas.
 ---
 ## SuperAGI
 

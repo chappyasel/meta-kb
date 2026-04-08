@@ -20,13 +20,25 @@ key_insight: >-
   loss that occurs when LLMs iteratively summarize their own context. The key
   practical finding: treating contexts as evolving playbooks with structured
   grow-and-refine achieves +10.6% on agent benchmarks and 82-92% cost reduction
-  vs alternatives, while working without labeled data by using execution feedback
-  as the learning signal.
+  vs alternatives, while working without labeled data by using execution
+  feedback as the learning signal.
 deep_research:
   method: paper-full-text
   text_length: 9500
   analyzed_at: '2026-04-04'
   original_source: papers/zhang-agentic-context-engineering-evolving-contexts-for.md
+relevance_scores:
+  topic_relevance: 9
+  practitioner_value: 8
+  novelty: 8
+  signal_quality: 8
+  composite: 8.4
+  reason: >-
+    ACE directly addresses context engineering for agents with a concrete
+    architecture (incremental delta updates, semantic deduplication, non-LLM
+    merge logic) that prevents context collapse and achieves measurable
+    benchmark gains—highly transferable to agent memory and context window
+    management patterns.
 ---
 
 ## Architecture Overview

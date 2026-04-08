@@ -19,13 +19,23 @@ key_insight: >-
   (64.60 vs 63.88 F1) and temporal queries (49.06 vs 25.73). The most actionable
   finding is that simple integration (concatenating both retrieval results)
   yields +6.4% improvement on multi-hop tasks, and the graph extraction pipeline
-  misses ~34% of answer-relevant entities, creating a hard ceiling for
-  KG-only approaches.
+  misses ~34% of answer-relevant entities, creating a hard ceiling for KG-only
+  approaches.
 deep_research:
   method: paper-full-text
   text_length: 10500
   analyzed_at: '2026-04-04'
   original_source: papers/han-rag-vs-graphrag-a-systematic-evaluation-and-key.md
+relevance_scores:
+  topic_relevance: 8
+  practitioner_value: 9
+  novelty: 7
+  signal_quality: 9
+  composite: 8.3
+  reason: >-
+    Systematic RAG vs GraphRAG benchmark with actionable routing/integration
+    findings directly relevant to knowledge substrate and context engineering
+    decisions for agent builders.
 ---
 
 ## Architecture Overview
