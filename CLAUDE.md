@@ -1,170 +1,73 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## What is meta-kb?
 
 A self-improving knowledge base about LLM agent infrastructure. Sources (tweets, repos, papers, articles) are ingested into `raw/` as markdown with YAML frontmatter, scored for relevance by LLM, then compiled into a structured wiki in `wiki/`.
 
-## Compiling the Wiki
-
-Two compilation paths exist. Both read from `raw/` and produce the same output structure.
-
-### Path A: Skill graph (agent-native, primary method)
-
-Ask any agent that supports skills: **"Compile the wiki from raw sources."**
-This triggers the `compile-wiki` skill (`.claude/skills/compile-wiki/SKILL.md`),
-which orchestrates 6 phase-specific skills via subagents:
-
-| Skill | What it does |
-|-------|-------------|
-| `compile-wiki` | Orchestrator — scans sources, sequences phases, spawns subagents |
-| `compile-synthesis` | Writes one synthesis article per bucket (parallelizable — 5 subagents) |
-| `compile-cards` | Writes reference cards for entities (parallelizable) |
-| `compile-field-map` | Writes the systems overview connecting all 6 areas |
-| `compile-index` | Generates ROOT.md, indexes, README, comparison table |
-| `compile-claims` | Extracts claims from articles + runs self-eval |
-
-Works with Claude Code, Codex, or any agent that can read `.claude/skills/`.
-For comparison runs, tell the agent to write to `wiki-{name}/` instead of `wiki/`.
-
-### Path B: Script pipeline (deterministic, API-based)
-
-```bash
-bun run compile                    # full 8-pass compilation → wiki/, build/
-bun run compile --incremental      # only recompile what changed since last run
-bun run compile --status           # show pending changes without compiling
-bun run compile --from-pass=3a     # resume from synthesis articles
-bun run compile --to-pass=2        # just rebuild entities + graph (passes 0-2)
-bun run compile --wiki-dir=wiki-v3 --build-dir=build-v3  # alternate output dir
-```
-
-**Incremental mode** (`--incremental`): Detects new/modified/deleted sources via content hashing,
-skips entity extraction for unchanged sources (Pass 1a), only regenerates synthesis articles and
-reference cards for affected buckets/entities, and preserves existing claims for clean buckets.
-Forces full recompilation if `config/domain.ts` or compilation thresholds change. State is saved
-to `build/incremental-state.json` after every compilation (full or incremental).
-
-### Other commands
+## Commands
 
 ```bash
 bun install                        # install dependencies
+
+# Ingestion (manual — prompts user if relevance < 6.0)
 bun run ingest <url1> [url2] ...   # ingest sources (auto-detects platform)
 bun run ingest:twitter [urls...]   # platform-specific ingestion
 bun run ingest:github [urls...]    # supports --min-stars N --min-relevance N
 bun run ingest:arxiv [urls...]
 bun run ingest:article [urls...]
+
+# Curation (automated — auto-rejects relevance < 6.0)
+bun run curate:twitter             # discover from home feed (100 tweets, bird CLI)
+bun run curate:twitter --count 200 # more tweets per run
+bun run curate:github              # discover repos via GitHub search API (all tiers)
+bun run curate:github --tier new   # only repos created this week
+
+# Compilation
+bun run compile                    # full 9-pass compilation → wiki/, build/
+bun run compile --incremental      # only recompile what changed since last run
+bun run compile --status           # show pending changes without compiling
+
 bun run rescore                    # score unscored sources for relevance
-bun run rescore --force            # re-score everything
-bun test                           # run incremental compilation tests (28 tests, 0 LLM calls)
+bun test                           # run incremental compilation tests
 ```
-
-### Agent Skills
-
-The skill graph in `.claude/skills/` provides agent-native compilation:
-
-| Skill | Purpose |
-|-------|---------|
-| `compile-wiki` | Full compilation orchestrator (6 phases, spawns subagents) |
-| `incremental-compile` | Incremental recompilation (detects changes, selective synthesis) |
-| `compile-synthesis` | Writes one synthesis article per bucket |
-| `compile-cards` | Writes reference cards for entities |
-| `compile-field-map` | Writes the field-map.md overview |
-| `compile-index` | Generates ROOT.md, indexes, comparison table |
-| `compile-claims` | Extracts claims + runs self-eval |
-| `deep-research` | Deep-dives into a project/paper's source code |
 
 ## Architecture
 
-### Data Pipeline
+See @docs/ARCHITECTURE.md for detailed pipeline docs, LLM calls, and compilation passes.
 
-```
-config/sources.json    Source URLs to ingest (tweets, repos, papers, articles)
-        │
-        ▼
-scripts/ingest*.ts     Platform-specific scrapers that fetch, classify, and write
-        │
-        ▼
-raw/{tweets,repos,     Markdown files with YAML frontmatter (RawSourceFrontmatter)
- articles,papers}/     Each file has: url, type, author, date, tags, key_insight,
-        │              engagement metrics, and relevance_scores (4-dimension + composite)
-        ▼
-build/                 Intermediate artifacts:
-  seen-urls.json         Dedup set (seeded from raw/ frontmatter URLs)
-  discovered-urls.jsonl  URLs found during ingestion for later review
-  source-index.json      Source metadata index
-  raw-entities.json      Pre-resolution entity mentions
-  entities.json          Canonical entities with article levels
-  graph.json             Knowledge graph (nodes, edges, clusters)
-  claims.json            Atomic claims extracted from synthesis articles
-  eval-report.json       Self-eval verification results
-  research/              Discovery pipeline candidates
-        │
-        ▼
-wiki/                  Compiled output:
-  ROOT.md                Agent-optimized topic index (<2K tokens)
-  field-map.md           Flagship overview connecting all 6 areas
-  {bucket}.md            6 synthesis articles with abstracts + staleness markers
-  projects/              Project reference cards with abstracts
-  concepts/              Concept explainers with abstracts
-  indexes/               Project, topic, missing coverage indexes
-  comparisons/           Landscape comparison table
-```
+**Data flow:** `config/sources.json` or `curate:*` → `scripts/ingest*.ts` / `scripts/curate-*.ts` → `raw/` → `scripts/compile.ts` → `wiki/`
 
-### Ingestion Chain Behavior
+**State:** `build/curate.db` (SQLite: seen URLs, evaluated items, run history). Legacy `build/seen-urls.json` auto-migrates on first curate run.
 
-Scrapers auto-chain to related content:
+**Quality gate:** Every source is scored by Sonnet at write time. Below 6.0 composite: auto-rejected for curation/auto-chain, user-prompted for manual ingestion.
 
-- **Twitter** scraper extracts expanded URLs from tweet entities, auto-ingests linked GitHub repos and articles
-- **GitHub** scraper detects awesome-lists (by name, heading, or link density >50) and recursively ingests linked repos
-- **Article** scraper extracts GitHub URLs from content and auto-ingests those repos
-
-All scrapers share a `seen` set (`build/seen-urls.json`) for cross-scraper dedup. The `markSeen()` function returns `true` if already seen (skip it).
-
-### LLM Calls (scripts/utils/llm.ts)
-
-Two LLM functions, both using Vercel AI SDK (`generateObject` with Zod schemas):
-
-- **`generateInsightAndTags`** — Haiku 4.5. Produces `key_insight` + taxonomy tags for every source.
-- **`scoreRelevance`** — Sonnet 4.6. 4-dimension scoring (topic_relevance, practitioner_value, novelty, signal_quality) with weighted composite (0.4/0.3/0.15/0.15). Called at write time by `writeRawSource()`.
-
-### Domain Configuration (config/domain.ts)
-
-All domain-specific content (topic, audience, taxonomy buckets, scoring calibration, cross-cutting themes) is defined in `config/domain.ts`. This is the single file to edit when forking for a new topic. The script pipeline, agent skill graph, and ingestion scripts all read from this config.
-
-### Research Pipeline (scripts/research/)
-
-Two-phase discovery system (gitignored, not committed):
-
-1. `discover.ts` — Finds candidates via conversation graph mining, topic search, and GitHub search. Outputs scored candidates to `build/research/`.
-2. `ingest-approved.ts` — Reads `build/research/approved.txt` (one URL per line) and ingests approved candidates into `raw/`.
-
-### Compilation Pipeline (scripts/compile.ts)
-
-9-pass pipeline, resumable via `--from-pass` and `--to-pass`:
-
-| Pass | Model | What |
-|------|-------|------|
-| 0 | — | Load & index all raw sources |
-| 1a | Haiku (parallel) | Entity extraction per source |
-| 1b | Sonnet (×1) | Entity resolution & dedup |
-| 2 | Sonnet (×1) | Graph construction from co-occurrences |
-| 3a | Opus (per bucket, sequential) | Synthesis articles with abstracts + staleness markers |
-| 3b | Sonnet (per entity, parallel) | Reference cards with abstracts |
-| 3c | Sonnet (per bucket, sequential) | Claim extraction from synthesis articles |
-| 4 | — | Field map, ROOT.md (template), indexes, README |
-| 5 | — | Mermaid diagrams + backlinks |
-| 6 | — | Changelog |
-| 7 | Sonnet (×30 or --full-eval, parallel) | Self-eval: verify claims against sources |
-| 8 | Sonnet (~15, sequential) | Auto-fix: find better sources for failed claims |
-
-Full article threshold: 3+ source refs AND 7.0+ relevance (both required).
+**Domain config:** All topic-specific content (taxonomy buckets, scoring calibration, audience) lives in `config/domain.ts` — the single file to edit when forking for a new topic.
 
 ## Key Design Decisions
 
-- **Never overwrite existing raw files.** `writeRawSource()` skips if file exists. To re-ingest, delete the file first.
-- **Claims are atomic.** Each claim in `build/claims.json` is one verifiable statement with source provenance, enabling automated quality verification.
-- **Progressive disclosure.** ROOT.md (<2K tokens) → abstracts in frontmatter → full articles → raw sources. Agents load minimum context needed.
-- **Self-improvement loop.** Pass 7 verifies claims against sources. Pass 8 auto-fixes source attribution errors by finding better sources. The loop is closed: detect → fix → verify.
+- **Never overwrite existing raw files.** `writeRawSource()` skips if file exists. Delete the file first to re-ingest.
+- **Three-layer curation gate.** Haiku smoke ≥ 5.0 → ingestion relevance gate ≥ 6.0 → Sonnet write gate ≥ 6.0.
+- **Claims are atomic.** Each claim in `build/claims.json` is one verifiable statement with source provenance.
+- **Progressive disclosure.** ROOT.md (<2K tokens) → abstracts → full articles → raw sources.
 
 Runtime: **Bun** (uses `Bun.write`, `Bun.file`, `import.meta.main`). TypeScript with ESNext modules.
+
+## Skill routing
+
+When the user's request matches an available skill, ALWAYS invoke it using the Skill
+tool as your FIRST action. Do NOT answer directly, do NOT use other tools first.
+The skill has specialized workflows that produce better results than ad-hoc answers.
+
+Key routing rules:
+- Product ideas, "is this worth building", brainstorming → invoke office-hours
+- Bugs, errors, "why is this broken", 500 errors → invoke investigate
+- Ship, deploy, push, create PR → invoke ship
+- QA, test the site, find bugs → invoke qa
+- Code review, check my diff → invoke review
+- Update docs after shipping → invoke document-release
+- Weekly retro → invoke retro
+- Design system, brand → invoke design-consultation
+- Visual audit, design polish → invoke design-review
+- Architecture review → invoke plan-eng-review
+- Save progress, checkpoint, resume → invoke checkpoint
+- Code quality, health check → invoke health
