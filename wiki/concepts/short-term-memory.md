@@ -3,147 +3,117 @@ entity_id: short-term-memory
 type: concept
 bucket: agent-memory
 abstract: >-
-  Short-term memory is an agent's active context window — all tokens currently
-  loaded for inference — bounded by model capacity and lost completely when the
-  session ends.
+  Short-term memory is the token-bounded working space of an LLM agent session —
+  the active context window itself — distinct from long-term memory by its
+  ephemerality and zero-retrieval-latency access.
 sources:
-  - tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md
-  - tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md
-  - papers/mei-a-survey-of-context-engineering-for-large-language.md
-  - articles/lil-log-llm-powered-autonomous-agents.md
   - >-
     articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md
+  - articles/lil-log-llm-powered-autonomous-agents.md
+  - papers/mei-a-survey-of-context-engineering-for-large-language.md
+  - tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md
+  - tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md
 related:
   - context-management
-  - context-engineering
-  - context-management
-last_compiled: '2026-04-08T03:01:41.737Z'
+last_compiled: '2026-04-08T23:19:10.552Z'
 ---
 # Short-Term Memory
 
 ## What It Is
 
-Short-term memory in an LLM agent is the context window: everything the model can attend to during a single inference pass. System prompt, conversation history, retrieved documents, tool outputs, intermediate reasoning traces — all of it competes for the same finite token budget. When a session ends, nothing persists unless explicitly written elsewhere.
+Short-term memory in an LLM agent is the context window treated as a computational workspace. Every token the model attends to during a session — the system prompt, conversation history, tool call results, intermediate reasoning traces — lives in short-term memory. When the session ends, it's gone.
 
-The human cognition analogy maps loosely. Cognitive science defines short-term (working) memory as holding roughly 7 items for 20–30 seconds. The LLM equivalent holds far more tokens but shares the same structural constraint: capacity is fixed, and the contents expire. Lilian Weng's framing captures this directly: "Short-term memory as in-context learning. It is short and finite, as it is restricted by the finite context window length of Transformer." [Source](../raw/articles/lil-log-llm-powered-autonomous-agents.md)
+This definition maps loosely to human cognitive science. Lilian Weng's 2023 agent survey [draws the analogy explicitly](../articles/lil-log-llm-powered-autonomous-agents.md): "Short-term memory as in-context learning. It is short and finite, as it is restricted by the finite context window length of Transformer." Miller's 1956 capacity limit of roughly seven items has a rough equivalent here — not in item count, but in the token ceiling that bounds how much can coexist in the active window. The psychological parallel is instructive without being exact: human working memory is dynamic and reconstructive; the context window is a fixed-length buffer with deterministic attention.
 
-Unlike [Long-Term Memory](../concepts/long-term-memory.md), which survives across sessions via external storage, short-term memory is entirely ephemeral. Unlike [Episodic Memory](../concepts/episodic-memory.md) or [Semantic Memory](../concepts/semantic-memory.md), it requires no retrieval step — the information is already present and attended to directly. That directness is the primary advantage.
+Short-term memory is also the least persistent and most computationally central of the memory types in the standard taxonomy. [Episodic Memory](../concepts/episodic-memory.md) and [Semantic Memory](../concepts/semantic-memory.md) require retrieval latency and external storage. Short-term memory has neither: everything in the window is already there, already attended to.
 
-## Why It Matters
+## The Core Mechanism
 
-Every other memory mechanism in agent architecture feeds into short-term memory at some point. Retrieved documents from a vector store, distilled episodes from a memory system, procedural instructions from a [CLAUDE.md](../concepts/claude-md.md) file — all of these become short-term memory the moment they enter the context window. The context window is where all cognition actually happens.
+A Transformer's attention mechanism attends to every token in the context window at every layer. From the model's perspective, there's no distinction between "instructions," "history," and "retrieved facts" — they're all positions in the same sequence. Short-term memory is not a separate module; it is the input sequence.
 
-This makes short-term memory both the most powerful and most constrained resource in an agent system. Powerful because the model can attend to everything in it with full fidelity, without the information loss that retrieval and compression introduce. Constrained because the budget is hard-capped and every byte consumed by one thing is unavailable for another.
+This means short-term memory management is context engineering. Whatever you put in the window, the model treats as salient. The primary operations are:
 
-The [Context Engineering](../concepts/context-engineering.md) field exists largely to manage this constraint systematically. [Source](../raw/papers/mei-a-survey-of-context-engineering-for-large-language.md)
+**Injection**: Inserting information at prompt construction time — system instructions, retrieved documents, tool results, prior conversation turns. This is the default operation. Every RAG system, every chat history replay, is an injection into short-term memory.
 
-## How It Works
+**Compression**: Summarizing or pruning earlier turns before they reach the token limit. Without compression, long conversations overflow the window; older content drops off and becomes inaccessible. The Elasticsearch agent memory article [describes this directly](../articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md): "Summarize and remove data: Clean up information the model has already used to avoid confusion (context poisoning) and keep the model focused."
 
-### The Token Budget
+**Selective retrieval**: Rather than injecting all available history, injecting only what's relevant to the current query. This is where the boundary between short-term and [Long-Term Memory](../concepts/long-term-memory.md) gets operationally interesting — retrieval from a vector store populates short-term memory, so the retrieval decision determines what the model "knows" in this session.
 
-Current frontier models offer context windows ranging from roughly 128K tokens (GPT-4-class) to 1M+ tokens (Gemini 1.5 Pro). Despite this growth, the constraint remains active in practice. Large windows slow inference, increase cost, and introduce the [Lost in the Middle](../concepts/lost-in-the-middle.md) problem, where models attend poorly to information buried in the middle of long contexts.
+**Isolation**: Keeping separate context windows for separate concerns. In multi-agent systems, each subagent has its own short-term memory; the orchestrator's context doesn't bleed into a subagent's unless explicitly passed.
 
-The context window contains several competing regions:
+## Why It Matters for Agent Architecture
 
-- **System prompt**: Instructions, persona, tool definitions, and background knowledge baked in at session start
-- **Conversation history**: Prior turns in the current session
-- **Retrieved context**: Documents or memories injected via [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
-- **Tool outputs**: Results from API calls, code execution, search
-- **Intermediate reasoning**: [Chain-of-Thought](../concepts/chain-of-thought.md) traces, scratchpad content
+The [Context Engineering](../concepts/context-engineering.md) survey taxonomy treats short-term memory as the substrate everything else competes to fill. [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) is, mechanically, a process that writes external knowledge into short-term memory at query time. Tool call results return into short-term memory. [Chain-of-Thought](../concepts/chain-of-thought.md) reasoning is short-term memory being used as a scratchpad.
 
-Each of these has different costs and different returns. System prompt content costs tokens on every request. Retrieved content is paid per-query but may be irrelevant. Reasoning traces consume space during generation but may improve output quality significantly.
+[ReAct](../concepts/react.md) makes this explicit: the Thought/Action/Observation loop accumulates in the context window over multiple steps. Each cycle writes new observations back into short-term memory, giving the model a running log of what it's tried and what happened. [Reflexion](../concepts/reflexion.md) extends this further — self-criticism gets written into the window as additional context for the next generation, up to three reflection entries before the window budget forces pruning.
 
-### State Management
+[MemGPT](../projects/memgpt.md) and [Letta](../projects/letta.md) build an explicit paging model around short-term memory's limits, treating the context window like main memory in an OS and external storage like disk. Their core insight is that short-term memory capacity is a scheduling problem: what gets evicted, when, and how to retrieve it later without losing coherence.
 
-LLMs are stateless. Each API call receives the full context fresh — the model has no memory of prior calls unless the caller reconstructs it. This means "short-term memory" is technically maintained by the agent framework or application, not the model itself.
+## Failure Modes
 
-A minimal implementation just appends each turn to a growing list. The Elasticsearch labs article describes this directly: "Every time you send a message, you need to include the entire chat history to 'remind' the model what happened before." [Source](../raw/articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md) That list gets serialized and sent with every request until it overflows or you intervene.
+**Context poisoning** is the primary pathology. When conversation history accumulates stale, contradictory, or irrelevant content, that material competes with current relevant content for the model's attention. The Elasticsearch article uses this term precisely: old tool results or superseded reasoning steps can actively degrade response quality, not just waste tokens.
 
-More sophisticated implementations manipulate this history actively:
+**Lost in the middle** is the attention distribution problem: models attend more reliably to tokens near the beginning and end of a long context, with reduced reliability in the middle. [Lost in the Middle](../concepts/lost-in-the-middle.md) documents this empirically. For agents with long tool-use traces, critical information injected mid-context may be underweighted compared to the same information placed at the prompt boundary.
 
-- **Summarization**: Compress older turns into a summary, dropping raw text
-- **Selective pruning**: Remove turns judged irrelevant to the current task
-- **Memory injection**: Insert retrieved long-term memories as if they were conversation history
+**Window overflow without compression** causes hard failures — the API call errors out, or the provider silently truncates input. AutoGPT's system prompt [addresses this explicitly](../articles/lil-log-llm-powered-autonomous-agents.md): "~4000 word limit for short term memory. Your short term memory is short, so immediately save important information to files." This was written when 4k was a common limit; the problem persists at 128k and 1M token windows, just at different scales.
 
-The decision about what to keep, summarize, or discard is procedural — encoded in application logic or prompted from the model itself.
+**Context fragmentation in multi-agent systems** occurs when information needed by one agent lives in another agent's context. Without explicit message passing, subagents have isolated short-term memories and cannot access each other's working state. This is a feature for isolation but a bug for coordination.
 
-### Attention and Retrieval Within Context
+## The Injection Architecture Problem
 
-Given a loaded context window, the model's attention mechanism determines which parts influence the output most. This is not uniform. Position matters: content near the beginning and end of the context receives stronger attention than content in the middle. This creates a practical design constraint — important instructions and relevant retrieved content should appear at context boundaries when possible.
+How you structure what goes into the context window matters more than most practitioners acknowledge. The [CLAUDE.md](../concepts/claude-md.md) convention in Claude Code illustrates one pattern: version-controlled files provide persistent, structured injection points. The `.claude/` folder is [described as infrastructure](../tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md): `rules/`, `commands/`, `skills/`, `agents/` subdirectories each contribute different content to the active context depending on the current task. This treats short-term memory setup as a deterministic, reproducible process rather than ad-hoc prompting.
 
-Full attention across the entire window is also computationally expensive. At very long context lengths, some architectures employ sparse or sliding-window attention, which changes which parts of short-term memory are effectively visible to the model at generation time.
+The alternative — injecting everything by default — produces bloated contexts where the model attends to instructions irrelevant to the current subtask, burns tokens on overhead, and risks the lost-in-the-middle effect at scale.
+
+Selective injection requires deciding at construction time what the current task needs. This decision is itself a form of retrieval — procedural memory (knowing which rules apply) determines what gets written into short-term memory before generation begins.
 
 ## Relationship to Other Memory Types
 
-Short-term memory sits at the center of a broader [Agent Memory](../concepts/agent-memory.md) architecture:
+Short-term memory is the read/write head; other memory types are the storage. The [Agent Memory](../concepts/agent-memory.md) taxonomy positions it as follows:
 
-- **[Long-Term Memory](../concepts/long-term-memory.md)** stores information across sessions. Retrieval pulls relevant content from long-term memory into short-term memory when needed. Without this promotion step, long-term memory is inaccessible.
-- **[Episodic Memory](../concepts/episodic-memory.md)** captures specific past experiences. When retrieved and injected into context, episodic memories become short-term memory for the duration of that session.
-- **[Semantic Memory](../concepts/semantic-memory.md)** holds generalized world knowledge. RAG systems retrieve semantic content into context; the model also has semantic knowledge baked into weights, which doesn't consume context tokens.
-- **[Procedural Memory](../concepts/procedural-memory.md)** defines how the agent behaves. In practice this lives in the system prompt — which is short-term memory — or in application code that constructs the context.
+- **Short-term memory**: Active context window. Zero retrieval latency. Bounded by token limit. Session-scoped.
+- **[Long-Term Memory](../concepts/long-term-memory.md)**: External storage (vector DB, graph, SQL). Retrieval required. Unbounded. Persists across sessions.
+- **[Episodic Memory](../concepts/episodic-memory.md)**: Specific past experiences. Retrieved selectively into short-term memory when relevant.
+- **[Semantic Memory](../concepts/semantic-memory.md)**: General world knowledge. Retrieved via semantic search, injected as context.
+- **[Procedural Memory](../concepts/procedural-memory.md)**: Behavioral patterns, tool usage rules. Lives in system prompts or code — always injected, rarely retrieved.
+- **[Core Memory](../concepts/core-memory.md)**: In MemGPT/Letta's architecture, a persistent sub-region of the context window reserved for high-priority information that survives across turns.
 
-The CoALA (Cognitive Architectures for Language Agents) framework formalizes these distinctions, but in implementation they all converge on the same question: what tokens are in the context window right now, and why? [Source](../raw/articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md)
+The boundary between short and long-term memory is operationally where retrieval happens. [Context Compression](../concepts/context-compression.md) moves content from short-term memory to summarized long-term storage. [RAG](../concepts/retrieval-augmented-generation.md) moves content from long-term storage into short-term memory.
 
-## Context Pollution and Degradation
+## Selective Retrieval as a Design Pattern
 
-A specific failure mode: context pollution. As sessions extend, the context accumulates irrelevant, outdated, or contradictory information. A memory from early in a conversation may conflict with new information. Resolved sub-tasks still occupy tokens. The model's effective reasoning quality degrades as signal-to-noise ratio drops.
+The Elasticsearch memory implementation [describes this cleanly](../articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md): selective memory injection reduces context pollution, lowers latency, and improves model focus. By filtering memories before injection — by user identity, time window, memory type — you control what the model attends to rather than letting the full history compete for attention.
 
-Three interventions address this:
+This is the key design decision in short-term memory management: not how much context you can fit, but how precisely you can select what belongs there for the current task. Hybrid search (semantic + keyword + metadata filters) applied before injection gives finer control than semantic similarity alone.
 
-1. **Summarization and pruning**: Remove raw history, replace with compressed summaries. This reduces tokens but loses detail.
-2. **Selective retrieval**: Instead of injecting all past context, retrieve only what's relevant to the current query. The Elasticsearch example demonstrates this with episodic memory filtered by identity, role, and recency. [Source](../raw/articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md)
-3. **Context reset with injection**: Start a fresh context, but inject relevant memories and state from a structured store. [MemGPT](../projects/memgpt.md) and [Letta](../projects/letta.md) implement this pattern explicitly, treating the context window as a managed resource with explicit paging.
+[Context Management](../concepts/context-management.md) formalizes this into an operational discipline. Context graphs [extend it further](../tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md) — rather than injecting outcome data, injecting decision traces, giving the model access to the reasoning process that produced prior outcomes.
 
-AutoGPT's original system prompt acknowledged this constraint directly: "~4000 word limit for short term memory. Your short term memory is short, so immediately save important information to files." [Source](../raw/articles/lil-log-llm-powered-autonomous-agents.md) That instruction — telling the model to externalize information — is how early agent systems tried to bridge short-term and long-term memory.
+## Token Efficiency and Practical Limits
 
-## Implementation Patterns
+Short-term memory is expensive. Tokens in the context window cost money at inference time (for API providers) and compute at runtime. Longer contexts also increase generation latency on self-hosted models — [vLLM](../projects/vllm.md) and [Ollama](../projects/ollama.md) both show nonlinear latency increases past certain context lengths due to KV cache pressure.
 
-### Explicit Context Architecture
+The practical implication: don't treat the context window as free storage. Every injected document, every conversation turn, every tool result has a cost in tokens and attention. [Token Efficiency](../concepts/token-efficiency.md) in short-term memory management means injecting selectively, compressing aggressively when appropriate, and evicting content that's no longer task-relevant.
 
-Structured projects like those using Claude Code organize their context deliberately. The `.claude/` folder pattern treats context construction as infrastructure: `CLAUDE.md` provides persistent instructions, `rules/` subdirectories handle domain-specific behavior, and `commands/` encode repeatable workflows. [Source](../raw/tweets/akshay-pachaar-how-to-setup-your-claude-code-project-tl-dr-mos.md) Each of these files becomes short-term memory when loaded into context, so their design directly affects what the agent can attend to during a session.
+[Progressive Disclosure](../concepts/progressive-disclosure.md) applies here: inject minimal context first, expand on demand. Rather than front-loading everything the agent might need, structured retrieval pulls additional context as tasks unfold.
 
-### Frameworks
+## When Short-Term Memory Is the Wrong Frame
 
-[LangChain](../projects/langchain.md) provides `ConversationBufferMemory`, `ConversationSummaryMemory`, and `ConversationBufferWindowMemory` — three progressively more aggressive approaches to managing the history accumulation problem. Buffer keeps everything, summary compresses old content, window keeps only the last N turns.
+Short-term memory as a concept breaks down at the edges:
 
-[LangGraph](../projects/langgraph.md) models agent state as a graph, where each node can read and write to a shared state object. Short-term memory is represented as that state — structured rather than a flat message list, with explicit control over what persists across steps.
+**When sessions are meant to be stateless**: Some agent pipelines are designed to complete in a single inference call with a fully pre-constructed context. There's no "session" in the traditional sense, just an API call. Treating this as "short-term memory" adds conceptual overhead without practical benefit.
 
-[MemGPT](../projects/memgpt.md) takes the most explicit approach: the LLM itself manages its context window through tool calls, deciding what to store, retrieve, and evict. The context window becomes a managed working set rather than a passively accumulating buffer.
+**When context windows are large enough to hold everything**: At 1M tokens, the distinction between "injecting everything" and "selective retrieval into short-term memory" collapses for many practical use cases. The retrieval layer becomes optional overhead rather than necessary architecture.
 
-### Multi-Agent Context
-
-In [Multi-Agent Systems](../concepts/multi-agent-systems.md), each agent maintains its own context window. Messages between agents — tool calls, results, delegated subtasks — must be serialized and passed explicitly. No agent can attend directly to another agent's working memory. This creates coordination overhead and means information shared between agents passes through the bottleneck of language, losing any internal representations that weren't verbalized.
-
-[Context Graphs](../concepts/context-graphs.md) address a related problem at the organizational level: capturing decision context that would otherwise exist only in individual agents' ephemeral short-term memory, never reaching a persistent store where others can learn from it. [Source](../raw/tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md)
-
-## Practical Constraints
-
-**Cost**: Tokens in context cost money per request. A 100K-token context on a frontier model costs substantially more per call than a 10K-token context. For high-frequency agents, context bloat translates directly to operational cost.
-
-**Latency**: Time-to-first-token scales with context length. Long contexts produce noticeably slower responses even with cached prefills.
-
-**Attention quality**: The [Lost in the Middle](../concepts/lost-in-the-middle.md) phenomenon is well-documented: models perform worse on tasks requiring recall of information from the middle of long contexts. Position in the context window affects effective accessibility.
-
-**Model-specific limits**: Different models have different absolute limits, and performance can degrade before the hard limit is reached. A model rated for 128K tokens may produce noticeably worse outputs on tasks requiring deep attention to a 100K context.
-
-## When Short-Term Memory Alone Is Insufficient
-
-Single-session tasks with bounded information requirements — code review, document editing, question answering over a small corpus — fit comfortably in short-term memory alone. The moment a task requires information from prior sessions, accumulates state faster than the context window can absorb, or needs to share memory across concurrent agents, short-term memory needs external support.
-
-Signs you've hit the limit:
-- The agent starts forgetting information from earlier in the same conversation
-- Context costs dominate operational budget
-- The agent needs to "remember" user preferences or past decisions across sessions
-- Multiple agents need access to the same working state
-
-At that point, the architecture needs [Long-Term Memory](../concepts/long-term-memory.md) with retrieval, [Context Compression](../concepts/context-compression.md), or a memory management layer that treats the context window as a paged working set rather than an ever-growing buffer.
+**When the real problem is long-term persistence**: If the design requirement is remembering user preferences across sessions, short-term memory management is the wrong level of abstraction. The problem is [Long-Term Memory](../concepts/long-term-memory.md) storage and retrieval, and short-term memory is just where it surfaces.
 
 ## Related Concepts
 
-- [Context Management](../concepts/context-management.md): The practices and mechanisms for controlling what occupies short-term memory
-- [Context Engineering](../concepts/context-engineering.md): The broader discipline of optimizing information payloads for LLMs
-- [Long-Term Memory](../concepts/long-term-memory.md): Persistent storage that survives session boundaries
-- [Context Compression](../concepts/context-compression.md): Techniques for reducing context size while preserving relevant information
-- [Lost in the Middle](../concepts/lost-in-the-middle.md): The attention degradation problem for mid-context information
-- [Agent Memory](../concepts/agent-memory.md): The full taxonomy of memory types in agent architectures
-- [Core Memory](../concepts/core-memory.md): MemGPT's always-in-context persistent memory block
+- [Context Engineering](../concepts/context-engineering.md) — the broader discipline of which short-term memory management is a core component
+- [Context Management](../concepts/context-management.md) — operational patterns for managing what's in the window
+- [Context Compression](../concepts/context-compression.md) — reducing context size while preserving information
+- [Long-Term Memory](../concepts/long-term-memory.md) — the complement; persistent storage that populates short-term memory on retrieval
+- [Agent Memory](../concepts/agent-memory.md) — the full taxonomy
+- [Lost in the Middle](../concepts/lost-in-the-middle.md) — the attention distribution failure mode
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — the primary mechanism for moving long-term memory into short-term memory
+- [CLAUDE.md](../concepts/claude-md.md) — a concrete pattern for structured context injection
+- [Core Memory](../concepts/core-memory.md) — MemGPT/Letta's reserved short-term memory region

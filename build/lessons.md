@@ -7,22 +7,25 @@ Generated automatically by Pass 8 (auto-fix). Read by compile-wiki skill at next
 Claims about implementation details (architecture, algorithms, data structures, specific benchmarks) are almost always in deep/ sources. When citing a specific number or mechanism, prefer `raw/deep/repos/` or `raw/deep/papers/` over the shallow source.
 
 ### Fixed this run
-- claim-4ae5819caba6: deep/repos/garrytan-gstack.md → fixed
-- claim-e6c0a9205630: deep/repos/modelscope-agentevolver.md → fixed
-- claim-073f754af931: deep/repos/davebcn87-pi-autoresearch.md → fixed
+- claim-d7fba2934a60: deep/repos/michaelliv-napkin.md → fixed
+- claim-0fab0ab83157: deep/repos/anthropics-skills.md → fixed
+- claim-6ff1d1056b83: deep/repos/greyhaven-ai-autocontext.md → fixed
+- claim-5d450f691c30: deep/repos/affaan-m-everything-claude-code.md → fixed
+- claim-d5c2b363f52a: deep/repos/memodb-io-acontext.md → fixed
+- claim-92071feb1155: deep/repos/foundationagents-metagpt.md → fixed
+- claim-180676101ce2: deep/repos/maximerobeyns-self-improving-coding-agent.md → fixed
 
 ### Unfixable (flag for human review)
-- claim-8b343c1bc3ce (self-improving): The source does not mention 8x A100 80GB GPUs or Alibaba DashScope API access requirements anywhere in its content.
-- claim-b062235a77be (knowledge-substrate): The source mentions that Volt outperforms Claude Code on the OOLONG benchmark but does not provide the specific numerical scores (74.8 vs 70.3) or the
-- claim-af834cdadfa3 (self-improving): The source does not contain any information about the number of GitHub stars for pi-autoresearch.
-- claim-1c27797ca2f0 (agent-architecture): The source describes SICA's general architecture and self-improvement loop but contains no specific evidence about an AST-based symbol locator being i
-- claim-17c728ae6025 (knowledge-substrate): The source does not mention hiding search scores from the agent to prevent anchoring bias; it describes the composite ranking formula and search resul
-- claim-e911de74c739 (multi-agent-systems): The source does not mention deterministic PreToolUse/PostToolUse hooks for capturing tool calls, atomic instincts with confidence scores ranging from 
-- claim-7810208163b4 (self-improving): The source shows scores-only at 34.6 and scores+summaries at 34.9 (a +0.3 difference) and full access at 50.0 (a +15.4 difference over raw scores), wh
-- claim-c74a149cc63b (agent-architecture): The source describes messages carrying 'cause_by' metadata and roles using typed subscriptions, but does not mention Pydantic 'instruct_content' paylo
-- claim-82e5b22312dc (self-improving): The source does not contain any information about confidence scores increasing when patterns repeat, decaying at 0.05 per observation gap, or three or
-- claim-3ffe17c3bcb4 (self-improving): The source does not mention deterministic PreToolUse and PostToolUse hooks capturing every tool call with 100% reliability; it only references hooks g
-- claim-0cb63525ffc9 (knowledge-substrate): The source does not contain any comparison between per-round notes (~2.5K chars) and session-level notes (~15K chars) for BM25 retrieval; it only stat
+- claim-52a270ce5d0c (self-improving): The source does not mention any specific GPU hardware requirements (8x A100 GPUs) for running AgentEvolver.
+- claim-c8bf0a21c87c (knowledge-substrate): The source describes MemEvolve's architecture and approach but does not contain the specific empirical claim of 7-17% gains across benchmarks.
+- claim-4009ba63097b (multi-agent-systems): The source describes SICA's architecture and self-improvement mechanism but does not contain the specific numerical claim that accuracy improved from 
+- claim-265c16b61b13 (self-improving): The source states gstack reached 'over 63,000 stars,' not the specific figure of 63,766 stars claimed, making this a numerical discrepancy for an empi
+- claim-791afda714f5 (self-improving): The source states the project had '136,000+ GitHub stars' (not the specific figure of 136,116 stars claimed in the article), making this a numerical d
+- claim-2832ee70f557 (self-improving): The source describes Docker containers being used for sandboxed execution but does not mention the specific parameters 'network_mode=none' or 'mem_lim
+- claim-80e2af86c5e4 (knowledge-substrate): The source confirms 6,592 stars and mentions '8.2x average token reduction across 6 real repositories' (in an image alt-text) and tree-sitter/SQLite a
+- claim-cd25b74b7ece (agent-memory): The source describes the observation system and instinct clustering as part of the Evolution Layer but does not mention capturing tool call observatio
+- claim-3e9aef7d426c (agent-memory): The source does not contain the specific benchmark scores of 35.3% for recursive summarization or 94.8% for temporal knowledge graphs on the Deep Memo
+- claim-fec4b4453994 (multi-agent-systems): The source states the comparison is 50.0 (full filesystem access) vs 34.9 (scores + summaries), but the claim says 34.9 is the compressed summaries fi
 
 ## Entity Links
 

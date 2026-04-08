@@ -3,124 +3,112 @@ entity_id: letta-api
 type: project
 bucket: agent-memory
 abstract: >-
-  Letta's REST API and SDK layer for creating and managing stateful agents with
-  persistent memory blocks, tool access, and cross-session learning.
-  Differentiator: memory persists across conversations without developer-managed
-  storage code.
+  Letta API is a hosted, managed service for building stateful agents with
+  persistent memory, exposing the Letta agent runtime via REST endpoints and
+  Python/TypeScript SDKs.
 sources:
+  - articles/turing-post-9-open-agents-that-improve-themselves.md
   - repos/letta-ai-letta-code.md
   - repos/letta-ai-letta.md
-  - articles/turing-post-9-open-agents-that-improve-themselves.md
 related:
   - letta
-  - letta
-last_compiled: '2026-04-08T03:03:56.440Z'
+last_compiled: '2026-04-08T23:21:17.946Z'
 ---
 # Letta API
 
-## What It Does
+## What It Is
 
-The Letta API is the programmatic interface to the [Letta](../projects/letta.md) platform (formerly MemGPT). It gives developers REST endpoints and official SDKs (Python and TypeScript) to create agents with persistent memory, send messages, manage tools, and read back agent state. The core differentiator from vanilla LLM APIs is that state survives between calls. An agent created on Monday still knows what happened on Monday when you message it on Friday, without the developer writing any persistence logic.
+The Letta API is the managed cloud layer of the [Letta](../projects/letta.md) platform. It hosts the Letta agent runtime as a service, handling persistence, model routing, and memory management so developers can embed stateful agents in their own applications without running their own server.
 
-The API is the foundation under [Letta Code](../repos/letta-ai-letta-code.md), LettaBot, and any application-embedded agent built on the Letta platform.
+Its core differentiator from generic LLM APIs (OpenAI, Anthropic): agents created through the Letta API retain state across separate calls. Memory blocks persist between conversations. The agent you call today knows what it learned last week. No session gluing required on the client side.
 
-## Architecture and Core Mechanism
+Letta was previously known as [MemGPT](../projects/memgpt.md), which established the foundational memory architecture this API exposes.
 
-### memory_blocks
+## Core Mechanism
 
-The central data structure is `memory_blocks`. When creating an agent, callers supply labeled string blocks that define the agent's initial memory:
+The central abstraction is `memory_blocks`: structured key-value stores attached to an agent at creation time. Each block has a `label` (e.g., `"human"`, `"persona"`) and a `value` (freetext or structured content). When the agent processes a message, these blocks populate its system prompt. The agent can read and write them as tools, so memory updates happen inside inference, not through a separate client call.
+
+Creating an agent via the Python SDK:
 
 ```python
-memory_blocks=[
-    {"label": "human", "value": "Name: Timber. Status: dog."},
-    {"label": "persona", "value": "I am a self-improving agent."}
-]
+from letta_client import Letta
+
+client = Letta(api_key=os.getenv("LETTA_API_KEY"))
+
+agent_state = client.agents.create(
+    model="openai/gpt-5.2",
+    memory_blocks=[
+        {"label": "human", "value": "Name: Alice. Role: engineer."},
+        {"label": "persona", "value": "I am a persistent engineering assistant."}
+    ],
+    tools=["web_search", "fetch_webpage"]
+)
 ```
 
-These blocks are not static prompts. Letta's runtime can update them during execution as the agent processes new information, effectively writing back to persistent storage mid-conversation. This is the MemGPT-lineage insight: give the model a mechanism to edit its own memory, not just read a fixed system prompt.
+The same agent ID persists across sessions. Messages sent via `client.agents.messages.create(agent_id, ...)` append to the agent's history and may trigger memory writes. This is the MemGPT model: [Core Memory](../concepts/core-memory.md) blocks sit in the context window; archival and recall storage live outside it, retrieved on demand.
 
-### Agent Lifecycle
+Tool access (`web_search`, `fetch_webpage`, plus custom tools) is declared at agent creation and dispatched server-side. The API handles tool execution and folds results back into the agent's context.
 
-Agents are long-lived resources with stable IDs. The call pattern is:
-
-1. `client.agents.create(...)` — instantiates an agent with model, memory blocks, and tools
-2. `client.agents.messages.create(agent_id, input=...)` — sends a message; the agent responds and may update its memory blocks
-3. Agent ID persists; subsequent calls to `messages.create` with the same ID continue the same stateful agent
-
-This is structurally different from OpenAI's Assistants API threads, where state is tied to thread objects rather than a first-class agent resource with mutable memory.
-
-### Tool Access
-
-Agents are created with named tools (`tools=["web_search", "fetch_webpage"]`). The API handles tool dispatch; callers don't need to implement tool loops. Custom tools can be registered and attached to agents, feeding into a [Tool Registry](../concepts/tool-registry.md) model.
-
-### SDK Availability
-
-- TypeScript: `npm install @letta-ai/letta-client`
-- Python: `pip install letta-client`
-
-Both SDKs wrap the REST API. The TypeScript SDK is used by Letta Code; the Python SDK is the primary interface for server-side integrations.
-
-### Self-Hosting vs. Cloud
-
-By default the SDKs point to `app.letta.com`. Setting `LETTA_BASE_URL` redirects to a self-hosted Docker instance. This split matters for data residency and cost, but the API surface is nominally identical in both modes.
+[Letta Code](https://github.com/letta-ai/letta-code), the CLI coding harness built on this API, demonstrates the architecture in practice: `/init` initializes memory blocks, `/remember` writes to them explicitly, and `/skill` persists learned procedures to a `.skills` directory. The CLI connects to `app.letta.com` by default but accepts a `LETTA_BASE_URL` environment variable pointing at a self-hosted Docker server.
 
 ## Key Numbers
 
-- Parent repo: ~21,800 GitHub stars, 2,300 forks (self-reported by GitHub counter)
-- Letta Code (the flagship API consumer): ~2,100 stars
-- License: Apache-2.0 for the open-source server; the cloud API has separate terms of service
-- No independently published latency or throughput benchmarks for the API layer itself
+- Letta open-source repo: 21,873 stars, 2,312 forks (self-reported via GitHub)
+- Letta Code harness: 2,096 stars, 208 forks (self-reported)
+- Python SDK: `pip install letta-client`; TypeScript SDK: `npm install @letta-ai/letta-client`
+- No publicly available latency or throughput benchmarks from independent sources
+
+The star counts reflect the broader Letta platform, not the API specifically. No third-party benchmarks for the managed API tier exist in the available source material.
 
 ## Strengths
 
-**Persistent agent identity without infrastructure work.** Creating a stateful agent is a single API call with a few fields. Memory survives restarts, model swaps, and long time gaps. Developers don't build session storage, serialization, or retrieval plumbing.
+**Cross-session memory that requires no client-side logic.** The server owns persistence. You call `messages.create`, the agent updates its own memory blocks mid-inference, and the next call sees those updates. Developers building multi-turn products don't manage conversation history, vector retrieval, or re-injection themselves.
 
-**Model portability.** The same agent can run against Claude, GPT, Gemini, or local models by changing the `model` parameter. Memory blocks and tool configurations are model-agnostic.
+**Model agnosticism.** The API routes to Claude Sonnet/Opus, GPT/Codex, Gemini, GLM, Kimi, and others. Swapping models doesn't rebuild the agent; memory blocks survive provider changes.
 
-**Skill accumulation.** Letta Code demonstrates the platform's skill-learning pattern: agents can extract reusable `.skills` modules from past interactions and attach them to future sessions. This is a concrete path toward [Self-Improving Agents](../concepts/self-improving-agents.md) rather than a theoretical one.
+**Skill learning at the application layer.** Agents can distill reusable procedures from past trajectories (exposed as `/skill` in Letta Code, accessible programmatically). This is [Agent Memory](../concepts/agent-memory.md) combined with [Agent Skills](../concepts/agent-skills.md) without requiring the developer to build the distillation loop.
 
-**Cross-session [Core Memory](../concepts/core-memory.md) writes.** The agent can edit its own memory blocks mid-conversation, which enables genuinely accumulative learning rather than prompt injection that resets each turn. See [Agent Memory](../concepts/agent-memory.md) and [Long-Term Memory](../concepts/long-term-memory.md) for the broader pattern.
+**Escape hatch to self-hosted.** Setting `LETTA_BASE_URL` redirects the same SDK calls to a local Docker server. Teams can migrate off the managed API without changing application code.
 
 ## Critical Limitations
 
-**Failure mode: memory block staleness under concurrent agents.** If multiple agents share references to the same `human` block or if two sessions with the same agent ID run concurrently, write conflicts are underdocumented. The API doesn't expose conflict resolution policies or optimistic locking semantics in its public documentation. Production multi-tenant deployments that share agent state across simultaneous requests should test this explicitly.
+**Failure mode: memory block conflicts in multi-agent scenarios.** The `memory_blocks` model works well for a single persistent agent. When multiple agents share state or a coordinator spawns subagents ([Multi-Agent Systems](../concepts/multi-agent-systems.md)), there is no documented conflict resolution for concurrent writes to the same block. The Letta Code docs reference subagent support, but the API reference does not specify what happens when two agents attempt simultaneous writes to a shared memory block.
 
-**Infrastructure assumption: Letta cloud or a correctly configured Docker instance.** The SDK defaults to `app.letta.com`. Teams that assume the API is purely self-contained will hit authentication and routing errors when running in air-gapped environments. Self-hosting requires running the Letta Docker server, which adds operational overhead not visible in the hello-world examples.
+**Unspoken infrastructure assumption: network availability.** The default configuration connects to `app.letta.com`. Applications that need offline capability, air-gapped deployment, or sub-50ms latency must self-host, which reintroduces the operational burden the managed API is supposed to eliminate. This assumption is not called out in the quickstart documentation.
 
 ## When NOT to Use It
 
-Skip the Letta API when:
+Don't use the Letta API when:
 
-- You need stateless, per-request inference without any persistence overhead. A direct OpenAI or Anthropic SDK call is simpler and cheaper.
-- Your architecture already manages conversation state externally (e.g., in a database + custom retrieval pipeline). Adding Letta's memory layer duplicates responsibility and creates two sources of truth.
-- You need fine-grained control over what enters context each turn. Letta's memory system makes autonomous decisions about memory writes; you can't fully override its context-assembly logic from the API alone.
-- You're building on a platform with strict data residency requirements and don't want to run a Docker service. The cloud API stores agent state on Letta's infrastructure.
+- Your agents are stateless by design (question-answering over a fixed corpus, single-turn classification). The managed persistence layer adds cost and latency with no benefit.
+- You need sub-100ms response times. Hosted APIs with server-side tool execution and memory retrieval cannot reliably hit those targets.
+- You're operating under data residency requirements that prohibit sending conversation content to a third-party cloud. Self-hosting the Letta server is possible but not trivial.
+- Your team already owns a mature memory stack (e.g., [Zep](../projects/zep.md) or [Mem0](../projects/mem0.md)) integrated into existing infrastructure. Migrating to Letta's memory model means rebuilding or abandoning that investment.
 
 ## Unresolved Questions
 
-**Cost at scale.** The public documentation doesn't publish per-agent storage pricing, memory write costs, or throughput limits for the cloud API. Teams planning high-volume deployments (thousands of long-lived agents) have no published basis for cost modeling.
+**Pricing at scale.** The documentation and source material contain no pricing for the managed API tier beyond "use `/connect` to supply your own LLM API keys." It is unclear whether Letta charges per message, per agent, per memory operation, or per token. The cost model for production workloads with thousands of persistent agents is opaque.
 
-**Memory write governance.** The agent decides when to update its own memory blocks. There's no documented API for setting update frequency, write permissions per block, or audit logging of memory changes. For compliance use cases, this is a gap.
+**Governance of memory blocks.** Who can read or modify an agent's memory blocks after creation? The API exposes `agents.create` with initial block values, but the access control model for block modification, audit logging of writes, and retention policies are not documented in available sources.
 
-**Conflict resolution across sessions.** When the same agent ID receives messages from two concurrent callers, the ordering and merging of memory block updates is not specified in public documentation.
+**Performance characteristics of archival storage.** MemGPT's original design distinguished in-context [Core Memory](../concepts/core-memory.md) from out-of-context archival and recall storage. The API surface exposes memory blocks, but the retrieval mechanism for archival storage (what triggers it, what algorithm drives it, latency implications) is not documented at the API layer.
 
-**Versioning of agent state.** The API doesn't expose a rollback mechanism for memory blocks. If an agent writes incorrect information into its `human` block, recovery requires manually patching the block value.
+**Conflict resolution for concurrent agents.** Covered under limitations above, but worth noting as an open specification gap for anyone building [Multi-Agent Collaboration](../concepts/multi-agent-collaboration.md) systems on this API.
 
 ## Alternatives
 
-| Tool | Choose when |
-|------|-------------|
-| [Mem0](../projects/mem0.md) | You want memory as a standalone layer you add to any LLM call, without adopting a full agent platform |
-| [Zep](../projects/zep.md) | You need session memory with temporal reasoning and fact extraction, without Letta's agent-execution model |
-| [LangGraph](../projects/langgraph.md) | You want explicit control over state transitions and graph-based agent orchestration, with your own persistence backend |
-| [OpenAI Agents SDK](../projects/openai-agents-sdk.md) | You're OpenAI-only and want a simpler stateful agent abstraction without multi-model portability |
-| Direct LLM SDK | Your use case is single-turn or you manage all state externally |
+| Tool | Use when |
+|---|---|
+| [Zep](../projects/zep.md) | You need a memory layer that integrates with an existing LLM stack without adopting the full Letta agent model |
+| [Mem0](../projects/mem0.md) | You want automatic memory extraction from conversations with less structured memory_blocks API |
+| [LangGraph](../projects/langgraph.md) | You need fine-grained control over agent state machines and are comfortable managing persistence yourself |
+| [OpenAI Agents SDK](../projects/openai-agents-sdk.md) | You're already committed to the OpenAI provider stack and don't need cross-provider portability |
+| Self-hosted Letta server | You need the same memory model without sending data to `app.letta.com` |
 
 ## Related Concepts
 
-- [Agent Memory](../concepts/agent-memory.md)
-- [Core Memory](../concepts/core-memory.md)
-- [Long-Term Memory](../concepts/long-term-memory.md)
-- [Context Engineering](../concepts/context-engineering.md)
-- [Self-Improving Agents](../concepts/self-improving-agents.md)
-- [Multi-Agent Systems](../concepts/multi-agent-systems.md)
+- [Agent Memory](../concepts/agent-memory.md): the general capability this API operationalizes
+- [Core Memory](../concepts/core-memory.md): the specific in-context memory block architecture
+- [Long-Term Memory](../concepts/long-term-memory.md): what persistence across sessions enables
+- [Context Engineering](../concepts/context-engineering.md): how memory blocks shape the agent's context window
+- [Letta](../projects/letta.md): the open-source platform and server this API wraps

@@ -2,40 +2,90 @@
 
 These entities were mentioned in sources but don't have enough references for a full article yet. Contributions welcome!
 
-- **ADAS** (project, self-improving) — Automated Design of Agentic Systems — a meta-agent approach that automatically discovers and improves agent architectures through code generation and evaluation.. Sources: 2
-- **TextGrad** (project, self-improving) — A framework for automatic differentiation through text, enabling gradient-like optimization of LLM prompts and agent pipelines via natural language feedback.. Sources: 2
-- **WebArena** (project, agent-architecture) — A realistic web environment benchmark for evaluating autonomous agents on complex web navigation and task completion.. Sources: 2
-- **Mind2Web** (project, agent-architecture) — A benchmark dataset for generalist web agents, containing diverse real-world web tasks for training and evaluation.. Sources: 2
-- **LightRAG** (project, knowledge-substrate) — A lightweight RAG framework combining graph-based knowledge representation with efficient retrieval for improved multi-hop question answering.. Sources: 2
-- **MemoryBank** (project, agent-memory) — A long-term memory system for LLM agents that summarizes and indexes past interactions for later retrieval.. Sources: 2
-- **SkillWeaver** (project, agent-architecture) — A framework for automatically synthesizing and composing agent skills from demonstrations or task descriptions.. Sources: 2
-- **Lilian Weng** (person, agent-architecture) — AI researcher at OpenAI known for comprehensive blog posts on agent architectures, memory systems, and LLM capabilities.. Sources: 2
-- **Aider** (project, agent-architecture) — An open-source AI coding assistant that works in the terminal, enabling collaborative code editing with LLMs across entire codebases.. Sources: 2
-- **AutoGPT** (project, agent-architecture) — One of the earliest autonomous agent frameworks, using GPT models to self-direct task completion through iterative planning and tool use.. Sources: 2
-- **OSWorld** (project, agent-architecture) — A benchmark for evaluating computer-use agents on real operating system tasks including file management, application interaction, and desktop navigation.. Sources: 2
-- **RAGFlow** (project, knowledge-substrate) — An open-source RAG engine providing deep document understanding and structured retrieval pipelines for AI applications.. Sources: 2
-- **ElizaOS** (project, agent-architecture) — An open-source framework for building autonomous AI agents with persistent memory, multi-platform communication, and extensible plugin architecture.. Sources: 2
-- **Cognee** (project, knowledge-substrate) — A knowledge graph construction and retrieval system for AI agents, enabling structured memory and reasoning over ingested information.. Sources: 2
-- **A-MEM** (project, agent-memory) — An agentic memory system that dynamically creates and organizes memory notes with contextual links, inspired by Zettelkasten methodology.. Sources: 2
-- **Case-Based Reasoning** (approach, agent-memory) — A problem-solving paradigm where agents reuse solutions from similar past cases stored in memory to address new problems.. Sources: 2
-- **Workflow Induction** (concept, agent-architecture) — The process of automatically inferring reusable workflow templates or procedures from agent execution traces or demonstrations.. Sources: 2
-- **Incremental Indexing** (concept, knowledge-substrate) — The practice of continuously updating knowledge indices as new information arrives, rather than batch reindexing, enabling real-time knowledge base updates.. Sources: 2
-- **Personalized PageRank** (concept, knowledge-substrate) — A graph traversal algorithm adapted for knowledge retrieval that propagates relevance scores from query-matched entities through a knowledge graph.. Sources: 2
-- **Entity Extraction** (approach, knowledge-substrate) — The process of identifying and extracting named entities and their relationships from text to populate knowledge graphs and memory systems.. Sources: 2
-- **Docker Sandbox** (concept, agent-architecture) — Containerized execution environments used to safely run agent-generated code and commands in isolation from the host system.. Sources: 2
-- **World Model** (concept, agent-architecture) — An internal representation an agent maintains of its environment, enabling planning and prediction of action consequences.. Sources: 2
-- **DeepSeek** (project, agent-architecture) — A family of open-source large language models known for strong reasoning capabilities, used as backbone models in agent systems.. Sources: 2
-- **System Prompt** (concept, context-engineering) — Instructions provided to an LLM at the beginning of a context to define its behavior, persona, and capabilities for a given agent deployment.. Sources: 2
-- **Structured Output** (concept, agent-architecture) — LLM output formatted according to a defined schema (e.g., JSON, Pydantic models), enabling reliable parsing and integration in agent pipelines.. Sources: 2
-- **MGX** (project, multi-agent-systems) — A multi-agent collaboration system enabling teams of AI agents to work together on software development and complex projects.. Sources: 2
-- **MemVid** (project, agent-memory) — A memory system that encodes agent knowledge into video format for efficient storage and retrieval.. Sources: 2
-- **MinerU** (project, knowledge-substrate) — A document extraction tool for parsing PDFs and other formats into structured text for RAG and knowledge base construction.. Sources: 2
-- **Cerebra Fusion Memory** (project, agent-memory) — A memory fusion system combining multiple memory modalities for richer agent recall and knowledge integration.. Sources: 2
-- **Compound Engineering** (approach, agent-architecture) — An approach to building AI systems that combines multiple specialized components (models, retrievers, tools) into integrated compound AI systems.. Sources: 2
-- **ReMe** (project, agent-memory) — A retrieval-augmented memory system for agents enabling personalized and contextually relevant memory recall.. Sources: 2
-- **Bounded Context** (approach, context-engineering) — A design principle from domain-driven design applied to agent systems, defining clear boundaries for what context and knowledge is relevant to a given agent or task.. Sources: 2
-- **Elasticsearch** (project, knowledge-substrate) — A distributed search and analytics engine commonly used for full-text search and BM25-based retrieval in RAG systems.. Sources: 2
-- **Multi-hop RAG** (concept, knowledge-substrate) — Retrieval-augmented generation requiring multiple sequential retrieval steps to gather information spread across documents for complex question answering.. Sources: 2
-- **Dynamic Cheatsheet** (approach, agent-memory) — A dynamically updated reference document maintained by an agent containing learned heuristics, facts, and strategies for improving task performance.. Sources: 2
-- **Zero-Data Self-Evolution** (approach, self-improving) — An approach to agent improvement that requires no external training data, relying on the agent's own experience and self-generated feedback.. Sources: 2
-- **Tool-Integrated Reasoning** (approach, agent-architecture) — A reasoning paradigm where agents interleave natural language reasoning with tool calls, enabling grounded and verifiable problem-solving.. Sources: 2
+- **ADAS** (project, self-improving) — Automated Design of Agentic Systems - a meta-agent framework that automatically discovers and improves agent designs through code-based search.. Sources: 2
+- **TextGrad** (project, self-improving) — A framework for automatic differentiation through text, enabling gradient-based optimization of LLM pipelines using textual feedback as gradients.. Sources: 2
+- **WebArena** (project, agent-architecture) — A realistic web environment benchmark for evaluating autonomous agents on complex web-based tasks across multiple websites.. Sources: 2
+- **Mind2Web** (project, agent-architecture) — A benchmark for generalist web agents that tests task completion across diverse real-world websites and user instructions.. Sources: 2
+- **LightRAG** (project, knowledge-substrate) — A lightweight graph-based RAG system that integrates entity and relationship extraction into retrieval for improved contextual responses.. Sources: 2
+- **MemoryBank** (project, agent-memory) — A long-term memory mechanism for LLMs that stores and retrieves memories based on Ebbinghaus forgetting curve principles for more human-like memory management.. Sources: 2
+- **SkillWeaver** (project, agent-architecture) — A system for automated skill synthesis and composition in agents, enabling learning and weaving together new skills from experience.. Sources: 2
+- **Lilian Weng** (person, agent-architecture) — OpenAI researcher and author of influential blog posts on LLM agents, memory systems, and agent architectures.. Sources: 2
+- **Aider** (project, agent-architecture) — An open-source AI pair programming tool that enables LLMs to collaboratively edit code in local git repositories via the command line.. Sources: 2
+- **AutoGPT** (project, agent-architecture) — One of the first widely-adopted autonomous agent frameworks, enabling LLMs to decompose and pursue long-horizon goals with tool use.. Sources: 2
+- **OSWorld** (project, agent-architecture) — A benchmark for evaluating computer-use agents on real-world OS tasks across multiple operating system environments.. Sources: 2
+- **RAGFlow** (project, knowledge-substrate) — An open-source RAG engine with deep document understanding capabilities for building enterprise knowledge retrieval systems.. Sources: 2
+- **ElizaOS** (project, agent-architecture) — An open-source framework for building conversational AI agents with persistent memory, multi-platform support, and plugin architecture.. Sources: 2
+- **Cognee** (project, knowledge-substrate) — A knowledge graph construction and retrieval system for AI agents that transforms unstructured data into queryable semantic networks.. Sources: 2
+- **A-MEM** (project, agent-memory) — An agentic memory system that autonomously organizes and evolves memory structures based on agent interaction patterns.. Sources: 2
+- **Case-Based Reasoning** (approach, agent-memory) — A problem-solving approach that uses experiences from similar past cases to inform new decisions, applicable to agent memory and retrieval systems.. Sources: 2
+- **Workflow Induction** (concept, agent-architecture) — The process of automatically inferring or learning effective agent workflows from demonstrations, traces, or experience.. Sources: 2
+- **Incremental Indexing** (concept, knowledge-substrate) — A knowledge base maintenance strategy that updates indexes progressively as new information arrives, avoiding full reindexing overhead.. Sources: 2
+- **Personalized PageRank** (concept, knowledge-substrate) — A graph algorithm variant used in knowledge graph retrieval to find relevant nodes by propagating relevance scores from query entities.. Sources: 2
+- **Entity Extraction** (approach, knowledge-substrate) — NLP technique for identifying and extracting named entities and relationships from text, foundational to knowledge graph construction for agent memory.. Sources: 2
+- **Docker Sandbox** (concept, agent-architecture) — Containerized execution environments providing safe, isolated sandboxes for agents to run code and system commands.. Sources: 2
+- **World Model** (concept, agent-architecture) — An agent's internal representation of the environment, entities, and their relationships, used for planning and decision-making.. Sources: 2
+- **DeepSeek** (project, agent-architecture) — A Chinese AI lab's family of open-source language models including DeepSeek-R1, widely adopted for agent applications due to strong reasoning capabilities.. Sources: 2
+- **System Prompt** (concept, context-engineering) — The initial instruction context provided to LLMs that defines agent behavior, persona, and constraints before user interaction begins.. Sources: 2
+- **Structured Output** (concept, agent-architecture) — Techniques for constraining LLM outputs to follow specific schemas or formats, enabling reliable parsing and downstream processing in agent pipelines.. Sources: 2
+- **MGX** (project, multi-agent-systems) — MetaGPT's multi-agent collaboration platform enabling team-based AI workflows for complex software and product development tasks.. Sources: 2
+- **MemVid** (project, agent-memory) — A video-based memory system for agents that encodes memories as video frames for compact, retrievable long-term storage.. Sources: 2
+- **MinerU** (project, knowledge-substrate) — An open-source document extraction tool for converting PDFs and web pages into structured markdown for knowledge base ingestion.. Sources: 2
+- **Cerebra Fusion Memory** (project, agent-memory) — A memory fusion system for agents that combines multiple memory modalities for more comprehensive and accessible agent memory.. Sources: 2
+- **Compound Engineering** (approach, agent-architecture) — An engineering approach that builds AI systems as compound products combining multiple models, tools, and services rather than relying on a single model.. Sources: 2
+- **ReMe** (project, agent-memory) — A retrieval-enhanced memory system for conversational agents that improves recall through structured memory organization and retrieval.. Sources: 2
+- **Bounded Context** (approach, context-engineering) — A domain-driven design principle applied to agent context management, limiting context scope to relevant domain boundaries for efficiency.. Sources: 2
+- **Elasticsearch** (project, knowledge-substrate) — A distributed search and analytics engine used for full-text and hybrid search in agent knowledge retrieval systems.. Sources: 2
+- **Multi-hop RAG** (concept, knowledge-substrate) — RAG approaches requiring multiple retrieval steps to answer complex questions, chaining retrievals across documents to build complete answers.. Sources: 2
+- **Dynamic Cheatsheet** (approach, agent-memory) — An adaptive reference document that agents maintain and update with learned heuristics, patterns, and useful information during task execution.. Sources: 2
+- **Zero-Data Self-Evolution** (approach, self-improving) — A self-improvement approach where agents evolve their capabilities without external training data, relying on self-generated experience and evaluation.. Sources: 2
+- **Tool-Integrated Reasoning** (approach, agent-architecture) — A reasoning paradigm where LLM agents interleave reasoning steps with tool calls, enabling grounded and verifiable problem solving.. Sources: 2
+- **Claude-Mem** (project, agent-memory) — A memory extension system for Claude that provides persistent memory capabilities across Claude conversations and sessions.. Sources: 2
+- **OpenViking** (project, agent-architecture) — An open-source agent project contributing to the agent infrastructure ecosystem.. Sources: 2
+- **Kuzu** (project, knowledge-substrate) — An embeddable property graph database designed for high-performance graph queries in agent knowledge systems.. Sources: 2
+- **SAGE** (project, agent-architecture) — A structured agent execution framework for building reliable and observable agentic pipelines.. Sources: 2
+- **WebShop** (project, agent-architecture) — A simulated e-commerce environment for training and evaluating web-based shopping agents on product search and selection tasks.. Sources: 2
+- **Perplexity** (project, agent-architecture) — An AI-powered search engine that combines LLM generation with real-time web retrieval, serving as both a product and a benchmark reference.. Sources: 2
+- **Jack Dorsey** (person, agent-architecture) — Co-founder of Twitter and Square, referenced in discussions about AI agents in enterprise and product contexts.. Sources: 2
+- **Garry Tan** (person, agent-architecture) — President and CEO of Y Combinator, referenced in discussions about AI agent adoption in startups.. Sources: 2
+- **Lossless Context Management** (concept, context-engineering) — A context management approach that preserves all relevant information when handling long contexts, avoiding information loss through intelligent summarization and retrieval.. Sources: 2
+- **Agent Learning** (concept, self-improving) — The processes by which agents acquire new knowledge and capabilities through interaction, feedback, and experience, including in-context and parametric learning approaches.. Sources: 2
+- **Hipocampus** (project, agent-memory) — A memory system project inspired by the hippocampus, providing associative memory retrieval capabilities for AI agents.. Sources: 2
+- **LanceDB** (project, knowledge-substrate) — An embedded vector database built on the Lance columnar format, optimized for multimodal AI applications and agent memory.. Sources: 2
+- **LangSmith** (project, agent-architecture) — LangChain's observability and evaluation platform for monitoring, debugging, and testing LLM agent applications in production.. Sources: 2
+- **Groq** (project, agent-architecture) — A hardware and inference company providing ultra-fast LLM inference using LPU chips, used in latency-sensitive agent applications.. Sources: 2
+- **llama.cpp** (project, agent-architecture) — A C++ implementation of LLaMA inference enabling efficient local LLM execution for edge agent deployments.. Sources: 2
+- **FinanceBench** (project, knowledge-substrate) — A benchmark for evaluating LLM and RAG systems on financial document question answering tasks.. Sources: 2
+- **Cypher** (approach, knowledge-substrate) — A declarative graph query language used with Neo4j and other graph databases for querying knowledge graphs in agent memory systems.. Sources: 2
+- **Context Database** (concept, context-engineering) — A specialized database for storing and retrieving agent context, enabling persistent and queryable context management across sessions.. Sources: 2
+- **Memori** (project, agent-memory) — A memory service for AI agents providing cloud-based persistent memory storage and retrieval capabilities.. Sources: 2
+- **LightRAG** (project, knowledge-substrate) — A lightweight graph-enhanced RAG framework combining entity extraction with dual-level retrieval for improved knowledge graph-based responses.. Sources: 2
+- **EvolveLab** (project, self-improving) — A research project or lab focused on evolutionary approaches to improving AI agent capabilities and architectures.. Sources: 2
+- **LLMLingua** (project, context-engineering) — A prompt compression framework from Microsoft that uses smaller LLMs to compress prompts while preserving semantic meaning for more efficient inference.. Sources: 2
+- **WebShop** (project, agent-architecture) — An interactive web shopping benchmark environment for evaluating agent task completion in simulated e-commerce settings.. Sources: 2
+- **OpenMementos** (project, agent-memory) — A project related to agent memory management, likely inspired by or extending the Memento concept for tracking and retrieving past agent states or interactions.. Sources: 1
+- **OpenThoughts-v3** (project, self-improving) — An open-source dataset or model focused on reasoning and chain-of-thought capabilities, representing the third iteration of the OpenThoughts series.. Sources: 1
+- **QwQ-32B** (project, agent-architecture) — A 32-billion parameter reasoning-focused language model from the Qwen family, designed for extended chain-of-thought reasoning tasks.. Sources: 1
+- **AI Frontiers** (project, agent-architecture) — A research initiative or conference focused on frontier AI research and development.. Sources: 1
+- **Qwen2.5-7B** (project, agent-architecture) — A 7-billion parameter language model from Alibaba's Qwen2.5 series, used as a base or fine-tuned model for various agent and reasoning tasks.. Sources: 1
+- **Qwen3-8B** (project, agent-architecture) — An 8-billion parameter language model from Alibaba's Qwen3 series, part of the third generation of Qwen models.. Sources: 1
+- **Qwen3-32B** (project, agent-architecture) — A 32-billion parameter language model from Alibaba's Qwen3 series, offering stronger reasoning and instruction-following capabilities.. Sources: 2
+- **Phi-4-Reasoning** (project, agent-architecture) — Microsoft's Phi-4 model variant fine-tuned specifically for reasoning tasks, part of the Phi small language model family.. Sources: 1
+- **OLMo3-7B-Think** (project, agent-architecture) — A 7-billion parameter thinking-oriented variant of Allen AI's OLMo3 open language model, designed for extended reasoning.. Sources: 1
+- **KV Cache** (concept, context-engineering) — Key-Value cache used in transformer inference to store intermediate attention computations, enabling faster generation by avoiding redundant computation for previously processed tokens.. Sources: 1
+- **Block Masking** (concept, context-engineering) — A technique in transformer attention that selectively masks entire blocks of tokens, used for efficient context management or training objectives like memory segmentation.. Sources: 1
+- **Memento (Concept)** (concept, agent-memory) — A conceptual framework for agent memory inspired by the film Memento, emphasizing backward-chaining recall and the use of external memory artifacts to compensate for limited in-context memory.. Sources: 1
+- **Supervised Fine-Tuning** (approach, self-improving) — A training approach where a pre-trained language model is further trained on labeled examples to improve performance on specific tasks or domains.. Sources: 2
+- **Dynamic Programming** (approach, agent-architecture) — An algorithmic optimization technique that solves complex problems by breaking them into overlapping subproblems and storing solutions, applied in agent planning and memory retrieval optimization.. Sources: 1
+- **Dimitris Papailiopoulos** (person, self-improving) — Researcher working on machine learning and AI, known for contributions to memory systems and self-improving agents.. Sources: 1
+- **Vasilis Kontonis** (person, self-improving) — Researcher in machine learning and AI systems.. Sources: 1
+- **Yuchen Zeng** (person, self-improving) — Researcher contributing to LLM agent and memory systems research.. Sources: 1
+- **Shivam Garg** (person, agent-architecture) — Researcher in machine learning and AI systems.. Sources: 1
+- **Lingjiao Chen** (person, agent-architecture) — Researcher working on AI systems and language model infrastructure.. Sources: 1
+- **Hao Tang** (person, agent-architecture) — Researcher contributing to AI and language model systems research.. Sources: 1
+- **Ziyan Wang** (person, agent-architecture) — Researcher in AI systems and language model development.. Sources: 1
+- **Ahmed Awadallah** (person, agent-architecture) — Senior researcher at Microsoft Research working on natural language processing and AI systems.. Sources: 1
+- **Eric Horvitz** (person, agent-architecture) — Chief Scientific Officer at Microsoft, known for foundational work in AI decision-making, probabilistic reasoning, and human-AI interaction.. Sources: 1
+- **John Langford** (person, self-improving) — Machine learning researcher at Microsoft Research known for contributions to reinforcement learning and online learning algorithms.. Sources: 1
+- **AIME 2026** (concept, agent-architecture) — The 2026 American Invitational Mathematics Examination, used as a benchmark for evaluating mathematical reasoning capabilities of language models.. Sources: 1
+- **GPQA-Diamond** (concept, agent-architecture) — The Diamond subset of the Graduate-Level Google-Proof Q&A benchmark, consisting of extremely challenging expert-level science questions used to evaluate frontier model reasoning.. Sources: 1
+- **LiveCodeBench** (concept, agent-architecture) — A benchmark for evaluating code generation capabilities of language models using live, continuously updated coding problems to prevent data contamination.. Sources: 2

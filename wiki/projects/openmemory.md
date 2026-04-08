@@ -3,181 +3,222 @@ entity_id: openmemory
 type: project
 bucket: agent-memory
 abstract: >-
-  OpenMemory is a self-hosted cognitive memory engine for LLM agents
-  implementing sector-based storage
-  (episodic/semantic/procedural/emotional/reflective) with biologically-inspired
-  decay, composite scoring, and temporal fact tracking — differentiating from
-  RAG by treating memory type and time as first-class concerns.
+  OpenMemory: self-hosted cognitive memory engine for LLM agents with
+  sector-based classification
+  (episodic/semantic/procedural/emotional/reflective), dual-phase exponential
+  decay, and composite retrieval scoring — not a vector DB wrapper.
 sources:
-  - repos/thedotmack-claude-mem.md
-  - repos/caviraoss-openmemory.md
   - deep/repos/caviraoss-openmemory.md
+  - repos/caviraoss-openmemory.md
+  - repos/thedotmack-claude-mem.md
 related:
   - retrieval-augmented-generation
   - episodic-memory
-  - semantic-memory
-last_compiled: '2026-04-08T02:56:45.635Z'
+last_compiled: '2026-04-08T23:14:11.574Z'
 ---
 # OpenMemory
 
-**Type:** Project — Agent Memory Infrastructure  
-**License:** Apache-2.0  
-**Language:** TypeScript (primary), Python (SDK)  
-**Stars:** ~3,860 (self-reported)  
-**Status:** Active rewrite — breaking changes expected
+## What It Is
 
-OpenMemory is a self-hosted memory engine for LLM agents. It stores, classifies, decays, and retrieves memories using cognitive-science-inspired mechanisms. The project positions itself against both RAG pipelines and vector databases, arguing that neither handles memory *type*, *temporal validity*, or *adaptive forgetting* — and then implements all three.
+OpenMemory is a self-hosted memory engine for LLM agents that adds cognitive-science-inspired mechanisms on top of vector embeddings: automatic memory classification into five sector types, biologically-modeled decay, temporal fact management, and composite retrieval scoring. It exposes a Python SDK, Node.js SDK, REST API, MCP server, and VS Code extension.
 
-[Source](../raw/deep/repos/caviraoss-openmemory.md)
+The project explicitly positions itself against RAG and vector databases. Raw similarity search treats all stored text identically. OpenMemory argues that a working memory system needs differentiated storage (episodic events should decay faster than semantic facts), active forgetting, and temporal awareness. Whether the implementation delivers on that claim is a separate question from the architecture.
 
----
+~3,860 GitHub stars (self-reported). Apache-2.0 license. Currently undergoing a full rewrite with breaking changes expected.
 
-## What It Does and What's Architecturally Unique
-
-Most memory systems for agents treat retrieval as a similarity search: embed text, store vectors, return top-k by cosine distance. OpenMemory adds five layers on top of that:
-
-1. **Sector classification** — every memory is assigned to one of five cognitive categories (episodic, semantic, procedural, emotional, reflective), each with its own decay rate and retrieval weight
-2. **Dual-phase exponential decay** — retention follows `R(t) = exp(-λ₁t) + θ·exp(-λ₂t)`, modeling the Ebbinghaus forgetting curve with a consolidated residual
-3. **Composite scoring** — retrieval combines vector similarity (0.35), token overlap (0.20), graph waypoints (0.15), recency (0.10), and tag matching (0.20)
-4. **Temporal knowledge graph** — facts carry `valid_from`/`valid_to` ranges; inserting a contradicting fact automatically closes the previous one
-5. **Automatic reflection** — a background job clusters similar memories and generates higher-order "reflective" memories without user input
-
-The result is a system that self-organizes over time rather than accumulating noise.
+Related: [Agent Memory](../concepts/agent-memory.md), [Episodic Memory](../concepts/episodic-memory.md), [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md), [Long-Term Memory](../concepts/long-term-memory.md), [Model Context Protocol](../concepts/model-context-protocol.md)
 
 ---
 
-## Core Mechanism
+## Core Architecture
 
-### Hierarchical Sector Graph (HSG)
+The TypeScript package (`packages/openmemory-js/src/`) is the primary implementation. Storage splits between SQLite (metadata, relational data, via `better-sqlite3`) and pluggable vector stores (PostgreSQL/pgvector, Valkey) for embeddings. The three deployment modes are:
 
-Defined in `packages/openmemory-js/src/memory/hsg.ts`. Every memory ingested runs through regex-based pattern matching that assigns a sector:
+1. **Python SDK** (`packages/openmemory-py/`) — local SQLite, pip-installable as `openmemory-py`
+2. **Node.js SDK** (`packages/openmemory-js/`) — embedded or server-connected, npm-installable as `openmemory-js`
+3. **Backend server** (`backend/`) — HTTP API + MCP + dashboard + multi-user support
+
+The `Memory` class (`src/core/memory.ts`) is the main API surface with five operations: `add`, `search`, `get`, `delete`, `reinforce`.
+
+---
+
+## Hierarchical Sector Graph (HSG)
+
+The most architecturally distinctive component lives in `src/memory/hsg.ts`. Every memory gets classified into one of five cognitive sectors using regex pattern matching:
 
 ```typescript
 export const sector_configs: Record<string, sector_cfg> = {
-    episodic: { decay_lambda: 0.015, weight: 1.2, patterns: [/\b(today|yesterday)\b/i, ...] },
-    semantic:  { decay_lambda: 0.005, weight: 1.0, patterns: [...] },
-    procedural:{ decay_lambda: 0.008, weight: 1.1, patterns: [...] },
-    emotional: { decay_lambda: 0.02,  weight: 1.3, patterns: [...] },
-    reflective:{ decay_lambda: 0.001, weight: 0.8, patterns: [...] },
+    episodic: {
+        decay_lambda: 0.015,
+        weight: 1.2,
+        patterns: [/\b(today|yesterday|tomorrow|last\s+(week|month|year))\b/i, ...]
+    },
+    semantic:   { decay_lambda: 0.005, weight: 1.0, patterns: [...] },
+    procedural: { decay_lambda: 0.008, weight: 1.1, patterns: [...] },
+    emotional:  { decay_lambda: 0.02,  weight: 1.3, patterns: [...] },
+    reflective: { decay_lambda: 0.001, weight: 0.8, patterns: [...] },
 };
 ```
 
-Sector assignment determines which decay rate applies and how much weight the memory carries in retrieval. Cross-sector retrieval uses an adjacency matrix — searching episodic memories gives reflective memories a 0.8 boost and emotional a 0.7 boost, reflecting how autobiographical and affective memory interact.
+The sector assignments matter because they control two things: how fast a memory decays and how much weight it gets at retrieval. Emotional memories decay fastest (0.02) but carry highest retrieval weight (1.3). Reflective memories decay slowest (0.001) and carry the lowest weight (0.8). Cross-sector relationships are encoded in an explicit adjacency matrix — when retrieving episodic memories, reflective ones get a 0.8 boost while emotional ones get 0.7.
 
-### Dual-Phase Decay
+**Retrieval scoring** combines five weighted factors:
+- Cosine similarity: 0.35
+- Token overlap with query: 0.20
+- Tag matching: 0.20
+- Waypoint graph connectivity: 0.15
+- Recency: 0.10
 
-In `src/ops/dynamics.ts`:
-
-```typescript
-export async function calculateDualPhaseDecayMemoryRetention(t) {
-    const f = Math.exp(-LAMBDA_ONE_FAST_DECAY_RATE * t);       // 0.015
-    const s = THETA_CONSOLIDATION * Math.exp(-LAMBDA_TWO * t); // 0.4 * exp(-0.002t)
-    return Math.max(0, Math.min(1, f + s));
-}
-```
-
-Two phases: rapid initial forgetting (λ₁=0.015) followed by slow decay of consolidated knowledge (λ₂=0.002, θ=0.4). Memories below the warm threshold (salience < 0.4, not accessed in 6+ days) get their vectors compressed via mean pooling from up to 1536 dimensions down to 64, reducing storage while preserving approximate semantics.
-
-### Automatic Reflection
-
-`src/memory/reflect.ts` runs every 10 minutes (configurable) when ≥20 memories exist. It clusters memories by Jaccard similarity > 0.8, scores clusters by frequency (0.6), recency (0.3), and emotional content (0.1), then writes extractive summaries as new reflective-sector memories. Source memories get a 1.1× salience boost. Reflective memories have the slowest decay rate (λ=0.001), so these auto-generated insights outlast the raw events that produced them.
-
-### Temporal Fact Store
-
-`src/temporal_graph/` manages bitemporal facts. Inserting `{subject: "CompanyX", predicate: "has_CEO", object: "Bob", valid_from: "2024-04-10"}` automatically sets `valid_to` on Alice's prior fact. Confidence decays over time via periodic SQL updates, flooring at 0.1 so old facts remain retrievable but signal their uncertainty.
-
-### Storage
-
-Metadata and relational data go to SQLite via `better-sqlite3`. Vectors go to pluggable stores: pgvector, Valkey, or an in-process option. Five embedding providers are supported: OpenAI, Gemini, Ollama, AWS Bedrock, and a synthetic fallback that requires no external API.
+This composite formula differs from pure vector search. The waypoint factor (0.15) also generates an explanation trace showing which graph nodes contributed to a result.
 
 ---
 
-## Key Numbers
+## Dual-Phase Exponential Decay
 
-| Metric | Value | Source |
-|--------|-------|--------|
-| GitHub stars | ~3,860 | Self-reported |
-| GitHub forks | 439 | Self-reported |
-| Embedding dimensions | 64–1536 (configurable) | Code |
-| Decay cooldown | 60 seconds between runs | Code |
-| Reflection minimum | 20 memories, 10-minute interval | Code |
-| Compression cache | 500-entry LRU | Code |
+`src/memory/decay.ts` classifies memories into three temperature tiers based on recency and importance:
 
-No independent benchmarks exist. Performance numbers from the codebase (decay threading via `OM_DECAY_THREADS`, compression ratios) are implementation details, not validated results.
+```typescript
+const pick_tier = (m, now_ts) => {
+    const dt = Math.max(0, now_ts - (m.last_seen_at || m.updated_at || now_ts));
+    const recent = dt < 6 * 86_400_000;  // 6 days
+    const high = (m.coactivations || 0) > 5 || (m.salience || 0) > 0.7;
+    if (recent && high) return "hot";
+    if (recent || (m.salience || 0) > 0.4) return "warm";
+    return "cold";
+};
+```
+
+Tier-specific lambda rates: hot (0.005, near-permanent while active), warm (0.02), cold (0.05, rapid attenuation).
+
+`src/ops/dynamics.ts` implements a dual-phase retention formula:
+
+```typescript
+const f = Math.exp(-LAMBDA_ONE_FAST_DECAY_RATE * t);       // 0.015
+const s = THETA_CONSOLIDATION * Math.exp(-LAMBDA_TWO * t); // 0.4 * exp(-0.002t)
+return Math.max(0, Math.min(1, f + s));
+```
+
+Two phases: fast initial forgetting (Ebbinghaus curve, λ=0.015) followed by a slow-decaying consolidated residual (λ=0.002, coefficient θ=0.4). Memories surviving the fast phase are treated as consolidated.
+
+Cold memories also get their vectors compressed via mean pooling down to as few as 64 dimensions from 1536, reducing storage while preserving approximate semantic content. Re-embedding on access (when `reinforce_on_query=true`) regenerates full precision.
+
+---
+
+## Automatic Reflection
+
+`src/memory/reflect.ts` runs as a periodic background job (default interval: 10 minutes, minimum 20 memories required):
+
+1. Fetches up to 100 memories
+2. Groups them by sector using Jaccard similarity > 0.8
+3. Calculates salience from frequency (0.6 weight), recency (0.3), emotional content (0.1)
+4. Creates a new reflective-sector memory summarizing each cluster
+5. Marks source memories as consolidated and boosts their salience by 1.1x
+
+The created reflections go into the reflective sector (slowest decay, λ=0.001), meaning auto-generated insights outlast the source memories. This implements a form of memory consolidation without requiring any LLM calls — all operations are algorithmic.
+
+---
+
+## Temporal Knowledge Graph
+
+`src/temporal_graph/` manages time-bounded facts with explicit `valid_from`/`valid_to` windows. When a contradicting fact is inserted for the same subject+predicate pair, the previous fact closes automatically:
+
+```typescript
+await run_async(`UPDATE temporal_facts SET valid_to = ? WHERE id = ?`,
+    [valid_from_ts - 1, old.id]);
+```
+
+Confidence decays on open-ended facts over time, clamped to a floor of 0.1. Point-in-time queries let you ask "what was true on date X" and get a different answer than "what is true now."
+
+---
+
+## Integrations
+
+**MCP server** (`src/ai/mcp.ts`) exposes five tools: `openmemory_query`, `openmemory_store`, `openmemory_list`, `openmemory_get`, `openmemory_reinforce`. Compatible with [Claude](../projects/claude.md), [Cursor](../projects/cursor.md), Windsurf.
+
+**VS Code extension** captures IDE events (edit, open, close, save, refactor) and writes them to the memory server. Ships writers for [Claude Code](../projects/claude-code.md), [GitHub Copilot](../projects/github-copilot.md), [Cursor](../projects/cursor.md), Windsurf, and [OpenAI Codex](../projects/codex.md).
+
+**Agent frameworks**: [LangChain](../projects/langchain.md), [CrewAI](../projects/crewai.md), [AutoGen](../projects/autogen.md), LangGraph.
+
+**Source connectors**: GitHub, Notion, Google Drive/Sheets/Slides, OneDrive, web crawler.
+
+**Migration tools** (`tools/migrate/`) import from [Mem0](../projects/mem0.md), [Zep](../projects/zep.md), and [SuperMemory](../projects/supermemory.md).
+
+**Embedding providers**: OpenAI, Google Gemini, [Ollama](../projects/ollama.md), AWS Bedrock, and a synthetic fallback for fully offline operation.
+
+**One-click deploy**: Render, Vercel, DigitalOcean, Heroku, Docker Compose.
 
 ---
 
 ## Strengths
 
-**Cognitive-type differentiation.** Separating episodic events from semantic facts matters for long-running agents. A conversation about what happened yesterday should decay faster than a user's stated preference. Most memory systems don't make this distinction.
+**Differentiated memory types without LLM overhead.** The sector classification, decay, and reflection all run without calling an LLM. No API costs for memory management, no added latency, no external dependencies for core operations.
 
-**No LLM dependency for core operations.** Classification, compression, decay, and reflection are all algorithmic. No API calls required for memory management — only for embedding generation (and even that has a synthetic fallback). This keeps per-operation costs near zero and enables fully offline use.
+**Self-hosted with genuine data ownership.** SQLite default means no cloud configuration, no vendor lock-in. The offline-capable synthetic embedding fallback extends this to fully air-gapped environments.
 
-**Temporal validity.** The bitemporal fact store handles a class of errors that pure vector memory cannot: outdated information. If an agent remembers "Alice is CEO" and the temporal graph has already closed that fact, the retrieval layer can surface the correct current state.
+**Explainable retrieval.** The waypoint scoring factor generates traces showing which graph nodes contributed to a result. Most vector search systems return results without any explanation of why.
 
-**MCP integration.** Five MCP tools (`openmemory_query`, `openmemory_store`, `openmemory_list`, `openmemory_get`, `openmemory_reinforce`) let Claude, Cursor, and Windsurf treat OpenMemory as a native tool without manual wiring.
+**Temporal fact management.** Auto-closing contradicting facts and point-in-time queries are rare in memory systems at this level. Most competitors treat all stored text as eternally valid.
 
-**Source connectors.** GitHub, Notion, Google Drive, Google Sheets/Slides, OneDrive, and a web crawler feed external knowledge directly into the memory store. An IDE's coding history and a user's Notion workspace can coexist in the same cognitive model.
+**Broad integration surface.** MCP, VS Code extension, Python + Node SDKs, REST API, and one-click deployment options cover most agent deployment scenarios.
 
 ---
 
 ## Critical Limitations
 
-**Concrete failure mode — sector misclassification cascades.** The regex-based classifier is English-centric and brittle. A procedural memory like "how to manage stress" matches both procedural patterns ("how to") and emotional patterns ("stress"). The winning sector determines decay rate and retrieval weight for the lifetime of that memory. Misclassification is silent — there is no feedback mechanism, no logging of classification confidence, and no way to audit sector assignments at scale. In a multi-language deployment, nearly all content will fall through to incorrect sectors.
+**Sector classification is crude.** The regex patterns in `hsg.ts` are hardcoded English phrases. A procedural memory about emotional regulation ("how to manage stress") matches both procedural and emotional patterns. The classification determines which decay rate and retrieval weight apply, so misclassification has downstream consequences throughout a memory's lifecycle. Non-English content will likely misclassify systematically.
 
-**Unspoken infrastructure assumption — single-machine SQLite.** The architecture assumes one SQLite database per deployment. The one-click deploy options (Render, Vercel, DigitalOcean) work for single-instance server deployments, but horizontal scaling is not supported. The decay job runs `Promise.all()` over individual UPDATE statements for every memory in the database — on large stores this will saturate SQLite's write path. The 60-second cooldown helps but does not address the O(n) cost per run.
+**Hardcoded cognitive parameters.** Every numerical constant in the system — LAMBDA_1=0.015, LAMBDA_2=0.002, THETA=0.4, all five scoring weights, all cross-sector relationship values — appears hand-tuned. None are configurable at runtime. The README references cognitive science concepts but no empirical validation of these specific values for LLM memory use cases is cited. There is no mechanism to tune parameters based on observed retrieval performance.
+
+**Concrete failure mode**: a user who primarily communicates in non-English or uses technical jargon not covered by the regex patterns will see most memories classified into the wrong sector. Their preferences land in `episodic` (fastest decay) instead of `semantic` (slowest decay), so the system progressively forgets preferences it should retain while retaining transient events it should forget.
+
+**Unspoken infrastructure assumption**: the system assumes single-machine deployment with local SQLite. The reflection job fetches up to 100 memories and processes them sequentially. The decay job iterates the entire database. Neither uses efficient indexing for large stores. `applyDualPhaseDecayToAllMemories()` issues individual UPDATE statements via `Promise.all()`, which becomes a write bottleneck on large databases. The 60-second decay cooldown helps but does not change the O(n) cost per run.
 
 ---
 
-## When NOT to Use It
+## When Not to Use It
 
-**Multi-tenant SaaS with high write volume.** The SQLite backend and single-process decay job cannot handle concurrent writes from many users. Each decay run touches all memories. Use Zep or Mem0's managed offering instead.
+**Production systems that need stability.** The README's own warning: "currently undergoing a full rewrite with breaking changes expected." Adopting this in production means accepting migration risk.
 
-**Non-English content at scale.** The regex sector classifier is hardcoded for English idioms. All non-English memories will misclassify, getting wrong decay rates and weights. The planned "learned sector classifier" (on the roadmap) would fix this, but it does not exist yet.
+**Large-scale multi-user deployments.** The O(n) decay and reflection jobs, single-file SQLite storage, and absence of horizontal scaling documentation make this unsuitable for thousands of concurrent users without significant architectural work.
 
-**Production systems requiring stability.** The README states the project is "currently being fully rewritten" with "breaking changes and potential bugs expected." Migration tools exist for Mem0, Zep, and SuperMemory, but they only help after the rewrite stabilizes.
+**Teams that need tunable retrieval.** The hardcoded scoring weights and sector parameters cannot be adjusted without modifying source code. If retrieval quality is wrong for a specific use case, there is no knob to turn.
 
-**Teams needing validated retrieval quality.** No benchmarks exist. The composite scoring weights (0.35/0.20/0.15/0.10/0.20) and cognitive parameters (THETA=0.4, λ₁=0.015, λ₂=0.002) are hand-tuned, not empirically derived. There is no way to measure whether the scoring function actually improves retrieval vs. cosine similarity alone.
+**Non-English or multilingual agents.** The regex-based sector classification is English-centric. Performance degrades predictably for other languages.
+
+**Situations where embedding provider consistency matters.** Switching embedding providers mid-deployment (or upgrading from synthetic fallback to a real model) makes existing vectors incompatible with new ones. There is no re-embedding migration path documented.
 
 ---
 
 ## Unresolved Questions
 
-**Parameter tuning.** The 18+ hardcoded constants in `dynamics.ts` (ALPHA=0.15, BETA=0.2, GAMMA=0.35, THETA=0.4, ETA=0.18, etc.) are fixed at compile time. There is no runtime configuration, no adaptive tuning, and no documentation explaining how these values were chosen. For a system that claims to model human memory, there is no reference to which cognitive science studies informed these specific numbers.
+**Parameter validation.** The cognitive constants (decay lambdas, scoring weights, cross-sector relationship values) are presented as grounded in cognitive science, but no source citations or empirical validation are provided. How were these values derived, and how much does retrieval quality degrade with different values?
 
-**Reflection quality.** Auto-generated reflections are extractive concatenations: `"N sector pattern: content1; content2; ..."`. They document co-occurrence, not insight. Whether these summaries improve downstream retrieval or just add noise is not evaluated.
+**Rewrite scope and timeline.** The README warns of breaking changes but does not specify what changes, which APIs are stable, or when the rewrite will complete. Downstream integrations built now may need significant rework.
 
-**Embedding provider switching.** Switching from synthetic fallback to OpenAI mid-deployment produces incompatible vector spaces. The system provides no re-embedding tooling and no documentation on migration between providers.
+**Reflection quality ceiling.** The reflection system produces extractive summaries ("N sector pattern: content1; content2; ...") rather than synthesized insights. Is this by design for the stable release, or a placeholder pending the roadmap's "learned sector classifier"?
 
-**Governance of the rewrite.** The full rewrite is underway with no stated timeline or compatibility guarantees. The migration tools assume a stable source format. If the rewrite changes the SQLite schema, existing data may require manual migration.
+**Team/org memory semantics.** The server mode supports multi-user with per-user memory isolation. There is no documented mechanism for shared organizational memory — facts that should be true for all users on a team. The [Organizational Memory](../concepts/organizational-memory.md) use case is implied by the "org-wide memory" positioning but not architecturally addressed.
 
-**Multi-device sync.** Local-first SQLite means memory does not follow a user across devices. The server mode enables centralized access, but the relationship between local SDK instances and a central server is not documented for teams with mixed deployment modes.
+**Cost at scale.** Running the system at organizational scale with many users, each accumulating thousands of memories, has no published cost or performance analysis.
 
 ---
 
 ## Alternatives
 
-| Alternative | When to prefer it |
-|-------------|-------------------|
-| [Mem0](../projects/mem0.md) | Managed service, no ops overhead, simpler API surface, production-stable |
-| [Zep](../projects/zep.md) | Graph-based fact extraction using LLMs, better at semantic deduplication, multi-tenant |
-| [Letta](../projects/letta.md) / [MemGPT](../projects/memgpt.md) | Full agent framework with memory built in, not just a memory layer |
-| [Graphiti](../projects/graphiti.md) | Temporal knowledge graphs with LLM-based entity extraction, stronger semantic understanding |
-| Vector DB + [RAG](../concepts/retrieval-augmented-generation.md) | When retrieval quality is well-understood and cognitive-science abstractions add unnecessary complexity |
+**[Mem0](../projects/mem0.md)**: Use when you need a maintained, production-stable memory layer with a managed cloud option and validated retrieval quality. OpenMemory provides migration tools from Mem0, which signals it targets Mem0's users but does not match its operational maturity.
 
-Use OpenMemory when: you want self-hosted, no-LLM-cost memory management with cognitive-type differentiation, you control the deployment environment, and you can tolerate a project in active rewrite.
+**[Zep](../projects/zep.md)**: Use when you need enterprise features (auth, multi-tenancy, SLA) or LangChain-native integration. Zep is more operationally mature.
 
----
+**[Letta](../projects/letta.md) / [MemGPT](../projects/memgpt.md)**: Use when you need LLM-driven memory management decisions rather than heuristic classification. Letta uses the model itself to decide what to store and retrieve.
 
-## Related Concepts
+**[Graphiti](../projects/graphiti.md)**: Use when temporal knowledge graphs are the primary requirement. Graphiti is purpose-built for temporal fact tracking with more sophisticated conflict resolution than OpenMemory's predicate-matching approach.
 
-- [Agent Memory](../concepts/agent-memory.md) — the broader problem this addresses
-- [Episodic Memory](../concepts/episodic-memory.md) — one of the five sectors OpenMemory implements
-- [Semantic Memory](../concepts/semantic-memory.md) — another sector, with the slowest base decay rate
-- [Long-Term Memory](../concepts/long-term-memory.md) — the persistence layer OpenMemory provides to otherwise stateless LLMs
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — what OpenMemory explicitly positions itself against
-- [Vector Database](../concepts/vector-database.md) — the storage primitive OpenMemory wraps with cognitive mechanisms
-- [Hybrid Search](../concepts/hybrid-search.md) — composite scoring combines semantic and lexical signals
-- [Model Context Protocol](../concepts/model-context-protocol.md) — OpenMemory exposes five MCP tools for IDE and agent integration
-- [Temporal Reasoning](../concepts/temporal-reasoning.md) — the bitemporal fact store's core capability
-- [Context Engineering](../concepts/context-engineering.md) — the discipline OpenMemory's retrieval and injection pipeline serves
+**Raw [Vector Database](../concepts/vector-database.md) + [RAG](../concepts/retrieval-augmented-generation.md)**: Use when retrieval simplicity and operational predictability matter more than cognitive modeling. Cosine similarity retrieval is easier to debug and tune than OpenMemory's five-factor composite scoring.
+
+**OpenMemory**: Use when you want a self-hosted, offline-capable memory system with sector-differentiated decay and temporal reasoning, you are comfortable with a project in active rewrite, and your workload fits on a single machine.
+
+
+## Related
+
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — implements (0.5)
+- [Episodic Memory](../concepts/episodic-memory.md) — implements (0.4)

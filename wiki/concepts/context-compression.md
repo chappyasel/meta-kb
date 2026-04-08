@@ -3,148 +3,144 @@ entity_id: context-compression
 type: concept
 bucket: context-engineering
 abstract: >-
-  Context compression reduces token count of prompts/context while preserving
-  task-relevant information, using perplexity scoring, trained classifiers, or
-  summarization; key differentiator is that it enables RAG and long-context
-  workloads to fit cheaper/faster models at lower cost.
+  Context compression reduces token usage by removing low-information content
+  before LLM inference, using perplexity scoring, trained classifiers, or
+  learned self-compression to cut costs and extend effective context capacity.
 sources:
+  - deep/repos/microsoft-llmlingua.md
   - repos/helloruru-claude-memory-engine.md
+  - repos/laurian-context-compression-experiments-2508.md
   - repos/microsoft-llmlingua.md
   - repos/thedotmack-claude-mem.md
-  - repos/laurian-context-compression-experiments-2508.md
-  - deep/repos/microsoft-llmlingua.md
+  - tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md
 related:
   - context-management
-  - claude-code
   - retrieval-augmented-generation
   - anthropic
-  - context-management
-last_compiled: '2026-04-08T02:55:36.157Z'
+  - claude-code
+last_compiled: '2026-04-08T23:12:56.228Z'
 ---
 # Context Compression
 
-## What It Is
-
-Context compression refers to techniques that reduce the token length of context fed to a language model while keeping enough information for the model to complete its task. The motivation is direct: LLM inference costs scale with token count, context windows are finite, and the [Lost in the Middle](../concepts/lost-in-the-middle.md) phenomenon means more tokens do not monotonically improve quality. Compression addresses all three.
-
-Compression operates on several distinct objects:
-
-- **Prompts**: system instructions, few-shot examples, retrieved documents
-- **Conversation history**: prior turns in a multi-turn session
-- **Retrieved passages**: chunks returned by a [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) pipeline before they reach the model
-- **KV caches**: intermediate attention state in long-context inference (a related but distinct problem)
-
-The field distinguishes between *lossy* compression (information is discarded; acceptable when the discarded content is irrelevant to the query) and *lossless* compression (structural reformatting, deduplication, whitespace removal; preserves all content). Most practical systems use lossy compression with a relevance signal to decide what to discard.
+Context compression covers techniques that reduce the token footprint of inputs to LLMs while preserving enough information for the model to produce correct outputs. The core tradeoff: fewer tokens mean lower cost, lower latency, and more room for other content, but aggressive compression risks dropping tokens that turn out to matter.
 
 ## Why It Matters
 
-A [RAG](../concepts/retrieval-augmented-generation.md) pipeline might retrieve ten documents, each 2,000 tokens. Feeding all 20,000 tokens to GPT-4o costs roughly $0.10 per query; compressing to 4,000 tokens reduces that to $0.02 and cuts latency. At scale — thousands of queries per day — the cost difference is substantial.
+Token limits create hard ceilings on what an agent can attend to simultaneously. A 128K-token window sounds generous until you account for a full codebase, retrieved documents, tool outputs, and a multi-turn conversation history. Beyond hitting the ceiling, there is also a softer problem: the [Lost in the Middle](../concepts/lost-in-the-middle.md) phenomenon, where models weight tokens near the beginning and end of context more heavily than tokens buried in the middle. Compression that moves essential information toward structural positions can improve quality at the same token count.
 
-Beyond cost, compression can *improve* answer quality. A model given 20,000 tokens of loosely relevant context often performs worse than one given 3,000 tokens of tightly relevant excerpts. Noise suppresses signal. LongLLMLingua reported up to 21.4% RAG performance improvement at 1/4 of the original token count — though this is self-reported by Microsoft Research and the improvement depends heavily on baseline retrieval quality.
+For [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) in particular, retrieved passages are typically far wordier than the information they contain. A passage retrieved to answer a factual question might be 400 tokens, of which 40 tokens carry the answer and 360 tokens carry preamble, boilerplate, and tangential context.
 
-For agent systems with long sessions, compression is also how you manage [Context Management](../concepts/context-management.md) without discarding conversation history entirely. A session that accumulates 50,000 tokens of tool calls, outputs, and intermediate reasoning needs a way to fit in a 128k context window across multiple turns.
+## Mechanism Taxonomy
 
-## Core Mechanisms
+Context compression splits into three broad families based on where the compression happens.
 
-### Perplexity-Based Token Filtering (LLMLingua)
+### 1. Token-Level Prompt Compression
 
-The foundational insight from [Microsoft's LLMLingua](https://aclanthology.org/2023.emnlp-main.825/) (EMNLP 2023): run a small language model over the prompt and compute per-token cross-entropy loss (perplexity). Tokens with low perplexity are predictable given their context — the model could reconstruct them. High-perplexity tokens carry information. Remove the predictable ones.
+The most studied approach: remove tokens from the prompt before it reaches the target LLM. The compressed text is ungrammatical but often still interpretable.
 
-LLMLingua implements this through a three-tier filter in `llmlingua/prompt_compressor.py`:
+**LLMLingua** (Microsoft Research, EMNLP 2023) implements a three-tier filtering hierarchy in `llmlingua/prompt_compressor.py`. The method treats compression as an information-theoretic problem: tokens with high cross-entropy loss under a small scoring LM carry more information and should be kept; low-loss tokens are predictable and can be dropped. The pipeline runs:
 
-1. **Context-level**: rank entire retrieved documents by mean perplexity; drop the least informative ones entirely
-2. **Sentence-level**: within surviving documents, rank and drop low-perplexity sentences
-3. **Token-level**: within surviving sentences, remove low-perplexity individual tokens via `iterative_compress_prompt()`
+1. **Context-level filtering** (`control_context_budget()`): ranks entire retrieved documents by perplexity and drops the lowest-ranked ones wholesale.
+2. **Sentence-level filtering** (`control_sentence_budget()`): within surviving documents, ranks sentences and drops low-information ones.
+3. **Token-level filtering** (`iterative_compress_prompt()`): processes remaining text in 200-token windows, computing per-token cross-entropy loss via `get_ppl()` and removing tokens below a dynamic threshold.
 
-The `get_ppl()` method does the actual work: it runs the scoring model (default `NousResearch/Llama-2-7b-hf`) with KV-cache enabled, computes cross-entropy loss per position, and optionally conditions the loss on the question (`condition_in_question` parameter). LongLLMLingua extends this by computing perplexity *conditioned on the question*, so tokens that are informative relative to the specific query get higher scores.
+The default scoring model is `NousResearch/Llama-2-7b-hf`. Loading a 7B model to score tokens for a smaller LLM is the defining awkwardness of the approach: you need GPU memory for the scorer before you can reduce the load on the target model. [Source](../raw/deep/repos/microsoft-llmlingua.md)
 
-The compression rate target (`rate` parameter) sets the ratio of compressed to original tokens. Actual achieved rates can differ due to tokenizer mismatch: the scoring model uses its own tokenizer, but the system reports token counts using GPT-3.5's tiktoken tokenizer.
+**LongLLMLingua** extends this by conditioning the perplexity computation on the question (`condition_in_question="after_condition"`). This shifts importance scoring from "surprising to a general LM" to "surprising given this specific question," which better preserves question-relevant tokens. Published results show up to 21.4% improvement on RAG benchmarks using 1/4 the tokens — this figure comes from the ACL 2024 paper and is peer-reviewed but evaluated on the paper's chosen benchmarks. [Source](../raw/deep/repos/microsoft-llmlingua.md)
 
-Reported performance: up to 20x compression with "minimal performance loss" on benchmarks including MeetingBank QA, LongBench, GSM8K, and BBH. These are self-reported by the authors; independent reproduction shows task-dependent variance.
+**LLMLingua-2** replaces perplexity scoring with a trained token classification model (XLM-RoBERTa-large, ~350M parameters). The model outputs binary keep/drop probabilities per token, trained via knowledge distillation from GPT-4. This is 3-6x faster than v1 and handles out-of-domain text better, but it requires domain-specific training data. The training pipeline lives in `experiments/llmlingua2/data_collection/`. The speed claim (3-6x) is self-reported by Microsoft Research in the ACL 2024 Findings paper.
 
-### Trained Token Classification (LLMLingua-2)
+Structured inputs get special handling: `compress_json()` and `structured_compress_prompt()` allow section-level control via `<llmlingua rate=0.4>...</llmlingua>` XML tags, letting you exempt instructions from compression while aggressively compressing retrieved passages.
 
-LLMLingua-2 (ACL 2024 Findings) replaces perplexity scoring with a trained binary classifier. A RoBERTa-based token classification model (`microsoft/llmlingua-2-xlm-roberta-large-meetingbank`) predicts keep/drop for each token directly. Training data comes from GPT-4 labels on MeetingBank transcripts and other corpora — a knowledge distillation setup.
+### 2. Summary-Based Context Management
 
-This changes the tradeoff profile: the model is 3-6x faster than LLMLingua v1 (smaller model, no sliding-window perplexity computation), but requires training data and generalizes less well to out-of-domain inputs. The `compress_prompt_llmlingua2()` method in `PromptCompressor` handles this path; initialization via `use_llmlingua2=True` loads the classification model instead of a causal LM.
+Rather than dropping tokens from a fixed prompt, summary-based approaches replace large context chunks with compressed summaries that an agent or model produces.
 
-The `force_tokens` parameter in LLMLingua-2 addresses structural data: tokens you name explicitly (newlines, brackets, commas) get mapped to special `[NEWi]` tokens before classification and restored after, preventing deletion of syntactically necessary elements. This is a workaround, not a solution — it requires knowing in advance which tokens are load-bearing.
+**claude-mem** implements this for [Claude Code](../projects/claude-code.md) sessions: lifecycle hooks (SessionStart, PreCompact, PostToolUse, SessionEnd) capture tool outputs and conversation events, compress them via Claude's API, and inject summaries into future sessions. The PreCompact hook fires before [Anthropic](../projects/anthropic.md)'s native context compression, ensuring a backup exists when compression discards context. [Source](../raw/repos/thedotmack-claude-mem.md)
 
-### Extractive Compression (LLMChainExtractor pattern)
+The compression quality problem is real: single-pass summarization of reasoning traces barely hits a 28% quality threshold on rubric evaluation. Iterative judge-then-refine cycles bring this to 92%, according to the Memento research. [Source](../raw/tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md)
 
-A simpler approach: prompt an LLM with the retrieved document and the query, and ask it to extract only the passages relevant to the query. The [LangChain LLMChainExtractor](../projects/langchain.md) uses this pattern. The prompt instructs the model to copy text verbatim rather than paraphrase, then output `NO_OUTPUT` if nothing is relevant.
+### 3. Learned Self-Compression (Memento)
 
-This approach is highly accurate when the extraction model is capable (GPT-4o), but degrades significantly on smaller/cheaper models. Practical experiments ([Source](../raw/repos/laurian-context-compression-experiments-2508.md)) with a production RAG system showed gpt-4o-mini producing `NO_OUTPUT` on cases where gpt-4o extracted successfully. The fix — optimizing the extraction prompt using [DSPy](../projects/dspy.md) GEPA (genetic-pareto optimization) and TextGrad (gradient-based prompt tuning) — recovered substantial performance on the cheaper model:
+The most recent approach trains the target model itself to manage its own context window during generation. **Memento** (Microsoft Research, 2025) teaches reasoning models to:
 
-- Original prompt on gpt-4o-mini: 0% success rate (296 failure cases)
-- GEPA-optimized prompt on gpt-4o-mini: ~62% success rate
-- TextGrad-optimized prompt: ~79% success rate
-- Hybrid GEPA→TextGrad pipeline: ~100% success rate (extracting something vs. nothing)
+1. Segment their chain-of-thought into semantic blocks.
+2. Generate a "memento" — a dense summary — at each block boundary.
+3. Mask the preceding block from KV cache attention and evict its entries physically.
 
-The key finding: prompt optimization is a viable alternative to model upgrading for compression tasks. GEPA runs for roughly 75 iterations over a validation set; TextGrad runs textual gradient descent over ~8 iterations. Both optimize the extraction prompt rather than the model weights.
+This produces a sawtooth pattern in KV cache usage: memory grows during a reasoning block, then drops sharply when the block completes and its KV entries are evicted. Peak KV cache drops 2-3x versus flat chain-of-thought at equivalent reasoning quality.
 
-### Summarization-Based Compression
+Two findings from this research bear on how compression works at the KV level:
 
-Instead of extracting verbatim spans, generate a compressed summary. Used in conversational memory systems like [Mem0](../projects/mem0.md), [Letta](../projects/letta.md)/[MemGPT](../projects/memgpt.md), and [claude-mem](../projects/claude-code.md). The summarization model reads accumulated context and produces a condensed version that preserves the facts and decisions while discarding the verbosity.
+**The implicit channel**: When a memento is generated, its tokens attend to the full preceding block. The KV representations of memento tokens therefore encode information from the block, even after the block's own KV entries are evicted. This implicit channel carries 15 percentage points of AIME benchmark performance — evicting it (by recomputing mementos without block access) drops accuracy from 66.1% to 50.8%. This distinguishes in-context masking from restart-based approaches, which lose this channel entirely.
 
-[claude-mem](../raw/repos/thedotmack-claude-mem.md) implements this pattern with Claude lifecycle hooks: on `pre-compact` (triggered before context compression), the system saves a session snapshot and runs pitfall detection; on `mid-session-checkpoint` (every 20 messages), it saves a compressed summary. On next session start, the compressed summary reloads instead of the full history.
+**Curriculum matters**: Training directly on block-masked traces fails because the model must simultaneously learn format, compression, and masked-attention reasoning. A two-stage curriculum — standard causal attention first, then masked attention — enables the capability. About 30K training examples suffice. [Source](../raw/tweets/dimitrispapail-memento-teaching-llms-to-manage-their-own-context.md)
 
-The risk with summarization: paraphrase introduces interpretation. A verbatim extraction of "the deployment failed due to a race condition in the cache invalidation logic" is unambiguous; a summary of "there was a deployment issue" loses the diagnostic specificity an agent needs to avoid repeating the error.
+The Memento team implemented block masking directly in [vLLM](../projects/vllm.md) via physical KV cache compaction rather than logical masking, so standard FlashAttention kernels work unmodified. On a single B200 GPU with 240 concurrent requests, throughput reaches 4,290 tok/s versus 2,447 tok/s for vanilla generation (1.75x), with 693s batch completion versus 1,096s. These figures are self-reported from the MSR paper preprint.
 
-## Implementation Patterns
+## Design Tradeoffs
 
-**Structured compression**: LLMLingua supports `<llmlingua rate=0.3 compress=True>...</llmlingua>` XML tags inline in prompts. Sections marked `compress=False` pass through untouched; sections marked with a rate get per-section compression. Useful when prompts mix fixed instructions (don't compress) with variable retrieved content (compress aggressively).
+**Accuracy preservation vs. compression rate**: Published benchmarks for LLMLingua show 2x-20x compression ratios maintaining 80-95% of original task performance. The range is wide because it depends heavily on task type. Math and code are more sensitive to token removal than open-domain QA; structured data (JSON, tables) is most sensitive. The 20x figure requires the most favorable conditions.
 
-**Progressive disclosure**: Rather than compressing everything upfront, retrieve compressed summaries first and expand to full text only for items the agent selects. [claude-mem](../raw/repos/thedotmack-claude-mem.md) implements a three-layer MCP workflow: `search` returns a compact index (~50-100 tokens/result), `timeline` adds chronological context, `get_observations` fetches full detail only for filtered IDs. Claimed ~10x token savings vs. loading all observations at query time. This is the [Progressive Disclosure](../concepts/progressive-disclosure.md) pattern applied to memory retrieval.
+**Who scores importance**: v1 LLMLingua uses a general-purpose causal LM; LongLLMLingua conditions on the question; LLMLingua-2 uses a trained classifier. Learned classifiers are faster and often more faithful but are domain-specific. General-purpose scoring is slower but zero-shot.
 
-**Compression as RAG postprocessing**: The standard integration point is after retrieval, before the LLM call. Retrieve k documents, compress each against the query, concatenate compressed results. LLMLingua integrates with [LangChain](../projects/langchain.md) and [LlamaIndex](../projects/llamaindex.md) as a node postprocessor in this position.
+**Restart vs. in-context compression**: Restarting an API call with only summary text is simpler to implement but discards the implicit KV channel. Single-pass in-context compression preserves the channel but requires non-standard attention masking support from the inference framework.
+
+**Where compression lives**: Compressing before the context window preserves model behavior exactly; compressing via KV cache eviction during generation changes what the model attends to. The former is a preprocessing step; the latter requires training or system-level support.
 
 ## Failure Modes
 
-**Structured data corruption**: Token-level compression destroys JSON, code, and tables. Removing a comma from a JSON array produces invalid syntax. The `force_tokens` mechanism in LLMLingua-2 mitigates this for known delimiters, but you must enumerate them. Code compression is particularly risky — perplexity-based scoring has no concept of syntactic validity.
+**Structured data corruption**: Token-level compression breaks syntactic structure in JSON, code, and tables. A comma or bracket removed because it has low perplexity can invalidate an entire payload. LLMLingua's `force_tokens` parameter mitigates this for known delimiters, but general structured data handling remains brittle. [Source](../raw/deep/repos/microsoft-llmlingua.md)
 
-**Cross-context information loss**: LLMLingua's context-level filter drops entire documents. If the answer spans two documents and one gets dropped, no downstream recovery is possible. The `force_context_ids` parameter overrides this, but requires knowing which documents matter before compression — which defeats part of the purpose.
+**Cross-context information loss**: Context-level filtering drops entire documents. If a critical fact exists in a document that scores as low-importance (e.g., a short, plain-language passage with low perplexity), it disappears entirely.
 
-**Query-agnostic compression**: LLMLingua v1's default mode computes perplexity without conditioning on the query. The compressed prompt may discard tokens that are low-perplexity in isolation but critical given the specific question. LongLLMLingua's `condition_in_question="after_condition"` flag addresses this but requires the question to be known at compression time — not always true in multi-turn conversations.
+**Tokenizer mismatch**: LLMLingua scores tokens with one tokenizer but reports compression ratios using GPT-3.5's tiktoken. The reported ratio may not match the actual savings for the target model.
 
-**Model dependency**: LLMLingua-2 models are trained on MeetingBank data. Performance on code, legal documents, or technical specifications is untested and likely worse than on the training domain.
+**Training distribution shift**: LLMLingua-2 and Memento both require training data from specific domains. Applied outside that domain, compression quality degrades without warning. Memento's accuracy drop partially traces to training on QwQ-32B traces and applying to different target models — the distribution mismatch costs several percentage points before RL recovery.
 
-**Summarization hallucination**: Summarization-based compression can introduce facts not present in the original. An agent relying on compressed session memory may act on plausible-sounding but fabricated context. Extractive methods avoid this; abstractive summarization does not.
+## Infrastructure Assumptions
 
-## When Not to Use Context Compression
+**A scoring model must be available**: Token-level compression with LLMLingua requires loading a separate LLM. In serverless or memory-constrained environments, this is expensive or impossible.
 
-Skip compression when:
+**Single-forward-pass compression assumes controllable generation**: Memento-style learned compression requires the ability to mask arbitrary token positions during generation, which most production inference stacks do not support out of the box. The Memento team wrote a custom vLLM patch specifically because no existing framework handled dynamic, data-dependent attention masking.
 
-- **The task is sensitive to exact wording**: Legal, medical, or compliance contexts where paraphrase changes meaning. Stick to verbatim retrieval or use extractive methods with `compress=False` on critical sections.
-- **Context is already small**: Compressing a 1,000-token prompt is rarely worth the added latency and risk of information loss.
-- **Structured data dominates**: If your context is primarily JSON, code, or tabular data, token-level compression is more likely to corrupt than help. Handle structured data with schema-aware selection instead.
-- **The scoring model is slow and the target model is cheap**: Loading a 7B parameter scoring model to save tokens on a model priced at $0.0001/1k tokens inverts the cost calculus.
-- **Multi-hop reasoning is required**: If the answer requires reasoning across multiple retrieved passages in sequence, aggressive context-level filtering may drop intermediate reasoning steps. [HotpotQA](../projects/hotpotqa.md)-style tasks are particularly vulnerable.
+## When Not To Use Context Compression
+
+- When input context is already structured and dense (code, SQL, JSON): token-level compression corrupts structure faster than it saves tokens.
+- When the target model has a genuinely large context window and the task uses most of it usefully: compression overhead (scoring model, pipeline complexity) may exceed the savings.
+- When faithfulness is critical and you cannot validate compression quality on your specific domain.
+- When operating at low volume: the engineering cost of integrating a compression pipeline rarely pays off for occasional inference.
+
+## Practical Applications
+
+**RAG post-processing**: Retrieve 10 documents, compress to the token budget of 3, pass to the target LLM. LLMLingua integrates with [LangChain](../projects/langchain.md) and [LlamaIndex](../projects/llamaindex.md) for this pattern.
+
+**Session memory for coding agents**: [Claude Code](../projects/claude-code.md) uses a PreCompact hook to compress session context before Anthropic's native context window management kicks in, preserving the most task-relevant observations across sessions.
+
+**Long reasoning efficiency**: Agents producing extended chain-of-thought (for hard math, multi-step planning) accumulate massive KV caches. Memento-style learned compression addresses this, though it requires fine-tuning the target model.
+
+**Multi-turn conversation compression**: Older turns get summarized and injected as condensed context. This is the pattern used in [MemGPT](../projects/memgpt.md) and [Letta](../projects/letta.md) for extending effective conversation length beyond the physical context window.
 
 ## Unresolved Questions
 
-- **Verification of independence claims**: Most benchmark results for LLMLingua and LongLLMLingua come from the original authors. Independent reproduction across diverse domains and task types is limited.
-- **Compression + fine-tuned models**: LLMLingua-2 is trained on GPT-4 compression labels. If the target LLM has different attention patterns (fine-tuned, quantized), the compression model's token importance scores may not transfer.
-- **Optimal compression rate selection**: The `rate` parameter requires manual tuning per task type. There is no principled automatic method for choosing it given a query and document. Setting it too aggressively loses information; too conservatively wastes the optimization.
-- **Interaction with long-context models**: As native context windows grow (1M tokens in Gemini), the cost/quality tradeoff for compression shifts. At some window size, the [Lost in the Middle](../concepts/lost-in-the-middle.md) problem dominates cost savings, and compression is net negative.
+**Compression quality measurement**: There is no standard benchmark for compression faithfulness. LLMLingua reports task accuracy on downstream benchmarks; Memento reports AIME pass rates. Neither directly measures information loss, making it hard to compare methods or predict behavior on new tasks.
+
+**Cost at scale**: The LLMLingua-2 training pipeline uses GPT-4 for label generation. The cost of generating training data for a new domain is undocumented in the public releases.
+
+**Interaction with quantization and speculative decoding**: How token-level prompt compression interacts with other inference optimizations (KV cache quantization, speculative decoding) is not studied in published work.
 
 ## Alternatives
 
-| Method | When to Choose |
-|---|---|
-| **Chunking + top-k retrieval** | Query is precise; retrieved chunks are already small. Avoid compression overhead entirely. |
-| **[RAPTOR](../projects/raptor.md) hierarchical summarization** | Need multi-granularity retrieval; willing to precompute summaries at index time. |
-| **[GraphRAG](../projects/graphrag.md) entity graphs** | Context is relationship-dense; need to navigate entity connections rather than compress text. |
-| **Native long-context models** | Budget permits; task requires reasoning across the full context without selective attention. |
-| **[Progressive Disclosure](../concepts/progressive-disclosure.md)** | Agent can query for detail on demand; compression latency is acceptable upfront but per-turn retrieval is better. |
-| **[Semantic Search](../concepts/semantic-search.md) + reranking** | The compression problem is actually a retrieval problem — you're compressing because you retrieved too much. Improve retrieval precision instead. |
+- **Chunking + retrieval** ([Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)): instead of compressing all retrieved context, retrieve only the most relevant chunks. Use when you can define relevance clearly and the retrieval latency is acceptable.
+- **[Progressive Disclosure](../concepts/progressive-disclosure.md)**: inject context in layers, fetching detail only when the model needs it. Use when the agent can self-direct its information needs.
+- **Model with longer native context**: if the bottleneck is window size and the model supports it, simply use a model with larger context. Use when cost-per-token is not the primary constraint.
+- **Hierarchical summarization** ([RAPTOR](../projects/raptor.md)): build a summary tree at index time rather than compressing at query time. Use when documents are stable and offline preprocessing is acceptable.
 
 ## Related Concepts
 
-- [Context Management](../concepts/context-management.md): broader strategies for what enters and exits context
-- [Context Engineering](../concepts/context-engineering.md): the design discipline of which information to provide, when
-- [Lost in the Middle](../concepts/lost-in-the-middle.md): why more context degrades performance, motivating compression
-- [Progressive Disclosure](../concepts/progressive-disclosure.md): retrieval pattern that defers full context until needed
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md): primary production context for compression
-- [Prompt Optimization](../concepts/prompt-optimization.md): DSPy GEPA and TextGrad approaches to improving extraction prompts
-- [Short-Term Memory](../concepts/short-term-memory.md): in-context storage that compression directly manages
+- [Context Management](../concepts/context-management.md)
+- [Context Engineering](../concepts/context-engineering.md)
+- [Lost in the Middle](../concepts/lost-in-the-middle.md)
+- [Token Efficiency](../concepts/token-efficiency.md)
+- [Progressive Disclosure](../concepts/progressive-disclosure.md)
+- [Short-Term Memory](../concepts/short-term-memory.md)

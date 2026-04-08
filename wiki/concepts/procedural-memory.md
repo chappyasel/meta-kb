@@ -3,184 +3,182 @@ entity_id: procedural-memory
 type: concept
 bucket: agent-memory
 abstract: >-
-  Procedural memory encodes how-to knowledge — workflows, skills, action
-  sequences — as a distinct memory type in agents, separate from factual recall
-  and event logs.
+  Procedural memory in agents encodes reusable how-to knowledge — workflows,
+  skill sequences, and operating procedures — enabling agents to recall and
+  execute learned routines without re-deriving them from scratch each time.
 sources:
-  - repos/mirix-ai-mirix.md
-  - repos/caviraoss-openmemory.md
   - >-
     articles/elasticsearch-labs-ai-agent-memory-agentic-ai-memory-management-with.md
-  - deep/repos/zorazrw-agent-workflow-memory.md
   - deep/repos/caviraoss-openmemory.md
+  - deep/repos/zorazrw-agent-workflow-memory.md
+  - repos/caviraoss-openmemory.md
+  - repos/mirix-ai-mirix.md
 related:
   - episodic-memory
   - semantic-memory
-  - retrieval-augmented-generation
-last_compiled: '2026-04-08T02:47:57.795Z'
+last_compiled: '2026-04-08T23:04:56.343Z'
 ---
 # Procedural Memory
 
 ## What It Is
 
-Procedural memory is the memory of *how to do things*. In human cognition, it encodes motor skills, habits, and learned routines — the kind of knowledge that feels automatic once acquired. You don't remember *learning* to ride a bike; you just know how to do it.
+Procedural memory is the subsystem of [Agent Memory](../concepts/agent-memory.md) that stores *how-to* knowledge: step-by-step workflows, skill sequences, behavioral routines, and operating instructions. The defining characteristic is that this knowledge is *executable* — it describes processes an agent can follow, not just facts it can recall.
 
-In LLM agents, procedural memory stores the equivalent: action sequences, task workflows, API call patterns, multi-step procedures. When an agent learns "to add an item to a shopping cart, navigate to the product page, select a variant, then click add-to-cart," that is procedural memory. When an agent stores a debugging checklist or a code review workflow, that is procedural memory. The defining characteristic is that procedural knowledge tells an agent *how to perform* rather than *what is true* or *what happened*.
+The term comes from cognitive psychology, where procedural memory refers to implicit skill knowledge (how to ride a bike, type a keyboard) as distinct from explicit factual knowledge (what a bicycle is) or episodic memory (the time you fell off one). In agent systems, the distinction maps onto different storage, retrieval, and update strategies: procedural knowledge tends to be more stable than episodic records, more actionable than semantic facts, and more abstract than raw execution traces.
 
-This distinguishes it sharply from its two sibling memory types:
-
-- [Semantic Memory](../concepts/semantic-memory.md) stores facts and concepts: "Python uses duck typing," "The CEO of CompanyX is Alice." It answers *what is true*.
-- [Episodic Memory](../concepts/episodic-memory.md) stores specific experiences: "At 2pm on Tuesday the deployment failed," "The user asked about refunds three conversations ago." It answers *what happened and when*.
-
-Procedural memory answers neither. It answers *how to proceed*.
-
-This distinction matters because the three types have different retention requirements, different retrieval triggers, and different update semantics. A fact can be corrected by asserting a new one. An event is immutable — it happened. A procedure needs to be refined, extended, or replaced as the agent gains experience. Treating all three as a flat vector store loses this structure.
+Procedural memory sits as a component within the broader [Agent Memory](../concepts/agent-memory.md) taxonomy alongside [Episodic Memory](../concepts/episodic-memory.md) and [Semantic Memory](../concepts/semantic-memory.md).
 
 ## Why It Matters
 
-LLM agents fail at long-horizon tasks not because they lack knowledge but because they cannot transfer learned procedures. They solve the same sub-problems repeatedly — logging in, filling forms, navigating UI patterns — as if each encounter is novel. Procedural memory is the mechanism that breaks this pattern.
+Without procedural memory, agents rediscover the same solution paths repeatedly. A web navigation agent without workflow memory must reason from scratch about how to complete a checkout flow every time it encounters one. With procedural memory, a previously abstracted "add to cart" workflow is retrieved, injected into context, and executed — skipping the re-derivation step.
 
-The [Agent Workflow Memory](../projects/agent-workflow-memory.md) (AWM) paper demonstrated this directly on WebArena. A baseline agent achieved 23.5% task success. After the agent induced and reused procedural workflows, success rose to 35.5% — a 51% relative improvement — while reducing steps per task from 7.9 to 5.9. The agent also surpassed human-engineered workflows (SteP, 33.0%) by 2.5 points, suggesting automated procedure induction can discover patterns domain experts miss. These results are from the AWM paper's self-reported benchmarks; independent replication has not been published as of mid-2025, though MemEvolve uses AWM as a baseline in its own evaluations.
+Three properties make this practically important:
 
-The implication is architectural: procedural memory is not an optimization. It changes what tasks are solvable. Without it, agents plateau at whatever their base model can accomplish in a single context. With it, agents accumulate operational expertise across tasks.
+**Transfer across tasks.** A workflow for logging into a shopping site generalizes to any similar site, even if the agent has never visited it. The abstraction process that created the workflow removed site-specific details, leaving a reusable template.
+
+**Efficiency gains.** [Agent Workflow Memory](../projects/agent-workflow-memory.md) demonstrated this concretely on WebArena: agents using induced workflow memory completed tasks in 5.9 steps on average, versus 7.9 steps for baseline agents without it — a 25% reduction in steps per task, not just a success rate improvement. (Self-reported; from the AWM paper's ablation results.)
+
+**Compounding improvement.** Procedural memory supports a snowball effect: simple workflows become subroutines for compound workflows. A "log in" workflow gets incorporated into "purchase item" workflows, which get incorporated into "reorder monthly supplies" workflows. The memory system grows in capability as it accumulates experience.
 
 ## How It Works
 
-### Storage Representations
+### Storage Format
 
-Procedural memory takes several forms in practice:
+Procedural memories are typically stored as structured text templates or workflow descriptions. Unlike episodic memories (which preserve specific event details) or semantic memories (which store facts), procedural memories abstract away instance-specific values and retain the action structure.
 
-**Text files and templates.** AWM stores workflows as per-website plain text files (e.g., `workflow/shopping.txt`). Each file contains abstract procedure descriptions with placeholders replacing concrete values: `{product-name}`, `{search-query}`. Simple and fast to retrieve, but coarse — the entire file loads into context regardless of relevance.
+A concrete example from [Agent Workflow Memory](../projects/agent-workflow-memory.md): instead of storing "click on the red Nike shoes in size 10," a procedural memory stores "to add an item to cart: navigate to the product page, select the variant using `{product-variant}`, click the add-to-cart button." The `{product-variant}` placeholder marks where instance-specific context gets filled in at execution time.
 
-**Structured sector stores.** Systems like [OpenMemory](../projects/openmemory.md) and Mirix maintain a dedicated procedural sector within a multi-type memory store. OpenMemory's Hierarchical Sector Graph (`src/memory/hsg.ts`) classifies incoming memories into five sectors — episodic, semantic, procedural, emotional, reflective — using regex pattern matching. Procedural memories get their own decay rate (lambda=0.008, intermediate between semantic's 0.005 and emotional's 0.02) and retrieval weight (1.1, slightly above semantic's 1.0). The decay rates model the intuition that how-to knowledge fades more slowly than event memory but needs occasional refreshing.
+Storage backends vary by system:
+- **Plain text files** — AWM stores one text file per website domain (`workflow/shopping.txt`, `workflow/travel.txt`). Maximally simple, no retrieval index.
+- **Relational + vector stores** — Systems like [OpenMemory](../projects/openmemory.md) and Mirix store procedural memories in databases alongside other memory types, with sector-specific retrieval parameters.
+- **Prompt-injected exemplars** — Some systems store procedural knowledge as few-shot examples that get prepended to agent prompts at inference time.
 
-**Skill libraries.** Projects like [Voyager](../projects/voyager.md) implement a code-level skill library where discovered procedures are stored as executable functions, indexed for semantic retrieval. [SkillBook](../concepts/skill-book.md) extends this into a curated library of agent capabilities. The difference from text workflows is executability: stored procedures can run directly, not just guide the agent's own generation.
+### Decay and Persistence Characteristics
 
-**Prompt injection.** At inference time, procedural memory is typically delivered as additional context in the system prompt or as in-context exemplars. AWM injects the workflow file as a user-role message before the task query. OpenMemory's MCP tool `openmemory_query` returns procedural memories alongside other types, and the calling agent decides how to use them.
+Procedural memories decay more slowly than episodic ones in cognitively-inspired architectures. In [OpenMemory](../projects/openmemory.md), the procedural sector's decay lambda (0.008) sits between semantic (0.005, slowest) and episodic (0.015, faster). The rationale: how-to knowledge outlasts specific events but can become outdated when interfaces or processes change.
 
-### Induction: Creating Procedures from Experience
+Mirix's six-agent architecture assigns a dedicated `procedural_memory_agent` to manage this memory type separately from episodic and semantic agents. This separation allows different retrieval policies per type — procedural queries might prioritize recency of last successful use over general popularity.
 
-Procedures must come from somewhere. Three induction pathways exist:
+### Retrieval
 
-**Offline induction from labeled examples.** AWM's `offline_induction.py` processes ground-truth annotated training trajectories. For each website domain, it formats examples and asks GPT-4o (temperature=0.0) to extract abstract workflow descriptions. The output is filtered via `filter_workflows()` and saved to disk. High-quality source material produces high-quality procedures, but this requires labeled data.
+Retrieval strategies depend on how procedural memories are stored:
 
-**Online induction from agent trajectories.** AWM's `online_induction.py` processes the agent's own execution logs. The pipeline runs some tasks, induces new workflows from the results, then continues with updated procedures. For WebArena, this is a per-task loop: run → evaluate → induce → next task. Crucially, the WebArena pipeline (`induce_rule.py`) filters to *successful* trajectories before induction, avoiding reinforcement of bad habits.
+**Whole-context injection** — AWM injects the entire workflow file for the relevant website into the agent's system prompt. No per-workflow retrieval; the agent reads all workflows for the current domain. Works when workflow sets are compact (AWM found ~7 workflows per website sufficient).
 
-**Automatic classification of incoming memories.** OpenMemory's HSG classifier intercepts every `mem.add()` call and routes the content to the appropriate sector based on pattern matching. A memory containing phrases like "how to," "step 1," or "process" gets classified as procedural. This is passive induction — the agent doesn't need a separate induction step; procedures accumulate automatically as the system observes the agent's interactions.
+**Semantic retrieval** — Systems like Mirix and the Elasticsearch-based architecture described by Llermaly and Rengifo use vector search filtered by memory type. A query for "how to submit a form" retrieves procedural memories specifically, not episodic records of past form submissions.
 
-The tension between these approaches is real. Offline induction produces clean, generalizable procedures but requires labeled data. Online induction requires no labels but can encode errors if success filtering is incomplete. Automatic classification requires no structured process but sacrifices accuracy for speed.
+**Composite scoring** — OpenMemory applies a five-factor scoring formula (similarity 0.35, token overlap 0.20, graph waypoints 0.15, recency 0.10, tag match 0.20) with a sector-specific weight of 1.1 for procedural memories, meaning procedural matches score slightly above semantic baseline in retrieval ranking.
 
-### Retrieval: Selecting the Right Procedure
+### Induction: How Procedural Memories Are Created
 
-**Text-file retrieval** (AWM): The entire workflow file for a relevant website loads into context. No semantic search — just file I/O keyed on website name. Fast, but context-inefficient when only a fraction of the stored procedures apply to the current task.
+This is where the interesting engineering happens. Procedural memories must come from somewhere — they aren't manually authored in capable systems.
 
-**Composite-score retrieval** (OpenMemory): Procedural memories are retrieved with a weighted formula: 0.35 vector similarity + 0.20 token overlap + 0.15 waypoint graph connectivity + 0.10 recency + 0.20 tag match. The sector-specific weight (1.1 for procedural) multiplies into the final score. Cross-sector relationships also apply — procedural memories have 0.8 affinity with semantic memories and 0.6 with episodic, meaning a procedural query can surface relevant factual context and historical examples alongside the procedure itself.
+**Offline induction from annotated examples** — AWM's `offline_induction.py` takes ground-truth labeled task examples, groups them by website, formats them into prompts, and sends batches to GPT-4o (temperature 0.0 for determinism) asking it to extract common sub-routines. The LLM output is filtered through `filter_workflows()` to remove malformed entries.
 
-**Skill-based retrieval** (Voyager, SkillBook): Retrieved by semantic similarity to the current task description, returning the most relevant executable skill.
+**Online induction from agent trajectories** — AWM's `online_induction.py` operates on the agent's own past execution logs. For each completed task, it parses `(observation, action)` pairs, deduplicates via abstract action sequences (e.g., `click(12)_fill(5)_click(3)`), then asks GPT-4o to abstract common patterns into workflow templates. The WebArena pipeline runs this after each task completion, creating a per-task feedback loop.
 
-### Decay and Update
+**Automatic reflection** — OpenMemory's reflection system (`src/memory/reflect.ts`) periodically clusters memories by Jaccard similarity (threshold 0.8), identifies procedural patterns, and creates higher-level procedural summaries. This runs on a 10-minute interval with a minimum of 20 memories required before activation.
 
-Procedural memories require different lifecycle management than facts or events. A fact can be replaced by assertion ("Alice is no longer CEO"). An event is immutable. A procedure needs refinement: yesterday's checkout workflow may not work today if the UI changed.
+**Human authoring** — The simplest approach: write workflow templates manually. This is what [CLAUDE.md](../concepts/claude-md.md) does for coding agents — a human-authored file that tells Claude how to operate within a specific codebase. The tradeoff is that manual authoring requires domain expertise and doesn't improve automatically.
 
-OpenMemory handles this through sector-specific exponential decay (lambda=0.008 for procedural) and a reinforcement mechanism. Each time a procedure is successfully used, `mem.reinforce()` boosts its salience and coactivation count, slowing its decay. Procedures that prove useful persist; ones that stop being retrieved decay toward zero.
+### The Abstraction Step
 
-AWM handles procedure update by overwriting the workflow file during each online induction cycle. Simpler but lossy: earlier workflows may disappear if a new induction batch doesn't reproduce them.
+The critical operation in procedural memory creation is abstraction: converting concrete trajectories into reusable templates. This requires replacing instance-specific values with placeholders while preserving the action structure.
 
-The [Reflexion](../concepts/reflexion.md) framework adds a meta-layer: after task failure, the agent generates verbal reflections on what went wrong, which can be stored as updated procedural knowledge. This is procedure correction via self-critique rather than trajectory analysis.
+AWM uses LLMs for this because rule-based approaches miss nuance. AWM's ablations showed LLM-based induction outperformed rule-based methods by 2.8 points on step success rate (45.1% vs 43.4%) due to finer-grained abstraction. Rule-based systems tend to either over-abstract (losing critical details) or under-abstract (creating templates too specific to generalize).
 
-### The Snowball Effect
+The failure mode is over-specific abstraction: a "workflow" that amounts to "do exactly what I did last time" with minor parameter substitution. Such workflows score well on tasks identical to their training distribution but fail on any variation.
 
-AWM's paper describes a compositional property worth naming: simple procedures become building blocks for compound procedures. "Log in to account" becomes a sub-routine inside "purchase item," which becomes a sub-routine inside "complete a subscription upgrade." The agent's procedural memory grows not just wider but deeper, encoding multi-level hierarchies of operational knowledge.
+## Classification
 
-The Hierarchical Memory Tree paper (2603.07024) formalizes this with three explicit levels: Intent (standardized task goals), Stage (reusable semantic sub-goals with pre/post conditions), and Action (transferable element patterns). This is AWM's flat workflow list extended into a proper tree — procedures at multiple granularities, each retrievable at the appropriate abstraction level.
+In systems with multiple memory types, procedural memories must be classified correctly at storage time. The classification approach varies:
+
+**Regex-based routing** — OpenMemory's Hierarchical Sector Graph uses regex patterns to classify memories into sectors. Procedural patterns include keywords like "how to," "steps to," "process for," "configure," "install," "setup." Fast and deterministic, but English-centric and prone to misclassification — a procedural memory about emotional regulation ("how to manage stress") may match both procedural and emotional patterns.
+
+**Dedicated agent routing** — Mirix assigns classification to a `procedural_memory_agent` that receives all new memories and decides whether they belong to its sector. The agent has domain-specific prompting about what counts as procedural knowledge.
+
+**LLM classification** — Stronger semantic understanding than regex, but adds latency and cost to every memory storage operation.
+
+**Manual tagging** — Systems like AWM sidestep classification entirely by organizing memory by a structural dimension (website domain) rather than cognitive type.
+
+## Relationship to Other Memory Types
+
+Procedural memory interacts with — but differs from — neighboring memory types:
+
+[**Episodic Memory**](../concepts/episodic-memory.md) records specific events: "on March 15, I ran command X and got result Y." Procedural memory abstracts across those episodes: "to accomplish Y, run X." The episodic record preserves context; the procedural abstraction loses context in exchange for reusability. AWM's offline+online combination demonstrated that mixing episodic (ground-truth examples) and procedural (induced workflows) sources can conflict — the two induction modes produced workflows that interfered rather than complemented.
+
+[**Semantic Memory**](../concepts/semantic-memory.md) stores factual knowledge: what something is. Procedural memory stores operational knowledge: how to do something. In OpenMemory's cross-sector relationship matrix, semantic and procedural memories have a 0.8 relationship weight — the highest cross-sector coupling. This makes sense: understanding *what* an API endpoint does (semantic) strongly predicts knowing *how* to call it (procedural).
+
+**[Agent Skills](../concepts/agent-skills.md)** operationalize procedural memory as tool-callable functions. Where procedural memory stores workflow descriptions in text, agent skills encode them as executable code or parameterized tool calls. [Voyager](../projects/voyager.md) stores skills as JavaScript functions in a library; [SkillBook](../concepts/skill-book.md) tracks verified procedures with success statistics. The distinction is storage format and invocation mechanism, not conceptual type.
+
+**[Core Memory](../concepts/core-memory.md)** in MemGPT/Letta stores persistent facts about the agent and user, always in context. Procedural memory lives in external storage and is retrieved on demand — a necessary architecture for systems with large workflow libraries that exceed context window capacity.
 
 ## Who Implements It
 
-**Agent Workflow Memory** ([Agent Workflow Memory](../projects/agent-workflow-memory.md)): The most benchmarked implementation. LLM-based induction, text-file storage, per-website granularity. SOTA 35.5% on WebArena at time of publication. Self-reported results; AWM is used as a baseline in MemEvolve's evaluations, providing partial external validation.
+Several systems take distinct approaches:
 
-**Voyager** ([Voyager](../projects/voyager.md)): Implements a code-level skill library for Minecraft agents. Procedures are Python functions, not text descriptions. Enables actual execution of stored skills, not just guidance. The closest to truly executable procedural memory in the agent literature.
+**[Agent Workflow Memory](../projects/agent-workflow-memory.md)** — The most studied implementation. LLM-based induction from task trajectories, plain text file storage, whole-context injection. Achieved 35.5% success on WebArena (vs 23.5% baseline) and 51.1% relative improvement. The snowball effect — simple workflows composing into complex ones — is documented in the paper. (Self-reported benchmark results.)
 
-**OpenMemory** ([OpenMemory](../projects/openmemory.md)): Integrates procedural memory into a five-sector cognitive memory engine alongside episodic, semantic, emotional, and reflective types. Classification is automatic (regex-based HSG) rather than explicit. Designed for agent frameworks (LangChain, CrewAI, AutoGen) and IDE tools. Sector-specific decay and composite scoring. No published benchmarks; self-described architecture.
+**Mirix** — Dedicated `procedural_memory_agent` as one of six specialized agents. PostgreSQL + BM25 search with vector similarity. Screen-capture grounding feeds raw observations into classification. The architectural bet is that domain-specialized agents outperform general-purpose retrieval.
 
-**Mirix** (Mirix): Six-agent memory architecture including a dedicated procedural memory agent. Screen-capture grounding — procedures can be induced from observed on-screen activity. Privacy-first, local storage. 3,508 GitHub stars; no independent benchmark results published.
+**[OpenMemory](../projects/openmemory.md)** — Regex-based sector classification, dual-phase exponential decay (lambda=0.008 for procedural), composite scoring with 1.1 weight for procedural sector. Automatic reflection creates higher-level procedural summaries from clusters of related memories. The roadmap includes a learned sector classifier to replace the current regex approach.
 
-**OpenMemory (Mem0 fork)** ([OpenMemory](../projects/openmemory.md)): Different project, same name. Mem0's open-source offering, integrated with Claude, Copilot, and other LLM tools. Procedural memory as one category alongside episodic and semantic; simpler than the caviraoss implementation.
+**Elasticsearch-based architecture** (Llermaly & Rengifo, 2026) — Treats procedural memory as application code and prompts rather than stored documents. "Procedural memory determines how memory is used, not what's stored." Semantic and episodic memories live in Elasticsearch; procedural knowledge lives in the agent's system prompt and tool definitions. Document-level security enforces memory isolation by user role.
 
-**Letta** ([Letta](../projects/letta.md)): The MemGPT successor stores procedural knowledge as part of its core/archival memory system. Procedures live in the agent's system prompt (core memory) or are retrieved from archival storage on demand.
-
-**[CLAUDE.md](../concepts/claude-md.md)**: A pragmatic implementation — a project-specific file injected into Claude's context containing workflows, conventions, and task patterns for a codebase. No framework, no database. Procedural memory as a markdown file the developer maintains manually. Widely used in [Claude Code](../projects/claude-code.md) workflows.
-
-## Practical Implications
-
-**Avoid redundant procedure induction.** Every token spent re-deriving a known procedure is waste. If an agent runs the same sub-task repeatedly (authentication, form filling, API calls), those patterns belong in procedural memory, not in the base prompt.
-
-**Distinguish procedure quality from procedure existence.** A stored procedure for a broken workflow is worse than no procedure — it will guide the agent toward failure. AWM's design choice to filter to successful trajectories before induction is not optional; it's essential. Online learning without success filtering corrupts procedural memory.
-
-**Mind procedure scope.** AWM organized procedures by website (one file per domain). This works for web agents with clear domain boundaries. General-purpose agents need finer-grained retrieval — procedures indexed by task type, not just by service domain — otherwise the injected context grows without bound.
-
-**Procedures age.** A login workflow valid today may fail tomorrow if the site redesigns its UI. Unlike semantic facts (which can be corrected by assertion) or episodic memories (which are historical and immutable), procedures need validity windows and refresh triggers. Systems that treat procedural memory as permanent accumulate stale guidance.
-
-**Token budget management is real.** AWM's `memory.py` explicitly checks total token count when building prompts and drops exemplars to stay under `MAX_TOKENS[model]`. Procedural memory competes with the current task observation for context space. A library of 500 workflows injected wholesale defeats the purpose.
-
-**The CLAUDE.md pattern is underrated.** For software development agents, a project-specific markdown file containing coding conventions, deployment procedures, and common debugging workflows is procedural memory that the developer can inspect and edit. It has no decay mechanism, no automatic induction, and no retrieval system — but it is version-controlled, transparent, and requires no infrastructure. Before building a full procedural memory system, consider whether a well-maintained CLAUDE.md file suffices.
+**[CLAUDE.md](../concepts/claude-md.md)** — Human-authored procedural memory for coding agents. A project-specific file that tells Claude how to build, test, and navigate the codebase. Static, manually maintained, but effective for stable workflows.
 
 ## Failure Modes
 
-**Procedure-environment mismatch.** AWM's paper explicitly identifies this: "workflow actions lack flexibility for dynamic environments." When booking flights, a predetermined sequence breaks when the site presents unexpected popup variations. Procedures encode the *expected* path; real environments diverge. Agents without a mechanism to detect mismatch will execute stale procedures to completion, compounding errors rather than recovering.
+**Action rigidity.** AWM documents this explicitly: workflow actions lack flexibility for dynamic environments. A booking workflow that specifies "click the first airport option" fails when the airport picker shows a different set of options than the workflow author encountered. The fixed sequential structure breaks when environments present unexpected states.
 
-**Divergence failure.** The agent executes a stored procedure even when task-specific signals indicate it should deviate. AWM reports slightly lower action F1 (57.3% vs 60.6% for MindAct) attributable to this rigidity — the agent follows procedure when it should exercise judgment.
+**Workflow poisoning.** Online induction learns from the agent's own trajectories. If the agent performs poorly initially, induced workflows encode poor strategies. Subsequent tasks using these workflows perpetuate errors. AWM's WebArena pipeline partially addresses this by filtering to successful trajectories before induction, but "successful" depends on the auto-evaluator's judgment, which can itself be wrong.
 
-**Sector misclassification.** OpenMemory's regex-based classifier will misclassify borderline memories. "How to manage stress" matches both procedural ("how to") and emotional ("stress") patterns. The wrong sector assignment means the wrong decay rate, the wrong retrieval weight, and incorrect cross-sector relationship scoring. English-centric patterns also fail on multilingual content.
+**Interference between induction sources.** AWM found that combining offline (ground-truth) and online (agent-trajectory) workflows in the same memory underperformed both individual sources. The workflows were induced with different abstraction assumptions and conflicted at retrieval time. Memory systems that blend procedural knowledge from heterogeneous sources without normalization will encounter this.
 
-**Reinforcement of bad procedures.** In online learning without success filtering, failed task trajectories can induce procedures that encode failure patterns. The system learns *a* way to do things, not necessarily *a good* way. This is subtle — the induced procedure may be syntactically valid and the LLM may not flag it as problematic.
+**Sector misclassification.** In regex-based systems, a memory about "how to manage emotional responses" may classify as emotional rather than procedural, applying the wrong decay rate and retrieval weight. The procedural sector's slower decay (relative to emotional) means misclassified memories will fade faster than they should.
 
-**Context pollution from injecting full procedure libraries.** Loading the entire procedural memory for a domain into context wastes tokens and can confuse the model. AWM's per-website text files avoid this for web tasks with clear domain boundaries but scale poorly to general agents with broad operational scope.
+**Overfitting to distribution.** AWM measured success on non-overlapping task templates: 33.2% vs 23.2% for baselines. This is genuine generalization evidence. But the gap closes as task variety increases — workflows induced from a narrow task distribution don't transfer to significantly different procedures. Systems that confuse task-specific memorization with genuine procedural abstraction will fail on novel tasks.
 
-**Procedure staleness without validation.** Stored procedures have no built-in validity check. A UI change, API deprecation, or policy update can make a procedure incorrect without triggering any update. Systems that rely on decay (OpenMemory) assume that less-used procedures fade naturally, but a stale procedure that was frequently used will have high salience and slow decay — precisely the wrong behavior.
+**Stale workflows.** When underlying interfaces or processes change, stored workflows become incorrect. A workflow for "submit a pull request on GitHub" becomes wrong when GitHub updates its UI. Without a mechanism to detect and invalidate stale procedures, the agent will follow outdated steps confidently.
 
 ## When Not to Use It
 
-Procedural memory adds overhead. Avoid it when:
+Procedural memory adds overhead — induction cost, retrieval latency, storage management — that may not be justified in several cases:
 
-**Tasks are non-repeating.** If the agent's tasks are all unique (creative writing, one-off analysis), there are no repeatable procedures to learn. The induction cost exceeds any retrieval benefit.
+**Single-session, non-repeating tasks.** If an agent handles one-off requests without repeated task types, workflow induction produces no benefit. The induction cost exceeds any transfer gain.
 
-**The procedure space is small enough to fit in the base prompt.** For agents with a narrow operational scope (e.g., a single API with five endpoints), encoding procedures directly in the system prompt is simpler and more reliable than a memory system. CLAUDE.md is the right tool.
+**Highly dynamic environments.** If the target environment changes faster than the induction cycle, workflows go stale before they're used. Procedural memory assumes enough environmental stability for learned procedures to remain valid.
 
-**Procedure quality cannot be validated.** Online procedure induction without a success signal (auto-evaluation or ground-truth reward) risks encoding bad procedures. If you cannot filter induction to successful trajectories, the memory system may harm performance.
+**Small context windows.** Whole-context injection (AWM's approach) requires the workflow library to fit in the agent's context alongside the current task. With large workflow libraries or constrained context budgets, retrieval-based injection is necessary but adds retrieval complexity.
 
-**The environment changes frequently.** Procedures tuned to a specific UI, API version, or data schema become liabilities when the target changes. High-churn environments need fresh context, not stored procedures.
-
-**Latency is the primary constraint.** Procedural memory retrieval adds a step before task execution. For real-time applications where every millisecond matters, the retrieval overhead may be unacceptable.
+**When [Agent Skills](../concepts/agent-skills.md) are more appropriate.** If the procedural knowledge can be encoded as executable code or parameterized tool calls, skill libraries provide stronger guarantees than text templates. Text workflows require the agent to re-interpret the procedure each time; code skills execute deterministically.
 
 ## Unresolved Questions
 
-**Optimal abstraction granularity.** AWM stores procedures at the workflow level (5–10 steps). Voyager stores executable functions. CLAUDE.md stores prose descriptions. Hierarchical Memory Tree stores three levels simultaneously. Which granularity retrieves best, induces from fewest examples, and transfers across the widest task distribution? No controlled comparison exists.
+**Optimal abstraction granularity.** AWM averaged 7.4 workflows per website. Is this the right granularity? Too few workflows under-capture domain knowledge; too many create retrieval noise and context pressure. No established method determines the right granularity for a given task distribution.
 
-**Procedure conflict resolution.** When two induced procedures for the same task type disagree, which wins? AWM overwrites the file; the newest induction wins by default. OpenMemory's reflection system clusters and consolidates, but the consolidation is extractive (concatenation), not abstractive (synthesis). How should conflicting procedures be reconciled?
+**Workflow conflict resolution.** When two workflows contradict each other (different strategies for the same task), current systems have no principled conflict resolution mechanism. AWM simply overwrites on each induction round. Systems with append-and-consolidate storage accumulate conflicts silently.
 
-**Cross-task procedure transfer.** AWM found that combining offline and online workflows underperformed either alone, suggesting procedures from different induction modes conflict. The mechanisms of productive vs. destructive transfer are not understood.
+**Transfer to new domains.** Most procedural memory research evaluates on the same or similar task distributions used for induction. How well do induced workflows transfer to genuinely novel domains (new websites, new applications, new task types) is underexplored.
 
-**Evaluation standards.** WebArena and Mind2Web are the primary benchmarks for procedural memory in web agents. Neither covers general-purpose agents, code agents, or multi-modal settings. Comparing systems across benchmarks is currently impossible because they test different task distributions with different metrics.
+**Interaction with fine-tuning.** Procedural memory in current systems lives entirely in prompt context — it's retrieved and injected, never baked into model weights. [Continual Learning](../concepts/continual-learning.md) approaches could in principle encode procedural knowledge into weights, but the tradeoffs between in-context and in-weights procedural memory aren't well characterized.
 
-**Decay parameter calibration.** OpenMemory's procedural decay rate (lambda=0.008) is hand-tuned rather than derived from empirical study of agent behavior. How quickly procedural knowledge should decay — and whether that rate should vary by procedure type, task frequency, or environment volatility — remains an open research question.
+**Verification.** How does an agent know a workflow is correct before executing it? AWM uses auto-evaluation after execution, which catches errors retroactively but not preemptively. Prospective workflow verification remains an open problem.
 
-## Relationships to Related Concepts
+## Alternatives
 
-Procedural memory is one of the three canonical components of [Agent Memory](../concepts/agent-memory.md), alongside [Semantic Memory](../concepts/semantic-memory.md) and [Episodic Memory](../concepts/episodic-memory.md). All three are sub-types that together constitute [Long-Term Memory](../concepts/long-term-memory.md) for agents.
+**[Agent Skills](../concepts/agent-skills.md)** — Executable code rather than text templates. Use when the procedure can be fully specified algorithmically and determinism matters more than flexibility.
 
-[Agent Skills](../concepts/agent-skills.md) and [SkillBook](../concepts/skill-book.md) implement procedural memory at the code level — skills are executable procedures, the functional equivalent of what AWM stores as text workflows.
+**[ReAct](../concepts/react.md) without explicit memory** — Agents that reason about each step using chain-of-thought without stored workflows. Use for one-off tasks or highly dynamic environments where stored procedures would go stale faster than they'd be useful.
 
-[Compositional Skill Synthesis](../concepts/composable-skills.md) addresses the snowball property: how simple procedures combine into complex compound procedures.
+**[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)** — If the procedural knowledge already exists in documentation, RAG over that documentation may suffice without a separate induction pipeline. Use when human-authored documentation is available and reliable.
 
-[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) is the retrieval layer that surfaces procedural memories at inference time, though RAG alone — without the sector-specific structure and decay mechanisms — is insufficient for true procedural memory management.
+**[CLAUDE.md](../concepts/claude-md.md)-style static files** — Human-authored workflow documents for stable, well-understood procedures. Use when the domain is stable, human expertise is available, and automatic induction is overkill.
 
-[Self-Improving Agents](../concepts/self-improving-agents.md) depend on procedural memory as the substrate for accumulating operational expertise. [Reflexion](../concepts/reflexion.md) uses failure analysis to update procedural knowledge. [GEPA](../concepts/gepa.md) and [EvoAgentX](../projects/evoagentx.md) automate procedure discovery through systematic search.
-
-[Context Engineering](../concepts/context-engineering.md) governs how procedural memories are selected and formatted for injection — the difference between a helpful procedure prompt and context pollution.
+**[Self-Improving Agents](../concepts/self-improving-agents.md) with fine-tuning** — When the task distribution is large and stable enough, fine-tuning on successful trajectories encodes procedural knowledge into weights. Use when inference-time context injection creates unacceptable latency or cost.
 
 
 ## Related
 
-- [Episodic Memory](../concepts/episodic-memory.md) — part_of (0.8)
-- [Semantic Memory](../concepts/semantic-memory.md) — part_of (0.8)
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — part_of (0.5)
+- [Episodic Memory](../concepts/episodic-memory.md) — part_of (0.7)
+- [Semantic Memory](../concepts/semantic-memory.md) — part_of (0.7)

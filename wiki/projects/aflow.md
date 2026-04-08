@@ -3,108 +3,133 @@ entity_id: aflow
 type: project
 bucket: self-improving
 abstract: >-
-  AFlow searches over agentic workflow structures using MCTS to find
-  high-performing operator compositions automatically, replacing hand-designed
-  agent pipelines with cost-tracked search. Accepted as oral at ICLR 2025.
+  AFlow automates agent workflow design via Monte Carlo Tree Search over
+  operator graphs, treating workflow structure as an optimization variable
+  rather than a fixed design choice; accepted oral at ICLR 2025 (top 1.8%).
 sources:
-  - repos/foundationagents-metagpt.md
-  - deep/repos/evoagentx-evoagentx.md
   - deep/papers/yue-from-static-templates-to-dynamic-runtime-graphs-a.md
+  - deep/repos/evoagentx-evoagentx.md
+  - repos/foundationagents-metagpt.md
 related: []
-last_compiled: '2026-04-08T02:57:27.936Z'
+last_compiled: '2026-04-08T23:15:05.700Z'
 ---
 # AFlow
 
-## What It Does
+## What It Is
 
-AFlow automates the design of agentic workflows. Instead of manually composing operators (answer generation, self-consistency ensembling, code execution, reflection) into a pipeline, AFlow searches that space using Monte Carlo Tree Search and LLM-generated code mutations to find configurations that score well on a target benchmark.
+AFlow is an automated workflow optimization framework, originally developed within [MetaGPT](../projects/metagpt.md), that searches for effective agent workflow patterns rather than requiring humans to design them by hand. The core claim: instead of hand-crafting the sequence and composition of LLM operations for a task, you let Monte Carlo Tree Search explore the space of possible workflows and evaluate candidates through execution.
 
-The core bet: workflow topology is a first-class optimization variable, not scaffolding. Most agent frameworks treat the pipeline as fixed and optimize only prompts or few-shot examples. AFlow treats the structure itself as searchable.
+The paper was accepted as an oral presentation at ICLR 2025 (top 1.8%, ranked #2 in the LLM-based Agent category per MetaGPT's repo). The benchmark numbers in this card are self-reported by the authors.
 
-AFlow originated inside [MetaGPT](../projects/metagpt.md) and was accepted as an oral presentation (top 1.8%) at ICLR 2025, ranking #2 in the LLM-based Agent category. It has since been adopted as one of the core optimizers in [EvoAgentX](../projects/evoagentx.md).
+AFlow is also one of the five optimizers bundled in [EvoAgentX](../projects/evoagentx.md), which adapted it alongside four other paradigms (TextGrad, EvoPrompt, MIPRO, SEW) into a unified multi-agent evolution framework.
 
 ## Core Mechanism
 
-AFlow represents workflows as Python `Workflow` classes. The `__init__` method instantiates operators; the `async def __call__` method composes them into a solution pipeline. This representation is deliberately code-native: a workflow can contain loops, conditionals, and arbitrary control flow, not just linear chains.
+### Workflow as Code
 
-**The optimization loop:**
+AFlow represents workflows as executable Python `Workflow` classes. The `__init__` method instantiates typed operators; the `async __call__` method composes them into a solution pipeline. This code-as-graph representation gives the optimizer LLM full flexibility: it can write loops, conditionals, chain operators arbitrarily, and define custom prompts inline.
 
-1. The optimizer LLM receives: accumulated modification history with scores, the top-scoring prior round's code and prompts, operator descriptions with interface signatures, error logs from failed evaluations, and a prompt instructing it to reconstruct and optimize the graph.
+The optimizer LLM receives:
 
-2. The LLM generates a response with `<modification>`, `<graph>`, and `<prompt>` sections. The graph code is written to `round_N/graph.py`, prompts to `round_N/prompt.py`.
+- **Experience buffer**: Accumulated round histories with associated scores, formatted by `ExperienceUtils.format_experience()`
+- **Top-scoring sample**: A previous round's graph code and prompts, selected from the top-k scoring rounds by `_get_optimization_sample()`
+- **Operator catalog**: Auto-generated descriptions of available primitives from `OPERATOR_MAP`, including name, description, and interface signature
+- **Error logs**: Runtime failures from previous rounds, loaded via `DataUtils.load_log()`
+- **Optimization prompt**: Instructions to reconstruct and optimize the graph using control flow, critical thinking methods, and keeping complexity under 10 nodes
 
-3. Import paths are updated via `graph_utils.update_prompt_import()`. The new graph is dynamically loaded and executed against the benchmark.
+The optimizer LLM responds with three XML-tagged sections: `<modification>` (natural language description of the change), `<graph>` (the new Python workflow code), and `<prompt>` (any updated prompt strings). These are written to `round_N/graph.py` and `round_N/prompt.py`, import paths are patched via `graph_utils.update_prompt_import()`, and the new workflow is dynamically loaded and evaluated.
 
-4. `ConvergenceUtils.check_convergence()` monitors top-3 scores across rounds and stops when they plateau.
+### MCTS Search Structure
 
-**Operator primitives** available to the LLM: `Custom` (arbitrary prompt → response), `AnswerGenerate` (chain-of-thought with thought + answer fields), `QAScEnsemble` (self-consistency voting), `ScEnsemble` (with problem context), `Test` (code verification against test cases), `CodeGenerate`, `Programmer`, and `Reflection` (self-review with test feedback). These compose freely, so the LLM can discover patterns like "generate 3 solutions → ensemble → reflect on errors → regenerate."
+The MCTS component treats each workflow configuration as a node in the search tree. The framework explores this space by:
 
-**Experience accumulation** is what makes this more than random search. Each round's modification, score, and outcome feed into the next round's context. The optimizer learns which structural patterns improve performance and which cause runtime errors.
+1. Running an initial workflow configuration
+2. Evaluating it against a task benchmark to get a fitness score
+3. Using the LLM to propose a modified workflow based on accumulated experience
+4. Evaluating the modified version
+5. Tracking which configurations yield high scores
 
-**Cost tracking** is built-in. AFlow tracks dollar costs per evaluation round via the LLM cost tracking infrastructure in `evaluation_utils.py`, making the quality-cost tradeoff explicit rather than implicit.
+`ConvergenceUtils.check_convergence()` monitors top-3 scores across rounds and terminates when they plateau. Default budget: 20 max rounds with 5 validation evaluations per round.
 
-## Key Numbers
+### Operator Primitives
 
-- **ICLR 2025 oral** (top 1.8%, #2 in LLM-based Agent category) — peer-reviewed, though benchmark results are self-reported
-- **Default budget**: 20 max rounds, 5 validation evaluations per round — roughly 500+ executor LLM calls per optimization run
-- EvoAgentX reports **+7-20% improvement** on HotPotQA, MBPP, MATH, and GAIA using AFlow as one of its optimizers (self-reported; comparison is optimized vs. unoptimized EvoAgentX, not against other frameworks)
-- No published head-to-head benchmarks against AutoGen, LangGraph, or DSPy workflows exist
+AFlow provides composable typed operators the generated code can freely combine:
+
+- `Custom`: Arbitrary prompt → response
+- `AnswerGenerate`: Chain-of-thought with explicit thought + answer fields
+- `QAScEnsemble`: Self-consistency voting across multiple solutions
+- `ScEnsemble`: Self-consistency with problem context
+- `CodeGenerate`: Code-specific generation
+- `Programmer`: Code with execution feedback
+- `Test`: Verification against test cases
+- `Reflection`: Self-review with feedback
+
+This lets the MCTS discover patterns like "generate 3 candidates → ensemble → reflect on errors → regenerate" without those patterns being hand-coded.
+
+### Output Parsing and Fallback
+
+`_parse_optimizer_llm_output()` extracts graph code and prompts via regex matching on XML tags and code blocks. When parsing fails, it returns the original graph unchanged with `modification = "No modification due to error in LLM output"`. `_execute_with_retry()` wraps each optimization round with up to 3 retries at 5×N second delays. The retry infrastructure is not cosmetic — generated code fails to parse or execute often enough that the system depends on it.
 
 ## Strengths
 
-**Structural expressiveness.** Because workflows are Python code, AFlow can discover non-obvious patterns: generate-then-ensemble, iterative refinement with test feedback, conditional branching based on intermediate results. Hand-designed workflows rarely explore this space systematically.
+**Treats workflow structure as a first-class optimization variable.** Most agent frameworks treat the workflow scaffold as fixed and only optimize prompts within it. AFlow explores whether the scaffold itself should change. This unlocks improvements that prompt-only optimization ([DSPy](../projects/dspy.md) style) cannot reach.
 
-**Cost-aware search.** Tracking dollars per round during optimization makes AFlow one of the few systems where you can reason about optimization budget explicitly. The quality-cost tradeoff (formalized in the related survey as `max E[R(tau; x) - lambda * C(tau)]`) is measurable, not aspirational.
+**Accumulates experience across rounds.** Each round's score and modification history feeds back into subsequent rounds via the experience buffer. The optimizer isn't searching blindly — it builds on what worked.
 
-**Experience-driven mutation.** Accumulated history of what worked and what failed gives the optimizer signal that random structural search lacks. Over rounds, it converges on configurations that avoid known failure patterns.
+**Cost-aware search.** AFlow tracks explicit dollar costs per evaluation round (`avg_cost`, `total_cost` in `evaluation_utils.py`), enabling analysis of performance-per-dollar trade-offs rather than optimizing only for accuracy.
 
-**Strong verifier support.** For code generation tasks, test cases provide hard binary feedback. AFlow's `Test` operator integrates this directly, and the survey evidence suggests hard verifiers dramatically improve search efficiency by rejecting invalid candidates immediately.
+**Code flexibility.** The Python-as-workflow representation allows the optimizer to discover control flow patterns (loops, conditionals, branching ensemble strategies) that a declarative graph format would prohibit.
 
 ## Critical Limitations
 
-**Code generation reliability is the core fragility.** `_parse_optimizer_llm_output()` extracts graph code using regex matching for XML tags and code blocks. When parsing fails, it returns the original graph with `modification = "No modification due to error in LLM output"`. The `_execute_with_retry()` wrapper retries up to 3 times with exponential backoff (5*N seconds). The optimization prompt explicitly warns the LLM to produce "complete and correct" code to avoid runtime failures — a warning that is necessary precisely because failures are common.
+**Code generation reliability is the central fragility.** The optimizer LLM produces Python code that must parse, import cleanly, and execute without runtime errors. It fails regularly enough to require extensive fallback infrastructure (XML regex extraction, `_execute_with_retry()`, convergence fallback to original graph). In EvoAgentX's adaptation, the `parse_workflow_python_repr()` method uses `eval()` on LLM-generated strings — a code injection surface in any multi-tenant deployment.
 
-**Unspoken infrastructure assumption: a fixed, known operator set.** AFlow can compose operators flexibly, but the operator library itself is static. If your task requires novel tool types (database queries, browser automation, multimodal inputs), you must manually add operators before running search. AFlow searches *within* the design space you define; it does not expand that space.
+**Unspoken infrastructure assumption: LLM API access is cheap and reliable.** A typical AFlow optimization run with a 5-step workflow, 20 rounds, and 5 validation evaluations per round makes 500+ executor LLM calls plus 20+ optimizer LLM calls. At current API pricing, this runs $5–50 per optimization experiment depending on model selection and benchmark size. The framework has no cost-budget guardrail — no mechanism to halt when a dollar threshold is exceeded.
 
-## When Not to Use It
+## When NOT to Use It
 
-**Short, stable, homogeneous tasks.** If your task decomposition is obvious and consistent across inputs, a hand-designed static pipeline optimized with [DSPy](../projects/dspy.md)'s prompt optimization will cost far less and produce a more interpretable result. AFlow's 500+ LLM calls per optimization run at $5-50 per run is hard to justify when you already know the structure works.
+**Don't use AFlow for tasks where the optimal workflow structure is stable and known.** If you already know the right sequence of operations (retrieve → verify → synthesize, for instance), AFlow's MCTS search adds cost and runtime without benefit. Prompt-level optimization ([DSPy](../projects/dspy.md), MIPRO) will improve performance faster and cheaper.
 
-**When you need workflow transparency.** Generated Python code is harder to audit, version, and explain to stakeholders than a declarative workflow definition. If your deployment requires human sign-off on workflow logic or regulatory traceability, AFlow's code-generation approach creates compliance friction.
+**Don't use it for production workflows that need auditability.** AFlow generates Python workflow code that changes across optimization rounds. The "best" workflow from round 17 may be structurally different from round 12, and neither is human-designed. Auditing or debugging failures requires understanding LLM-generated code, not a human-authored workflow spec.
 
-**Without good feedback signal.** AFlow works best with hard verifiers (unit tests, schema validators). On tasks where feedback is only downstream accuracy — no intermediate verification, no structural feedback — the optimization loop becomes noisy, round budgets inflate, and convergence is unreliable.
-
-**Real-time applications.** AFlow is an offline optimization tool. The search runs before deployment, not at inference time. If your task distribution shifts significantly after deployment, there is no incremental re-optimization path; you restart from scratch.
+**Don't use it when your optimization budget is under ~$20 or when API reliability is poor.** The 20-round default budget requires hundreds of LLM calls. Noisy or flaky API access will corrupt the search trajectory and waste budget on retries.
 
 ## Unresolved Questions
 
-**Cross-benchmark transfer.** Optimized workflows are task- and benchmark-specific. There is no published analysis of whether a workflow optimized on HotPotQA transfers to related QA tasks, or whether learned structural patterns generalize across domains.
+**How does AFlow handle out-of-distribution inputs after optimization?** The framework optimizes a workflow against a fixed benchmark split. There's no analysis of how optimized workflows generalize to task distributions that differ from the training sample, or whether MCTS-discovered operator patterns overfit to specific benchmark characteristics.
 
-**Optimization cost at scale.** The $5-50 per run estimate assumes small benchmarks and inexpensive executor models. For large evaluation sets or expensive frontier models, optimization cost could reach hundreds of dollars per run. No published cost analysis exists for realistic production scenarios.
+**What determines the quality of the experience buffer?** The optimizer receives formatted round histories, but there's no published analysis of how many rounds of history are optimal, whether recency weighting matters, or whether low-scoring rounds should be excluded. The `format_experience()` function's behavior at scale (50+ rounds) is undocumented.
 
-**Operator authorship and governance.** The operator library defines the searchable design space, but there is no guidance on how to design operators, what granularity is appropriate, or how to manage operator versioning as underlying model capabilities change.
+**Governance for generated workflow code.** When AFlow discovers a workflow that performs well, who owns that code? The generated Python is a mix of template structure from the operator library and LLM-synthesized composition logic. In enterprise settings, the IP and safety review status of machine-generated agent logic is unclear.
 
-**Conflict resolution between experience and exploration.** The optimizer LLM uses accumulated history to guide mutations, but there is no explicit exploration-exploitation balance. Whether the system gets stuck in local optima as experience accumulates is not documented.
+**Interaction between AFlow optimization and prompt optimization.** AFlow mutates both workflow structure and prompts simultaneously in the generated code. It's unclear whether separating these into two stages (first find good structure, then refine prompts within that structure via MIPRO or TextGrad) would be more efficient than joint optimization.
 
-**Integration with dynamic runtime behavior.** AFlow finds good static templates. The related survey distinguishes static templates from runtime-realized graphs. There is no mechanism to combine AFlow's offline search with per-query dynamic adaptation.
+## Benchmarks
+
+Self-reported, from the MetaGPT team and EvoAgentX integration:
+
+| Benchmark | Task Type | AFlow Result |
+|---|---|---|
+| HumanEval | Code generation | Used as primary test benchmark |
+| MBPP | Code generation | +10% pass@1 vs. unoptimized baseline |
+| HotPotQA | Multi-hop QA | +7.44% F1 vs. unoptimized baseline |
+| MATH | Mathematical reasoning | +10% solve accuracy vs. unoptimized baseline |
+
+These compare optimized vs. unoptimized EvoAgentX workflows, not AFlow vs. other frameworks directly. No independently validated cross-framework benchmarks exist. The ICLR oral acceptance provides peer review credibility for the core search approach, but production performance on new tasks depends heavily on which executor LLM and operator set you configure.
 
 ## Alternatives
 
-**[DSPy](../projects/dspy.md)** — Use when workflow structure is known and the problem is prompt/few-shot optimization within that structure. Much cheaper per optimization run. No structural search, but far more predictable.
-
-**[EvoAgentX](../projects/evoagentx.md)** — Use when you want AFlow's structural search alongside TextGrad, MIPRO, or evolutionary prompt optimization in a unified framework. EvoAgentX wraps AFlow's optimizer and adds the other paradigms, at the cost of integration complexity.
-
-**[MetaGPT](../projects/metagpt.md)** — Use when the task is software generation with role-based decomposition (product manager, architect, engineer). MetaGPT's SOP-encoded roles are the origin of AFlow; it remains the reference for role-structured multi-agent coordination.
-
-**[LangGraph](../projects/langgraph.md)** — Use when you need a hand-designed workflow with explicit state management, human-in-the-loop checkpoints, and debuggable execution traces. No automatic search, but far better observability and control.
-
-**Manual design + [ReAct](../concepts/react.md)** — Use for exploratory, open-ended tasks where the right decomposition is unknowable in advance and per-step tool selection matters more than pre-optimized structure.
+- **[DSPy](../projects/dspy.md)**: Use when your workflow structure is fixed and you want principled prompt/few-shot optimization within that structure. Much cheaper per optimization run, better understood convergence behavior.
+- **[EvoAgentX](../projects/evoagentx.md)**: Use when you want AFlow alongside other optimization paradigms (TextGrad, MIPRO, EvoPrompt, SEW) in one framework. AFlow is bundled as one of five optimizers in EvoAgentX's `aflow_optimizer.py`.
+- **[LangGraph](../projects/langgraph.md)**: Use when you need a production-grade workflow runtime with observability, not an optimization framework. LangGraph handles execution; AFlow designs what to execute.
+- **[MetaGPT](../projects/metagpt.md)**: Use when you want the full MetaGPT software company architecture (role-based SOPs, document generation pipeline). AFlow originated here but is now extractable independently.
+- **Manual workflow design + [DSPy](../projects/dspy.md) compilation**: Use when you have domain expertise about the right workflow structure, a modest optimization budget, and need interpretable, auditable pipelines.
 
 ## Related Concepts
 
-- [Self-Improving Agents](../concepts/self-improving-agents.md) — AFlow is a workflow-level self-improvement mechanism
-- [Prompt Optimization](../concepts/prompt-optimization.md) — AFlow extends prompt optimization to structural optimization
-- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — the workflows AFlow optimizes are multi-agent pipelines
-- [Execution Traces](../concepts/execution-traces.md) — AFlow uses error logs from traces to guide subsequent mutations
-- [LLM-as-Judge](../concepts/llm-as-judge.md) — the optimizer LLM plays an evaluative and generative role simultaneously
-- [Chain-of-Thought](../concepts/chain-of-thought.md) — `AnswerGenerate` operator encodes CoT as a composable primitive
+- [Self-Improving Agents](../concepts/self-improving-agents.md): AFlow is a workflow-level instance of self-improvement — the system searches for better versions of itself
+- [Prompt Optimization](../concepts/prompt-optimization.md): AFlow optimizes both structure and prompts simultaneously, whereas prompt optimization alone keeps structure fixed
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md): AFlow discovers multi-agent compositions rather than requiring them to be hand-designed
+- [Execution Traces](../concepts/execution-traces.md): Each AFlow evaluation round produces traces that feed the experience buffer for subsequent search steps
+- [Chain-of-Thought](../concepts/chain-of-thought.md): The `AnswerGenerate` and `Reflection` operators AFlow composes are CoT-based primitives
+- [Reinforcement Learning](../concepts/reinforcement-learning.md): MCTS is the search algorithm; the evaluation score functions as the reward signal

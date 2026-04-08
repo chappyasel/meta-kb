@@ -3,144 +3,187 @@ entity_id: cognitive-architecture
 type: concept
 bucket: agent-architecture
 abstract: >-
-  Cognitive architecture defines how an AI agent perceives, remembers, reasons,
-  and acts — distinguishing modern LLM-based agents from pure prompt chains
-  through structured, persistent, and composable mental subsystems.
+  Cognitive architecture defines how AI agents organize perception, memory,
+  reasoning, and action into a unified system; its key differentiator from
+  ad-hoc LLM chaining is principled decomposition of cognitive functions
+  enabling persistent state, structured reasoning, and coordinated multi-agent
+  behavior.
 sources:
-  - tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md
   - repos/agenticnotetaking-arscontexta.md
-  - repos/topoteretes-cognee.md
   - repos/caviraoss-openmemory.md
+  - repos/topoteretes-cognee.md
+  - tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md
 related:
   - retrieval-augmented-generation
   - openai
   - context-engineering
-  - knowledge-graph
-last_compiled: '2026-04-08T02:56:29.327Z'
+last_compiled: '2026-04-08T23:14:10.404Z'
 ---
 # Cognitive Architecture
 
 ## What It Is
 
-Cognitive architecture is the structural blueprint governing how an intelligent agent processes information across perception, memory, reasoning, and action. The term originates in cognitive science, where researchers like Allen Newell and John Anderson built computational models of human cognition (SOAR, ACT-R) to explain how memory retrieval, attention, and goal-directed behavior compose into general intelligence.
+Cognitive architecture is the structural blueprint governing how an AI agent processes information, maintains state, reasons about problems, and produces actions. The term comes from cognitive science, where architectures like ACT-R and SOAR described human cognition as interacting modules with distinct memory types and reasoning mechanisms. Applied to LLM-based agents, cognitive architecture answers a design question that ad-hoc prompt engineering leaves open: how should perception, memory, reasoning, and action be organized so the system behaves reliably across sessions, tasks, and contexts?
 
-Applied to LLM agents, cognitive architecture answers a concrete engineering question: given that a language model is stateless and amnesiac by default, what persistent structures and processing loops make it capable of purposeful, coherent behavior across time?
-
-The distinction matters. A single prompt-response cycle is not an architecture. An architecture specifies *how* information flows between subsystems, *what* gets persisted, *when* reasoning strategies switch, and *who* coordinates multiple agents working in parallel.
+The architecture distinguishes agents from raw LLM calls. A single LLM query has no persistent state, no structured memory retrieval, and no loop for acting and observing. A cognitive architecture imposes structure on all of these, making it possible to build agents that accumulate knowledge, recover from errors, and coordinate with other agents.
 
 ## Why It Matters
 
-Without deliberate cognitive architecture, LLM agents hit a ceiling fast. They forget prior context, repeat mistakes, cannot plan beyond what fits in a context window, and fail to accumulate skill over time. Every session starts blank.
+LLMs are stateless by design. Every API call starts from a blank context window. Cognitive architecture solves this by defining what gets stored, in what form, how it gets retrieved, and how retrieved information influences the next action. Without this structure, you get agents that repeat mistakes, lose track of long tasks, and cannot build on prior experience.
 
-The core problem: language models are powerful reasoning engines but terrible memories. Cognitive architecture is the scaffolding that compensates for this, layering durable storage, retrieval logic, and coordination mechanisms on top of raw model capability. Projects like [MemGPT](../projects/memgpt.md) and [Letta](../projects/letta.md) were built precisely because prompt-stuffing context windows does not scale.
+The second pressure driving the field is context length. Even with 200k-token windows, filling the context with raw history is expensive, slow, and degrades reasoning quality through [Lost in the Middle](../concepts/lost-in-the-middle.md) effects. A cognitive architecture decides what to compress, what to retrieve selectively, and what to discard, rather than passing everything forward.
+
+The third pressure is multi-agent coordination. When multiple agents share a task, they need shared state management, defined communication protocols, and conflict resolution. Architecture provides the contracts for all of this.
 
 ## Core Components
 
 ### Perception
 
-Perception is the intake layer: parsing raw inputs (text, tool outputs, API responses, file contents) into representations the agent can reason about. In LLM agents this is less complex than in robotics, but preprocessing decisions matter. Chunking strategies, embedding quality, and modality handling all happen here. Poor perception degrades every downstream component.
+Perception handles incoming information — user messages, tool outputs, document chunks, API responses, sensor data. Architecturally, this involves parsing heterogeneous input into a canonical representation the reasoning module can process. In practice, this maps to document loaders, image encoders, and structured extraction pipelines. The Ars Contexta plugin formalizes this with a six-phase pipeline called the "6 Rs," where `Record` captures raw input and `Reduce` extracts structured insights before anything reaches the knowledge graph [Source](../raw/repos/agenticnotetaking-arscontexta.md).
 
-### Memory Systems
+### Memory
 
-Memory is where most cognitive architecture engineering happens, and where the field borrows most directly from cognitive science. Four types appear consistently across frameworks:
+Memory is the most actively developed component. Most architectures distinguish at least four types:
 
-**Working / Short-Term Memory** is the active context window. Information here is immediately accessible but strictly bounded and ephemeral. The [Lost in the Middle](../concepts/lost-in-the-middle.md) problem is a working memory failure mode: models attend less to information placed in the middle of long contexts, regardless of relevance. [Context Engineering](../concepts/context-engineering.md) addresses this by controlling what enters and where.
+**[Episodic Memory](../concepts/episodic-memory.md)** stores specific past events — conversation turns, actions taken, outcomes observed. It answers "what happened?" and supports trajectory-based reasoning like [Reflexion](../concepts/reflexion.md).
 
-**Episodic Memory** stores specific past events: conversation turns, actions taken, outcomes observed. [Episodic Memory](../concepts/episodic-memory.md) enables agents to say "last Tuesday I tried X and it failed." OpenMemory implements this as time-indexed entries with `valid_from`/`valid_to` fields on a temporal knowledge graph, allowing point-in-time queries. Without episodic memory, agents repeat the same errors.
+**[Semantic Memory](../concepts/semantic-memory.md)** stores general facts and conceptual knowledge — entity properties, domain rules, user preferences. It answers "what is true?" OpenMemory implements this as a distinct "sector" alongside episodic, procedural, emotional, and reflective memory [Source](../raw/repos/caviraoss-openmemory.md).
 
-**Semantic Memory** stores general knowledge: facts, concepts, relationships. [Semantic Memory](../concepts/semantic-memory.md) is typically encoded in vector stores or knowledge graphs and retrieved via similarity search. [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) is the dominant implementation pattern: embed documents, retrieve relevant chunks at query time, inject into context. The limitation is that pure vector retrieval is semantic similarity, not logical reasoning over relationships.
+**[Procedural Memory](../concepts/procedural-memory.md)** stores how to perform tasks — sequences of tool calls, workflow patterns, API usage. Voyager's skill library and [SkillBook](../concepts/skill-book.md) implement this explicitly.
 
-**Procedural Memory** encodes how to do things: skills, workflows, tool-use patterns. [Procedural Memory](../concepts/procedural-memory.md) manifests as saved prompts, workflow templates, or function libraries the agent can invoke. [Voyager](../projects/voyager.md) maintains a skill library that grows as the agent successfully completes new tasks in Minecraft, representing procedural memory accumulation in practice.
+**[Core Memory](../concepts/core-memory.md)** holds identity-level facts that persist across all sessions — the agent's name, its operating constraints, key user facts. [Letta](../projects/letta.md) (formerly MemGPT) treats this as always-in-context, never evicted.
 
-Projects like [Cognee](../projects/graphiti.md) attempt to unify these by combining vector search with graph databases, capturing not just what things mean but how they relate. The `cognee.cognify()` pipeline ingests documents and builds relationship structures that evolve as knowledge changes, rather than treating memory as a static embedding index.
-
-[Agent Memory](../concepts/agent-memory.md), [Core Memory](../concepts/core-memory.md), and [Long-Term Memory](../concepts/long-term-memory.md) represent increasingly persistent tiers: core memory is always in context, long-term memory requires retrieval.
+Memory systems use different storage backends. [Vector databases](../concepts/vector-database.md) like [ChromaDB](../projects/chromadb.md), [Pinecone](../projects/pinatone.md), [FAISS](../projects/faiss.md), and [Qdrant](../projects/qdrant.md) support semantic retrieval. Graph databases like [Neo4j](../projects/neo4j.md) store relationship structures that vector search misses. Relational stores like [SQLite](../projects/sqlite.md) and [PostgreSQL](../projects/postgresql.md) handle structured facts and temporal data. Most mature architectures use all three.
 
 ### Reasoning
 
-Reasoning is where the model applies its intelligence to current context. Several patterns structure this:
+Reasoning is where the LLM does its work, but architecture determines how that work is structured. The dominant patterns:
 
-**[Chain-of-Thought](../concepts/chain-of-thought.md)** prompts the model to reason step-by-step before answering, improving performance on complex tasks by externalizing intermediate reasoning into the context window.
+**[ReAct](../concepts/react.md)** alternates Thought, Action, and Observation steps in a loop. The agent generates reasoning text, selects a tool call, observes the result, and continues. This is the most widely deployed pattern because it works within a single context window and requires no external state.
 
-**[ReAct](../concepts/react.md)** (Reason + Act) interleaves reasoning traces with tool calls: the agent thinks, acts, observes, thinks again. This loop is the backbone of most tool-using agents.
+**[Chain-of-Thought](../concepts/chain-of-thought.md)** structures intermediate reasoning steps before producing an answer. It improves accuracy on multi-step problems but lives entirely in the context window with no persistent memory.
 
-**[Reflexion](../concepts/reflexion.md)** adds a self-evaluation loop: after acting, the agent reflects on outcomes and stores verbal self-feedback as episodic memory, enabling learning from failure without gradient updates.
+**Tree-of-thought and Monte Carlo Tree Search variants** explore multiple reasoning paths simultaneously, selecting branches based on intermediate evaluations. These are computationally expensive but improve performance on tasks where the first approach is often wrong.
 
-**Planning** extends reasoning across multiple future steps. Tree-of-Thought, MCTS-based planners, and hierarchical task decomposition all fall here.
-
-The distinction between these patterns matters for architecture: Chain-of-Thought happens inside a single inference call. ReAct spans multiple calls with tool interleaving. Reflexion requires persistent memory between episodes. Each demands different infrastructure.
+**Reflection loops** — exemplified by [Reflexion](../concepts/reflexion.md) — add a separate evaluation step where the agent critiques its own output and generates corrective guidance stored as episodic memory for the next attempt.
 
 ### Action
 
-Action is the output layer: the agent's interface with the world. This includes tool calls (APIs, web browsers, code execution), file operations, spawning subagents, and producing final responses. Action capability defines an agent's surface area.
+Action modules translate reasoning outputs into effects: tool calls, API requests, code execution, file writes, messages to other agents. Architecture determines the tool registry, permission model, and error handling. The [Model Context Protocol](../concepts/model-context-protocol.md) is emerging as a standard interface for tool discovery and invocation. The [Tool Registry](../concepts/tool-registry.md) concept formalizes tool availability, versioning, and capability description.
 
-[Agent Skills](../concepts/agent-skills.md) are reusable action patterns. [Tool Registry](../concepts/tool-registry.md) is the cataloguing mechanism. Action without robust error handling and [Loop Detection](../concepts/loop-detection.md) produces agents that spin indefinitely or corrupt state.
+## How It Works: Implementation Patterns
 
-### Metacognition
+### The Perceive-Remember-Reason-Act Loop
 
-Metacognition is the agent's capacity to monitor and adjust its own processing. This includes uncertainty estimation, recognizing when to ask for help versus proceed, detecting when a strategy is failing, and updating beliefs about its own capabilities. [Human-in-the-Loop](../concepts/human-in-the-loop.md) is a metacognitive checkpoint. [Self-Improving Agents](../concepts/self-improving-agents.md) formalize this: the agent's architecture includes mechanisms to modify its own components based on performance.
+The canonical loop in most LLM agent implementations:
 
-The [Darwin Gödel Machine](../projects/darwin-godel-machine.md) pushes this to its limit, attempting genuine self-modification of code. [EvoAgentX](../projects/evoagentx.md) and [AgentEvolver](../projects/agentevolver.md) explore evolutionary approaches. The critical unsolved problem: tracking which self-modifications succeed, and preventing degenerate feedback loops. Memory architecture becomes the bottleneck for self-improvement.
+1. Receive input from environment or user
+2. Retrieve relevant memories (semantic search, graph traversal, or rule-based lookup)
+3. Construct a working context from retrieved memories plus current input
+4. Generate reasoning and select an action
+5. Execute the action and observe results
+6. Store outcomes back to memory with appropriate indexing
 
-## Multi-Agent Coordination
+[Context Engineering](../concepts/context-engineering.md) sits at step 3 — deciding exactly what to put in the context window to maximize reasoning quality within token constraints.
 
-When multiple agents collaborate, cognitive architecture scales into [Multi-Agent Systems](../concepts/multi-agent-systems.md). Each agent has its own cognitive architecture, but the system needs coordination primitives: shared memory, message passing, role assignment, and conflict resolution.
+### Memory Storage and Retrieval
 
-[MetaGPT](../projects/metagpt.md) assigns software development roles (PM, engineer, QA) to distinct agents, each with specialized reasoning patterns. [CrewAI](../projects/crewai.md) formalizes agent crews with explicit role definitions. [LangGraph](../projects/langgraph.md) models agent workflows as directed graphs, making coordination structure explicit and debuggable.
+Cognee's implementation shows the state of the art. It runs `cognee.add()` to ingest documents, `cognee.cognify()` to build a knowledge graph from them, and `cognee.search()` to query via combined vector and graph traversal. The key mechanism is continuous learning: as new documents come in, the graph updates to reflect changed relationships, not just append new vectors [Source](../raw/repos/topoteretes-cognee.md).
 
-[Organizational Memory](../concepts/organizational-memory.md) is the shared-memory problem at the multi-agent level: how do agents pool what they learn without interfering with each other's working memory?
+OpenMemory's architecture adds temporal reasoning. Each fact stores `valid_from` and `valid_to` fields. When a new fact contradicts an old one, the system closes the old fact's validity window rather than storing conflicting embeddings. Point-in-time queries become possible: "what did the system believe about CompanyX's CEO on January 1, 2023?" [Source](../raw/repos/caviraoss-openmemory.md).
 
-## Implementation Patterns
+### Context Construction
 
-**Context Management** decides what enters working memory at each step. [Context Compression](../concepts/context-compression.md) reduces token cost. [Progressive Disclosure](../concepts/progressive-disclosure.md) injects detail progressively rather than dumping everything upfront. [Context Engineering](../concepts/context-engineering.md) is the discipline of doing this well.
+The [Agent Memory](../concepts/agent-memory.md) taxonomy maps storage types to context assembly. [Short-Term Memory](../concepts/short-term-memory.md) is the context window itself. [Long-Term Memory](../concepts/long-term-memory.md) requires retrieval decisions — what to pull from external stores and in what form. [Context Compression](../concepts/context-compression.md) summarizes or prunes lower-priority content to make room for higher-priority retrievals.
 
-**Knowledge Graphs** add relational structure to memory. [Knowledge Graph](../concepts/knowledge-graph.md) nodes represent entities; edges represent relationships. [GraphRAG](../projects/graphrag.md) and [HippoRAG](../projects/hipporag.md) use graph traversal to retrieve more coherent context than flat vector search. The tradeoff: graph construction and maintenance costs are significant.
+Ars Contexta implements a specific mechanism: spawning fresh subagents per processing phase to avoid context degradation. Each phase — Reduce, Reflect, Reweave — runs in a clean context window via the `/ralph` command, which reads the task queue, spawns a subagent, and parses a structured handoff document before advancing to the next phase [Source](../raw/repos/agenticnotetaking-arscontexta.md). This trades latency for reasoning quality.
 
-**[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)** is the dominant pattern for semantic memory access. [Hybrid Search](../concepts/hybrid-search.md) combines dense vector search with sparse keyword matching (BM25) to improve retrieval recall. [Vector Database](../concepts/vector-database.md) systems like [ChromaDB](../projects/chromadb.md) and [Pinecone](../projects/pinatone.md) provide the storage layer.
+### Multi-Agent Coordination
 
-**[Continual Learning](../concepts/continual-learning.md)** updates the agent's knowledge without full retraining. [Memory Evolution](../concepts/memory-evolution.md) handles how stored memories should change as new information arrives, including conflict resolution and temporal reasoning.
+When multiple agents share a task, cognitive architecture must define how they share memory and coordinate. [Multi-Agent Systems](../concepts/multi-agent-systems.md) typically implement one of three patterns:
 
-## Concrete Implementations
+**Shared memory store**: agents read and write a common knowledge base. OpenMemory's server mode supports this with user-scoped and org-wide memory namespaces.
 
-Several projects demonstrate how these components assemble into working architectures:
+**Message passing**: agents communicate through structured messages, with no shared state. [AutoGen](../projects/autogen.md), [CrewAI](../projects/crewai.md), and [LangGraph](../projects/langgraph.md) all implement variations.
 
-[Letta](../projects/letta.md) (MemGPT's evolution) implements explicit memory tiers: core memory always in context, archival memory retrieved on demand. The OS-inspired metaphor treats the context window as RAM and external storage as disk, with explicit read/write operations.
+**Hierarchical orchestration**: a [Meta-Agent](../concepts/meta-agent.md) decomposes tasks and routes subtasks to specialist agents, then aggregates results. [MetaGPT](../projects/metagpt.md) formalizes this with role-based agents in a software engineering workflow.
 
-The [Ars Contexta](../repos/agenticnotetaking-arscontexta.md) plugin generates domain-specific cognitive architectures through conversation, producing folder structure, processing pipelines, templates, and hooks calibrated to how a user actually thinks. Its three-space architecture (self/, notes/, ops/) separates agent identity, knowledge, and operational state. The `/ralph` command runs phases in isolated context windows via subagent spawning, preventing attention degradation across the processing pipeline.
+### Self-Improvement
 
-OpenMemory distinguishes itself by typing memory into sectors (episodic, semantic, procedural, emotional, reflective) rather than treating all memories as undifferentiated embeddings, and adding a temporal knowledge graph with `valid_from`/`valid_to` timestamps. This supports queries like "what did the agent know on a specific date."
+Self-improving architectures add a feedback loop where agents modify their own procedures based on outcome evaluations. The critical memory problem this creates: tracking which self-modifications succeed or fail across sessions, to prevent degenerate loops where the agent repeatedly applies the same broken fix [Source](../raw/tweets/theturingpost-9-open-agents-that-can-improve-themselves-a-colle.md). [EvoAgentX](../projects/evoagentx.md), [AgentEvolver](../projects/agentevolver.md), and [Darwin Gödel Machine](../projects/darwin-godel-machine.md) address this with persistent modification logs and evaluation registries.
 
-[ACE](../projects/ace.md) (Autonomous Cognitive Entity) implements a layered model directly inspired by cognitive science, with explicit aspiration, global strategy, agent model, executive function, cognitive control, and task prosecution layers.
+## Implementations
+
+**[Letta](../projects/letta.md)** (formerly MemGPT): pioneered explicit [Core Memory](../concepts/core-memory.md) plus [Archival Memory](../concepts/long-term-memory.md) architecture, with the agent calling memory tools to read and write external storage within its context.
+
+**[LangGraph](../projects/langgraph.md)**: implements cognitive architecture as a stateful graph where nodes are processing steps and edges are transitions. State persists across the graph, enabling loops and branches.
+
+**[ACE](../projects/ace.md)** (Autonomous Cognitive Entity): implements a layered architecture with six levels from hardware interaction up to aspirational values, directly mapping to cognitive science models.
+
+**[OpenAI](../projects/openai.md)**: GPT-4 and GPT-4o with function calling and the [Assistants API](../projects/openai-agents-sdk.md) implement a perceive-reason-act loop with persistent thread-level memory.
+
+**[Anthropic](../projects/anthropic.md)**: [Claude](../projects/claude.md) with tool use and [CLAUDE.md](../concepts/claude-md.md) for procedural context implements lightweight cognitive architecture within the coding agent domain.
+
+**[DSPy](../projects/dspy.md)**: treats the reasoning module as a learnable program, optimizing prompts for each module based on end-to-end task performance rather than hand-engineering them.
 
 ## Failure Modes
 
-**Memory-Reasoning Mismatch**: The agent retrieves plausible memories but reasons incorrectly from them. Vector similarity retrieves semantically similar content, not necessarily relevant content. A query about "project deadline" retrieves everything mentioning deadlines, not specifically the current project's.
+**Memory staleness**: semantic memory filled at time T contains facts that contradict current reality. Without explicit temporal reasoning, the agent retrieves stale information with high confidence. The fix requires either temporal validity fields (OpenMemory's approach) or periodic memory consolidation with conflict resolution.
 
-**Context Window Saturation**: Aggressive memory injection fills the context window, degrading reasoning quality. The [Lost in the Middle](../concepts/lost-in-the-middle.md) effect worsens with longer contexts. Architectures that inject too many retrieved memories without compression hit this ceiling quickly.
+**Context pollution**: poor retrieval precision fills the context window with low-relevance memories, degrading reasoning quality. This is the [Lost in the Middle](../concepts/lost-in-the-middle.md) problem applied to memory retrieval. Composite scoring — combining vector similarity with recency and salience — partially mitigates this.
 
-**Degenerate Self-Improvement Loops**: Self-improving architectures that modify their own prompts or skill libraries based on performance feedback can enter feedback loops where a bad modification produces worse outputs, which the evaluation loop misinterprets as good. Tracking modification history and maintaining rollback capability is essential infrastructure most frameworks do not provide out of the box.
+**Action-memory coupling failure**: the agent takes an action, stores the outcome incorrectly, and retrieves that incorrect outcome on the next similar task. This compounds across sessions. [Execution Traces](../concepts/execution-traces.md) stored alongside outcomes help diagnose this, but require additional storage and retrieval infrastructure.
 
-**Cross-Agent Memory Pollution**: In multi-agent systems, shared memory stores allow agents to overwrite each other's memories. Without isolation or versioning, a specialized agent's domain-specific writes corrupt generalizable memory.
+**Degenerate self-improvement loops**: self-modifying agents that store modifications without tracking outcomes can repeatedly apply the same failing patch. Architecturally, this requires a separate evaluation memory that tracks modification history independently from the modification itself.
+
+## Infrastructure Assumptions
+
+Two assumptions embedded in most cognitive architecture implementations that documentation doesn't surface:
+
+First, most implementations assume low-latency access to external memory stores. Graph traversal on [Neo4j](../projects/neo4j.md) and vector search on [Qdrant](../projects/qdrant.md) can add 50-500ms per retrieval step. Architectures with multiple retrieval steps per reasoning cycle accumulate this latency. At scale with concurrent users, this becomes a database contention problem that requires read replicas and caching layers not mentioned in any of the README-level documentation.
+
+Second, multi-agent shared memory assumes consistent serialization semantics. When two agents write to the same memory store concurrently, the merge behavior is implementation-defined and often undocumented. Most systems silently last-write-wins, which causes correctness failures in parallel agent workflows.
+
+## When Not to Use a Full Cognitive Architecture
+
+Single-turn tasks with no need for persistent state don't benefit from architectural overhead. If your agent answers a question, returns a result, and is done, a RAG pipeline or direct LLM call with retrieval is simpler and faster.
+
+Tasks where context fits comfortably in one window don't need external memory retrieval. Adding retrieval steps introduces latency and retrieval errors for no benefit.
+
+High-throughput, low-latency applications find architectural overhead from memory retrieval, context assembly, and multi-step reasoning loops incompatible with response time requirements.
 
 ## Unresolved Questions
 
-How memory conflicts get resolved remains underspecified across frameworks. When two episodic memories contradict each other, most systems either overwrite (last-write-wins) or accumulate (both stored, retrieval returns both). Neither is principled.
+Memory conflict resolution protocols are underdocumented across all major implementations. When two facts contradict, who decides which is true and by what rule? OpenMemory's temporal approach handles the "same fact changes over time" case but not "two sources disagree about the same time."
 
-Evaluation methodology for cognitive architectures is immature. [SWE-bench](../projects/swe-bench.md), [GAIA](../projects/gaia.md), and [Tau-bench](../projects/tau-bench.md) test agent capabilities but not specific architectural choices. It is difficult to isolate the contribution of a particular memory design versus a better base model.
+Cost accounting at scale remains opaque. Architectures with multiple retrieval and reasoning steps per user turn multiply LLM API costs nonlinearly. None of the implementations surveyed publish cost-per-session numbers or provide guidance on cost ceilings.
 
-The cost of maintaining rich cognitive architectures at scale is rarely discussed in framework documentation. Graph databases, vector stores, temporal knowledge graphs, and multi-sector memory classifiers each add latency and cost. Real-world deployments often collapse sophisticated architectures back to simpler patterns under production constraints.
+The governance question for shared memory in multi-tenant systems — who can read whose memories, how isolation is enforced, what audit trails exist — is treated as an infrastructure problem in most documentation but is actually an architectural decision with security implications.
+
+## Alternatives and Selection Guidance
+
+Use **direct [RAG](../concepts/retrieval-augmented-generation.md)** when your task is question answering over a fixed corpus with no need for state persistence or multi-step action.
+
+Use **[ReAct](../concepts/react.md) without external memory** when your task fits in a single context window and requires tool use but not persistent learning.
+
+Use **[Letta](../projects/letta.md)** when you need production-ready persistent memory with explicit memory management tools and tenant isolation.
+
+Use **[LangGraph](../projects/langgraph.md)** when you need fine-grained control over agent state transitions and want to compose complex workflows from reusable nodes.
+
+Use **[DSPy](../projects/dspy.md)** when prompt engineering is your bottleneck and you want to optimize reasoning module performance systematically.
+
+Use a **full cognitive architecture with multiple memory types and graph storage** when your agent operates across long time horizons, accumulates domain-specific knowledge, coordinates with other agents, or needs to explain why it recalled specific information.
 
 ## Related Concepts
 
 - [Agent Memory](../concepts/agent-memory.md)
 - [Context Engineering](../concepts/context-engineering.md)
-- [Multi-Agent Systems](../concepts/multi-agent-systems.md)
 - [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md)
 - [ReAct](../concepts/react.md)
 - [Reflexion](../concepts/reflexion.md)
 - [Self-Improving Agents](../concepts/self-improving-agents.md)
-- [Knowledge Graph](../concepts/knowledge-graph.md)
+- [Core Memory](../concepts/core-memory.md)
 - [Episodic Memory](../concepts/episodic-memory.md)
+- [Semantic Memory](../concepts/semantic-memory.md)
 - [Procedural Memory](../concepts/procedural-memory.md)
-- [Context Management](../concepts/context-management.md)
-- [Human-in-the-Loop](../concepts/human-in-the-loop.md)

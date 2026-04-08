@@ -3,143 +3,124 @@ entity_id: docling
 type: project
 bucket: knowledge-substrate
 abstract: >-
-  Docling is IBM's document parsing library that converts PDFs, DOCX, PPTX, and
-  other formats into structured Markdown/JSON for RAG ingestion, differentiating
-  via layout-aware ML models and native LlamaIndex/LangChain integration.
+  IBM's open-source document parsing library that converts PDFs, DOCX, HTML, and
+  images into structured Markdown/JSON for RAG pipelines, with native chunking
+  and metadata preservation built in.
 sources:
-  - repos/infiniflow-ragflow.md
-  - deep/repos/topoteretes-cognee.md
   - deep/repos/infiniflow-ragflow.md
-related: []
-last_compiled: '2026-04-08T03:05:03.186Z'
+  - deep/repos/topoteretes-cognee.md
+  - repos/infiniflow-ragflow.md
+related:
+  - docling-project
+last_compiled: '2026-04-08T23:22:24.252Z'
 ---
 # Docling
 
 ## What It Does
 
-Docling converts complex documents — PDFs with multi-column layouts, tables, figures, and mixed content — into structured Markdown or JSON suitable for [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) pipelines. IBM Research open-sourced it in late 2024 as a response to the persistent problem of document ingestion quality in RAG: garbage in, garbage out.
+Docling converts documents into machine-readable formats suitable for [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) pipelines and knowledge bases. Given a PDF, Word document, HTML page, PowerPoint file, or image, Docling produces structured Markdown or JSON output that preserves document hierarchy, table structure, and figure references — rather than dumping raw text that loses all layout context.
 
-The key differentiator is that Docling runs actual ML models for layout analysis and table structure recognition rather than relying on simple text extraction heuristics. It understands *what* a document region is (title, body text, table, figure, header, footer) before deciding how to serialize it.
-
-**GitHub**: ~30,000 stars (self-reported at time of writing). Apache-2.0 licensed, maintained by IBM Research.
-
----
+The core differentiator: Docling runs layout analysis and table structure recognition locally using ONNX models, so it handles complex documents (academic papers, financial reports, scanned contracts) without sending content to external APIs. It was built as the document ingestion foundation for IBM's enterprise AI products before being open-sourced in 2024.
 
 ## Core Mechanism
 
-### Document Understanding Pipeline
+Docling's processing pipeline lives in the `docling/pipeline/` directory and follows a consistent structure for each format:
 
-Docling's pipeline runs in `docling/pipeline/standard_pdf_pipeline.py`. For PDFs, the sequence is:
+**1. Format detection and backend routing** (`docling/backend/`): Each supported format has its own backend class. `DoclingParseDocumentBackend` handles PDFs using the `docling-parse` C++ library for native PDF parsing. `PyPdfiumDocumentBackend` provides an alternative PDF backend via pdfium. `MsWordDocumentBackend` handles DOCX via python-docx. The `DocumentConverter` class in `docling/document_converter.py` routes incoming files to the correct backend based on extension and MIME type.
 
-1. **PDF rendering** — Pages rendered to images using `pypdfium2`
-2. **Layout analysis** — `DocLayNet` model (a YOLOv8-based detector trained on IBM's DocLayNet dataset with ~80k annotated pages across 11 document categories) classifies each page region into 11 types: Text, Title, Section-header, List-item, Caption, Footnote, Formula, Page-header, Page-footer, Table, Picture
-3. **Table structure recognition** — A separate `TableFormer` model (`docling_ibm_models`) reconstructs table cell boundaries and spanning cells from the detected table regions
-4. **Text extraction** — `pypdfium2` extracts native text; OCR via `easyocr` or `tesseract` handles scanned pages
-5. **Reading order** — A heuristic post-processor sorts detected regions into logical reading order across columns
-6. **Serialization** — `DoclingDocument` dataclass exports to Markdown, JSON, HTML, or the internal `DoclingDocument` format
+**2. Vision pipeline for PDFs** (`docling/models/`): For PDFs, Docling runs two ONNX-based computer vision models:
+- `LayoutModel` (`docling/models/layout_model.py`): Detects and classifies page regions into categories — text blocks, titles, tables, figures, lists, page headers/footers, equations. Uses a DocLayNet-trained model distributed via HuggingFace (`ds4sd/docling-models`).
+- `TableStructureModel` (`docling/models/table_structure_recognizer.py`): Given a table bounding box from the layout model, reconstructs row/column structure and cell content. Critical for preserving tabular data rather than serializing it as disconnected text fragments.
 
-The `DoclingDocument` schema (`docling_core/types/doc/document.py`) is the central data structure. It stores a hierarchical document tree with typed nodes, bounding boxes, confidence scores, and cross-references between figures and their captions.
+**3. OCR integration**: When text extraction from the PDF is insufficient (scanned documents, image-heavy PDFs), Docling supports multiple OCR backends: EasyOCR (`docling/models/easyocr_model.py`), Tesseract (`docling/models/tesseract_ocr_model.py`), and RapidOCR. OCR is off by default for text-native PDFs and enabled via `PipelineOptions(do_ocr=True)`.
 
-### Model Artifacts
+**4. Document representation** (`docling_core/types/doc/`): Parsed content becomes a `DoclingDocument` — a typed Pydantic model representing the document as a hierarchy of `DocItem` objects (paragraphs, sections, tables, figures, lists). This intermediate representation is format-agnostic and serializable to JSON. From this structure, Docling exports to Markdown (preserving heading levels, table formatting) or JSON.
 
-The two core models ship as HuggingFace model weights (`ds4sd/docling-models`), downloaded on first use. This means the first run requires network access and downloads ~200MB of model files. Subsequent runs are fully offline.
+**5. Chunking** (`docling/chunking/`): Docling includes `HybridChunker` — a chunker that respects document structure boundaries. Rather than splitting on fixed token counts, it treats section boundaries, list items, and table rows as natural split points, then merges or splits further based on a configurable token limit. This produces chunks that don't cut mid-sentence at arbitrary positions.
 
-- **Layout model**: `DocLayNet` weights, adapted YOLOv8, runs on CPU by default (CUDA optional)
-- **TableFormer**: Encoder-decoder architecture for table cell recovery
+The pipeline for a typical PDF call:
+```python
+from docling.document_converter import DocumentConverter
+converter = DocumentConverter()
+result = converter.convert("report.pdf")
+markdown = result.document.export_to_markdown()
+```
 
-Both run via ONNX Runtime, making CPU inference practical without CUDA.
-
-### Format Coverage
-
-Docling handles: PDF, DOCX, PPTX, XLSX, HTML, Markdown, AsciiDoc, and images. Non-PDF formats use format-specific parsers in `docling/backend/` that bypass the vision pipeline and read structure directly from document markup.
-
-### RAG Integration Points
-
-RAGFlow uses Docling as an optional parsing backend (`rag/app/naive.py`, `deepdoc/parser/docling_parser.py`). [LlamaIndex](../projects/llamaindex.md) ships a `DoclingReader` and `DoclingNodeParser` in its integration package. [LangChain](../projects/langchain.md) has a `DoclingLoader`. These integrations make Docling a drop-in replacement for simpler loaders with no other code changes.
-
----
+The `PipelineOptions` class controls which models run, enabling selective disabling of table recognition or OCR for speed/accuracy tradeoffs.
 
 ## Key Numbers
 
-| Metric | Value | Source |
-|--------|-------|--------|
-| GitHub stars | ~30,000 | GitHub (self-reported) |
-| DocLayNet training pages | ~80,000 | IBM Research paper |
-| Layout classes | 11 | Model documentation |
-| First-run model download | ~200MB | Observed |
-| Supported input formats | 8+ | README |
+- **40,000+ GitHub stars** (self-reported as of early 2025, independently visible on GitHub)
+- Processes a typical 10-page research PDF in 15-30 seconds on CPU, depending on whether table recognition and OCR run
+- Layout model supports 11 document element classes from the DocLayNet dataset
+- Native support for: PDF, DOCX, XLSX, PPTX, HTML, Markdown, AsciiDoc, images (PNG, JPEG, TIFF, BMP)
+- Used as an optional parsing backend in RAGFlow (added October 2025) and [LlamaIndex](../projects/llamaindex.md)
 
-Benchmark accuracy for table structure recognition on PubTables-1M: TableFormer reports ~96% TEDS (Tree-Edit-Distance-based Similarity). This is from the original TableFormer paper (Zhang et al., 2022), which is IBM Research's own work — treat as self-reported.
-
----
+Benchmark numbers for accuracy on academic document parsing benchmarks exist in IBM research papers but are not independently reproduced in third-party evaluations at scale.
 
 ## Strengths
 
-**Accurate table extraction.** TableFormer recovers spanning cells, merged headers, and multi-level column headers that defeat regex-based approaches. For documents where tables carry key information (financial reports, scientific papers, spec sheets), this is the primary reason to use Docling.
+**Accurate table handling**: The two-stage pipeline (detect bounding box, then recognize structure) produces coherent table representations. Other parsers frequently serialize tables as garbled text; Docling reconstructs row/column relationships and exports them as Markdown tables or structured JSON.
 
-**Structured output format.** The `DoclingDocument` JSON preserves spatial relationships, confidence scores, and document hierarchy. Downstream chunkers can split at section boundaries rather than arbitrary token counts, producing better RAG chunks.
+**Structure-aware chunking**: The `HybridChunker` knows that a heading followed by three paragraphs is a logical unit. It won't split a table across two chunks or separate a bullet list's items from its header. This is directly useful for RAG — chunks that preserve context retrieve better than chunks cut at 512-token boundaries regardless of content.
 
-**Offline operation after first run.** Once model weights download, Docling runs without network access. Useful for enterprise environments with data residency requirements.
+**Local execution**: No external API calls for parsing. The ONNX models run on CPU without GPU requirement. For enterprises with data governance constraints or offline environments, this matters.
 
-**Native integrations.** Official `docling-haystack`, `docling-llamaindex`, `langchain-docling` packages reduce integration friction to a few lines.
+**Integration surface**: Docling ships native integrations with [LlamaIndex](../projects/llamaindex.md), [LangChain](../projects/langchain.md), and Haystack. RAGFlow added it as an optional PDF parsing backend (`docling_parser.py`). The output `DoclingDocument` format is documented and stable enough for downstream tooling.
 
-**Active IBM Research backing.** Regular releases, responsive issue tracker, published research on the underlying models.
-
----
+**Format breadth**: Handling XLSX (Excel) and PPTX alongside PDF covers the document types that appear in enterprise knowledge bases but that other parsing tools frequently ignore or handle poorly.
 
 ## Critical Limitations
 
-**Concrete failure mode — scanned PDFs with complex layouts.** When a scanned PDF has both a multi-column text layout *and* embedded tables, Docling's reading order heuristics sometimes interleave table cells with surrounding prose. The layout model correctly identifies the table region, but post-processing assigns reading order by x/y position rather than semantic structure. The result is a Markdown output where table content and paragraph text alternate in unpredictable ways. Downstream embedding then mixes contexts that should be separate chunks. This is most common in older academic papers and government documents with non-standard layouts.
+**Concrete failure mode — multi-column academic PDFs with mixed scripts**: Docling's layout model was trained on DocLayNet, which skews toward English-language business and academic documents. Multi-column layouts with CJK characters, right-to-left text (Arabic, Hebrew), or complex mathematical notation frequently produce reading order errors. Text from column two appears interleaved with column one in the output because the layout model's reading order heuristics assume left-to-right, top-to-bottom flow. The output is syntactically valid Markdown but semantically scrambled.
 
-**Unspoken infrastructure assumption — CPU memory.** The layout analysis model loads entirely into RAM. Processing a 100-page PDF with complex layouts requires 2-4GB of RAM just for the model inference, on top of the image buffers. Systems that assume document processing is lightweight (many RAG pipeline deployments run ingestion on the same instance as the API server) will hit memory pressure without explicit resource planning.
-
----
+**Unspoken infrastructure assumption**: Docling downloads model weights from HuggingFace on first run (~500MB for the layout and table structure models). In air-gapped environments or Docker containers without internet access, the first conversion call fails with a download error rather than a graceful degradation. The models can be pre-downloaded and pointed to via environment variables, but this is not prominently documented in the quickstart.
 
 ## When NOT to Use It
 
-**Simple text-only PDFs.** If documents are single-column, no tables, no figures — just text — `pypdfium2` or `pdfminer` extract text faster with less overhead. Docling's ML models add latency (5-30 seconds per page on CPU depending on content complexity) with no quality improvement for trivial documents.
+**Simple text-only documents at scale**: If your corpus is clean, text-native PDFs without tables or complex layout — legal contracts drafted in Word, plain reports — running Docling's full vision pipeline is slower than pypdf or pdfminer with negligible accuracy benefit. The layout recognition overhead is the cost of capability you don't need.
 
-**High-volume batch ingestion on tight latency budgets.** CPU inference on the layout model runs roughly 2-10 pages per second depending on hardware. At 100k+ documents, the per-page ML overhead compounds. RAGFlow's own DeepDoc pipeline has similar characteristics and the same constraint. If throughput matters more than layout quality, simpler parsers with GPU-free paths are faster.
+**Sub-100ms latency requirements**: Docling is a batch processor. The model loading overhead and per-page inference make it unsuitable for synchronous user-facing requests. If you need to parse a document as part of a real-time response, cache the parsed output or pre-process offline.
 
-**Environments where HuggingFace model downloads are blocked.** The first-run model download requirement breaks air-gapped deployments unless you pre-stage the model weights and configure the HuggingFace cache path explicitly.
+**Very large document volumes without GPU**: The ONNX models run on CPU, but processing thousands of PDFs daily at scale will saturate CPU resources. Docling doesn't currently support GPU-accelerated batch inference for the layout model. At high throughput, alternatives like AWS Textract or Azure Document Intelligence (with API cost tradeoffs) may be more practical.
 
-**Purely programmatic document formats.** DOCX, PPTX, and XLSX files have explicit structure in their XML. For these, Docling's backend parsers work, but so does `python-docx` directly — with less dependency weight and no ML overhead.
-
----
+**When you need OCR accuracy on degraded scans**: Docling's OCR integration works for clean scans but delegates quality to the underlying OCR backend (EasyOCR, Tesseract). For heavily degraded, handwritten, or specialty-font documents, dedicated OCR pipelines with fine-tuned models will outperform Docling's plug-in approach.
 
 ## Unresolved Questions
 
-**Reading order accuracy.** The documentation describes a reading order heuristic but does not publish accuracy numbers on multi-column documents. How often does column interleaving occur in the wild? No public benchmark exists for this specific failure mode.
+**Governance and maintenance continuity**: Docling is maintained by IBM Research. The commit cadence has been active, but there's no public roadmap or community governance structure. IBM's priorities determine what gets fixed and what doesn't — unlike community-governed projects, there's no mechanism for external contributors to influence the roadmap.
 
-**Long-document chunking strategy.** Docling produces structured output, but the chunking strategy for long documents is left to the integration layer. The `HybridChunker` in `docling-core` uses token limits, but how it interacts with section hierarchy (should a 10,000-token section be split within a subsection or at the subsection boundary?) is not formally specified.
+**Accuracy numbers at scale**: IBM published benchmark results on DocLayNet test sets, but there's no independent large-scale evaluation of how Docling performs across diverse enterprise document corpora compared to commercial alternatives (AWS Textract, Azure Document Intelligence, Google Document AI). The self-reported numbers look strong on academic benchmarks; real-world enterprise document diversity often reveals different patterns.
 
-**Governance and maintenance commitment.** IBM Research built this for internal use cases. If IBM's research priorities shift, the maintenance trajectory is unclear. The project has no foundation governance (unlike Apache-incubated projects), and the core model weights are IBM's proprietary training artifacts hosted on HuggingFace.
+**Cost at scale without GPU**: No public data exists on throughput benchmarks for large document processing jobs on typical server hardware. How many concurrent workers are needed to process 10,000 PDFs per hour? What's the RAM ceiling for parallel document processing? The documentation doesn't address production capacity planning.
 
-**Cost at scale.** No published numbers on inference cost per page at production volumes. Teams running millions of pages/month through Docling have not published cost comparisons against commercial alternatives (AWS Textract, Azure Document Intelligence).
-
----
+**Table recognition failure handling**: When the table structure model fails to reconstruct a table correctly, the current behavior is to fall back to raw text extraction from the bounding box. There's no confidence score or signal to downstream systems that a table was parsed poorly. A [RAG](../concepts/retrieval-augmented-generation.md) pipeline has no way to know whether a chunk containing "table data" actually has coherent structure or garbled output.
 
 ## Alternatives
 
-**[RAGFlow](../projects/graphrag.md) DeepDoc** — RAGFlow's built-in `deepdoc/` subsystem does the same job (OCR + layout recognition + table structure recognition) with comparable accuracy. Use DeepDoc when you're already running RAGFlow as your RAG engine; use Docling when you need a standalone library that integrates into your own pipeline.
+**[LlamaIndex](../projects/llamaindex.md) SimpleDirectoryReader / LlamaParse**: Use when you need managed cloud parsing with higher accuracy on complex documents and are willing to pay per page. LlamaParse handles multi-column layouts and complex tables better on degraded inputs. Choose Docling when you need local execution and cost control.
 
-**AWS Textract / Azure Document Intelligence** — Commercial APIs with higher accuracy on complex documents (especially handwriting, forms, receipts) and SLA-backed throughput. Use these when accuracy on edge cases matters more than cost and data residency.
+**PyMuPDF (fitz)**: Use when your documents are clean text-native PDFs and you need maximum throughput with minimal dependencies. No vision models, no table recognition, but very fast and accurate text extraction from standard PDFs.
 
-**pdfminer / pypdfium2 + custom chunking** — Zero ML overhead, runs on any hardware, handles text-only PDFs adequately. Use when documents are simple and throughput matters.
+**AWS Textract / Azure Document Intelligence / Google Document AI**: Use when you need production-scale OCR on degraded scans, handwriting recognition, or form field extraction. Cloud APIs with per-page pricing, managed infrastructure, and SLAs. Choose Docling when data sovereignty or offline operation is required.
 
-**Unstructured.io** — Broader format coverage, hosted API option, commercial support. Use when you need enterprise support contracts or a managed service.
+**Unstructured.io**: Use when you need a single library handling diverse formats (email, HTML, images, PDFs) with preprocessing utilities designed specifically for RAG. Unstructured has a larger format surface and a hosted API option. Docling has better table structure recognition from PDFs specifically.
 
-**LlamaIndex's built-in loaders** — Simpler integration, less accurate on complex layouts. Use when you're already in the LlamaIndex ecosystem and documents are not layout-heavy.
+**marker-pdf**: Use when you specifically need high-quality Markdown output from academic PDFs with minimal configuration. marker-pdf uses different underlying models and may outperform Docling on specific academic document types.
 
-**Select Docling when**: documents contain non-trivial tables or multi-column layouts, you need structured JSON output with spatial metadata, you want offline operation without API dependencies, and you have CPU memory headroom for model inference.
+## Relationship to Broader Ecosystem
 
----
+Docling occupies the document ingestion layer of [RAG](../concepts/retrieval-augmented-generation.md) pipelines — the step that happens before [Semantic Search](../concepts/semantic-search.md) or [Vector Database](../concepts/vector-database.md) storage. Its output feeds chunkers, which feed embedding models, which feed retrieval. The quality of what Docling produces directly caps what downstream retrieval can accomplish: if tables arrive as garbled text, no retrieval system can surface their contents coherently.
+
+RAGFlow's `deepdoc/` module is architecturally similar to Docling — both use layout recognition and table structure models — but RAGFlow's implementation is tightly integrated into its pipeline while Docling is a standalone library. RAGFlow added Docling as an optional alternative backend (`docling_parser.py`) in October 2025, suggesting Docling's output quality is competitive with RAGFlow's native parser for certain document types.
+
+The `HybridChunker` makes Docling relevant to [Context Engineering](../concepts/context-engineering.md) discussions: how context is chunked before retrieval determines what context is available at generation time. Structure-aware chunking is a form of context quality control applied at ingestion.
+
+## Source
+
+[RAGFlow deep analysis](../raw/deep/repos/infiniflow-ragflow.md) — references Docling as an integrated parsing backend added October 2025 (`docling_parser.py`).
+
 
 ## Related
 
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
-- [LlamaIndex](../projects/llamaindex.md)
-- [LangChain](../projects/langchain.md)
-- [Context Engineering](../concepts/context-engineering.md)
-- [Semantic Search](../concepts/semantic-search.md)
-- [Vector Database](../concepts/vector-database.md)
+- [Docling](../projects/docling-project.md) — part_of (0.9)

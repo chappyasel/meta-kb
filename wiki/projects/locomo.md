@@ -3,137 +3,130 @@ entity_id: locomo
 type: project
 bucket: agent-memory
 abstract: >-
-  LoCoMo is a benchmark dataset for evaluating long-context conversational
-  memory, providing 7,512 QA pairs across multi-session dialogues (~9K tokens,
-  35 sessions) spanning single-hop, multi-hop, temporal, open-domain, and
-  adversarial tasks.
+  LoCoMo is a benchmark dataset of long-term multi-session dialogues with 7,512
+  QA pairs across 5 task types, used to evaluate conversational memory systems
+  against retrieval, temporal reasoning, and adversarial robustness.
 sources:
-  - repos/supermemoryai-supermemory.md
-  - repos/nemori-ai-nemori.md
-  - repos/memvid-memvid.md
-  - repos/mem0ai-mem0.md
+  - deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md
   - deep/repos/memorilabs-memori.md
   - deep/repos/volcengine-openviking.md
-  - deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md
+  - repos/mem0ai-mem0.md
+  - repos/memvid-memvid.md
+  - repos/nemori-ai-nemori.md
+  - repos/supermemoryai-supermemory.md
 related:
-  - retrieval-augmented-generation
-  - openclaw
   - openai
-  - knowledge-graph
-last_compiled: '2026-04-08T02:43:01.176Z'
+  - openclaw
+last_compiled: '2026-04-08T22:59:47.855Z'
 ---
-# LoCoMo: Long-Context Conversational Memory Benchmark
+# LoCoMo
 
 ## What It Is
 
-LoCoMo (Long-Context Conversational Memory) is a benchmark for evaluating how well LLM-based agents recall and reason over extended conversation histories. It provides 7,512 question-answer pairs derived from realistic multi-session dialogues, where each conversation spans up to 35 sessions and approximately 9,000 tokens of interaction history. The benchmark tests five distinct reasoning capabilities: single-hop recall, multi-hop reasoning, temporal reasoning, open-domain knowledge integration, and adversarial question resistance.
+LoCoMo (Long-Context Conversations with Memory Operations) is a benchmark and evaluation framework for testing long-term conversational memory in AI systems. It provides standardized test data and evaluation protocols for measuring how well agents recall, reason about, and synthesize information across extended multi-session dialogues.
 
-LoCoMo has become the de facto standard for evaluating agent memory systems. Most major memory frameworks (Mem0, A-MEM, Memori, OpenViking, Nemori) now report LoCoMo results as their primary performance claim, which makes cross-system comparison tractable but also means the benchmark increasingly drives architectural choices in the field.
+The benchmark has become the de facto standard for comparing memory systems in the agent infrastructure space. Mem0, A-MEM, Memori, OpenViking, and Nemori all report results against it, making LoCoMo scores a shared vocabulary for the field.
 
-## Task Categories
+## Dataset Structure
 
-LoCoMo's five task types probe qualitatively different memory demands:
+LoCoMo contains **7,512 question-answer pairs** drawn from conversations averaging **9,000 tokens** and spanning **up to 35 sessions**. These conversations simulate the kind of extended human-AI relationship where context from early sessions remains relevant much later.
 
-**Single-hop recall** tests whether an agent can retrieve a specific fact stated once in a prior session. A question like "What restaurant did the user mention in session 3?" requires locating one piece of information without inference.
+The benchmark divides evaluation into five task categories:
 
-**Multi-hop reasoning** requires chaining across multiple stored memories. Answering "What did the user decide to do about the project they discussed after their promotion?" needs the agent to retrieve the promotion, then find project discussions temporally associated with it, then find the subsequent decision. This task type shows the largest performance spread across memory systems: scores range from near-zero (naive retrieval) to 45+ F1 (structured linking approaches like A-MEM).
+| Task | What It Tests |
+|------|--------------|
+| **Single-Hop** | Direct recall of a fact from conversation history |
+| **Multi-Hop** | Reasoning across two or more memory nodes to answer a question |
+| **Temporal** | Understanding when events occurred relative to each other |
+| **Open Domain** | Questions requiring external knowledge combined with conversation history |
+| **Adversarial** | Resistance to leading questions designed to elicit incorrect answers |
 
-**Temporal reasoning** tests ordering and time-based inference: "What changed between the user's first and second mentions of their health routine?" Systems that store timestamps but lack temporal-specific retrieval mechanisms score only marginally above baseline here.
-
-**Open-domain questions** require integrating world knowledge with conversation-specific facts, testing whether the memory system contaminates retrieval with irrelevant information.
-
-**Adversarial questions** are designed to mislead: questions that suggest a false premise or invite the agent to confabulate. Systems with enriched memory representations (A-MEM, Memori) often score *lower* on this task than simpler approaches, because their semantic enrichment amplifies misleading signals.
+Each category stresses a different capability. Single-hop tests basic retrieval. Multi-hop tests whether the system can chain related memories. Temporal tests time-awareness. Adversarial tests whether memory enrichment makes a system more susceptible to manipulation.
 
 ## Why It Matters
 
-Before LoCoMo, agent memory evaluation was fragmented. Individual systems reported accuracy on proprietary datasets, making comparison impossible. LoCoMo created a shared evaluation surface with known difficulty gradations across task types.
+Before LoCoMo, the agent memory space lacked shared evaluation ground. Papers reported results on proprietary datasets or simple fact-recall tasks that failed to stress real production scenarios. LoCoMo's multi-session structure reflects actual usage: a user whose preferences, projects, and relationships evolve across dozens of conversations.
 
-The benchmark's design exposes a common failure pattern in memory systems: high single-hop accuracy masks poor multi-hop and temporal performance. A system that achieves 70% on single-hop recall but 15% on multi-hop reasoning is inadequate for real agentic workflows, which routinely require synthesizing information across multiple prior interactions. LoCoMo forces this distinction into view.
+The five task breakdown is particularly valuable. A memory system can score well on single-hop (basic vector retrieval works fine) while failing badly on multi-hop (requires semantic linking) or temporal reasoning (requires time-aware indexing). LoCoMo forces systems to declare their weaknesses rather than obscure them with an aggregate score.
 
-For [Agent Memory](../concepts/agent-memory.md) research, LoCoMo revealed that the gap between task types is architectural, not just about model capability. The A-MEM results (collected in [Source](../raw/deep/papers/xu-a-mem-agentic-memory-for-llm-agents.md)) show that smaller models (Qwen2.5-3b) gain 787% on multi-hop when given structured memory organization, while only gaining ~150% with larger models. This suggests memory architecture compensates for model capacity on reasoning-heavy tasks.
+The benchmark's adversarial category is underappreciated. Systems that enrich memories with semantic context (like A-MEM) show regressions on adversarial tasks — the richer the memory, the more misleading signals a crafted question can exploit. This failure mode is invisible without a dedicated adversarial split.
+
+## How Evaluation Works
+
+Scoring uses two metrics: **F1** (token overlap between generated and reference answers) and **BLEU-1** (unigram precision). These are standard NLG metrics, not exact-match accuracy, which matters because conversational answers are rarely identical to reference answers even when correct.
+
+The "LoCoMo Baseline" cited in papers is the performance of a model given the full conversation context directly in the prompt — no compression, no retrieval, just brute-force context stuffing. This establishes a token-expensive upper bound. Memory systems aim to match or exceed this baseline while using a fraction of the tokens.
+
+Full-context prompting for a LoCoMo conversation runs approximately **16,910 tokens** per query (with GPT-4o-mini). Memory systems that replace this with compressed retrieval report reductions of 85-93%, down to 1,200-2,500 tokens per query.
 
 ## Benchmark Results Across Systems
 
-The following numbers come from self-reported evaluations by each system's authors. Independent third-party replication of these results does not yet exist in the literature.
+The following table summarizes multi-hop F1 scores, which most differentiate memory approaches (self-reported by each project):
 
-| System | Eval Subset | Single-Hop F1 | Multi-Hop F1 | Temporal F1 | Token Reduction |
-|--------|-------------|---------------|--------------|-------------|-----------------|
-| LoCoMo baseline (full context) | Full | 25.02 | 18.41 | 12.04 | — |
-| A-MEM (GPT-4o-mini) | Full | 27.02 | 45.85 | 12.14 | 85% |
-| Memori | Not specified | — | — | — | 95% of full-context |
-| Mem0 | Full | +26% over OpenAI Memory | — | — | 90% |
-| OpenViking | LoCoMo10 (1,540 cases) | — | — | — | 83–91% |
-| Nemori | Full | Competitive with simpler methods | — | — | Not reported |
+| System | Model | Multi-Hop F1 | Token Reduction vs. Full-Context |
+|--------|-------|-------------|----------------------------------|
+| LoCoMo Baseline (full context) | GPT-4o-mini | 18.41 | — |
+| A-MEM | GPT-4o-mini | 45.85 | 85% |
+| A-MEM | GPT-4o | 39.41 | 93% |
+| Memori | (unreported) | 81.95% overall | 95% |
+| OpenViking | (LoCoMo10 subset) | +43% vs baseline | 91% |
+| Mem0 | (unreported) | +26% vs OpenAI Memory | 90% |
 
-These numbers are not directly comparable: different systems tested on different subsets, used different base models, and defined "accuracy" differently (F1 vs. exact match vs. LLM-as-judge scoring). Mem0's "+26% over OpenAI Memory" is a relative claim with no absolute anchor. The Memori 81.95% accuracy figure refers to overall LoCoMo accuracy with a specific evaluation setup. Treat all of these as directional rather than definitive.
+Caveats on these numbers: all figures are self-reported by the respective teams. Memori's 81.95% is an "overall accuracy" metric that may not be directly comparable to per-task F1. OpenViking reports against a LoCoMo10 subset (1,540 cases), not the full benchmark. Independent third-party validation of any of these results does not appear to exist.
 
-## Core Architecture of the Benchmark
+Multi-hop is where memory architectures diverge most sharply. A-MEM's 2.5x improvement over full-context on multi-hop (45.85 vs 18.41 F1 with GPT-4o-mini) reflects the value of semantic linking. The full-context approach cannot follow connections between memory nodes because it has no notion of nodes — just raw text. Linking and evolution mechanisms specifically address this, which explains why multi-hop shows the largest deltas.
 
-LoCoMo conversations are synthetic multi-session dialogues generated to cover diverse topic domains, with ground-truth answers manually verified. Each QA pair includes:
+## Failure Modes LoCoMo Reveals
 
-- The question type (single-hop, multi-hop, temporal, open-domain, adversarial)
-- The ground-truth answer
-- The session number(s) containing the relevant evidence
-- An evaluation metric (typically F1 for open-ended answers, exact match for factual ones)
+**Temporal reasoning is consistently weak.** Across A-MEM, Mem0, and other systems, temporal task improvements are marginal (+1-8% F1) compared to multi-hop gains. This tells you that timestamps stored in memory aren't enough — systems need temporal-specific indexing and reasoning to handle questions about sequence and change over time. LoCoMo's temporal split makes this weakness visible.
 
-The benchmark ships with evaluation scripts that score system outputs against ground truth. Memory systems typically integrate by: (1) ingesting the full conversation history into their memory store, (2) receiving queries one at a time, and (3) returning answers based on retrieved memories. The full-context baseline feeds all 9K tokens directly into the LLM context without a memory layer.
+**Adversarial regressions are real.** A-MEM shows a 28% F1 regression on adversarial tasks vs full-context. This is counterintuitive: more memory context makes the system worse when questions are crafted to mislead. Richer semantic representations amplify misleading signals. LoCoMo is one of the few benchmarks that tests for this.
 
-## Strengths
+**Full-context GPT-4o sometimes beats memory systems on open-domain.** A-MEM with GPT-4o underperforms full-context on open-domain tasks (-21% F1). Stronger models can synthesize effectively from long contexts in ways that compressed memory representations can't replicate. LoCoMo reveals the conditions under which memory compression hurts rather than helps.
 
-**Cross-system comparability.** LoCoMo has enough adoption that results from different papers share a common reference point. When A-MEM reports 45.85 multi-hop F1 against a baseline of 18.41, the baseline is verifiable by any researcher.
+## Relationship to Other Benchmarks
 
-**Task diversity catches specialization.** Systems that optimize purely for semantic similarity (standard [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)) tend to score well on single-hop and open-domain tasks but poorly on multi-hop and temporal. LoCoMo prevents systems from gaming a single task type.
+[LongMemEval](../projects/longmemeval.md) covers similar territory but focuses on single-session long-context rather than multi-session episodic memory. LoCoMo's multi-session structure is its distinguishing characteristic — 35 sessions is qualitatively different from a single very long conversation because information can't be retrieved through attention alone.
 
-**Realistic conversation length.** Nine thousand tokens spanning 35 sessions mirrors the length of genuine long-running agent interactions, unlike shorter benchmarks that fit entirely within standard context windows.
+[HotpotQA](../projects/hotpotqa.md) tests multi-hop reasoning over documents but lacks the temporal and adversarial dimensions that LoCoMo includes. LoCoMo's multi-hop questions arise from conversational memory rather than Wikipedia passages, which shifts the retrieval challenge.
 
-**Adversarial task surfaces fragility.** The adversarial category reveals a systematic weakness in enriched memory systems: semantic elaboration can amplify misleading signals. This is not a critique of any particular system but a genuine architectural tradeoff that LoCoMo makes measurable.
+## Architectural Implications
 
-## Critical Limitations
+LoCoMo benchmark results have shaped how memory systems are built:
 
-**The adversarial regression problem.** Systems that enrich memory representations (A-MEM, Memori) score 20–28% *lower* on adversarial questions than the full-context baseline. This is not a benchmark flaw — it reflects a real safety concern. Memory systems that elaborate and link semantic content can make agents more susceptible to questions designed to mislead. No current memory framework has solved this.
+**Multi-hop performance drives architecture toward graph-like structures.** Systems scoring well on multi-hop (A-MEM, Graphiti, Zep) all implement some form of semantic linking between memory nodes. Flat vector stores perform adequately on single-hop but degrade on multi-hop because they have no mechanism to follow relationships.
 
-**Temporal reasoning remains unsolved.** Across all evaluated systems, temporal reasoning improvements are marginal: A-MEM achieves +1% on temporal F1. LoCoMo's temporal questions are genuinely hard, but the benchmark does not distinguish between a system that has no temporal mechanism and one with a sophisticated bi-temporal index — both score near baseline. The benchmark lacks sufficient temporal diversity to discriminate between designs.
+**Temporal weakness drives bi-temporal indexing.** Systems like [Zep](../projects/zep.md) implement separate valid-time and transaction-time indexes specifically because temporal reasoning tasks in benchmarks like LoCoMo expose the inadequacy of single-timestamp metadata.
 
-**Infrastructure assumption: English, text-only conversations.** LoCoMo covers English-language, text-based dialogues. Systems deployed for multilingual users, voice transcripts, or multi-modal interactions face a distribution shift the benchmark does not capture.
-
-**Self-reported results with inconsistent evaluation setups.** No two systems in the literature report LoCoMo results with identical configurations: different base models, different k values for retrieval, different conversation subsets (full dataset vs. LoCoMo10 subset), different scoring methods. The comparison table above reflects this inconsistency.
-
-## When NOT to Use LoCoMo as an Evaluation Target
-
-LoCoMo measures recall and reasoning over conversational history. It does not measure:
-
-- **Tool use or action accuracy** — use [Tau-bench](../projects/tau-bench.md) or [AppWorld](../projects/appworld.md) for agentic task completion
-- **Code generation or software engineering** — use [SWE-bench](../projects/swe-bench.md)
-- **Factual knowledge outside the conversation** — use [HotpotQA](../projects/hotpotqa.md) for multi-hop knowledge reasoning
-- **Multi-agent coordination** — no current LoCoMo variant tests memory sharing across agents
-- **Production latency and cost** — LoCoMo reports token counts as a proxy for cost, but actual latency depends on retrieval architecture, embedding model, and infrastructure
-
-If your agent's primary failure mode is forgetting world knowledge (not conversation history), LoCoMo is the wrong benchmark. If your agent operates in short sessions with no cross-session context requirement, single-session evaluation is more appropriate.
-
-## Related Projects Using LoCoMo
-
-- [Mem0](../projects/mem0.md) — claims 26% accuracy gain over OpenAI Memory on LoCoMo, 90% token reduction; self-reported
-- [LongMemEval](../projects/longmemeval.md) — an alternative long-context memory benchmark with different task design
-- [Graphiti](../projects/graphiti.md) — temporal knowledge graph memory system, not yet benchmarked on LoCoMo
-- [Zep](../projects/zep.md) — bi-temporal memory system with strong temporal reasoning; Memori reports outperforming Zep on LoCoMo
-- [MemGPT](../projects/memgpt.md) — pioneered the agent-controlled memory paradigm; predates LoCoMo
+**Adversarial results argue for memory quality gates.** The adversarial regression in memory-rich systems suggests that indiscriminate memory injection is dangerous. Systems that filter or curate memories before injection (rather than injecting everything above a relevance threshold) would likely show different adversarial profiles.
 
 ## Unresolved Questions
 
-**Evaluation standardization.** The field needs a canonical LoCoMo evaluation harness with fixed model versions, retrieval parameters, and scoring code. Without it, published numbers are not reproducible. No organization has taken ownership of this.
+The benchmark doesn't address several practically important questions:
 
-**Adversarial task design.** The adversarial category is the most practically important for production agents, but the benchmark provides no breakdown of *what kind* of adversarial questions cause failures. Understanding whether failures come from misleading premises, temporal contradictions, or semantic traps would guide architectural improvements.
+**Does LoCoMo performance predict production behavior?** The conversations in LoCoMo are controlled and may not reflect the noise, topic drift, and user inconsistency of real deployments. A system tuned to LoCoMo might overfit to its stylistic properties.
 
-**Scaling behavior.** All published evaluations use the full LoCoMo dataset (~9K tokens per conversation, 35 sessions). Production agent deployments may involve hundreds of sessions and millions of tokens of accumulated history. Whether rankings hold at scale is unknown.
+**How does benchmark performance scale?** LoCoMo sessions average 9,000 tokens across 35 sessions. Production agents may accumulate hundreds of sessions. Benchmark results say nothing about retrieval quality or system behavior at 10x or 100x the session count.
 
-**Multi-modal extension.** LoCoMo covers text only. As agents increasingly interact through images, voice, and structured data, a multi-modal variant would better reflect production conditions.
+**Independent validation is absent.** Every number cited above comes from the team that built the system being evaluated. The field needs a neutral evaluation party running all systems against LoCoMo under identical conditions to make results comparable.
 
-## Related Concepts
+**Metrics capture surface agreement, not reasoning quality.** F1 and BLEU-1 measure token overlap. A system that produces a correct answer with different phrasing scores lower than a wrong answer with more matching words. This limits what the benchmark actually measures about reasoning.
 
-- [Long-Term Memory](../concepts/long-term-memory.md) — the capability LoCoMo measures
-- [Agent Memory](../concepts/agent-memory.md) — broader architectural context
-- [Episodic Memory](../concepts/episodic-memory.md) — the cognitive model underlying multi-session recall
-- [Temporal Reasoning](../concepts/temporal-reasoning.md) — the task category where all current systems underperform
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — the baseline approach LoCoMo contrasts against
-- [Context Management](../concepts/context-management.md) — token efficiency, the secondary metric LoCoMo makes visible
-- [LLM-as-Judge](../concepts/llm-as-judge.md) — some LoCoMo evaluations use LLM scoring rather than exact match
+## When to Use LoCoMo (and When Not To)
+
+Use LoCoMo to compare memory systems on conversational recall across multiple dimensions simultaneously. It's the best available benchmark for identifying which memory architecture handles which task type.
+
+Don't use LoCoMo results to predict performance on single-session long-context tasks — that's LongMemEval's domain. Don't treat LoCoMo scores as production performance guarantees; they're relative comparisons under controlled conditions. And don't compare numbers across papers without checking whether teams used the full benchmark vs the LoCoMo10 subset, the same model, and the same metric definition.
+
+## Related
+
+- [Agent Memory](../concepts/agent-memory.md)
+- [Episodic Memory](../concepts/episodic-memory.md)
+- [Long-Term Memory](../concepts/long-term-memory.md)
+- [Temporal Reasoning](../concepts/temporal-reasoning.md)
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
+- [LongMemEval](../projects/longmemeval.md)
+- [Mem0](../projects/mem0.md)
+- [Zep](../projects/zep.md)
+- [Graphiti](../projects/graphiti.md)
+- [LLM-as-Judge](../concepts/llm-as-judge.md)

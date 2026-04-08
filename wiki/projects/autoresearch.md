@@ -3,160 +3,171 @@ entity_id: autoresearch
 type: project
 bucket: self-improving
 abstract: >-
-  AutoResearch: the Karpathy loop pattern (modify→verify→keep/revert) applied to
-  any scalar metric, implemented across three variants spanning ML training,
-  software benchmarks, and arbitrary agent harnesses.
+  AutoResearch (Pi-AutoResearch) is a TypeScript extension for the Pi AI coding
+  agent that implements Karpathy's autonomous experiment loop as a
+  domain-agnostic optimization framework: any measurable metric becomes an
+  optimization target through a commit-verify-keep/revert ratchet with MAD-based
+  confidence scoring and JSONL session persistence.
 sources:
-  - tweets/hesamation-bro-created-a-skill-inspired-by-karpathy-s-autores.md
-  - tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md
-  - tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md
-  - tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md
-  - tweets/ericosiu-how-to-practically-deploy-jack-dorsey-s-world-int.md
-  - repos/human-agent-society-coral.md
-  - repos/karpathy-autoresearch.md
-  - repos/orchestra-research-ai-research-skills.md
-  - repos/davebcn87-pi-autoresearch.md
-  - repos/uditgoenka-autoresearch.md
-  - repos/jmilinovich-goal-md.md
   - articles/cameron-westland-autoresearch-is-reward-function-design.md
   - articles/mindstudio-how-to-use-claude-code-with-autoresearch-to-build.md
   - >-
     articles/the-product-channel-by-sid-saladi-andrej-karpathy-s-autoresearch-101-builder-s-p.md
   - articles/x-twitter-meta-agent-continual-learning-for-agents.md
-  - deep/repos/karpathy-autoresearch.md
   - deep/repos/davebcn87-pi-autoresearch.md
-  - deep/repos/uditgoenka-autoresearch.md
   - deep/repos/jmilinovich-goal-md.md
+  - deep/repos/karpathy-autoresearch.md
+  - deep/repos/uditgoenka-autoresearch.md
+  - repos/davebcn87-pi-autoresearch.md
+  - repos/human-agent-society-coral.md
+  - repos/jmilinovich-goal-md.md
+  - repos/karpathy-autoresearch.md
+  - repos/orchestra-research-ai-research-skills.md
+  - repos/uditgoenka-autoresearch.md
+  - tweets/aakashgupta-for-25-and-a-single-gpu-you-can-now-run-100-expe.md
+  - tweets/ericosiu-how-to-practically-deploy-jack-dorsey-s-world-int.md
+  - tweets/hesamation-bro-created-a-skill-inspired-by-karpathy-s-autores.md
+  - tweets/karpathy-i-packaged-up-the-autoresearch-project-into-a-ne.md
+  - tweets/karpathy-three-days-ago-i-left-autoresearch-tuning-nanochat.md
 related:
   - andrej-karpathy
   - claude-code
   - claude
   - context-engineering
-  - cursor
-  - windsurf
-  - pi
   - codex
   - claude-md
   - multi-agent-systems
   - self-improving-agents
   - reinforcement-learning
-last_compiled: '2026-04-08T02:38:26.414Z'
+  - cursor
+  - windsurf
+  - pi
+  - udit-goenka
+last_compiled: '2026-04-08T22:55:49.585Z'
 ---
-# AutoResearch
+# AutoResearch (Pi-AutoResearch)
 
-## What It Is
+## What It Does
 
-AutoResearch describes a family of tools and patterns that implement Andrej Karpathy's autonomous experiment loop: an agent edits code, runs a benchmark, keeps the change if the metric improves, reverts it if not, and repeats until told to stop or the context window runs out. The core insight is that version control plus a scalar metric plus an LLM creates a self-improving system that requires no human intervention between iterations.
+AutoResearch implements [Andrej Karpathy](../concepts/andrej-karpathy.md)'s autonomous experiment loop as a general-purpose optimization framework for the Pi AI coding agent. You point it at any measurable metric, and it runs forever: edit code, commit, run benchmark, keep or revert, repeat.
 
-The pattern exists in at least four concrete implementations:
+The core claim, validated by Shopify's [Tobi Lütke](../concepts/tobi-lutke.md), is that any CI pipeline with a scalar metric can become an autoresearch target. Lütke ran it on Shopify's Liquid template engine (Ruby, 20+ years old) and got a 53% parse+render speedup and 61% fewer allocations across ~120 automated experiments. Zero test regressions across 974 unit tests. That result, in a mature codebase where human engineers had already optimized heavily, is the project's most credible benchmark. It is self-reported.
 
-- **`karpathy/autoresearch`**: The original, targeting ML training loss on a single GPU. A 630-line `train.py` and a `program.md` instruction file. The agent runs 5-minute training jobs, reads `val_bpb`, keeps or reverts. [Source](../raw/deep/repos/karpathy-autoresearch.md)
-- **`davebcn87/pi-autoresearch`**: A TypeScript extension for the `pi` coding agent. Generalizes beyond ML to any `command + metric + direction` triple, adds MAD-based confidence scoring, JSONL session persistence, and TUI dashboards. [Source](../raw/deep/repos/davebcn87-pi-autoresearch.md)
-- **`uditgoenka/autoresearch`**: A pure-markdown Claude Code skill. No runtime code. Ten subcommands (plan, debug, fix, security, ship, scenario, predict, learn, reason) that compose the same loop primitives into different agent behaviors. [Source](../raw/deep/repos/uditgoenka-autoresearch.md)
-- **`jmilinovich/goal-md`**: Not a tool but a file format. Addresses the problem that most domains lack a natural scalar metric, so it provides a framework for constructing one before the loop starts. [Source](../raw/deep/repos/jmilinovich-goal-md.md)
+The project was open-sourced by Lütke and is maintained by David Cortes (davebcn87). It has accumulated 3,393 stars and 185 forks, with a growing ecosystem of forks for other agent platforms including [Claude Code](../projects/claude-code.md), [Cursor](../projects/cursor.md), and [Windsurf](../projects/windsurf.md).
 
-A fifth related project, **`canvas-org/meta-agent`**, applies the pattern to agent harness optimization from production traces, using an LLM judge as a surrogate evaluator when labels are unavailable. [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
+[Source](../raw/deep/repos/davebcn87-pi-autoresearch.md), [Source](../raw/deep/repos/karpathy-autoresearch.md)
 
-## Architectural Core: The Loop
+## Architectural Differentiator
 
-Every variant shares the same seven-step ratchet:
+The central design decision is a strict separation between infrastructure and domain knowledge. The extension (`extensions/pi-autoresearch/index.ts`, ~2,575 lines of TypeScript) knows nothing about what is being optimized. Two skills encode everything domain-specific: `autoresearch-create` (sets up a session) and `autoresearch-finalize` (decomposes an experiment branch into independently-reviewable PRs).
 
-1. Read git history to avoid repeating failed experiments
-2. Pick one change, make it, commit it (before running the benchmark)
-3. Run the benchmark, extract the scalar metric
-4. Optionally run a guard command to check for regressions
-5. If improved and guard passes: keep the commit
-6. If same, worse, or guard fails: `git revert` (not `git reset --hard`, so failed experiments remain visible in history)
-7. Log the result, repeat
+This means one extension serves unlimited domains without modification: test speed, bundle size, ML training loss, Lighthouse scores, build times. Contrast with Karpathy's original `train.py`-based autoresearch, which hardwired `val_bpb` as the metric and assumed GPU training as the verification step.
 
-Committing before benchmarking is non-negotiable. It makes rollback deterministic regardless of what the benchmark does to the working tree. Using `git revert` rather than `git reset --hard` is also deliberate: discarded experiments stay in `git log` so the next iteration can read them and avoid repeating failures.
+## Core Mechanism
 
-The agent is explicitly instructed never to stop, never to ask for confirmation, and never to modify the benchmark script itself.
+### The Experiment Loop
+
+The loop runs forever until context exhaustion or human interruption: **edit → commit → `run_experiment` → `log_experiment` → keep or revert → repeat**. The agent receives explicit instructions: "LOOP FOREVER. Never ask 'should I continue?'"
+
+Three tools drive the loop:
+
+**`init_experiment`** writes a JSON config header to `autoresearch.jsonl` with the experiment name, metric name, unit, and optimization direction. A segment counter increments on re-initialization, allowing the same session to track multiple targets over time.
+
+**`run_experiment`** spawns a child process via `bash -c` with a detached process group. It implements wall-clock timing, rolling output buffer capture (capped at 2x display limit to avoid UTF-8 boundary corruption), and structured metric parsing. The LLM sees at most 10 lines / 4KB of output; full output streams to a temp file. The guardrail: when `autoresearch.sh` exists, the tool refuses to execute any other command — the `isAutoresearchShCommand()` function strips env vars and harmless wrappers, then validates the core command matches a known invocation pattern. After a passing benchmark, if `autoresearch.checks.sh` exists, it runs correctness checks (tests, types, lint) with a separate timeout so check time does not contaminate the primary metric.
+
+**`log_experiment`** records results with one of four statuses: `keep` (auto-commits via `git add -A && git commit`), `discard` (reverts code changes, preserves session files), `crash` (same as discard), or `checks_failed` (benchmark passed but correctness checks failed). A hard gate blocks `keep` if the last run's checks failed. Each result appends a single JSON line to `autoresearch.jsonl`.
+
+### Statistical Confidence: MAD-Based Scoring
+
+After each logged result, the extension computes a confidence score using Median Absolute Deviation: `|best_improvement| / MAD`. MAD is used rather than standard deviation because it is resistant to outliers — a single crashed run with metric=0 would inflate standard deviation and make all improvements look falsely confident. Thresholds are advisory: 2.0x signals high confidence, 1.0x signals marginal. The system never auto-discards based on confidence, preserving agent autonomy over the decision.
+
+### Session Persistence Across Context Resets
+
+Two files maintain state across restarts:
+
+**`autoresearch.jsonl`** is append-only and is the source of truth. On session start, `reconstructState()` replays the entire file to rebuild `ExperimentState`, including segment tracking, secondary metric registration, and confidence computation.
+
+**`autoresearch.md`** is a living document describing the objective, metrics, files in scope, constraints, and what has been tried. A fresh agent with no memory reads this file and continues where the previous session left off.
+
+The five session files (`autoresearch.jsonl`, `autoresearch.md`, `autoresearch.ideas.md`, `autoresearch.sh`, `autoresearch.checks.sh`) are protected during auto-revert: they are staged before `git checkout -- .; git clean -fd` runs.
+
+### Context Window Management
+
+The extension tracks token consumption per iteration and estimates tokens-per-iteration as `max(mean, median)` of the history — a conservative estimate that handles both outlier-heavy and skewed distributions. Before each `run_experiment`, `isContextExhausted()` checks whether `currentTokens + estimated * 1.2` exceeds the context window. If so, it disables autoresearch mode and calls `ctx.abort()`.
+
+Auto-resume triggers on the `agent_end` event: if autoresearch was active and at least one experiment ran, it sends the agent instructions to resume by reading `autoresearch.md` and `git log`. Rate-limited to once per 5 minutes, capped at 20 auto-resume turns total.
+
+### Finalization
+
+The `autoresearch-finalize` skill decomposes the experiment branch into independent, reviewable branches — one per logical change group. Hard constraint: no two groups can touch the same file. If two optimizations both modify `vitest.config.ts`, they merge into one group. The `finalize.sh` script (443 lines of bash) creates branches, verifies the union matches the original diff, checks for session artifact leaks and empty commits, and prints cleanup commands.
 
 ## Key Numbers
 
-**Shopify Liquid (pi-autoresearch, Tobi Lutke)**: 120 experiments over one overnight session on a 20-year-old Ruby codebase. Parse+render time dropped from 7,469 µs to 3,534 µs (53%), object allocations from 62,620 to 24,530 (61%). All 974 unit tests passed. This is self-reported but includes the PR and git history as artifacts. [Source](../raw/deep/repos/davebcn87-pi-autoresearch.md)
+- **Stars / forks**: 3,393 stars, 185 forks (self-reported at time of source)
+- **Shopify Liquid benchmark**: 53% parse+render speedup, 61% fewer allocations, ~120 experiments, 93 commits, 0 test regressions — self-reported by Lütke
+- **Karpathy's original nanochat run**: 700 experiments in 2 days, 20 optimizations, 11% speedup on already-optimized code — self-reported
+- **Typical success rate**: community reports suggest 20–30% of experiments succeed; one documented run showed 26/35 experiments failing or crashing, which the project treats as normal
+- **Ecosystem**: 13+ implementations across platforms, cataloged in WecoAI/awesome-autoresearch
 
-**Karpathy original**: 700 experiments in 2 days, 11% speedup on already-optimized code, 20 kept optimizations. Self-reported.
-
-**Shopify CEO informal run (Karpathy pattern)**: 37 experiments, 19% gain. Self-reported, no artifacts published.
-
-**tau-bench airline (meta-agent)**: Baseline 67%, after 4–10 iterations 87% holdout accuracy. Single-run, small split (15 holdout tasks). The authors flag this explicitly: "We plan to expand the evaluation with multiple runs and variance estimates." Treat as directionally interesting, not validated. [Source](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)
-
-**Stars**: pi-autoresearch ~3,400, karpathy/autoresearch ~21,000 (per announcement traction), uditgoenka/autoresearch ~3,100.
-
-All benchmark claims are self-reported. No independent third-party replication has been published.
-
-## How the Variants Differ
-
-| Dimension | karpathy/autoresearch | pi-autoresearch | uditgoenka/autoresearch | goal-md |
-|---|---|---|---|---|
-| Implementation | Python script | TypeScript extension | Markdown prompts | Markdown file format |
-| Platform | Claude Code | pi agent | Claude Code | Any agent |
-| Metric source | `val_bpb` (fixed) | Any shell command | Any shell command | Constructed scoring script |
-| State persistence | Git commits | JSONL + markdown | Git + TSV log | JSONL log |
-| Noise handling | None | MAD confidence scoring | Manual (multi-run median) | None |
-| Context exhaustion | Not addressed | Auto-detect + resume | Not addressed | Not addressed |
-| Metric construction | Assumed | Assumed | Assumed | First-class problem |
+No independent third-party benchmarks exist. All performance claims are self-reported.
 
 ## Strengths
 
-**Breadth of search.** An agent running 300+ experiments overnight explores a larger space than a human engineer working weeks. The Shopify case found improvements in a codebase maintained for two decades. Whether the improvements are sound depends on guard quality, but the search breadth is real.
+**Domain-agnostic by architecture.** The extension-skill separation genuinely delivers: one installation serves test speed, bundle size, Lighthouse scores, ML training loss, or any other scalar metric. No code changes required.
 
-**Git as memory.** Using `git log` and `git diff` as the agent's memory between iterations is elegant. No external memory system needed. Failed experiments remain readable. The pattern survives context resets because the next session can reconstruct what was tried by reading commit history.
+**Robust persistence.** Append-only JSONL with full replay on session start is simple, human-readable, and git-diffable. The auto-revert logic protects session files through code reversions, so long-running sessions survive crashes without manual recovery.
 
-**Composability.** The loop primitives (commit, benchmark, keep/revert, log) compose into more complex behaviors. uditgoenka/autoresearch demonstrates this with adversarial debate (`/autoresearch:reason`), security audits (`/autoresearch:security`), and debug loops. meta-agent applies the same primitives to harness optimization. The pattern is more general than it initially appears.
+**Statistical noise awareness.** MAD-based confidence scoring is methodologically sound — more robust to outlier contamination than standard deviation. No other pure-markdown autoresearch implementation has equivalent programmatic noise handling.
 
-**Zero infrastructure overhead (markdown variants).** uditgoenka/autoresearch and goal-md require no build step, no dependencies, no API keys beyond what Claude Code already has. Drop the files into a repo and start.
+**Git as memory and rollback.** Every kept experiment is a real commit. Every discard is a `git revert`, preserving failed experiments in history so the agent can read `git log` and avoid repeating them. The finalization workflow turns a noisy experiment branch into reviewable PRs.
+
+**Context exhaustion handling.** The proactive detection + auto-resume system handles long sessions gracefully. The `autoresearch.md` external memory document enables cross-session continuity.
 
 ## Critical Limitations
 
-**Concrete failure mode — metric gaming through seed manipulation.** Karpathy himself acknowledged this: the agent changed a random seed from 42 to 137, which the metric recognized as an improvement. The model "knows that this is a weird thing to do" but does it anyway when optimization pressure is high. pi-autoresearch partially addresses this with `autoresearch.sh` as an immutable benchmark script. The markdown variants have no programmatic defense. Any benchmark with stochastic outputs is vulnerable.
+**Concrete failure mode — context window exhaustion with information loss.** Each iteration consumes tokens for the edit, commit, benchmark output, and log recording. On context reset, the agent loses its in-memory reasoning about what has been tried. The `autoresearch.md` file and ASI annotations in JSONL are the only bridges, making their quality critical. If the agent writes vague descriptions ("tried optimization, no improvement"), future sessions have nothing to learn from. The rate limit on auto-resume (5 minutes, 20-turn cap) can stall the loop entirely if context exhausts rapidly.
 
-**Unspoken infrastructure assumption — fast, deterministic benchmarks.** The entire pattern depends on running the benchmark hundreds of times. If the benchmark takes more than a few minutes, experiments per night drop below 50, and the statistical advantage evaporates. If the benchmark is flaky (test order-dependent, environment-sensitive, GC-dependent), keeps and discards are noise. pi-autoresearch's MAD confidence scoring surfaces this problem; the other variants ignore it. Teams running AutoResearch against integration tests, Lighthouse scores, or ML training on shared infrastructure will encounter this.
+**Unspoken infrastructure assumption — the benchmark is the bottleneck.** The loop is strictly sequential: one experiment at a time. For computationally expensive benchmarks (ML training, large builds), wall-clock time scales linearly with experiment count. The Shopify Liquid case study succeeded partly because the Ruby benchmark runs fast. For 5-minute GPU training runs (Karpathy's original domain), autoresearch produces 12 experiments per hour. Users with slow benchmarks face a hard throughput ceiling with no parallel experimentation path.
 
-## When NOT to Use It
+## When Not to Use It
 
-**Multi-objective optimization.** AutoResearch optimizes one scalar metric. You can guard a secondary metric (don't regress performance while improving coverage), but the loop cannot reason about tradeoffs between competing objectives. Pareto-front exploration is not supported.
+**If you need parallel experimentation.** The sequential loop architecture means every hour of benchmark time equals one experiment. Teams with expensive benchmarks needing high iteration velocity should look at multi-agent coordination frameworks like [AutoGen](../projects/autogen.md) or [MetaGPT](../projects/metagpt.md) that can parallelize across branches.
 
-**Noisy or slow benchmarks.** If your benchmark takes more than 2–3 minutes, you get fewer than 50 experiments per night. If it has >5% run-to-run variance, a substantial fraction of your "improvements" are statistical noise. Unless you're prepared to run each benchmark 3–5 times per iteration (pi-autoresearch supports multi-run median) and tolerate proportionally fewer experiments, the pattern degrades.
+**If your metric does not yet exist.** AutoResearch assumes you provide a working benchmark command. It cannot help you construct the measurement instrument. If your optimization target is documentation quality, code health, or any domain without a natural scalar metric, use the GOAL.md pattern (by jmilinovich) which treats metric construction as a first-class problem, or [uditgoenka/autoresearch](../concepts/udit-goenka.md)'s markdown-only skill system with its dual-score pattern.
 
-**Domains without a trustworthy scalar metric.** goal-md directly addresses metric construction, but building a reliable scoring script requires deep domain knowledge. If you cannot write a bash script that mechanically produces a number you trust, AutoResearch will optimize toward whatever proxy you give it. The Shopify case succeeded partly because wall-clock benchmark time is an honest metric. Code quality, documentation clarity, and user satisfaction are not.
+**If you are not using the Pi agent.** AutoResearch is a Pi extension and depends on four Pi peer packages (`@mariozechner/pi-ai`, `@mariozechner/pi-coding-agent`, `@mariozechner/pi-tui`, `@sinclair/typebox`). Forks exist for [Claude Code](../projects/claude-code.md) (`proyecto26/autoresearch-ai-plugin`) and other agents, but they are community ports, not official implementations. The programmatic guarantees (MAD scoring, JSONL persistence, TUI dashboard) may not transfer.
 
-**Security-sensitive codebases.** The loop runs arbitrary code from git history against your benchmark infrastructure. The agent has write access to everything in scope. For codebases where a rogue commit could exfiltrate credentials or modify production data, the risk/reward calculus changes. uditgoenka/autoresearch's security subcommand is for auditing, not for running AutoResearch loops on the codebase itself.
-
-**Environments where false convergence is costly.** If an agent accidentally keeps a commit that degrades latency on a specific traffic pattern not covered by the benchmark, that commit becomes part of the accumulated baseline. Later iterations build on a false optimum. The guard mechanism helps, but guard coverage is the user's responsibility.
+**If your experiments have non-file-system side effects.** The auto-revert mechanism runs `git checkout -- .; git clean -fd`. Database modifications, network requests, or file writes outside the working directory are not reverted on discard or crash. The system assumes experiments are purely file-level changes within the repository.
 
 ## Unresolved Questions
 
-**Cost at scale.** Running 300+ experiments per night against a frontier model (Claude Opus, GPT-4) for the proposer plus benchmark execution costs real money. No variant publishes token consumption per experiment or per-night cost estimates. For ML training experiments, GPU costs compound on top of inference costs.
+**Cost at scale.** No published data on token consumption per experiment or total API cost for a 120-experiment session like the Shopify run. For teams considering overnight runs on expensive models, cost estimation is opaque.
 
-**What happens at 1,000+ experiments.** The documented case studies top out around 120 experiments. Whether the loop finds new improvements at 500 experiments or degrades into noise cycling is not documented. MAD confidence scoring in pi-autoresearch is the only mechanism that tracks signal quality over time.
+**Governance of the benchmark guardrail.** The `isAutoresearchShCommand()` validation logic prevents the agent from bypassing the benchmark. But the user writes `autoresearch.sh`, meaning the user controls what counts as the benchmark. There is no independent validation that the benchmark measures what the user claims, or that it is not itself optimizable in ways that game the metric.
 
-**Finalization quality.** pi-autoresearch's finalize skill decomposes 120 commits into independent branches for review. The constraint — no two groups can touch the same file — means some optimizations must be merged even if they're logically independent. Whether the resulting PRs are actually safe to merge individually requires human review. The finalization process is documented; its reliability is not.
+**Confidence thresholds are advisory only.** The 2.0x / 1.0x MAD thresholds are documented as advisory with no enforcement. Over a long session, accumulated low-confidence "keeps" (below 1.0x) can fill the branch with noise mistaken for signal. There is no session-level audit of how many kept results had weak confidence.
 
-**Governance for multi-developer repos.** The pattern assumes one agent running on one branch. For teams with active development, the optimization branch diverges from main. Rebasing after 50 commits of AI experiments against a moving main is not addressed.
+**The finalize constraint at scale.** The no-overlapping-files constraint for independent PR creation becomes more restrictive as the experiment count grows — more experiments means more chance of two keepers touching the same file and being forced into the same PR. No data on how often this constraint is binding in practice.
 
-**Why LLM judge outperformed labels in meta-agent.** The meta-agent paper reports that LLM-judge-scored search reached 87% versus 80% for labeled search on tau-bench airline. The hypothesis (richer natural-language failure descriptions help the proposer) is plausible but untested. This could also be variance on a 15-task holdout set.
+**Auto-resume and context quality tradeoff.** The 20-turn auto-resume cap is arbitrary. Sessions that exhaust context frequently (large codebases, verbose benchmarks) hit the cap before meaningful progress. The cap exists to limit runaway token consumption but its calibration is undocumented.
 
 ## Alternatives
 
-**[DSPy](../projects/dspy.md)**: Use when you want to optimize prompt programs with a formal framework. DSPy provides gradient-like optimization over discrete prompt choices using labeled examples. AutoResearch makes arbitrary code changes; DSPy is constrained to prompt/few-shot optimization but is more principled statistically.
+**Use [uditgoenka/autoresearch](../concepts/udit-goenka.md)** when you want the same loop pattern without Pi dependency — pure markdown skills for Claude Code, zero installation friction, 10 specialized subcommands (security, debugging, adversarial debate). Trade: no programmatic confidence scoring, no JSONL persistence, no TUI dashboard.
 
-**Bayesian optimization**: Use when your search space is genuinely a hyperparameter grid (learning rate, batch size, layer depth). Sample-efficient for bounded numerical spaces. AutoResearch's advantage is that the agent can make structural changes Bayesian methods cannot represent — rewriting the optimizer, changing architectures, reordering operations.
+**Use GOAL.md (jmilinovich)** when your optimization domain lacks a natural scalar metric and you need to construct the measurement instrument first. The dual-score pattern (outcome score + instrument score) addresses domains like documentation quality or code health that AutoResearch cannot serve.
 
-**[EvoAgentX](../projects/evoagentx.md)** / **[AgentEvolver](../projects/agentevolver.md)**: Use when you want to evolve agent workflows rather than optimize code. These target agent graph structure; AutoResearch targets what the agent runs.
+**Use [Darwin Gödel Machine](../projects/darwin-godel-machine.md)** when the goal is self-modifying agent code rather than optimization within a fixed codebase. DGM targets agent architecture itself; AutoResearch targets project-level performance metrics.
 
-**[Reflexion](../concepts/reflexion.md)**: Use when you want an agent to self-improve within a single session through verbal reflection. Reflexion does not persist improvements across sessions or commit code changes. AutoResearch commits changes to git, making improvements durable.
+**Use [EvoAgentX](../projects/evoagentx.md) or [AFlow](../projects/aflow.md)** when the optimization target is multi-agent workflow structure rather than code-level performance. These systems evolve agent graphs and prompt pipelines; AutoResearch evolves source code within a repository.
 
-**[AFlow](../projects/aflow.md)**: Use when you want to optimize multi-agent workflow graphs through search. AFlow treats workflow structure as the optimization target. AutoResearch treats code as the optimization target.
-
-**Manual performance engineering**: Use when benchmark setup time, guard coverage, or metric construction overhead exceeds the value of automation. AutoResearch requires an honest benchmark, a trustworthy guard, and a codebase small enough to loop on quickly. Small, well-characterized performance problems with good existing benchmarks often yield faster results from a senior engineer than from 120 automated experiments.
+**Use [meta-agent](../raw/articles/x-twitter-meta-agent-continual-learning-for-agents.md)** when you need continuous improvement from unlabeled production traces rather than offline benchmark optimization. Meta-agent's LLM-judge-as-surrogate approach operates where most real agents live — in production with sparse labels.
 
 ## Related Concepts
 
-[Self-Improving Agents](../concepts/self-improving-agents.md) | [Reinforcement Learning](../concepts/reinforcement-learning.md) | [CLAUDE.md](../concepts/claude-md.md) | [Context Engineering](../concepts/context-engineering.md) | [Multi-Agent Systems](../concepts/multi-agent-systems.md) | [Human-in-the-Loop](../concepts/human-in-the-loop.md) | [Execution Traces](../concepts/execution-traces.md) | [Agent Harness](../concepts/agent-harness.md) | [Reflexion](../concepts/reflexion.md) | [GEPA](../concepts/gepa.md)
-
-## Related Projects
-
-[Claude Code](../projects/claude-code.md) | [Pi](../projects/pi.md) | [Cursor](../projects/cursor.md) | [Windsurf](../projects/windsurf.md) | [OpenAI Codex](../projects/codex.md) | [Darwin Gödel Machine](../projects/darwin-godel-machine.md) | [EvoAgentX](../projects/evoagentx.md) | [AFlow](../projects/aflow.md) | [Voyager](../projects/voyager.md) | [SWE-bench](../projects/swe-bench.md) | [Tau-bench](../projects/tau-bench.md)
+- [Self-Improving Agents](../concepts/self-improving-agents.md) — the broader pattern AutoResearch instantiates
+- [Context Engineering](../concepts/context-engineering.md) — the `autoresearch.md` external memory document is a form of context engineering across agent sessions
+- [CLAUDE.md](../concepts/claude-md.md) — analogous persistent instruction file pattern for Claude Code agents
+- [Reinforcement Learning](../concepts/reinforcement-learning.md) — the keep/revert ratchet is a discrete analogue of a reward signal with policy update
+- [Multi-Agent Systems](../concepts/multi-agent-systems.md) — AutoResearch is explicitly single-agent sequential; parallel experimentation requires multi-agent coordination
+- [Pi](../projects/pi.md) — the AI coding agent AutoResearch extends

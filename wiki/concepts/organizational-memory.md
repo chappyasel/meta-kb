@@ -3,149 +3,158 @@ entity_id: organizational-memory
 type: concept
 bucket: agent-memory
 abstract: >-
-  Organizational memory is the persistent, shared knowledge layer enabling
-  multi-agent systems and institutions to act on accumulated decisions,
-  procedures, and context rather than reconstructing them from scratch each
-  session.
+  Organizational memory is knowledge that persists across agent/human
+  interactions—decisions, precedents, exceptions—distinct from individual
+  recall; its key differentiator is capturing *why* decisions happened, not just
+  what happened.
 sources:
+  - deep/repos/mem0ai-mem0.md
   - tweets/akoratana-context-graphs-will-be-to-the-2030s-what-databases.md
   - tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md
   - tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md
-  - deep/repos/mem0ai-mem0.md
 related: []
-last_compiled: '2026-04-08T03:01:07.747Z'
+last_compiled: '2026-04-08T23:18:10.851Z'
 ---
 # Organizational Memory
 
 ## What It Is
 
-Organizational memory is the accumulated knowledge, decisions, procedures, and reasoning that a group retains and can act on over time. In traditional organizations, this spans written policies, databases, training materials, and the tacit knowledge carried in people's heads. In agent systems, it is the equivalent layer: shared state that multiple agents can read, update, and reason from across sessions, tasks, and team boundaries.
+Organizational memory is the accumulated knowledge that survives individual interactions, personnel changes, and session boundaries within a system—whether that system is a company, a multi-agent pipeline, or a long-running AI assistant. It includes facts, preferences, and procedures, but its defining characteristic is something harder to capture: decision traces. The reasoning behind choices. The exceptions granted and why. The precedents that quietly govern future behavior.
 
-The concept predates AI by decades. Organization theory borrowed from cognitive science, treating firms as information-processing systems where "what the organization knows" determines what it can do. The core problem has always been the same: knowledge that exists in one node is unavailable to others unless deliberately encoded, stored, and retrieved.
+This distinguishes organizational memory from simpler memory concepts. [Semantic Memory](../concepts/semantic-memory.md) stores facts. [Episodic Memory](../concepts/episodic-memory.md) stores events. Organizational memory stores *judgment*—the connective tissue between what was observed and what was decided.
 
-What changes with LLM-based agents is both the feasibility and the urgency. Agents can now extract, summarize, and query organizational knowledge at machine speed, and they fail badly without it. A customer support agent that cannot access precedent from last quarter's similar case will regenerate the same wrong answer. A coding agent that does not know your team's conventions will produce code that passes tests but fails review. Organizational memory is what separates an agent that improves with use from one that restarts at zero every session.
+In agent systems, organizational memory answers questions like: Why did we apply a 20% discount when policy caps it at 10%? Which vendor exception got approved last quarter, and who approved it? When an agent hits an edge case it hasn't seen before, organizational memory lets it search for analogous precedents rather than defaulting to policy or hallucinating.
 
 ## Why It Matters
 
-The canonical coordination problem in large organizations is this: output scales roughly linearly with headcount, but coordination overhead scales super-linearly. At ten people, everyone knows what everyone else knows. At ten thousand, the majority of the headcount exists to synchronize information rather than produce anything. Hierarchy is a lossy compression algorithm: a manager summarizes their team's reality for their director, the director summarizes eight such summaries for a VP, and by the time anything reaches the top the signal is severely degraded. [Source](../raw/tweets/akoratana-context-graphs-will-be-to-the-2030s-what-databases.md)
+Large organizations spend 40-60% of payroll on coordination—managers, syncs, status reports, planning sessions. This overhead exists because individual knowledge doesn't propagate reliably. A VP approves a discount on a Zoom call. A Slack thread captures a workaround. An onboarding conversation carries a tribal rule about healthcare customers. None of it lands in the CRM. The next agent or employee hits the same situation and re-learns the same lesson.
 
-Multi-agent systems hit the same wall faster. Each agent starts with context only from its immediate task. Without shared memory, a ten-agent pipeline reconstructs common knowledge ten times. Errors repeat. Preferences re-elicited. Decisions made inconsistently. Organizational memory breaks this pattern by making accumulated knowledge addressable to any agent in the system.
+The cost compounds. Output scales roughly linearly with headcount, but coordination overhead scales faster because every new actor creates new information pathways that need maintenance. Hierarchy compresses this—managers summarize upward—but compression is lossy and slow. By the time a decision rationale reaches someone who needs it, it has been filtered through several layers of human interpretation.
 
-The deeper shift is the difference between memory and judgment. Storing facts is memory. Storing the *reasoning* behind decisions — which exceptions were granted, which trade-offs were made, which precedents apply — is organizational judgment. This is what enables agents to handle novel cases consistently with how the organization has acted before, without requiring a human to carry that context mentally. [Source](../raw/tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md)
+Agent systems face the same problem at scale. A [Multi-Agent System](../concepts/multi-agent-systems.md) with ten specialized agents needs shared context to avoid redundant work, conflicting decisions, and repeated mistakes. Without organizational memory, each agent operates with only its local context, and coordination requires expensive orchestration overhead.
+
+The [Context Graph](../concepts/context-graphs.md) framing captures this well: organizational memory isn't just better access to existing data. It's capturing the category of truth that was never stored in the first place—the decision traces that connect data to action. [Source](../raw/tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md)
 
 ## How It Works
 
-Organizational memory in agent systems takes several distinct forms that are often conflated.
+### What Gets Stored
 
-### Factual and Procedural Memory
+Organizational memory systems must capture at least three categories of knowledge:
 
-Shared facts and procedures are the most straightforward tier. This includes company policies, product specifications, coding standards, customer preferences, and team conventions. In practice, these live in vector databases queried at task time, structured wikis the agent reads at context load, or instruction files like [CLAUDE.md](../concepts/claude-md.md) that are automatically injected into agent context. [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) is the standard mechanism for querying this tier at scale.
+**Facts and preferences.** The standard target of most memory systems: user names, stated preferences, account details, known constraints. These are relatively easy to extract and store. Tools like [Mem0](../projects/mem0.md) handle this tier with a two-pass LLM pipeline—extract atomic facts, then reconcile them against existing storage via ADD/UPDATE/DELETE operations.
 
-Tools like [Mem0](../projects/mem0.md) operationalize this for user and organizational memory through a two-pass LLM pipeline: first extracting atomic facts from conversations, then reconciling them against existing stored memories to decide ADD/UPDATE/DELETE/NONE operations. The organizational tier uses the same storage mechanism as individual user memory, scoped by `agent_id` rather than `user_id` — there is no separate architectural layer, just metadata filtering on a shared vector collection. [Source](../raw/deep/repos/mem0ai-mem0.md)
+**Procedures and skills.** How tasks get done, not just what gets decided. [Procedural Memory](../concepts/procedural-memory.md) and [Agent Skills](../concepts/agent-skills.md) cover this territory. In practice, these often live in markdown files ([CLAUDE.md](../concepts/claude-md.md) being the canonical example), agent skill libraries, or structured workflow templates.
 
-### Decision Traces
+**Decision traces.** The hardest category. A decision trace records: what inputs were gathered, what policy applied, what exception was invoked, who approved, and what the outcome was. Most enterprise systems capture only the final state—the CRM shows "20% discount"—without preserving the reasoning that justified deviation from a 10% cap. Decision traces are what enable genuine precedent-based reasoning rather than policy-literal execution.
 
-The harder and more valuable tier is decision lineage: not what the policy says, but what actually happened when the policy met a specific situation. Which exceptions were granted. Which VP approved the 20% discount when policy caps at 10%. Which escalation path was used for a similar incident last quarter.
+### Storage Mechanisms
 
-This information currently lives in Slack threads, Zoom calls, and the working memory of specific employees. When those employees leave, it goes with them. When agents handle decisions without capturing this context, each similar case starts from scratch.
+Different substrates suit different categories:
 
-A context graph — a queryable, time-stamped record of decision traces connecting entities across systems — addresses this structurally. Unlike a document store, it preserves not just the outcome but the reasoning chain: which inputs were gathered, which policy was evaluated, which exception route was invoked, who approved, and what state was written. Over time these traces become precedent: "we handled a similar case last quarter under policy v3.2 with a VP exception, here is the link." [Source](../raw/tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md)
+**Vector stores** work well for semantic retrieval of facts and summaries. A query like "what do we know about this customer's payment history" retrieves relevant chunks by embedding similarity. [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) depends on this. Failure mode: flat vector stores lose relational structure. Knowing that Customer X got a discount tells you nothing about why, or whether that precedent applies to Customer Y.
 
-### Procedural Improvements Over Time
+**Knowledge graphs** preserve relational structure. [Graphiti](../projects/graphiti.md) and [GraphRAG](../projects/graphrag.md) build entity-relationship graphs where a node for "discount approval" connects to nodes for "customer tier," "approver," "policy version," and "prior precedent." Graph traversal can follow reasoning chains that vector similarity cannot. This matters for organizational memory because decisions are rarely isolated—they reference prior decisions, policies, and entities in structured ways.
 
-A third tier is procedural learning from errors. When an agent makes a mistake and a human corrects it, that correction can be captured and elevated into shared memory so the same error does not repeat across the agent fleet. Systems like the OpenClaw self-improving agent skill operationalize this with structured markdown files: `.learnings/ERRORS.md` captures failures, `.learnings/LEARNINGS.md` captures corrections, and critical lessons get promoted to `AGENTS.md` as permanent agent context. [Source](../raw/tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md)
+**Structured files** serve procedural and preference memory in human-readable form. The self-improving agent pattern in [OpenClaw](../projects/openclaw.md) uses `.learnings/ERRORS.md`, `.learnings/LEARNINGS.md`, and `.learnings/FEATURE_REQUESTS.md` as a simple organizational memory layer. Agents review these files before major tasks; recurring issues get promoted to `AGENTS.md` for permanent recall. [Source](../raw/tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md) The simplicity is a feature—these files are auditable, version-controlled, and human-editable.
 
-This feedback loop is organizationally significant because it allows domain-specific calibration without retraining. Day one, the agent makes generic errors. After thirty days of logged corrections, it knows your team's conventions, your customer's preferences, your exception patterns. The knowledge compounds.
+**Hybrid architectures** combine these. [Zep](../projects/zep.md) and [Mem0](../projects/mem0.md) use vector stores as the primary retrieval layer, with optional graph overlays for relationship-aware queries. The graph adds structure; the vector store adds coverage for fuzzier queries.
 
-This is a form of [Continual Learning](../concepts/continual-learning.md) applied at the organizational rather than model level: the base model weights stay fixed, but the knowledge layer evolves.
+### Retrieval and Injection
 
-## Storage Mechanisms
+Stored organizational memory is only useful when injected at the right moment. The standard pipeline:
 
-Organizational memory can be stored in several ways, each with different retrieval properties:
+1. An agent receives a task or query
+2. It retrieves relevant memory via semantic search, graph traversal, or structured lookup
+3. Retrieved memory enters context—either as system prompt injection, tool call results, or [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) chunks
+4. The agent acts, generating a new decision trace
+5. That trace gets written back to memory
 
-**Vector databases** ([Vector Database](../concepts/vector-database.md), [Semantic Search](../concepts/semantic-search.md)): Effective for unstructured facts, policies, and conversations. Retrieval is by semantic similarity. Loses relational structure — cannot answer "what decisions were made about Account X by Approver Y using Policy Z."
+The write-back step is where most systems fail. Systems optimized for read performance (warehouses, document stores) receive data after decisions happen via ETL pipelines. By then, the context is gone—you can see what happened but not why. Genuine organizational memory requires the write to happen at decision time, from within the execution path, before the reasoning context evaporates. [Source](../raw/tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md)
 
-**Knowledge graphs** ([Knowledge Graph](../concepts/knowledge-graph.md), [GraphRAG](../projects/graphrag.md), [Graphiti](../projects/graphiti.md)): Store entities and relationships explicitly. Enable queries that cross entity boundaries: "all exceptions granted to healthcare customers in the last six months." Require more structured ingestion and are computationally heavier. [Graphiti](../projects/graphiti.md) adds bi-temporal edges, so each fact has both a "valid time" (when it was true in the world) and a "transaction time" (when it was recorded), enabling point-in-time queries.
+### Context Graphs as Organizational Memory Infrastructure
 
-**Context graphs**: A superset of knowledge graphs that includes decision traces as first-class nodes. The graph grows as agents execute: each workflow run emits a trace that connects the input entities, the policies evaluated, the agent actions taken, and the human approvals received. This is the architectural pattern emerging as the organizational memory primitive for enterprise agent systems. [Source](../raw/tweets/akoratana-context-graphs-will-be-to-the-2030s-what-databases.md)
+A context graph is the structural form organizational memory takes when decision traces accumulate at scale. It is not the model's chain-of-thought—it's a persistent, queryable record of decisions stitched across entities and time. Nodes are the entities the organization cares about (accounts, policies, agents, incidents, approvers). Edges are decision events: "exception granted," "policy applied," "precedent cited."
 
-**Flat files and wikis**: [CLAUDE.md](../concepts/claude-md.md)-style instruction files, [Zettelkasten](../concepts/zettelkasten.md)-style note systems, [Markdown Wiki](../concepts/markdown-wiki.md) structures. Low-latency access, human-readable, easy to maintain manually. Poor at scale — keyword search degrades with volume, no structured relationship traversal.
+Over time, this graph becomes queryable precedent. An agent evaluating a discount request can ask: "Has this customer tier received exceptions before? Under what conditions? Who approved?" This is organizational judgment—not just rule-following, but precedent-aware reasoning.
 
-**Hybrid systems**: Most production deployments combine a vector store for semantic recall with a relational or graph store for structured queries and a flat-file layer for high-priority procedural instructions that should always be in context.
+This is the distinction that separates organizational memory from other memory concepts. [Semantic Memory](../concepts/semantic-memory.md) tells you what. [Episodic Memory](../concepts/episodic-memory.md) tells you when. [Long-Term Memory](../concepts/long-term-memory.md) tells you it persisted. Organizational memory tells you *why it was decided*, and whether that decision should govern future behavior.
 
-## Scope and Scoping
+## Who Implements It
 
-Organizational memory exists at multiple scopes that determine who can read and write it:
+### In Enterprise Software
 
-- **User memory**: Scoped to one individual. Not organizational.
-- **Agent memory**: Scoped to a specific agent role. Shared across all instances of that agent.
-- **Team memory**: Shared across a defined group of agents and humans.
-- **Organizational memory**: Shared across the entire deployment, typically read-only for most agents.
+Traditional enterprise systems (CRM, ERP, helpdesk) store current state, not decision lineage. Salesforce records the final opportunity value, not the approval chain that justified a deviation. This is a structural limitation: systems built for current-state retrieval cannot retroactively capture the reasoning context that existed at decision time.
 
-The distinction between scopes is not always clean in implementation. [Mem0](../projects/mem0.md)'s organizational tier is implemented as metadata filtering (`agent_id` field) on the same vector collection as individual user memories — not a separate system. This means an organizational-scoped write with an incorrect `agent_id` silently lands in the wrong scope with no validation error. [Source](../raw/deep/repos/mem0ai-mem0.md)
+Newer agent-native systems try to sit in the execution path rather than receive data after the fact. PlayerZero (production engineering), Maximor (finance), and Regie (sales) each position themselves as the orchestration layer that sees cross-system context at decision time and persists it as a durable record. [Source](../raw/tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md)
+
+### In Agent Memory Systems
+
+[Mem0](../projects/mem0.md) implements the fact/preference tier of organizational memory at the "org" scope—a shared memory collection filtered by `org_id` rather than `user_id`. Multiple agents or users write to and read from the same pool. This works for shared preferences and institutional facts; it doesn't capture decision traces.
+
+[Graphiti](../projects/graphiti.md) and [Zep](../projects/zep.md) go further with temporal knowledge graphs that support bi-temporal reasoning: what was known when, and when did facts become valid or invalid. These structures better support organizational memory because decisions reference the state of knowledge at the time they were made, not current state.
+
+[MemGPT](../projects/memgpt.md) and [Letta](../projects/letta.md) give agents explicit tools to self-manage their own memory, including shared memory banks accessible across agent instances. This enables organizational memory at the agent level—one agent's learnings can persist and become accessible to other agents in the same system.
+
+The self-improving agent pattern exemplified by tools like [OpenClaw](../projects/openclaw.md) turns error logs and human corrections into a lightweight organizational memory: errors go to `.learnings/ERRORS.md`, persist across sessions, and get reviewed before future tasks. After 30 days, the agent has internalized domain-specific patterns it wasn't trained on. [Source](../raw/tweets/coreyganim-how-to-make-your-openclaw-agent-learn-from-its-mis.md)
+
+### In Multi-Agent Systems
+
+[Multi-Agent Systems](../concepts/multi-agent-systems.md) need organizational memory to coordinate without exponential overhead. Without shared memory, every agent operates locally and coordination requires expensive orchestration. With organizational memory, agents can query prior decisions, check for conflicting precedents, and avoid re-solving solved problems.
+
+[CrewAI](../projects/crewai.md), [AutoGen](../projects/autogen.md), and [LangGraph](../projects/langgraph.md) each support shared memory constructs between agents. The architectural question is who writes to organizational memory and when—typically the orchestrator captures decision context that individual agents cannot see in isolation.
 
 ## Failure Modes
 
-**Stale knowledge**: Organizational memory that was accurate when written becomes incorrect as circumstances change. A policy updated in 2024 but not reflected in the memory layer means agents act on outdated rules. Vector stores grow monotonically without automatic invalidation. Knowledge graphs require explicit deletion or temporal scoping to handle this.
+### Capture Failures
 
-**Scope leakage**: Information written at the individual scope but read organizationally, or vice versa. Multi-tenant systems where organizational memory contains PII or sensitive business context create significant risk if scope enforcement is missing from retrieval.
+The most common failure: organizational memory doesn't get written. Decisions happen outside instrumented systems—in Slack, on Zoom calls, in verbal agreements. The execution path doesn't include a write operation. After the fact, ETL pipelines can reconstruct what happened but not why. Systems that sit outside the execution path fundamentally cannot capture decision traces.
 
-**Tribal knowledge that never gets captured**: The highest-value organizational knowledge — the exception logic, the informal precedents, the "we always give healthcare customers extra time" rules — exists in people's heads and in Slack. Agents do not encounter it unless it has been deliberately encoded. Systems of record capture current state; they do not capture decision reasoning. This gap is the primary reason decision traces matter: without explicit capture at decision time, the reasoning is lost. [Source](../raw/tweets/jayagup10-ai-s-trillion-dollar-opportunity-context-graphs.md)
+### Retrieval Failures
 
-**Write conflicts in multi-agent systems**: Multiple agents writing to shared organizational memory concurrently can produce contradictory entries. [Mem0](../projects/mem0.md) has no locking on vector store writes — concurrent `add()` calls for the same scope can produce duplicates. Knowledge graph systems with MERGE semantics (like [Graphiti](../projects/graphiti.md)'s Cypher-based approach) handle this more robustly. [Source](../raw/deep/repos/mem0ai-mem0.md)
+Memory gets written but not retrieved at the right moment. This is [Context Engineering](../concepts/context-engineering.md) failure—the retrieval query doesn't surface the relevant precedent, or the retrieved precedent doesn't get injected into the agent's context window at decision time. [Lost in the Middle](../concepts/lost-in-the-middle.md) effects can cause injected organizational memory to be ignored even when present.
 
-**Recall without reasoning**: Retrieving the *what* without the *why* is insufficient for exception handling. A policy document that says "standard discount is 10%" does not tell an agent why this particular customer received 20% last quarter. Without decision traces, agents cannot reason from precedent — they can only follow the written rule.
+### Staleness and Conflict
 
-**Governance debt**: Shared memory accumulates without cleanup. The team that configured organizational memory three months ago may have left. [Mem0](../projects/mem0.md)'s documentation explicitly notes that organizational memory "depends on owner maintenance" for governance. In practice this means knowledge stores grow until they contain contradictory, outdated, and irrelevant entries that degrade retrieval quality.
+Organizational memory accumulates without pruning. A precedent from two years ago may contradict current policy. Without temporal reasoning and explicit invalidation, agents may retrieve stale organizational knowledge and apply it confidently. [Graphiti](../projects/graphiti.md) addresses this with bi-temporal edges and soft deletion; simpler systems don't.
 
-## Relationship to Other Memory Types
+Conflicting precedents are a harder problem. Two prior decisions may justify opposite actions on an ambiguous case. Organizational memory systems that store precedents without conflict resolution mechanisms pass this problem to the agent, which may lack the context to adjudicate.
 
-Organizational memory is one tier in the full agent memory stack. The cognitive memory model maps as follows:
+### Governance Failure
 
-- [Short-Term Memory](../concepts/short-term-memory.md): The current context window. Ephemeral.
-- [Episodic Memory](../concepts/episodic-memory.md): Records of past interactions. Session- or user-scoped.
-- [Semantic Memory](../concepts/semantic-memory.md): General facts and concepts. Can be user- or org-scoped.
-- [Procedural Memory](../concepts/procedural-memory.md): How to do things. Often encoded as agent instructions or skills.
-- Organizational Memory: The shared layer spanning all of the above, accessible across agent boundaries.
+Shared organizational memory without ownership becomes a liability. Errors, outdated facts, and bad precedents accumulate. Mem0's organizational tier documentation acknowledges this explicitly—it "depends on owner maintenance for governance." In practice, no one maintains it, and the shared pool drifts toward noise.
 
-[Core Memory](../concepts/core-memory.md) in [MemGPT](../projects/memgpt.md)/[Letta](../projects/letta.md) provides a related mechanism: an always-in-context block that stores high-priority information the agent always has access to. When configured at the agent-role level rather than the user level, this functions as a form of lightweight organizational memory. [Long-Term Memory](../concepts/long-term-memory.md) is the broader category that organizational memory extends beyond individual scope.
+### Security and Privacy
 
-[Agent Workflow Memory](../projects/agent-workflow-memory.md) specifically addresses the procedural dimension: storing reusable task workflows so agents do not rediscover solutions each run. This is organizational memory scoped to task types rather than entities or decisions.
+Organizational memory aggregates sensitive information across interactions. Decision traces may contain customer PII, financial terms, or confidential approvals. Storage systems optimized for retrieval (vector stores, graph databases) are not naturally designed for access control at the fact level. A query retrieving "exceptions granted to enterprise customers" may surface information the querying agent shouldn't have.
 
-## Multi-Agent Coordination
+## When Not to Use It
 
-In [Multi-Agent Systems](../concepts/multi-agent-systems.md), organizational memory is what enables coherent division of labor. Without it, subagents cannot build on each other's work without full hand-off of context in every message. With it, a subagent can query what another subagent already determined, retrieve team-level conventions without being told, and hand off work with a pointer to shared state rather than a full dump.
+Organizational memory adds latency and complexity. For tasks that don't benefit from historical precedent—single-session interactions, deterministic workflows with no exceptions, queries where policy is unambiguous—organizational memory retrieval is overhead without value.
 
-Systems like [MetaGPT](../projects/metagpt.md) and [CrewAI](../projects/crewai.md) implement implicit organizational memory through structured role definitions and shared message channels. Explicit shared memory stores — readable and writable by any agent in the team — are less common but architecturally cleaner for long-running multi-session work.
+It's also wrong when privacy constraints prohibit cross-session or cross-user knowledge accumulation. Consumer applications handling sensitive personal data often cannot legally build organizational memory from individual interactions without explicit consent.
 
-The coordination overhead problem that hierarchy solves in human organizations (each layer compresses and translates) appears in multi-agent systems as context passing overhead. Organizational memory is the mechanism that reduces this: instead of passing full context between agents, agents pass pointers to shared state plus task-specific deltas. This scales where full context passing does not.
+Organizational memory is wrong when you need auditability but lack instrumentation. Deploying organizational memory in production without logging what was retrieved, when, and how it influenced a decision creates an accountability gap. You may not be able to explain why an agent made a specific decision if the retrieved memory isn't captured in audit logs.
 
-## Practical Implementation Considerations
+## Unresolved Questions
 
-**Start with the write path, not the read path.** The temptation is to build retrieval first — a knowledge base agents can query. But organizational memory without a systematic write path stagnates. Capture decisions at decision time, in the execution path, not via after-the-fact ETL. Decisions not captured during execution are decisions lost.
+**Conflict resolution at scale.** When two precedents justify opposite actions, who decides? Current systems surface the conflict but don't resolve it. Escalation to humans works at low volume; it doesn't scale.
 
-**Separate scopes explicitly and enforce them at storage time.** Do not rely on retrieval-time filtering as the only scope enforcement. A write to the wrong scope with no validation error creates a silent data quality problem that compounds over time.
+**Memory compaction.** Organizational memory grows monotonically in most implementations. What happens at 10 million decision traces? Graph traversal costs increase, retrieval quality degrades, and storage costs compound. Principled compaction—summarizing old traces into higher-level patterns while preserving auditability—remains an open engineering problem.
 
-**Treat decision traces as first-class records.** Storing "discount approved at 20%" is less valuable than storing "20% discount approved by VP Finance on 2025-03-15 citing three SEV-1 incidents and precedent from Account X, under policy exception route E7." The latter is what enables future agents to reason from precedent rather than just follow the letter of the written rule.
+**Cross-organizational transfer.** Can organizational memory learned in one context be transferred to another? A new company deploying an agent system can't benefit from the accumulated decision traces of similar companies. Federated organizational memory, where patterns are abstracted and shared without exposing specific decisions, has no established implementation.
 
-**Plan for staleness.** Any knowledge base without an invalidation strategy becomes incorrect over time. Bi-temporal graph storage ([Graphiti](../projects/graphiti.md)-style) handles this architecturally. Vector stores require explicit deletion or expiration policies.
+**Attribution and accountability.** When an agent cites organizational memory as the basis for a decision, who is accountable for that decision? The original human who made the precedent-setting decision? The engineer who instrumented the capture? The organization that deployed the system? This is unresolved legally and ethically.
 
-**Bootstrapping is the hardest part.** Organizational memory starts empty and needs to be populated before it is useful. The practical path is usually: encode existing written policies first, then capture decisions and corrections as agents operate, then gradually promote tribal knowledge via structured interviews or observation.
+## Relationships to Adjacent Concepts
 
-## Alternatives and Selection Guidance
+Organizational memory is the collective tier of [Agent Memory](../concepts/agent-memory.md)—it operates at the system or organization level rather than the individual agent or user level.
 
-- Use **RAG over a document store** when organizational knowledge is primarily textual, stable, and does not require relational queries across entities.
-- Use a **knowledge graph** ([GraphRAG](../projects/graphrag.md), [HippoRAG](../projects/hipporag.md)) when knowledge involves relationships between entities and cross-entity queries matter.
-- Use a **context graph with decision traces** when the value is in understanding *why* decisions were made, not just what the facts are — particularly for exception handling, compliance, and precedent-based reasoning.
-- Use **role-scoped flat files** ([CLAUDE.md](../concepts/claude-md.md), agent system prompts) for high-priority procedural knowledge that must always be in context and changes infrequently.
-- **Do not use organizational memory** as a substitute for good agent design. Memory retrieval adds latency and can surface irrelevant or contradictory information. For simple, bounded tasks, a well-designed system prompt beats a retrieval pipeline every time.
+[Context Graphs](../concepts/context-graphs.md) are the structural implementation: nodes for entities, edges for decision events, temporal metadata for precedent ordering.
 
-## Open Questions
+[Continual Learning](../concepts/continual-learning.md) addresses how systems improve from accumulated experience—organizational memory provides the substrate that continual learning operates on.
 
-**Governance at scale.** Who owns organizational memory? Who can write to it? Who resolves conflicts when two entries contradict? Current tools have minimal answers. [Mem0](../projects/mem0.md) puts this on the operator; knowledge graph deployments typically require a dedicated data owner. Neither scales well to hundreds of agents across a large organization.
+[Self-Improving Agents](../concepts/self-improving-agents.md) are agents that write to and read from organizational memory as a core capability—their improvements compound because each decision enriches the memory store future decisions can draw on.
 
-**Cost of context graph maintenance.** Building and maintaining decision traces requires instrumentation of every execution path, storage of trace data, and indexing for retrieval. The infrastructure cost at scale — millions of agent decisions per day — is not well characterized by any current deployment.
+[Execution Traces](../concepts/execution-traces.md) are the raw material: the step-by-step records of what an agent did that, when structured and indexed, become queryable organizational memory.
 
-**Cross-organization memory.** Customer-facing agents operate at the boundary between two organizations' memory. The customer's preferences and history, the vendor's policies and precedents, and the relationship history between them are all potentially relevant. No current system handles this boundary cleanly.
-
-**Memory poisoning.** If agents can write to shared organizational memory, a compromised or misconfigured agent can corrupt the knowledge base for the entire fleet. The attack surface is significant and largely unaddressed in current tooling.
+[Human-in-the-Loop](../concepts/human-in-the-loop.md) workflows are a primary source of high-quality organizational memory. When a human corrects an agent's decision or approves an exception, that interaction contains the most valuable signal—reasoning from a human with full context. Capturing it at that moment is the core engineering challenge.

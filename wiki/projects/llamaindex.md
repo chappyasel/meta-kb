@@ -3,103 +3,118 @@ entity_id: llamaindex
 type: project
 bucket: knowledge-substrate
 abstract: >-
-  LlamaIndex is a Python data framework for building RAG and agent systems over
-  custom documents, distinguished by its composable abstraction layer that
-  treats data connectors, indexes, and query engines as swappable components.
+  LlamaIndex is a Python/TypeScript data framework for connecting LLMs to
+  external data via indexing and retrieval pipelines; its differentiator is
+  composable, fine-grained control over every RAG component with 150+ data
+  connectors.
 sources:
+  - deep/repos/infiniflow-ragflow.md
   - repos/microsoft-llmlingua.md
   - repos/yusufkaraaslan-skill-seekers.md
-  - deep/repos/infiniflow-ragflow.md
 related: []
-last_compiled: '2026-04-08T02:55:58.854Z'
+last_compiled: '2026-04-08T23:13:13.064Z'
 ---
 # LlamaIndex
 
 ## What It Does
 
-LlamaIndex (formerly GPT Index) is a Python framework for connecting LLMs to external data. Its core job: ingest documents from 150+ sources, structure them for retrieval, and surface relevant context to an LLM at query time. The framework spans the full pipeline from raw bytes to agent response, with each stage represented as a composable Python object that can be swapped, extended, or combined.
+LlamaIndex is a data framework for building LLM-powered applications over custom data. Its core value proposition: a developer-friendly abstraction layer that lets you swap any component of a [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) pipeline — document loaders, chunkers, embedding models, vector stores, retrievers, rerankers, and query engines — without rewriting application logic.
 
-The project occupies different territory than [LangChain](../projects/langchain.md). LangChain is a general-purpose orchestration layer; LlamaIndex specializes in the data layer — ingestion, indexing, and retrieval — with agents and workflows built on top of that substrate. The tradeoff: more expressive retrieval primitives at the cost of a steeper learning curve when you want non-retrieval LLM patterns.
+Where [LangChain](../projects/langchain.md) is a general-purpose LLM orchestration framework, LlamaIndex focuses narrowly on the data ingestion-to-retrieval path. It trades flexibility-for-everything against depth-in-RAG. Where RAGFlow bundles everything into a turnkey system, LlamaIndex gives you primitives.
 
-## Architecture
+**Stars:** ~38,000 (GitHub, as of mid-2025). Python-first, with a TypeScript port (LlamaIndex.TS) maintained in parallel.
 
-The framework organizes into five conceptual layers:
+## Architecturally Unique Properties
 
-**Data Connectors (Readers)**: `SimpleDirectoryReader`, web crawlers, database connectors, and 150+ community `llama-hub` integrations. Each reader produces `Document` objects — the atomic unit. Readers live in `llama_index/readers/`.
+### Node-Centric Data Model
 
-**Nodes and Transformations**: Documents get converted into `Node` objects via a `NodeParser` (sentence splitter, semantic splitter, HTML node parser, etc.), which live in `llama_index/node_parser/`. Nodes carry text, metadata, and relationship pointers (previous/next nodes, parent document). The `IngestionPipeline` in `llama_index/ingestion/pipeline.py` chains transformations and handles caching via `IngestionCache` — repeated ingestion of the same document skips re-embedding.
+LlamaIndex's core abstraction is the `Node` — a chunk of content with metadata, embeddings, and relationships. The `TextNode` subclass is the atomic unit: it carries `text`, `embedding`, `metadata`, `relationships` (prev/next/source/child/parent), and a `node_id`. The full object graph is defined in `llama_index/core/schema.py`.
 
-**Indexes**: The central abstraction. A `VectorStoreIndex` embeds nodes and stores them in a vector backend. A `SummaryIndex` stores nodes in order and summarizes across all of them. A `KnowledgeGraphIndex` extracts triplets and builds a graph. A `TreeIndex` recursively summarizes chunks into a tree for hierarchical retrieval. Each index exposes a `as_retriever()` and `as_query_engine()` method, keeping the interface uniform regardless of backend.
+This node graph makes hierarchical document structures first-class. A PDF chapter becomes a parent `DocumentNode`; its paragraphs become child `TextNode`s linked by `NodeRelationship.CHILD`. Retrievers can walk this graph, enabling retrieval at coarser or finer granularity post-query without reindexing.
 
-**Retrievers and Query Engines**: Retrievers fetch relevant nodes given a query string. Query engines compose a retriever with a response synthesizer. Notable retrievers: `VectorIndexRetriever` (k-NN similarity), `BM25Retriever` (keyword), `RecursiveRetriever` (follows node references), `RouterRetriever` (selects among multiple indexes via LLM). The `RetrieverQueryEngine` class in `llama_index/query_engine/retriever_query_engine.py` wires retriever → node postprocessors → response synthesizer.
+### Storage Context Abstraction
 
-**Agents and Workflows**: `ReActAgent` and `FunctionCallingAgent` wrap query engines and other tools. The `Workflow` abstraction (introduced 2024) provides an async event-driven system for multi-step agent pipelines, replacing the earlier `QueryPipeline`. Workflows define `@step` functions connected by typed `Event` objects — closer to an explicit state machine than LangChain's chain metaphor.
+LlamaIndex separates four storage concerns — `DocStore` (raw documents), `IndexStore` (index metadata), `VectorStore` (embeddings), `GraphStore` (graph data) — into a `StorageContext` object. This lets you mix backends: store raw docs in a file-based `SimpleDocumentStore`, embeddings in [Pinecone](../projects/pinatone.md), graph edges in [Neo4j](../projects/neo4j.md), and index metadata locally, all under one interface.
+
+Most frameworks collapse these into one store. LlamaIndex's separation makes partial updates cheap: re-embed changed documents without touching the graph index, or swap vector backends without re-parsing source documents.
+
+### Composable Query Pipeline
+
+The `QueryPipeline` (introduced in late 2023, defined in `llama_index/core/query_pipeline/`) treats retrieval as a DAG of components. You wire together a `QueryTransform` → `Retriever` → `Reranker` → `ResponseSynthesizer` as explicit nodes in a graph, with named input/output ports. This is verbose but makes the data flow inspectable and substitutable at every step.
 
 ## Core Mechanism
 
-The ingestion and query paths are the two critical flows:
+**Ingestion:**
+1. A `SimpleDirectoryReader` or one of 150+ specialized loaders (Confluence, Notion, GitHub, S3, etc.) produces `Document` objects.
+2. A `NodeParser` (most commonly `SentenceSplitter` or `SemanticSplitterNodeParser`) chunks documents into `TextNode`s with configurable `chunk_size` and `chunk_overlap`.
+3. An `IngestionPipeline` runs transformations: metadata extraction, embedding generation, deduplication via `DocstoreStrategy`.
+4. Nodes are upserted to a `VectorStore` (any of 40+ backends) and optionally to a `DocStore`.
 
-**Ingestion**: `VectorStoreIndex.from_documents(docs)` calls `run_transformations()` which applies each transformation in sequence (node parsing → embedding → ...). The `ServiceContext` (deprecated in favor of `Settings`) configures the LLM, embedding model, and chunk parameters globally. `Settings.embed_model` defaults to OpenAI text-embedding-ada-002 unless overridden.
+**Index construction:** A `VectorStoreIndex` wraps the vector store and exposes a `Retriever`. The index itself is thin — it mostly delegates to the storage backend. For more structured access, `SummaryIndex` (formerly `ListIndex`) stores nodes in a flat list and synthesizes over all of them; `KnowledgeGraphIndex` extracts subject-predicate-object triples from text and persists them to a graph store.
 
-**Querying**: `index.as_query_engine().query("question")` triggers: (1) embed the query string, (2) retrieve top-k similar nodes from the vector store, (3) pass retrieved context + query to a response synthesizer (default: `CompactAndRefine`, which stuffs as many nodes as fit in context, then refines across multiple LLM calls if needed). The `ResponseMode` enum controls this: `TREE_SUMMARIZE`, `REFINE`, `COMPACT`, `SIMPLE_SUMMARIZE`, `GENERATION`, `NO_TEXT`.
+**Query:**
+1. `RetrieverQueryEngine.query(str)` calls the retriever, optionally runs a `NodePostprocessor` chain (reranking, metadata filtering, [context compression](../concepts/context-compression.md)), assembles a context string, then calls a `ResponseSynthesizer`.
+2. `ResponseSynthesizer` modes include `compact` (stuff all nodes into one call), `refine` (iterative), `tree_summarize` (hierarchical), and `accumulate`.
+3. For agents, `ReActAgent` and `FunctionCallingAgent` treat index query engines as tools, enabling multi-step retrieval.
 
-**Postprocessors**: Between retrieval and synthesis, `NodePostprocessor` objects filter or rerank nodes. Built-in: `SimilarityPostprocessor` (score threshold), `KeywordNodePostprocessor` (include/exclude terms), `LLMRerank` (ask LLM to reorder), `SentenceEmbeddingOptimizer` (trim sentences by relevance). These are where [Context Compression](../concepts/context-compression.md) integrations like LLMLingua plug in.
+**Sub-question query engine:** A `SubQuestionQueryEngine` decomposes complex questions into sub-queries, routes each to a relevant sub-index, then synthesizes answers — a pattern that covers [HotpotQA](../projects/hotpotqa.md)-style multi-hop questions.
+
+**[Hybrid Search](../concepts/hybrid-search.md):** `QueryFusionRetriever` runs multiple retrievers (dense + [BM25](../concepts/bm25.md)) in parallel and fuses results via reciprocal rank fusion. Requires a vector store that supports sparse retrieval or a separate `BM25Retriever`.
 
 ## Key Numbers
 
-- GitHub stars: ~37,000+ (as of mid-2025; self-reported via shields, not independently audited)
-- 150+ data connectors via LlamaHub
-- Supported backends: [ChromaDB](../projects/chromadb.md), [Pinecone](../projects/pinatone.md), Weaviate, Qdrant, Milvus, [Neo4j](../projects/neo4j.md), Redis, Postgres/pgvector, and ~20 others
-- LLM integrations: OpenAI, Anthropic, Cohere, HuggingFace, Ollama, LiteLLM, and ~40 others
-
-No independently verified retrieval quality benchmarks exist from the LlamaIndex team. Benchmark numbers that appear in blog posts (e.g., "RAGAs scores") are self-reported and workload-specific.
+- ~38K GitHub stars (self-reported via badge; GitHub count is publicly verifiable).
+- 150+ data loader integrations (via LlamaHub, the separate connector registry — self-reported in docs).
+- 40+ vector store integrations (publicly enumerable from `llama_index/vector_stores/` directory).
+- Benchmarks on specific retrieval tasks are not included in the main repository. Any performance numbers in blog posts are self-reported by the LlamaIndex team and have not been independently validated in peer-reviewed settings.
 
 ## Strengths
 
-**Retrieval composability**: The abstraction over retrievers is genuinely useful. You can combine `VectorIndexRetriever` with `BM25Retriever` via `QueryFusionRetriever`, add `LLMRerank`, then pass results through `SimilarityPostprocessor` — all without rewriting business logic. The [Hybrid Search](../concepts/hybrid-search.md) pattern works cleanly here.
+**Fine-grained pipeline control.** You can replace any single component — swap the chunker, add a custom reranker, inject a metadata filter — without touching adjacent components. This composability suits research and experimentation where you need to isolate variables.
 
-**Structured data handling**: `SQLTableRetriever`, `JSONQueryEngine`, `PandasQueryEngine` let agents reason over structured sources without treating them as flat text. The SQL integration generates SQL from natural language, executes it, and returns grounded answers.
+**Breadth of connectors.** The LlamaHub connector ecosystem covers more source types than any comparable framework. If a data source exists, someone has likely written a LlamaIndex reader for it.
 
-**Sub-question decomposition**: `SubQuestionQueryEngine` splits complex queries into sub-questions, routes each to the appropriate tool/index, then synthesizes a final answer. This is useful for multi-document [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) where different indexes hold different domains.
+**Hierarchical indexing.** The node relationship graph supports `HierarchicalNodeParser` + `AutoMergingRetriever`: retrieve fine-grained chunks, then automatically merge to parent nodes when enough children match. This is a production-grade pattern for avoiding over-fragmented context.
 
-**Streaming and async**: The framework has solid async support throughout. `aquery()`, `astream_chat()`, and async workflow steps work natively, which matters for production services handling concurrent requests.
+**[Agentic RAG](../concepts/agentic-rag.md) primitives.** `ReActAgent` with tool-wrapped query engines, the `AgentRunner`/`AgentWorker` split for stateful multi-step execution, and first-class streaming support make it viable for agent-driven retrieval workflows.
 
 ## Critical Limitations
 
-**Concrete failure mode — metadata filtering with complex indexes**: When using `RecursiveRetriever` or `RouterRetriever`, metadata filters applied at the retriever level don't propagate consistently to sub-indexes. A filter on `{"source": "legal"}` may silently fetch nodes from all sources if the router selects an index that ignores the filter. There's no runtime error — you get results, they're just wrong. Production deployments that rely on namespace isolation through metadata filtering need to test this explicitly.
+**Concrete failure mode — chunking-then-embedding is naive by default.** `SentenceSplitter` splits on sentence boundaries with a fixed token budget. For documents with dense tables, code blocks, or hierarchical structure (API references, legal documents, academic papers), this produces chunks that slice through logical units. A benchmark across 50 academic papers found recursive fixed-size splitting achieved 69% retrieval accuracy — better than semantic chunking's 54% in that corpus, but both degrade on structured documents that need template-aware parsing. LlamaIndex provides `SemanticSplitterNodeParser` (embedding-based boundary detection) and the `HierarchicalNodeParser`, but neither performs document-type classification. You choose the parser; the framework does not.
 
-**Unspoken infrastructure assumption**: LlamaIndex assumes your vector store handles persistence. The in-memory `SimpleVectorStore` (default when no backend is specified) drops all data on process exit. Many tutorials and quickstarts use this default, so engineers prototyping locally discover this only when they try to reload an index. The fix — pass a `StorageContext` with a persistent backend — is documented but not emphasized.
+**Unspoken infrastructure assumption — statefulness requires external orchestration.** LlamaIndex's `StorageContext` persists indexes to disk or a vector store, but multi-user, concurrent-write scenarios require you to manage locking, consistency, and cache invalidation yourself. The framework assumes a single-writer or read-heavy workload. Production multi-tenant deployments need a coordination layer (a queue, a transactional store, or a dedicated service) that LlamaIndex does not provide.
 
 ## When NOT to Use It
 
-**Skip LlamaIndex when**:
-
-- You need production-grade document understanding from complex PDFs (scanned documents, multi-column layouts, tables). LlamaIndex's parsers are adequate for clean text but lack the vision-based OCR and layout recognition that RAGFlow's DeepDoc provides. Use RAGFlow or [Docling](../projects/docling.md) for document-heavy workloads.
-
-- Your agent logic is predominantly non-retrieval (web browsing, code execution, multi-step planning without a document corpus). LangChain or [LangGraph](../projects/langgraph.md) offer more general-purpose tool use without the retrieval-centric overhead.
-
-- You're operating at the scale where per-node Python object overhead becomes a bottleneck. LlamaIndex's abstraction layers add memory and CPU cost per-node. High-throughput ingestion pipelines that process millions of documents per hour typically bypass the framework layer and write directly to vector store APIs.
-
-- You want a no-code or low-code interface. LlamaIndex is a developer framework — every configuration requires Python. RAGFlow provides a visual workflow builder.
+- You need a no-code or low-code RAG system with a UI, RBAC, and managed document ingestion. Use RAGFlow or a managed service instead.
+- Your documents are predominantly scanned PDFs, complex tables, or multi-column layouts. LlamaIndex's parsers delegate to `pypdf`, `pdfminer`, or user-supplied parsers; they do not include OCR, layout recognition, or table structure extraction. RAGFlow's DeepDoc subsystem handles these cases.
+- You need guaranteed production SLAs on retrieval latency without significant custom work. LlamaIndex's abstractions add overhead; teams running high-QPS retrieval typically build thinner wrappers directly on top of [FAISS](../projects/faiss.md), [Qdrant](../projects/qdrant.md), or [ChromaDB](../projects/chromadb.md).
+- Your team is non-Python (beyond the TypeScript port, language coverage is thin).
 
 ## Unresolved Questions
 
-**Governance and versioning**: LlamaIndex underwent a significant API overhaul between 0.x and the current `llama-index-core` package structure. The `ServiceContext` → `Settings` migration broke substantial existing code. No long-term stability commitment exists in the documentation. Teams building production systems need to pin versions and treat upgrades as migrations.
+**Cost at scale with external LLM calls.** `ResponseSynthesizer` in `refine` or `tree_summarize` mode makes multiple LLM calls per query. The framework does not surface cost estimation or budget guards. At scale, a single misconfigured synthesizer can generate 10x the expected token usage. There is no built-in budget cap.
 
-**Cost at scale**: The `LLMRerank` postprocessor makes LLM calls per retrieved node-batch. The `SubQuestionQueryEngine` makes one LLM call per sub-question plus one synthesis call. Neither the documentation nor the framework provides cost estimates or guardrails. A complex query hitting a 10-index router with reranking can easily cost 10-20x what a naive RAG query costs. There's no built-in budget enforcement.
+**Conflict resolution in multi-source ingestion.** When the same fact appears in two ingested documents with contradictory content (a common enterprise scenario — outdated docs alongside current API specs), LlamaIndex has no conflict detection or resolution mechanism. The retriever returns both chunks; the LLM must reconcile them. Whether it does so correctly is model-dependent and invisible to the application.
 
-**Conflict resolution across retrievers**: When `QueryFusionRetriever` combines results from dense and sparse retrieval, the fusion is reciprocal rank fusion (RRF) by default. The documentation doesn't explain how RRF interacts with score-based postprocessors — a node that ranks 1st by BM25 but 20th by vector similarity gets a fused rank, but the individual similarity score used by `SimilarityPostprocessor` is undefined. Teams have filed issues about this inconsistency without resolution.
+**Governance and auditability.** There is no built-in provenance tracking beyond `source_node` references in `NodeWithScore`. You can trace which chunks contributed to an answer, but the framework does not log retrieval decisions, reranker scores, or synthesizer calls to an audit store. Teams with compliance requirements must build this themselves.
 
-**Thread safety**: The `Settings` global is module-level state. Concurrent requests in a multi-threaded server that modify `Settings` (e.g., switching LLM per request) will race. The recommended pattern is to pass settings explicitly at each call site, but much existing example code assumes the global.
+**LlamaCloud relationship.** The managed cloud offering (LlamaCloud) extends the open-source library with managed parsing (LlamaParse) and managed indexes. The boundary between what requires LlamaCloud and what is genuinely open-source is not always clear in the documentation, particularly for production-grade PDF parsing. LlamaParse for high-quality PDF extraction requires a LlamaCloud API key and is priced separately.
 
-## Alternatives and Selection Guidance
+## Alternatives
 
-**Use [LangChain](../projects/langchain.md)** when you need general LLM orchestration beyond retrieval — chains, general-purpose tool use, or when your team already has LangChain expertise. LangChain's RAG support is adequate if retrieval isn't your primary architectural concern.
+**Use [LangChain](../projects/langchain.md) when** you need general LLM orchestration beyond retrieval — chains, memory, arbitrary tool integration — and RAG is one component among many.
 
-**Use [LangGraph](../projects/langgraph.md)** when you need explicit multi-agent state machines with human-in-the-loop checkpoints and fine-grained control over agent transitions.
+**Use RAGFlow when** document parsing quality is the bottleneck. Its DeepDoc vision pipeline (OCR, layout recognition, table structure recognition) produces better chunks from complex PDFs than any parser LlamaIndex ships with.
 
-**Use RAGFlow** when document parsing quality is the bottleneck — scanned PDFs, complex tables, multi-column layouts. Its DeepDoc pipeline handles these cases that LlamaIndex's readers fail on.
+**Use [DSPy](../projects/dspy.md) when** you want to optimize retrieval prompts and pipelines systematically rather than hand-tune them.
 
-**Use [DSPy](../projects/dspy.md)** when you want to optimize prompts and retrieval pipelines systematically rather than hand-tune them. DSPy treats retrieval as a module that participates in gradient-based optimization.
+**Use [GraphRAG](../projects/graphrag.md) when** your use case requires multi-hop reasoning across entities in large document collections. LlamaIndex's `KnowledgeGraphIndex` supports graph-based retrieval but does not implement the community detection and report generation that Microsoft GraphRAG does.
 
-**Use LlamaIndex** when: you're building a RAG system over clean text documents, want composable retrieval primitives with a good selection of vector store backends, and need structured data (SQL, JSON) integration alongside document retrieval. It's the right default for retrieval-heavy systems where you expect to iterate on retrieval strategy.
+**Use a direct vector store SDK when** you need maximum retrieval throughput and your pipeline is stable. LlamaIndex's abstractions help during development; they add latency in production hot paths.
+
+**Use [Mem0](../projects/mem0.md) or [Letta](../projects/letta.md) when** your primary need is persistent agent memory across sessions rather than one-shot document retrieval.
+
+## Related Concepts
+
+[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) · [Hybrid Search](../concepts/hybrid-search.md) · [Vector Database](../concepts/vector-database.md) · [Context Compression](../concepts/context-compression.md) · [Semantic Search](../concepts/semantic-search.md) · [Agentic RAG](../concepts/agentic-rag.md) · [BM25](../concepts/bm25.md) · [Context Management](../concepts/context-management.md)

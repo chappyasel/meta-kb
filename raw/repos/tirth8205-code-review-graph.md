@@ -2,39 +2,35 @@
 url: 'https://github.com/tirth8205/code-review-graph'
 type: repo
 author: tirth8205
-date: '2026-04-04'
+date: '2026-04-08'
 tags:
-  - knowledge-bases
+  - knowledge-substrate
   - context-engineering
-  - rag
-  - graph-database
-  - code-indexing
-  - monorepo
-  - tree-sitter
+  - agent-architecture
+  - static-analysis
+  - code-graph
   - token-optimization
-  - dependency-analysis
-  - mcp
+  - MCP-integration
+  - codebase-indexing
+  - incremental-updates
 key_insight: >-
-  By building a persistent code graph with Tree-sitter and computing
-  blast-radius dependencies at review time, Claude Code can reduce token
-  consumption 6.8-49× by reading only affected files rather than the entire
-  codebase—critical for monorepos where context window waste is most expensive.
-deep_researched: deep/repos/tirth8205-code-review-graph.md
-stars: 4176
-forks: 381
+  Token efficiency in LLM-driven code review comes from precise context
+  selection via static analysis—code-review-graph's blast-radius computation
+  lets Claude read only affected code, reducing token spend by up to 49× and
+  enabling practical AI-assisted review at monorepo scale.
+stars: 6592
+forks: 775
 relevance_scores:
-  topic_relevance: 8
-  practitioner_value: 9
-  novelty: 7
-  signal_quality: 8
-  composite: 8.2
+  topic_relevance: 6
+  practitioner_value: 7
+  novelty: 6
+  signal_quality: 7
+  composite: 6.5
   reason: >-
-    Directly implements context engineering via persistent code knowledge graphs
-    and blast-radius dependency traversal to minimize token consumption—core to
-    context window management and knowledge substrate topics, with a
-    production-ready MCP-compatible tool and concrete benchmarks.
-language: Python
-license: MIT
+    A context engineering tool using knowledge graphs and static analysis to
+    reduce token spend in LLM-assisted code review—directly relevant to context
+    window management and knowledge substrate patterns, though focused on code
+    review rather than agent memory or multi-agent coordination.
 ---
 ## code-review-graph
 
@@ -44,11 +40,11 @@ license: MIT
 
 | Metric | Value |
 |--------|-------|
-| Stars | 4,176 |
-| Forks | 381 |
+| Stars | 6,592 |
+| Forks | 775 |
 | Language | Python |
 | License | MIT |
-| Last Updated | 2026-04-04 |
+| Last Updated | 2026-04-08 |
 
 **Topics:** ai-coding, claude, claude-code, code-review, graphrag, incremental, knowledge-graph, llm, mcp, python, static-analysis, tree-sitter
 

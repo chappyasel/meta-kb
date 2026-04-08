@@ -3,108 +3,120 @@ entity_id: crewai
 type: project
 bucket: multi-agent-systems
 abstract: >-
-  CrewAI is a Python framework for orchestrating role-based multi-agent
-  workflows, differentiating itself through structured crew/agent/task
-  abstractions and built-in process control (sequential and hierarchical)
-  without requiring LangChain as a dependency.
+  CrewAI orchestrates role-playing AI agents as structured crews with explicit
+  role/goal/backstory assignments, sequential or hierarchical task pipelines,
+  and built-in memory and tool integration — differentiating from generic
+  frameworks through its opinionated crew metaphor and process management layer.
 sources:
-  - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
+  - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
   - repos/caviraoss-openmemory.md
   - repos/mem0ai-mem0.md
-  - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
+  - tweets/branarakic-the-next-big-shift-in-ai-agents-shared-context-gr.md
 related:
-  - retrieval-augmented-generation
-  - agent-memory
   - openai
-  - model-context-protocol
-  - langchain
   - agent-memory
-last_compiled: '2026-04-08T02:50:42.703Z'
+last_compiled: '2026-04-08T23:07:54.688Z'
 ---
 # CrewAI
 
 ## What It Does
 
-CrewAI lets developers assemble teams of LLM-backed agents, each with a defined role, goal, and backstory, then coordinate them through structured task pipelines. An agent plays "Senior Research Analyst," another plays "Content Writer," and the framework handles the delegation, output passing, and process sequencing between them.
+CrewAI is a Python framework for building multi-agent systems where each agent has an assigned role, goal, backstory, and toolset. Agents collaborate on structured tasks within a "crew," executing work through either a sequential pipeline (tasks run one after another) or a hierarchical process (a manager agent delegates to workers). The crew metaphor is not just aesthetic: it encodes assumptions about agent coordination that shape how you design systems.
 
-The role-based abstraction is the core design bet: rather than building general-purpose agent loops, CrewAI encourages developers to decompose work into specialized agents whose prompts encode domain expertise through persona definition. A crew executes tasks either sequentially (output from task N becomes context for task N+1) or hierarchically (a manager agent routes subtasks to workers and synthesizes results).
-
-As of 2024, CrewAI added "flows" — event-driven state machines for more complex conditional pipelines, addressing the limitation that pure sequential/hierarchical modes cannot handle branching logic.
+Unlike [LangGraph](../projects/langgraph.md), which treats agent coordination as a programmable graph, or [AutoGen](../projects/autogen.md), which models agents as conversational participants, CrewAI sits between these: it provides more structure than AutoGen's freeform chat while staying more declarative and less code-intensive than LangGraph's explicit state machines.
 
 ## Core Mechanism
 
-**The four primitives:**
+### Agent Definition
 
-- **Agent**: An LLM wrapper with `role`, `goal`, `backstory`, `tools`, and `memory` fields. The backstory is injected into the system prompt; it functions as persona engineering rather than structured capability declaration.
-- **Task**: A unit of work with a `description`, `expected_output`, and an assigned `agent`. Tasks can declare `context` dependencies on other tasks, enabling DAG-like information flow.
-- **Crew**: The container that holds agents and tasks and owns the execution process.
-- **Process**: Either `Process.sequential` (linear chain) or `Process.hierarchical` (manager LLM routes work to workers).
+Each agent is instantiated with four fields: `role`, `goal`, `backstory`, and an optional list of tools. These are injected into the LLM's system prompt at task execution time. The backstory field is CrewAI's distinctive touch — it primes the LLM with a persona that influences response style and apparent expertise. In `crewai/agent.py`, the `Agent` class builds this prompt template and manages tool invocation via a [ReAct](../concepts/react.md)-style loop.
 
-**Execution flow (sequential):** `crew.kickoff()` iterates through tasks in order, constructing a prompt for each assigned agent that includes the task description, agent persona, any tool definitions, and outputs from context-declared prior tasks. The agent runs a ReAct-style loop until it produces a final answer, which is stored and made available to downstream tasks.
+Agents carry a `memory` flag. When enabled, CrewAI connects to a configurable memory backend supporting three tiers:
+- **Short-term memory**: embeddings of recent conversation context (default: in-process vector store)
+- **Long-term memory**: persistent storage across crew runs via SQLite by default
+- **Entity memory**: tracked mentions of people, places, and concepts across the session
 
-**Execution flow (hierarchical):** A manager agent (defaults to the configured LLM, typically GPT-4 class) receives the full task list and decides which worker agent to delegate to, then aggregates results. The manager prompt is auto-generated by the framework.
+This maps directly to the [Agent Memory](../concepts/agent-memory.md) model of tiered storage, though CrewAI's implementation delegates heavily to external backends (it integrates with [Mem0](../projects/mem0.md) for managed memory).
 
-**Memory:** CrewAI integrates short-term memory (in-context, within a crew run), long-term memory (SQLite by default, storing task outputs for future runs), entity memory (extracting named entities via embeddings), and user memory (via [Mem0](../projects/mem0.md) integration). The memory system uses embeddings stored in a local vector store (default: Chroma) for semantic retrieval.
+### Task and Process Layer
 
-**Tools:** Agents receive tools as a list of LangChain-compatible tool objects or CrewAI's own `BaseTool` subclasses. Built-in tools include web search (Serper), file read/write, code execution, and browser automation. Tool calls follow the standard LLM function-calling or ReAct pattern.
+Tasks are explicit objects with a `description`, `expected_output`, and assigned `agent`. The `Crew` class ties agents and tasks together with a `process` parameter:
 
-**[Model Context Protocol](../concepts/model-context-protocol.md) support:** CrewAI added MCP integration, allowing agents to connect to MCP servers as tool sources. This lets a CrewAI agent call tools exposed by any MCP-compatible server without custom wrapping.
+- `Process.sequential`: tasks execute in order, each agent receiving the output of the previous task in its context
+- `Process.hierarchical`: a manager LLM (either specified or auto-created) reads all tasks, delegates to agents, and synthesizes results
+
+The sequential pipeline is simple and predictable. The hierarchical process is more powerful but introduces a manager agent whose quality depends entirely on the LLM powering it — if the manager misroutes a task, there is no built-in retry or re-delegation logic beyond what the LLM itself attempts.
+
+### Tool Integration
+
+Tools follow a Pydantic-based schema (using [Pydantic](../projects/pydantic.md) for validation). CrewAI ships built-in tools covering web search, file I/O, code execution, and scraping, plus a `BaseTool` class for custom tools. The [Model Context Protocol](../concepts/model-context-protocol.md) is supported via an MCP adapter, allowing agents to call MCP-compatible tool servers.
+
+Tool calls go through the agent's internal ReAct loop. The agent reasons about which tool to use, calls it, gets a result, and decides whether to continue reasoning or return a final answer. This loop runs synchronously by default.
+
+### Flow API
+
+CrewAI 0.70+ added a `Flow` abstraction (in `crewai/flow/`) that lets you chain crews and Python functions using `@start`, `@listen`, and `@router` decorators. This bridges the gap with LangGraph-style explicit control flow, letting you build pipelines where a crew's output conditionally triggers different downstream crews. It is the framework's clearest acknowledgment that the original crew-centric model alone is insufficient for complex workflows.
 
 ## Key Numbers
 
-- **GitHub stars:** ~30,000+ (self-reported star counts on GitHub; independently verifiable via the repository)
-- **PyPI downloads:** Consistently in the top tier of agent frameworks by download count (self-reported by maintainers; download counts are publicly verifiable via PyPI stats)
-- **Benchmarks:** No published benchmark results from the CrewAI team on standard agent evals (SWE-bench, GAIA, tau-bench). Performance depends entirely on underlying LLM choice and task decomposition quality. Treat any capability claims as self-reported.
+- GitHub stars: ~30k+ (as of mid-2025, self-reported trending data; independently visible via GitHub)
+- Pip installs: consistently in top multi-agent frameworks by download volume on PyPI (publicly verifiable)
+- Benchmarks: CrewAI does not publish task benchmark results against other frameworks. Claims about real-world deployment counts come from their website and are unverified
 
 ## Strengths
 
-**Role-based decomposition works well for document pipelines.** Research-then-write, extract-then-analyze, draft-then-review workflows map naturally onto CrewAI's sequential process. The persona injection into agent prompts produces measurably different behavior per agent without manual prompt engineering per task.
+**Fast prototyping of role-based workflows.** The role/goal/backstory pattern maps naturally to how humans describe work (e.g., "a research analyst who finds sources, a writer who drafts content"). This lets non-specialists design agent teams without understanding LLM internals.
 
-**Low coupling to specific LLMs.** CrewAI uses LiteLLM under the hood, so swapping from GPT-4 to Claude to local Ollama models requires changing one config parameter. This is practically useful for cost management across crews.
+**Integrated memory without boilerplate.** Setting `memory=True` on a crew activates all three memory tiers with sensible defaults. You get [Short-Term Memory](../concepts/short-term-memory.md), [Long-Term Memory](../concepts/long-term-memory.md), and entity tracking without wiring a vector database yourself.
 
-**Fast time-to-demo.** A functional multi-agent pipeline with two agents and three tasks takes roughly 30 lines of Python. The abstraction is shallow enough that developers understand what's happening without reading framework internals.
+**Active ecosystem and integrations.** Native integrations with [LangChain](../projects/langchain.md) tools, [LlamaIndex](../projects/llamaindex.md), [Mem0](../projects/mem0.md), [LiteLLM](../projects/litellm.md) (for model routing), and MCP. The Mem0 integration specifically enables persistent memory across crew sessions with the kind of selective retrieval that outperforms naive full-context approaches.
 
-**Flows for conditional logic.** The flows abstraction (added 2024) uses a decorator-based state machine (`@start()`, `@listen()`, `@router()`) that handles branching and looping without requiring developers to build custom orchestration.
+**Low LLM coupling.** Via LiteLLM, you can swap between OpenAI, Anthropic, local models via [Ollama](../projects/ollama.md), and others without changing agent code.
 
 ## Critical Limitations
 
-**Concrete failure mode — hierarchical process reliability:** The manager agent is just another LLM call with an auto-generated prompt. In practice, the manager frequently misroutes tasks, fails to synthesize partial results coherently, or loops when worker agents return ambiguous outputs. There is no structured retry logic or formal validation that the manager's delegation decisions are correct. Production users report needing to replace hierarchical process with manually designed sequential workflows to get consistent results.
+**Concrete failure mode — hierarchical process brittleness:** When using `Process.hierarchical`, the manager agent receives all task descriptions and must reason about delegation order, which agent is appropriate for each task, and how to synthesize partial results. With five or more agents handling interdependent tasks, the manager's context window fills with task metadata and prior outputs. The manager LLM may lose track of task dependencies, skip agents, or produce a synthesis that ignores results from specific workers. There is no built-in mechanism to detect this. You discover it in output quality, not in an exception.
 
-**Unspoken infrastructure assumption:** CrewAI assumes synchronous, serial execution by default. Running a crew with five agents on five tasks means five sequential LLM calls with no parallelism. The `async` execution mode exists but is not the default, and the framework provides no built-in rate limiting, cost tracking, or queue management. At scale, you need to bring your own infrastructure for these concerns.
+**Unspoken infrastructure assumption:** CrewAI assumes each crew run is a discrete, finite job. The framework has no native support for long-running crews that must pause, checkpoint state, and resume. Flows add some sequencing, but if an agent call fails mid-crew, you typically restart the whole crew. Production deployments requiring reliability against LLM API failures need external orchestration (Celery, Temporal, etc.) that the documentation does not address.
 
-## When NOT to Use It
+## When NOT to Use CrewAI
 
-**Don't use CrewAI when:**
+**Avoid CrewAI when your workflow requires precise state management.** If your multi-agent system needs to track complex shared state, handle conditional branching based on intermediate results, or implement retry logic with fine-grained control, use [LangGraph](../projects/langgraph.md) instead. LangGraph's explicit graph model gives you visibility and control that CrewAI's abstraction layer hides.
 
-- You need fine-grained control over agent reasoning steps. CrewAI hides the ReAct loop; you can observe it through callbacks but cannot modify the loop structure per-agent without subclassing internals.
-- Your workflow requires dynamic agent creation at runtime. Crews are defined statically; adding agents based on task results requires building around the framework, not within it.
-- You need production-grade observability out of the box. CrewAI's built-in logging is coarse. Integrating proper [Observability](../concepts/observability.md) requires third-party tools (LangSmith, Langfuse, Arize).
-- Your task graph has complex dependencies. The `context` field on tasks handles simple DAG dependencies, but arbitrary graph topologies require [LangGraph](../projects/langgraph.md) or [AutoGen](../projects/autogen.md).
-- You're building a system that needs to handle thousands of concurrent users. CrewAI is a single-process orchestrator; horizontal scaling requires significant infrastructure work that the framework does not address.
+**Avoid CrewAI for real-time or streaming agent systems.** CrewAI's synchronous execution model (despite async support being added incrementally) is not designed for agents that must process streaming data, react to events, or maintain persistent connections. [AutoGen](../projects/autogen.md) or a custom [OpenAI Agents SDK](../projects/openai-agents-sdk.md) implementation fits better.
+
+**Avoid CrewAI when debugging fidelity matters.** The framework's abstractions make it hard to inspect what the LLM actually saw at each decision point. For research workflows or systems where you need full [Observability](../concepts/observability.md) into every agent step, more explicit frameworks give you better tooling.
+
+**Avoid CrewAI for single-agent tasks.** The crew overhead (multiple LLM calls for manager delegation, memory retrieval, etc.) adds latency and cost. A single well-prompted LLM call with tools, via the OpenAI Agents SDK or direct API, is faster and cheaper.
 
 ## Unresolved Questions
 
-**Governance and maintenance:** CrewAI is a venture-backed startup (raised $18M Series A, 2024). The open-source framework is the acquisition channel; the enterprise product (CrewAI+) is the revenue model. The long-term relationship between the open-source framework and commercial features is not clearly defined. Feature velocity has been high, which means breaking changes are frequent.
+**Cost at scale.** CrewAI's documentation shows token counts per agent call but gives no guidance on total crew cost for non-trivial workflows. Hierarchical process crews with memory enabled can trigger five or more LLM calls per user task (manager delegation, each agent execution, memory retrieval, synthesis). There is no built-in cost estimation or budgeting mechanism.
 
-**Cost at scale:** A crew run with five agents, each making 3-5 LLM calls per task, on GPT-4, costs $0.50-$2.00 per execution at current pricing. The framework provides no built-in cost budgeting, no per-agent model assignment defaults that prioritize cheaper models for simple tasks, and no token usage reporting in the standard output. Cost control is entirely the developer's responsibility.
+**Conflict resolution.** When two agents in a crew produce contradictory outputs, the framework has no documented protocol for resolving the conflict. The manager agent in hierarchical mode may handle it, or may not. The behavior is LLM-dependent and non-deterministic.
 
-**Conflict resolution in hierarchical process:** When two worker agents produce contradictory outputs, the manager agent receives both and synthesizes a response. There is no documented protocol for how conflicts are resolved, no structured validation, and no way to surface disagreements to the caller. The manager's synthesis is treated as ground truth.
+**Memory governance.** Long-term memory persists across crew runs by default, but there is no built-in mechanism for memory auditing, expiration, or correction. If an agent stores incorrect information in long-term memory, it can influence all future runs. How to audit or reset this is not addressed in the documentation.
 
-**Long-term memory reliability:** The SQLite-backed long-term memory stores task outputs for future runs, but there is no documented eviction policy, no deduplication, and no mechanism to correct stored information that was wrong. Over many runs, stale or incorrect memories accumulate without automatic remediation.
+**Multi-tenancy.** CrewAI's memory system uses `user_id`-scoped storage when integrated with Mem0, but the base framework's SQLite-backed long-term memory does not have clear multi-tenant isolation. Production deployments serving multiple users need to implement this themselves.
 
 ## Alternatives
 
-- **[LangGraph](../projects/langgraph.md):** Use when you need explicit control over the agent reasoning graph, conditional branching, or human-in-the-loop checkpoints. LangGraph is lower-level and requires more code, but gives you full visibility into execution state.
-- **[AutoGen](../projects/autogen.md):** Use when you need conversational multi-agent patterns where agents genuinely debate or negotiate, or when you need tight Microsoft ecosystem integration. AutoGen's conversation-centric model differs fundamentally from CrewAI's task-centric model.
-- **[LangChain](../projects/langchain.md):** Use when you need the broadest ecosystem of integrations and are building a single-agent system. CrewAI is effectively a multi-agent layer on top of concepts LangChain pioneered; for single-agent work, LangChain's native agents are simpler.
-- **[OpenAI Agents SDK](../projects/openai-agents-sdk.md):** Use when you're committed to OpenAI models and want official, well-maintained multi-agent primitives with handoff semantics. Less framework overhead than CrewAI, but OpenAI-only.
-- **Direct LLM API with custom orchestration:** Use when your workflow is well-understood and simple enough that a framework's abstractions add more complexity than they remove. CrewAI's abstractions pay off when workflow complexity justifies the overhead.
+**[LangGraph](../projects/langgraph.md)** — Use when you need explicit, debuggable control flow. LangGraph encodes your agent coordination logic as a graph you define; CrewAI infers coordination from roles and process type. LangGraph has a steeper learning curve but far better observability.
+
+**[AutoGen](../projects/autogen.md)** — Use when your task maps naturally to multi-agent conversation. AutoGen's conversational model handles back-and-forth between agents more gracefully than CrewAI's task-handoff model. Better for tasks requiring negotiation or iterative refinement between agents.
+
+**[MetaGPT](../projects/metagpt.md)** — Use when your workflow mirrors a software engineering organization (PM, architect, engineer, QA). MetaGPT encodes software development roles and artifacts as first-class concepts, where CrewAI treats all roles generically.
+
+**[OpenAI Agents SDK](../projects/openai-agents-sdk.md)** — Use when you want a minimal, well-documented foundation with tight OpenAI integration and handoff semantics. Less opinionated than CrewAI, gives you more control without requiring a full graph framework.
+
+**[LangChain](../projects/langchain.md)** — Use when you need the broadest ecosystem of integrations and are building around retrieval pipelines rather than agent collaboration. CrewAI actually integrates with LangChain tools, so these are often complementary.
 
 ## Related Concepts
 
 - [Multi-Agent Systems](../concepts/multi-agent-systems.md)
+- [Multi-Agent Collaboration](../concepts/multi-agent-collaboration.md)
 - [Agent Memory](../concepts/agent-memory.md)
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md)
 - [Human-in-the-Loop](../concepts/human-in-the-loop.md)
 - [ReAct](../concepts/react.md)
-- [Model Context Protocol](../concepts/model-context-protocol.md)
+- [Context Engineering](../concepts/context-engineering.md)
+- [Cognitive Architecture](../concepts/cognitive-architecture.md)

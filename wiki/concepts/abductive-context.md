@@ -3,158 +3,208 @@ entity_id: abductive-context
 type: concept
 bucket: context-engineering
 abstract: >-
-  Context Generation is the process by which agents dynamically assemble
-  task-relevant information from distributed knowledge sources before or during
-  task execution, determining what gets loaded into the context window and how.
+  Context generation dynamically constructs agent-readable context from
+  execution traces and domain knowledge, distinct from static retrieval by
+  producing structured, task-relevant information through multi-stage pipelines
+  rather than similarity-scored document chunks.
 sources:
-  - tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md
-  - repos/memodb-io-acontext.md
-  - repos/greyhaven-ai-autocontext.md
-  - papers/mei-a-survey-of-context-engineering-for-large-language.md
-  - deep/repos/memodb-io-acontext.md
   - deep/repos/greyhaven-ai-autocontext.md
+  - deep/repos/memodb-io-acontext.md
   - deep/repos/thedotmack-claude-mem.md
+  - papers/mei-a-survey-of-context-engineering-for-large-language.md
+  - repos/greyhaven-ai-autocontext.md
+  - repos/memodb-io-acontext.md
+  - tweets/vtahowe-context-graphs-an-iam-problem-at-scale.md
 related:
   - openai
   - openclaw
   - anthropic
-  - claude-code
   - claude
-  - context-engineering
-last_compiled: '2026-04-08T03:06:30.078Z'
+  - claude-code
+last_compiled: '2026-04-08T23:23:53.380Z'
 ---
 # Context Generation
 
 ## What It Is
 
-Context generation is the process of dynamically assembling task-relevant information from distributed knowledge sources and injecting it into an agent's active context window. The term captures a shift in thinking: context is not passively received but actively constructed. An agent facing a task selects, retrieves, compresses, and structures information from memory stores, knowledge bases, prior execution traces, and external sources to produce the context it needs.
+Context generation is the process by which an agent system dynamically constructs the information it needs to act, rather than starting from a blank slate or relying on static prompts. The distinction from [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) is architectural: RAG retrieves documents scored by semantic similarity; context generation produces structured artifacts by running inference pipelines over execution history, task state, and domain knowledge.
 
-The concept sits at the center of [Context Engineering](../concepts/context-engineering.md): while context engineering names the full discipline of managing what enters the context window, context generation names the construction step. You cannot do context engineering without context generation; context generation without engineering discipline produces bloated, poorly ordered, or irrelevant context.
+Two implementation families exist. Autocontext systems build context from within the agent loop during execution, inferring what the agent needs as tasks unfold. Acontext systems run as post-execution pipelines, consuming completed execution traces and distilling them into reusable skill files that inform future runs.
 
-Context generation is distinct from [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md), though the two overlap heavily. RAG typically describes a narrow pipeline: embed a query, retrieve matching chunks, prepend them to a prompt. Context generation is broader: it may involve RAG, but also includes structured tool calls, progressive disclosure patterns, memory compression, execution trace summarization, and explicit orchestration of what to load versus defer.
+The shared goal is the same: fill the context window with information that was earned through prior work rather than manually authored or blindly retrieved.
 
 ## Why It Matters
 
-Language models have no persistent state between calls. Everything an agent knows about the current task must fit in the context window at inference time. Context generation determines the quality of that window.
+Agents that start cold on every run cannot compound their experience. Each execution is independent: same mistakes, same retrieval latency, same frontier-model costs. Context generation closes this loop.
 
-Two failure modes define the stakes. Load too little and the model lacks facts it needs, repeating work or making avoidable mistakes. Load too much and the model hits the [Lost in the Middle](../concepts/lost-in-the-middle.md) problem: relevant content buried in noise degrades response quality even when technically present. Context generation is the mechanism that navigates between these failure modes.
+[Claude Code](../projects/claude-code.md) sessions that use tools like claude-mem accumulate structured observations across sessions. [OpenClaw](../projects/openclaw.md) sessions that integrate Acontext build skill files from completed tasks. [Autocontext](../projects/openclaw.md) harnesses encode validated lessons in playbooks that persist across generations. In each case, the agent begins subsequent work with a richer starting position than it had before.
 
-At scale, context quality compounds. An agent running 50 tasks per day with poor context generation makes systematically worse decisions than one with targeted, high-quality context. The difference between a capable agent and a frustrating one often traces back to this single process.
+The practical consequence: agents make fewer repeated errors, require fewer correction cycles, and over time can shift work from expensive frontier models to cheaper local ones trained on distilled patterns.
 
 ## How It Works
 
-### The Generation Pipeline
+### Stage 1: Capturing Raw Material
 
-Context generation typically proceeds through five stages, though any given system may collapse or expand these:
+Every context generation system begins with observation capture. The raw material varies:
 
-**1. Task decomposition.** The agent (or an orchestrating layer) identifies what the current task requires. For a coding agent fixing a bug, this includes: the relevant source files, prior failures on similar bugs, coding conventions for this codebase, and any tool outputs from earlier in the session.
+- **Tool invocations** (claude-mem): Every PostToolUse hook fires when Claude Code uses Read, Edit, Bash, or any other tool. The hook POSTs the raw tool name, input, and response to a background worker service on port 37777. At high activity rates, sessions accumulate 100+ observations.
 
-**2. Source identification.** The system queries available knowledge sources. These may include vector databases (semantic similarity), structured stores (SQL queries, graph traversal), episodic memory (prior sessions), procedural memory (skills, playbooks), and the current conversation history.
+- **Session messages** (Acontext): Conversation turns, tool calls, and task outcomes flow into the session store. The Task Agent analyzes the message stream to identify task boundaries and link message ranges to tasks.
 
-**3. Retrieval and ranking.** Content matching the task requirements is retrieved and ranked by relevance. In [Hybrid Search](../concepts/hybrid-search.md) approaches, BM25 keyword matching combines with vector similarity to improve recall. Systems like [HippoRAG](../projects/hipporag.md) and [RAPTOR](../projects/raptor.md) add graph traversal or hierarchical summarization to retrieve higher-quality units than raw chunk retrieval produces.
+- **Scenario execution results** (Autocontext): Each generation produces tournament match results or LLM judge scores. The `GenerationRunner` in `loop/generation_runner.py` captures the full score trajectory alongside raw outputs.
 
-**4. Compression and selection.** Retrieved content is filtered, summarized, or compressed to fit within token budgets. [Context Compression](../concepts/context-compression.md) techniques range from simple truncation to LLM-powered summarization that preserves semantics while reducing length. The claude-mem system demonstrates this: it compresses 100+ tool invocations per session into structured XML observations, reducing raw tool output to semantically dense summaries.
+The capture layer must be low-latency and non-blocking. Claude-mem's save-hook catches errors silently and returns success codes to avoid interrupting tool use. Autocontext's execution supervisors operate independently of the agent's primary task loop.
 
-**5. Assembly and injection.** Selected content is ordered and formatted for injection. Ordering matters: models attend differently to information at different positions. Headers, delimiters, and structured formatting help models locate relevant content within long contexts.
+### Stage 2: Distillation
 
-### Retrieval Strategies
+Raw observations are not useful as context directly. A Bash command that returns 400 lines of build output needs to become "the webpack build fails when NODE_ENV is missing from the Docker environment." This compression step is where the different systems diverge most.
 
-Different knowledge types require different retrieval strategies:
+**Claude-mem** routes each tool invocation through a secondary Claude SDK agent that produces structured XML:
 
-**Semantic search** uses vector embeddings to find content with similar meaning. It excels at finding conceptually related content when exact keywords differ. The [Vector Database](../concepts/vector-database.md) layer (ChromaDB, Pinecone, etc.) handles this. Systems like [Mem0](../projects/mem0.md) and [Zep](../projects/zep.md) use semantic search as their primary retrieval mechanism.
+```xml
+<observation>
+  <type>discovery</type>
+  <title>webpack build fails without NODE_ENV</title>
+  <facts>
+    <fact>docker-compose.yml missing NODE_ENV in env section</fact>
+  </facts>
+  <narrative>Build failed because webpack expects NODE_ENV at compile time</narrative>
+  <concepts><concept>build-configuration</concept></concepts>
+  <files_modified><file>docker-compose.yml</file></files_modified>
+</observation>
+```
 
-**Keyword search** using [BM25](../concepts/bm25.md) or FTS5 finds exact matches and handles named entities, code identifiers, and technical terms better than semantic search. The acontext system uses SQLite's FTS5 virtual tables to index observation narratives, facts, and concepts, enabling keyword search across stored agent memory.
+The `parseObservations()` function in `src/sdk/parser.ts` extracts these blocks. The system's explicit design principle: always save observations, even with partial fields. Missing data is better than lost data.
 
-**Graph traversal** navigates [Knowledge Graph](../concepts/knowledge-graph.md) structures to follow relationships between entities. [GraphRAG](../projects/graphrag.md) and [Graphiti](../projects/graphiti.md) use graph structures to retrieve not just matching documents but their connected context. A query about a function returns the function, its callers, its dependencies, and related design decisions.
+**Acontext** runs a structured LLM-as-judge classification through `llm/prompt/skill_distillation.py`. Completed tasks route to one of four outcomes:
 
-**Progressive disclosure** represents an agent-driven retrieval model where the agent decides what to load through explicit tool calls rather than semantic matching. [Acontext](../projects/openclaw.md) implements this directly: agents call `list_skills`, then `get_skill`, then `get_skill_file` in sequence. Each call reveals more detail, and the agent reasons about what to load next. This avoids top-k retrieval errors but requires the agent to know what it needs before knowing it needs it.
+- `skip_learning` — trivial, not worth recording
+- `report_success_analysis` — extracts approach, key decisions, generalizable pattern, and an `applies_when` scope
+- `report_failure_analysis` — extracts failure point, flawed reasoning, and prevention principle
+- `report_factual_content` — extracts third-person factual statements
 
-**Trace-based injection** retrieves context from prior execution rather than static knowledge bases. Claude-mem injects summaries from the last 10 sessions at session start, giving the agent awareness of prior work without loading raw logs. The autocontext system builds a `ScoreTrajectoryBuilder` that assembles score history across prior generations and injects it into every agent prompt.
+The `applies_when` field does critical work: it scopes a lesson to specific conditions (this API, this environment, this tool version) rather than letting it over-generalize. A lesson learned about a specific payment provider's retry behavior should not contaminate knowledge about database retry patterns.
 
-### Structured Context vs. Raw Retrieval
+**Autocontext** runs five specialized agents in sequence after each generation. The Analyst diagnoses what happened and why. The Coach synthesizes lessons into playbook updates delimited by `<!-- PLAYBOOK_START/END -->` and `<!-- LESSONS_START/END -->` markers. The Curator quality-gates the proposed changes before they persist. This multi-agent structure keeps each distillation task narrow: the Analyst does not propose fixes; the Coach does not diagnose root causes.
 
-A significant design decision in context generation is whether retrieved content arrives as raw text or structured data.
+### Stage 3: Structuring for Reuse
 
-Raw text is flexible but noisy. Retrieving chunks of documentation or conversation history gives the model access to information but requires it to parse structure, identify relevance, and extract key facts from prose.
+Distilled observations must be organized for future retrieval. The approaches are architecturally distinct:
 
-Structured context is more expensive to produce but more useful at inference time. The acontext system's five-agent pipeline (competitor, analyst, coach, architect, curator) generates structured playbooks with explicit lesson entries and `applies_when` scoping fields. Acontext formats memory as Markdown files with YAML frontmatter, SOPs, and warnings. Claude-mem extracts XML observations with typed fields (`type`, `title`, `facts`, `narrative`, `concepts`). These structured formats let models locate and use relevant content without parsing overhead.
+**Claude-mem** writes to SQLite with FTS5 virtual tables. Observations carry typed concepts and file paths. The Session Summary at Stop time adds a higher-level narrative (what was requested, learned, completed, what remains). The database at `~/.claude-mem/claude-mem.db` accumulates across all sessions.
 
-The tradeoff: structured context generation requires an LLM-in-the-loop during the write phase. Acontext's three-stage pipeline (task extraction, distillation, skill agent) requires approximately 30-55 LLM calls per session learning cycle. Claude-mem's PostToolUse hook fires for every tool invocation, calling the SDK agent to compress each observation. This cost is amortized over many future retrievals, but it makes structured context generation expensive at ingest time.
+**Acontext** writes Markdown files organized by skill domain. Each skill has a `SKILL.md` manifest (YAML frontmatter plus guidelines) and data files for SOPs, failure warnings, and facts. The `create_skill` tool creates broad domain skills (`api-error-handling`, not `fix-401-bug`), preventing skill proliferation while keeping structure within skills. Encryption support allows client-side KEK to protect skill content at rest in S3.
 
-### Token Economics and Budgeting
+**Autocontext** persists to both SQLite (`storage/` with 15 migration files for schema evolution) and the filesystem (playbooks, tools, snapshots). Playbooks are versioned with rollback capability controlled by `AUTOCONTEXT_PLAYBOOK_MAX_VERSIONS`. The Architect generates executable tool code that persists to `knowledge/<scenario>/tools/`, allowing the system to not just learn lessons but build new capabilities.
 
-Context windows are finite. Every system that generates context must track token usage and make tradeoffs between breadth and depth.
+### Stage 4: Injection at Context Time
 
-Claude-mem's `TokenCalculator` tracks compression ratios in real time, reporting `totalReadTokens` (what raw tool output would have consumed) versus `totalDiscoveryTokens` (compressed observation size). The MCP search tools enforce a three-layer progressive disclosure pattern explicitly designed for "10x token savings": search returns an index at ~50-100 tokens per result, timeline adds chronological context, and get_observations fetches full details only after filtering.
+Stored knowledge must re-enter the context window when relevant.
 
-Acontext manages token economics through the `AUTOCONTEXT_SKILL_MAX_LESSONS` cap, curator-driven consolidation, and playbook versioning. When lesson counts exceed the cap, the curator consolidates entries rather than allowing unbounded growth.
+**Claude-mem** injects at SessionStart via the context hook. `ContextBuilder.ts` queries the last 10 sessions from SQLite, computes token economics (compression ratio, savings vs. raw), and renders a timeline. The output can be terminal-formatted or written to a `CLAUDE.md` file that Claude Code reads natively. The `TokenCalculator` uses a 4-character-per-token estimate and respects configurable observation count budgets.
 
-These token accounting patterns reflect a broader principle: context generation systems must treat token budgets as first-class constraints, not afterthoughts. An agent that loads everything relevant but exceeds the model's effective attention span generates worse outputs than one that loads less, more selectively.
+**Acontext** uses progressive disclosure: agents call `list_skills` to see what exists, `get_skill` to list files within a skill, and `get_skill_file` to read specific content. No embedding search, no semantic similarity scoring. The agent reasons about what it needs and fetches it explicitly. This approach is deterministic and debuggable but depends on the agent's reasoning quality to discover relevant skills.
 
-## Who Implements It
+**Autocontext** injects the full score trajectory and accumulated playbook into every agent prompt at the start of each generation. The `ScoreTrajectoryBuilder` assembles quantified history that agents can reason about directly. The context is not retrieved from a store — it is assembled from structured knowledge files and injected wholesale.
 
-Context generation appears across every serious agent infrastructure:
+## Architectural Variants
 
-**Coding agents** perform context generation continuously. [Claude Code](../projects/claude-code.md) uses [CLAUDE.md](../concepts/claude-md.md) files as pre-generated static context injected at session start, supplemented by dynamic tool calls during execution. The claude-mem plugin adds automatic session memory by generating compressed context from prior sessions and injecting it via CLAUDE.md. [OpenClaw](../projects/openclaw.md) uses the acontext skill system to progressively load relevant skills during task execution.
+### Hook-Based Live Capture (claude-mem)
 
-**Memory systems** implement context generation as their core function. [Mem0](../projects/mem0.md), [Zep](../projects/zep.md), and [Letta](../projects/letta.md) each generate context from stored memories, with different tradeoffs on retrieval strategy, compression, and structure. [MemGPT](../projects/memgpt.md) treats context generation as an explicit agent action: the agent manages its own context window by deciding what to load from external storage.
+The deepest integration model. Every tool invocation triggers a background LLM compression call through a persistent worker. The agent generates context for itself in real-time without any explicit memory management step.
 
-**Self-improving systems** use context generation to inject accumulated knowledge into future runs. Autocontext generates context from playbooks, hints, and score trajectories for each new generation. The coach agent writes structured lessons that become future context. The architect generates tools that become available to future competitors. This is context generation as knowledge compounding.
+Strengths: seamless, no agent behavior changes required, captures granular tool-level observations.
+Limitations: adds LLM API cost per tool invocation, requires a persistent background process, fails silently when the worker is unavailable.
 
-**Multi-agent systems** face context generation at the inter-agent level: what does each agent need to know about other agents' work? [CrewAI](../projects/crewai.md) and [AutoGen](../projects/autogen.md) pass structured outputs between agents, where the output of one agent becomes the generated context for the next.
+### Post-Execution Skill Learning (Acontext)
 
-## Practical Implications
+A pipeline that runs after task completion rather than during execution. Sessions complete, tasks reach terminal states, and then the learning pipeline triggers asynchronously.
 
-### Context Generation Is Not One-Time
+Strengths: clean separation between execution and learning, structured skill files are human-inspectable and editable, portable across frameworks.
+Limitations: no real-time context, requires infrastructure (PostgreSQL, Redis, RabbitMQ, S3), skills require explicit agent tool calls to retrieve.
 
-In most agentic systems, context generation runs repeatedly within a session: at start (inject prior session knowledge), before each tool call (what does the agent need to know to use this tool well?), after tool results (compress and store what was learned), and at session end (summarize for future injection). The claude-mem architecture makes this explicit with six distinct lifecycle hooks, each performing context generation tasks at different points.
+### Multi-Agent Improvement Harness (Autocontext)
 
-### Write Quality Determines Read Quality
+The most architecturally ambitious approach. Multiple specialized agents evaluate each generation's outputs and update structured knowledge artifacts that feed subsequent generations.
 
-The structure and quality of stored content constrains what context generation can produce. If an agent's memory system stores raw text blobs, context generation can only retrieve raw text. If the system stores structured observations with typed fields, scoped applicability, and explicit lessons, context generation can produce targeted, high-quality context.
+Strengths: sophisticated credit assignment, playbook versioning with rollback, supports frontier-to-local distillation.
+Limitations: 5x LLM calls per generation, complex configuration surface, expensive at scale.
 
-Acontext's three-stage distillation pipeline (task extraction -> distillation -> skill agent) is expensive precisely because it invests in write quality. The `applies_when` field in distilled learnings scopes each lesson to specific conditions, preventing over-retrieval. The SOP/Warning/Fact taxonomy enables type-filtered retrieval. These write-time investments pay off at retrieval time.
+## Relationship to Adjacent Concepts
 
-### Progressive Disclosure Beats Top-K for Agent Use
+Context generation sits at the intersection of several related ideas:
 
-Semantic similarity retrieval (top-k chunks) is effective for RAG pipelines where the query is a well-formed question. For agent context generation, where the agent needs different information at different points in task execution, progressive disclosure often outperforms top-k.
+[Context Management](../concepts/context-management.md) governs what fits in the window and what gets pruned. Context generation is upstream: it determines what earned a place in the window in the first place.
 
-Top-k retrieves fixed chunks regardless of whether the agent needs all of them. Progressive disclosure lets the agent request exactly what it needs through tool calls, loading more detail when needed and avoiding loading irrelevant content. The tradeoff is that progressive disclosure requires more tool call latency and assumes the agent reasons well about what it needs.
+[Context Compression](../concepts/context-compression.md) reduces token count for existing content. Context generation produces that content through structured distillation from raw observations.
 
-### Credit and Attribution
+[Episodic Memory](../concepts/episodic-memory.md) stores specific past events. Context generation transforms episodic records into semantic lessons (SOPs, warnings, facts) that generalize beyond the specific event.
 
-When context generation drives agent performance, understanding which context elements contributed to outcomes becomes important for system improvement. Autocontext's `analytics/credit_assignment.py` implements component sensitivity profiling to identify which types of context changes (playbook updates, new tools, additional hints) drove score improvements. Without credit assignment, systems may continue generating context that fills the window but does not improve performance.
+[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) retrieves documents from a knowledge base. Context generation produces structured knowledge from execution traces rather than pre-existing documents. The two are complementary: Acontext's skill files could be fed into a RAG system; Autocontext's playbooks are human-readable documents that could also be retrieved.
 
-## Failure Modes
+[Procedural Memory](../concepts/procedural-memory.md) encodes how to do things. The SOP format in Acontext and the playbook format in Autocontext are procedural memory implementations.
 
-**Retrieval-context mismatch.** The query used for retrieval does not match the form in which relevant content is stored. An agent asking "how do I handle 401 errors from this API?" retrieves nothing if past learnings are stored under "authentication error handling patterns." Hybrid search and [Semantic Search](../concepts/semantic-search.md) mitigate this, but structured taxonomies (like acontext's category-level skills) address it more directly.
+[Progressive Disclosure](../concepts/progressive-disclosure.md) is the retrieval model Acontext uses: agents fetch skill content on demand rather than receiving it all upfront. Claude-mem's MCP server uses the same pattern (index → timeline → details) to achieve claimed 10x token savings vs. returning full observation details immediately.
 
-**Knowledge pollution.** Accumulated context degrades over time as outdated, contradictory, or low-quality content enters the context generation pipeline. Acontext's curator agent addresses this directly, acting as a quality gate for all knowledge changes. Without a gating mechanism, context generation systems accumulate noise that degrades model performance. The autocontext `TrendAwareGate` watches for score plateaus that might indicate knowledge pollution.
+## Concrete Failure Modes
 
-**Structural decay.** In progressive disclosure systems, context generation quality degrades if the agent fails to discover relevant skills. An agent that does not know skill X exists will not call `get_skill_file(X)`. This requires good skill naming, useful SKILL.md manifests, and agent reasoning quality. The acontext system addresses this through the skill index returned by `list_skills`, but discovery remains dependent on agent reasoning.
+**Distillation misclassification.** When Acontext's LLM judge misclassifies a failure as a success, the Skill Learner writes a misleading SOP. There is no human review gate before skills are written. A deployment failure that happens to complete successfully at the last step might be recorded as a best practice rather than a warning.
 
-**Cost explosion.** LLM-in-the-loop context generation scales poorly. Claude-mem fires a PostToolUse hook for every tool invocation, generating an LLM call per observation. Autocontext runs five agents per generation plus tournament matches. Systems with high tool-use rates can accumulate substantial LLM costs in the generation pipeline. Token budgeting and selective generation (the `skip_learning` classification in acontext's distillation step) are necessary mitigations.
+**Knowledge accumulation without pruning.** Claude-mem has no mechanism for marking old observations as stale. A project from six months ago accumulates observations about a deprecated API. Those observations appear in future session context because the query is chronological, not relevance-filtered. Acontext's skill files also lack staleness detection beyond manual edits.
 
-**Context window saturation.** Generating too much context defeats the purpose. A system that retrieves 50 relevant documents and injects all of them may produce worse outputs than one that retrieves 10 and ranks them by relevance. The [Lost in the Middle](../concepts/lost-in-the-middle.md) effect means models attend poorly to content in the middle of long contexts, so saturation is not neutral.
+**Background worker dependency.** Claude-mem's observation capture fails silently when the worker at port 37777 is unavailable. Sessions continue normally; observations are simply not stored. Users have no indication that memory gaps are accumulating until they notice the context injection is missing historical sessions.
 
-## When Progressive Disclosure Is the Wrong Choice
+**Agent reasoning required for retrieval.** Acontext's progressive disclosure model requires the agent to know to call `list_skills` and navigate to relevant skill files. A poorly reasoning agent may not discover skills that would have been useful, or may load irrelevant ones. Unlike semantic search, there is no fallback for agents that fail to reason about what skills exist.
 
-Progressive disclosure-based context generation (agent requests what it needs via tool calls) suits tasks where the agent can reason about what it needs before seeing it. It fails when:
+**Credit misattribution in multi-component changes.** Autocontext's component sensitivity profiling correlates changes with score improvements but cannot establish causation. When a generation changes both the playbook and adds a new tool, the system may attribute the improvement to whichever component changed more visibly rather than the one that actually drove the result.
 
-- The agent does not know what it does not know. Debugging an unfamiliar codebase benefits from broad semantic search that surfaces unexpected connections, not from the agent requesting specific files it already knows about.
-- Latency matters more than precision. Three progressive tool calls add 200-500ms per retrieval cycle. High-throughput applications with latency constraints need retrieval to happen in one shot.
-- The knowledge space is novel. A new agent with empty memory has nothing to request progressively. Broad retrieval strategies work better at bootstrap.
+**Curator conservatism.** Autocontext's Curator agent can reject valid lessons if they seem contradictory or low-confidence. Over many generations with an overly conservative curator, the playbook fails to accumulate the lessons that would reduce repeated errors. The consolidation cap at `AUTOCONTEXT_SKILL_MAX_LESSONS` may discard useful older lessons via recency rather than quality.
 
-For these cases, semantic search with hybrid retrieval and relevance-ranked injection produces better results than progressive disclosure.
+## When NOT to Use Context Generation
 
-## Related Concepts
+**Single-run or low-frequency workloads.** The value of context generation is compound: each run improves future runs. For one-off tasks or workloads that run infrequently on different problems, the infrastructure cost and LLM overhead of observation capture and distillation produces no return.
 
-- [Context Engineering](../concepts/context-engineering.md): The broader discipline of which context generation is one component
-- [Context Management](../concepts/context-management.md): Managing context window state during execution
-- [Context Compression](../concepts/context-compression.md): Reducing context size while preserving information
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md): The specific retrieval-then-generate pipeline
-- [Progressive Disclosure](../concepts/progressive-disclosure.md): Agent-driven incremental context loading
-- [Agent Memory](../concepts/agent-memory.md): The stores from which context is generated
-- [Episodic Memory](../concepts/episodic-memory.md): Session-level memory used in context generation
-- [Semantic Search](../concepts/semantic-search.md): One retrieval mechanism for context generation
-- [Hybrid Search](../concepts/hybrid-search.md): Combined keyword and semantic retrieval
+**Latency-sensitive pipelines.** Hook-based capture (claude-mem) adds background LLM calls per tool invocation. Multi-agent distillation (Autocontext) adds five-agent coordination per generation. For pipelines where response latency matters more than cross-session learning, this overhead is the wrong tradeoff.
+
+**Teams without infrastructure capacity.** Acontext's self-hosted deployment requires PostgreSQL, Redis, RabbitMQ, and S3-compatible storage. Autocontext requires SQLite plus filesystem management plus optional CUDA/MLX training infrastructure. Simple [Agent Memory](../concepts/agent-memory.md) approaches using a single vector store or even flat files may be more appropriate for teams without operational capacity to run distributed infrastructure.
+
+**Tasks where generated context may mislead.** Domains with rapidly changing ground truth (security vulnerabilities, API behaviors, regulatory requirements) can accumulate context that was accurate when generated but is now wrong. Without active staleness detection, agents may confidently act on outdated lessons.
+
+## Unresolved Questions
+
+**Cost attribution at production scale.** Neither Autocontext nor Acontext publish cost-per-run figures at production scale. Autocontext's five agents per generation plus judge evaluation creates compounding LLM costs. The "cost-aware loop control" and long-run presets in Autocontext acknowledge the problem but do not document actual per-generation costs at different provider tiers.
+
+**Conflict resolution between contradictory lessons.** When two sessions learn contradictory lessons about the same domain — one records "always add retry logic to Stripe calls" and another records "retry logic caused duplicate charges with Stripe" — Acontext processes them sequentially without explicit conflict detection. The second lesson may override or coexist with the first depending on the Skill Learner's reasoning at the time. No documentation addresses how to detect or resolve this systematically.
+
+**Governance for shared learning spaces.** Acontext's learning spaces can be shared across team members. When multiple agents or users contribute to the same skill library, there is no documented access control model for who can write to or delete skills. In Autocontext, the Curator gates knowledge quality but operates as an automated agent, not a human governance step.
+
+**Distillation fidelity for complex multi-step reasoning.** Both systems compress multi-turn agent execution into structured lessons. For tasks that require understanding subtle reasoning chains — why a particular ordering of operations matters, why a seemingly reasonable approach failed due to timing — the distillation step may lose critical nuance. The structured entry formats (SOP, warning, fact) impose a schema on experiences that may not fit cleanly.
+
+## Implementations
+
+**[Autocontext](../projects/openclaw.md)** (greyhaven-ai, 695 stars): Multi-agent harness with five-agent improvement loop, playbook versioning, credit assignment, Pareto optimization, and frontier-to-local distillation. Python control plane (`autocontext/`) with TypeScript operator surface (`ts/`). Best suited for teams running repeated scenarios that need compound improvement.
+
+**[Acontext](../projects/openclaw.md)** (memodb-io, 3,264 stars): Three-stage learning pipeline producing portable Markdown skill files. Go API server plus Python AI core, full-stack infrastructure. Best suited for teams that want human-inspectable memory that is portable across frameworks and LLMs.
+
+**Claude-mem** (thedotmack, 44,950 stars): Hook-based observation capture for Claude Code sessions specifically. Background worker with SQLite storage and optional ChromaDB vectors. Best suited for individual developers using Claude Code who want seamless cross-session memory without infrastructure.
+
+**[Claude Code](../projects/claude-code.md)** natively reads `CLAUDE.md` files, which both claude-mem and Acontext can write to — creating a context generation pathway that uses the agent platform's own context ingestion rather than requiring a custom injection mechanism.
+
+## Selection Guidance
+
+Use claude-mem when you work primarily in Claude Code and want zero-configuration memory that captures tool-level observations automatically. The 44,950-star count reflects genuine product-market fit.
+
+Use Acontext when your team builds agents across multiple frameworks (LangGraph, Claude SDK, Vercel AI SDK) and needs shared, portable skill libraries that non-technical stakeholders can inspect and edit.
+
+Use Autocontext when you have specific scenarios that run repeatedly and you need systematic improvement with credit assignment, rollback capability, and eventual cost reduction through distillation.
+
+For simpler requirements, a [Vector Database](../concepts/vector-database.md) with explicit [Semantic Search](../concepts/semantic-search.md) over session summaries, or a flat-file approach like [CLAUDE.md](../concepts/claude-md.md) with manually maintained knowledge, may deliver more value with less infrastructure complexity than any of these systems.
+
+
+## Related
+
+- [OpenAI](../projects/openai.md) — implements (0.4)
+- [OpenClaw](../projects/openclaw.md) — implements (0.4)
+- [Anthropic](../projects/anthropic.md) — implements (0.4)
+- [Claude](../projects/claude.md) — implements (0.4)
+- [Claude Code](../projects/claude-code.md) — implements (0.4)

@@ -1,0 +1,346 @@
+{
+  "version": 1,
+  "compiled_at": "2026-04-08T23:31:45.867Z",
+  "total_claims": 268,
+  "sample_size": 30,
+  "carried_forward": 4,
+  "total_evaluated": 34,
+  "accuracy": 0.5,
+  "results": [
+    {
+      "claim_id": "claim-8ee5df711524",
+      "verdict": "PASS",
+      "reason": "[cached] The source explicitly contains the composite score formula 'composite = BM25_score + backlink_count * 0.5 + recency_normalized * 1.0' in the search architecture section."
+    },
+    {
+      "claim_id": "claim-0dac47cb2fe9",
+      "verdict": "PASS",
+      "reason": "[cached] The source explicitly states Ars Contexta has ~2,900 GitHub stars and traverses 249 interconnected research claims to compose domain-specific cognitive architectures from first principles, directly matching the claim."
+    },
+    {
+      "claim_id": "claim-14255ae69753",
+      "verdict": "PASS",
+      "reason": "[cached] The source explicitly states that Graphiti's search layer implements 'configurable hybrid search combining cosine similarity, BM25 fulltext, and breadth-first graph traversal,' which directly supports the claim about Graphiti using cosine + BM25 + BFS graph traversal."
+    },
+    {
+      "claim_id": "claim-4e0b9bdf13e3",
+      "verdict": "PASS",
+      "reason": "[cached] The source explicitly states A-MEM achieves a 2.5x improvement on multi-hop reasoning with F1 scores of 45.85 vs 18.41, directly matching the claim."
+    },
+    {
+      "claim_id": "claim-52a270ce5d0c",
+      "verdict": "FAIL",
+      "reason": "The source does not mention any specific GPU hardware requirements (8x A100 GPUs) for running AgentEvolver."
+    },
+    {
+      "claim_id": "claim-263188b9e212",
+      "verdict": "PASS",
+      "reason": "The source explicitly lists 51,880 as the Stars metric in the Stats table."
+    },
+    {
+      "claim_id": "claim-c8bf0a21c87c",
+      "verdict": "FAIL",
+      "reason": "The source describes MemEvolve's architecture and approach but does not contain the specific empirical claim of 7-17% gains across benchmarks."
+    },
+    {
+      "claim_id": "claim-4009ba63097b",
+      "verdict": "FAIL",
+      "reason": "The source describes SICA's architecture and self-improvement mechanism but does not contain the specific numerical claim that accuracy improved from 17% to 53% across 14 iterations on SWE-Bench Verified."
+    },
+    {
+      "claim_id": "claim-d7fba2934a60",
+      "verdict": "FAIL",
+      "reason": "The source mentions 91% on LongMemEval-S but does not contain the specific claim that the previous best system score was 86%."
+    },
+    {
+      "claim_id": "claim-0fab0ab83157",
+      "verdict": "FAIL",
+      "reason": "The source contains no information about the number of GitHub stars for Anthropic's skills repository."
+    },
+    {
+      "claim_id": "claim-6ff1d1056b83",
+      "verdict": "FAIL",
+      "reason": "The source contains detailed architectural information about Autocontext but does not mention any GitHub star count or the specific number 695."
+    },
+    {
+      "claim_id": "claim-184e1c93d170",
+      "verdict": "PASS",
+      "reason": "The source explicitly states that 'harness changes alone can produce up to 6x performance gaps on the same benchmark with the same model,' directly supporting the claim."
+    },
+    {
+      "claim_id": "claim-5d450f691c30",
+      "verdict": "FAIL",
+      "reason": "The source states the project had '136,000+ GitHub stars' (an approximate figure), while the claim specifies the exact number '136,116 GitHub stars', which is not found in the source."
+    },
+    {
+      "claim_id": "claim-265c16b61b13",
+      "verdict": "FAIL",
+      "reason": "The source states gstack reached 'over 63,000 stars,' not the specific figure of 63,766 stars claimed, making this a numerical discrepancy for an empirical claim."
+    },
+    {
+      "claim_id": "claim-791afda714f5",
+      "verdict": "FAIL",
+      "reason": "The source states the project had '136,000+ GitHub stars' (not the specific figure of 136,116 stars claimed in the article), making this a numerical discrepancy for an empirical claim."
+    },
+    {
+      "claim_id": "claim-12ea3a5ad5c4",
+      "verdict": "PASS",
+      "reason": "The source explicitly states '90% Lower Token Usage than full-context' and references the LOCOMO benchmark, directly supporting the claim."
+    },
+    {
+      "claim_id": "claim-24cb05639e26",
+      "verdict": "PASS",
+      "reason": "The source explicitly states that meta-agent improved holdout accuracy from 67% to 87% on tau-bench v3 airline, matching the claim exactly."
+    },
+    {
+      "claim_id": "claim-63d24d58b719",
+      "verdict": "PASS",
+      "reason": "The source explicitly states that the meta-agent modifies harness configuration including 'prompts, hooks, tools, or subagents' and that 'the update is kept only if it improves holdout accuracy,' directly supporting both parts of the claim."
+    },
+    {
+      "claim_id": "claim-f1cd1e3a7dd3",
+      "verdict": "PASS",
+      "reason": "The source explicitly states that pi-autoresearch uses 'MAD-based statistical confidence' as part of its experiment loop infrastructure, directly supporting the claim."
+    },
+    {
+      "claim_id": "claim-9d8bd0173277",
+      "verdict": "PASS",
+      "reason": "The source explicitly states 7,021 stars, confirms the 71.5x token reduction per query vs raw file retrieval, and describes AST extraction via tree-sitter for code and Claude vision for images."
+    },
+    {
+      "claim_id": "claim-d5c2b363f52a",
+      "verdict": "FAIL",
+      "reason": "The source describes the Skill Learner Agent's tools (get_skill, get_skill_file, etc.) but does not mention 'list_skills' as a tool, and does not explicitly describe the retrieval mechanism as 'progressive disclosure' or compare it to embedding search for skill retrieval in the context of agent queries."
+    },
+    {
+      "claim_id": "claim-68840de1553f",
+      "verdict": "PASS",
+      "reason": "The source explicitly states GEPA-inspired Pareto optimization and mentions scoring backends including Elo and Glicko in the harness subsystem description."
+    },
+    {
+      "claim_id": "claim-2832ee70f557",
+      "verdict": "FAIL",
+      "reason": "The source describes Docker containers being used for sandboxed execution but does not mention the specific parameters 'network_mode=none' or 'mem_limit=2g'."
+    },
+    {
+      "claim_id": "claim-80e2af86c5e4",
+      "verdict": "FAIL",
+      "reason": "The source confirms 6,592 stars and mentions '8.2x average token reduction across 6 real repositories' (in an image alt-text) and tree-sitter/SQLite architecture, but the claim states '8.2x token reduction' while the source's main text describes '6.8× fewer tokens on reviews' — the 8.2x figure appears only as an image caption, and the claim's specific metric of 'average 8.2x token reduction across 6 real repositories' conflicts with the prominently stated 6.8x figure, making this a factual discrepancy for a numerical/empirical claim."
+    },
+    {
+      "claim_id": "claim-5eab2cfa38e1",
+      "verdict": "PASS",
+      "reason": "The source explicitly describes Graphify transforming heterogeneous sources (code, papers, images, docs) into a queryable knowledge graph, and mentions tree-sitter AST parsing for code; while NetworkX and Leiden community detection are not explicitly named in this excerpt, the claim's architectural elements about source types and AST parsing are confirmed, and community detection is referenced via community-based features, making this a reasonable paraphrase of the architecture described."
+    },
+    {
+      "claim_id": "claim-0266ad309755",
+      "verdict": "PASS",
+      "reason": "The source explicitly describes the three-tier progressive disclosure architecture: metadata tier (~100 words, always in context), SKILL.md body loaded on trigger, and bundled resources loaded on demand, which matches the claim's description of ~100 tokens always loaded, instructions on trigger, and bundled resources on demand."
+    },
+    {
+      "claim_id": "claim-e5f5140932f8",
+      "verdict": "PASS",
+      "reason": "The source explicitly describes all three knowledge types: attempts/ as 'JSON records of every eval (commit_hash, score, feedback)', notes/ as 'Markdown findings from agents', and skills/ as 'Reusable tools/techniques as SKILL.md directories', matching the architectural claim precisely."
+    },
+    {
+      "claim_id": "claim-cc9053222ca5",
+      "verdict": "PASS",
+      "reason": "The source explicitly describes the Advantage Processor module as implementing 'LLM-based step-level GOOD/BAD evaluation, reward fusion with outcome signals, and advantage computation via ADCA-GRPO,' which matches the architectural claim about external LLM evaluation of steps as GOOD or BAD fused with outcome signals through ADCA-GRPO."
+    },
+    {
+      "claim_id": "claim-cd25b74b7ece",
+      "verdict": "FAIL",
+      "reason": "The source describes the observation system and instinct clustering as part of the Evolution Layer but does not mention capturing tool call observations in JSONL format or running a background analyzer every 5 minutes."
+    },
+    {
+      "claim_id": "claim-92071feb1155",
+      "verdict": "FAIL",
+      "reason": "The source describes MetaGPT's architecture using pub-sub messaging, filesystem persistence, and role-based coordination, but contains no evidence that 'all production multi-agent systems now use some form of append-only experiment logging with structured metadata, replacing in-memory state with persistent records.'"
+    },
+    {
+      "claim_id": "claim-180676101ce2",
+      "verdict": "FAIL",
+      "reason": "The source explicitly states that SICA unifies the meta-agent and target-agent into a single system, eliminating the separation between improvement-proposing and improvement-receiving components, which directly contradicts the claim that all serious multi-agent self-improvement systems implement this separation."
+    },
+    {
+      "claim_id": "claim-3e9aef7d426c",
+      "verdict": "FAIL",
+      "reason": "The source does not contain the specific benchmark scores of 35.3% for recursive summarization or 94.8% for temporal knowledge graphs on the Deep Memory Retrieval benchmark."
+    },
+    {
+      "claim_id": "claim-dd5a706f53cc",
+      "verdict": "PASS",
+      "reason": "The source explicitly states that the system 'inverts the traditional retrieval problem: instead of needing a query to find relevant context, the agent sees all topics at zero cost,' directly supporting the claim that semantic search alone is insufficient because it requires a query and the agent must already suspect relevant context exists."
+    },
+    {
+      "claim_id": "claim-fec4b4453994",
+      "verdict": "FAIL",
+      "reason": "The source states the comparison is 50.0 (full filesystem access) vs 34.9 (scores + summaries), but the claim says 34.9 is the compressed summaries figure compared to 50.0, with a 15.1 point gap — however, the source shows 'scores + summaries' at 34.9 while 'scores only' is 34.6, meaning the claim correctly identifies 34.9 for compressed summaries but the gap calculation of 15.1 percentage points (50.0 - 34.9) is accurate; yet the source's architecture section describes the critical finding as '50.0 vs 34.6 accuracy without it,' not 34.9, creating an internal inconsistency in the source itself, but the ablation table does show full access (50.0) vs scores+summaries (34.9) = 15.1 point gap, which matches the claim."
+    }
+  ],
+  "failures": [
+    {
+      "claim_id": "claim-52a270ce5d0c",
+      "claim": "AgentEvolver requires 8x A100 GPUs to run.",
+      "article_ref": "self-improving",
+      "source_ref": "deep/repos/modelscope-agentevolver.md",
+      "reason": "The source does not mention any specific GPU hardware requirements (8x A100 GPUs) for running AgentEvolver."
+    },
+    {
+      "claim_id": "claim-c8bf0a21c87c",
+      "claim": "MemEvolve uses LLMs to generate entirely new memory provider implementations from trajectory analysis, achieving 7-17% gains across benchmarks.",
+      "article_ref": "knowledge-substrate",
+      "source_ref": "deep/repos/bingreeky-memevolve.md",
+      "reason": "The source describes MemEvolve's architecture and approach but does not contain the specific empirical claim of 7-17% gains across benchmarks."
+    },
+    {
+      "claim_id": "claim-4009ba63097b",
+      "claim": "SICA improved SWE-Bench Verified accuracy from 17% to 53% across 14 self-modification iterations.",
+      "article_ref": "multi-agent-systems",
+      "source_ref": "deep/repos/maximerobeyns-self-improving-coding-agent.md",
+      "reason": "The source describes SICA's architecture and self-improvement mechanism but does not contain the specific numerical claim that accuracy improved from 17% to 53% across 14 iterations on SWE-Bench Verified."
+    },
+    {
+      "claim_id": "claim-d7fba2934a60",
+      "claim": "Napkin scored 91% on LongMemEval-S, beating the previous best system score of 86%.",
+      "article_ref": "knowledge-substrate",
+      "source_ref": "deep/repos/michaelliv-napkin.md",
+      "reason": "The source mentions 91% on LongMemEval-S but does not contain the specific claim that the previous best system score was 86%."
+    },
+    {
+      "claim_id": "claim-0fab0ab83157",
+      "claim": "Anthropic's skills repo has 110,064 stars.",
+      "article_ref": "context-engineering",
+      "source_ref": "deep/repos/anthropics-skills.md",
+      "reason": "The source contains no information about the number of GitHub stars for Anthropic's skills repository."
+    },
+    {
+      "claim_id": "claim-6ff1d1056b83",
+      "claim": "Autocontext has 695 stars.",
+      "article_ref": "context-engineering",
+      "source_ref": "deep/repos/greyhaven-ai-autocontext.md",
+      "reason": "The source contains detailed architectural information about Autocontext but does not mention any GitHub star count or the specific number 695."
+    },
+    {
+      "claim_id": "claim-5d450f691c30",
+      "claim": "Everything Claude Code had 136,116 GitHub stars.",
+      "article_ref": "agent-architecture",
+      "source_ref": "deep/repos/affaan-m-everything-claude-code.md",
+      "reason": "The source states the project had '136,000+ GitHub stars' (an approximate figure), while the claim specifies the exact number '136,116 GitHub stars', which is not found in the source."
+    },
+    {
+      "claim_id": "claim-265c16b61b13",
+      "claim": "gstack has 63,766 GitHub stars and implements a sprint-as-DAG pattern with 23 specialist roles.",
+      "article_ref": "self-improving",
+      "source_ref": "deep/repos/garrytan-gstack.md",
+      "reason": "The source states gstack reached 'over 63,000 stars,' not the specific figure of 63,766 stars claimed, making this a numerical discrepancy for an empirical claim."
+    },
+    {
+      "claim_id": "claim-791afda714f5",
+      "claim": "Everything Claude Code has 136,116 GitHub stars and covers 156 skills across 12 language ecosystems with manifest-driven selective install.",
+      "article_ref": "self-improving",
+      "source_ref": "deep/repos/affaan-m-everything-claude-code.md",
+      "reason": "The source states the project had '136,000+ GitHub stars' (not the specific figure of 136,116 stars claimed in the article), making this a numerical discrepancy for an empirical claim."
+    },
+    {
+      "claim_id": "claim-d5c2b363f52a",
+      "claim": "Acontext uses progressive disclosure through tool calls (list_skills, get_skill, get_skill_file) rather than embedding search for skill retrieval.",
+      "article_ref": "self-improving",
+      "source_ref": "deep/repos/memodb-io-acontext.md",
+      "reason": "The source describes the Skill Learner Agent's tools (get_skill, get_skill_file, etc.) but does not mention 'list_skills' as a tool, and does not explicitly describe the retrieval mechanism as 'progressive disclosure' or compare it to embedding search for skill retrieval in the context of agent queries."
+    },
+    {
+      "claim_id": "claim-2832ee70f557",
+      "claim": "SICA runs each modification against benchmarks inside Docker containers with network_mode='none' and mem_limit='2g'.",
+      "article_ref": "self-improving",
+      "source_ref": "deep/repos/maximerobeyns-self-improving-coding-agent.md",
+      "reason": "The source describes Docker containers being used for sandboxed execution but does not mention the specific parameters 'network_mode=none' or 'mem_limit=2g'."
+    },
+    {
+      "claim_id": "claim-80e2af86c5e4",
+      "claim": "Code-review-graph has 6,592 stars, builds persistent structural maps using tree-sitter AST parsing stored in SQLite, and achieves an average 8.2x token reduction across 6 real repositories.",
+      "article_ref": "knowledge-substrate",
+      "source_ref": "repos/tirth8205-code-review-graph.md",
+      "reason": "The source confirms 6,592 stars and mentions '8.2x average token reduction across 6 real repositories' (in an image alt-text) and tree-sitter/SQLite architecture, but the claim states '8.2x token reduction' while the source's main text describes '6.8× fewer tokens on reviews' — the 8.2x figure appears only as an image caption, and the claim's specific metric of 'average 8.2x token reduction across 6 real repositories' conflicts with the prominently stated 6.8x figure, making this a factual discrepancy for a numerical/empirical claim."
+    },
+    {
+      "claim_id": "claim-cd25b74b7ece",
+      "claim": "Everything Claude Code's instinct system captures tool call observations in JSONL format and runs a background analyzer every 5 minutes.",
+      "article_ref": "agent-memory",
+      "source_ref": "deep/repos/affaan-m-everything-claude-code.md",
+      "reason": "The source describes the observation system and instinct clustering as part of the Evolution Layer but does not mention capturing tool call observations in JSONL format or running a background analyzer every 5 minutes."
+    },
+    {
+      "claim_id": "claim-92071feb1155",
+      "claim": "All production multi-agent systems now use some form of append-only experiment logging with structured metadata, replacing in-memory state with persistent records.",
+      "article_ref": "multi-agent-systems",
+      "source_ref": "deep/repos/foundationagents-metagpt.md",
+      "reason": "The source describes MetaGPT's architecture using pub-sub messaging, filesystem persistence, and role-based coordination, but contains no evidence that 'all production multi-agent systems now use some form of append-only experiment logging with structured metadata, replacing in-memory state with persistent records.'"
+    },
+    {
+      "claim_id": "claim-180676101ce2",
+      "claim": "The field has converged on separating the improvement target from the improvement agent, with all serious multi-agent self-improvement systems now implementing this separation.",
+      "article_ref": "multi-agent-systems",
+      "source_ref": "deep/repos/maximerobeyns-self-improving-coding-agent.md",
+      "reason": "The source explicitly states that SICA unifies the meta-agent and target-agent into a single system, eliminating the separation between improvement-proposing and improvement-receiving components, which directly contradicts the claim that all serious multi-agent self-improvement systems implement this separation."
+    },
+    {
+      "claim_id": "claim-3e9aef7d426c",
+      "claim": "Recursive summarization scored 35.3% on the Deep Memory Retrieval benchmark versus 94.8% for temporal knowledge graphs.",
+      "article_ref": "agent-memory",
+      "source_ref": "deep/repos/getzep-graphiti.md",
+      "reason": "The source does not contain the specific benchmark scores of 35.3% for recursive summarization or 94.8% for temporal knowledge graphs on the Deep Memory Retrieval benchmark."
+    },
+    {
+      "claim_id": "claim-fec4b4453994",
+      "claim": "In the Meta-Harness paper, providing the optimizer with full execution traces (10M tokens per iteration) produced 50.0% accuracy, while compressed summaries produced only 34.9% accuracy, a 15.1 percentage point gap.",
+      "article_ref": "multi-agent-systems",
+      "source_ref": "deep/papers/lee-meta-harness-end-to-end-optimization-of-model-har.md",
+      "reason": "The source states the comparison is 50.0 (full filesystem access) vs 34.9 (scores + summaries), but the claim says 34.9 is the compressed summaries figure compared to 50.0, with a 15.1 point gap — however, the source shows 'scores + summaries' at 34.9 while 'scores only' is 34.6, meaning the claim correctly identifies 34.9 for compressed summaries but the gap calculation of 15.1 percentage points (50.0 - 34.9) is accurate; yet the source's architecture section describes the critical finding as '50.0 vs 34.6 accuracy without it,' not 34.9, creating an internal inconsistency in the source itself, but the ablation table does show full access (50.0) vs scores+summaries (34.9) = 15.1 point gap, which matches the claim."
+    }
+  ],
+  "by_type": {
+    "empirical": {
+      "sampled": 16,
+      "passed": 6
+    },
+    "architectural": {
+      "sampled": 12,
+      "passed": 9
+    },
+    "directional": {
+      "sampled": 4,
+      "passed": 2
+    },
+    "comparative": {
+      "sampled": 2,
+      "passed": 0
+    }
+  },
+  "by_bucket": {
+    "knowledge-substrate": {
+      "sampled": 8,
+      "passed": 5
+    },
+    "agent-memory": {
+      "sampled": 5,
+      "passed": 3
+    },
+    "context-engineering": {
+      "sampled": 6,
+      "passed": 4
+    },
+    "agent-architecture": {
+      "sampled": 2,
+      "passed": 1
+    },
+    "multi-agent-systems": {
+      "sampled": 5,
+      "passed": 1
+    },
+    "self-improving": {
+      "sampled": 8,
+      "passed": 3
+    }
+  }
+}

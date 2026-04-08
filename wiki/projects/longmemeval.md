@@ -3,122 +3,123 @@ entity_id: longmemeval
 type: project
 bucket: agent-memory
 abstract: >-
-  LongMemEval: ICLR 2025 benchmark testing LLM long-term memory across 500
-  questions spanning multi-session chat histories; distinguishes temporal
-  reasoning and cross-session synthesis from simple retrieval recall.
+  LongMemEval is a benchmark for evaluating long-term memory in conversational
+  AI, testing 500 questions across multi-session histories with complex temporal
+  reasoning — the primary public standard for comparing memory systems like Zep,
+  Mem0, and Supermemory.
 sources:
-  - repos/supermemoryai-supermemory.md
-  - repos/michaelliv-napkin.md
-  - papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
   - deep/papers/mei-a-survey-of-context-engineering-for-large-language.md
+  - papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md
+  - repos/michaelliv-napkin.md
+  - repos/supermemoryai-supermemory.md
 related:
   - retrieval-augmented-generation
-  - model-context-protocol
-  - knowledge-graph
-last_compiled: '2026-04-08T02:51:35.344Z'
+last_compiled: '2026-04-08T23:08:43.742Z'
 ---
 # LongMemEval
 
 ## What It Is
 
-LongMemEval is a benchmark for evaluating long-term memory in conversational AI. Published at ICLR 2025, it tests whether systems can recall, synthesize, and reason over information spread across extended interaction histories rather than single-session context windows.
+LongMemEval is an evaluation benchmark for long-term memory in conversational AI systems, accepted at ICLR 2025. It tests whether AI systems can accurately retrieve and reason over information scattered across extended multi-session conversation histories.
 
-The benchmark contains 500 questions drawn from multi-session chat histories. The core differentiator is question type diversity: questions require not just verbatim recall but temporal reasoning ("what did the user say before they changed their address?"), cross-session synthesis ("given preferences mentioned in three separate conversations, what would they want?"), and knowledge update tracking ("the user mentioned X in session 2 and contradicted it in session 5 -- what's current?").
+The benchmark addresses a gap in prior evaluation: most memory benchmarks test simple single-hop fact recall within a single conversation. LongMemEval instead presents questions that require reasoning over facts distributed across many sessions, tracking how information changes over time, and synthesizing evidence from non-contiguous conversation segments.
 
-## Architecture and Design
+The core dataset contains 500 questions built on top of synthetic multi-session conversation histories. The histories vary in length across three tiers:
 
-LongMemEval ships as three dataset variants by conversation volume:
+- **Oracle**: 1-6 sessions, providing an upper bound on what's achievable with perfect retrieval
+- **S (Short)**: ~40 sessions per history
+- **M (Medium)**: ~500 sessions per history
 
-- **Oracle**: 1-6 sessions per user history
-- **S**: ~40 sessions
-- **M**: ~500 sessions
+This structure lets researchers measure both retrieval quality in isolation (Oracle) and end-to-end system performance under realistic conditions (S, M).
 
-The S and M variants stress-test memory architectures that work fine on short contexts. GPT-4o with full context achieves 92.4% on Oracle but drops to 64% on S and becomes infeasible on M -- the benchmark's central finding.
+## Core Mechanism
 
-The question design targets five failure modes in memory systems:
+Each evaluation instance pairs a multi-session conversation history with a question requiring some form of memory reasoning. Question categories include:
 
-1. **Single-session recall** -- basic fact retrieval within one conversation
-2. **Cross-session synthesis** -- facts distributed across separate sessions
-3. **Temporal reasoning** -- facts that change over time with earlier states needing disambiguation
-4. **Knowledge update** -- newer information superseding older
-5. **Adversarial** -- misleading or contradictory information planted to confuse retrieval
+- **Single-hop recall**: Retrieve a specific fact stated in a past session
+- **Cross-session synthesis**: Combine information from multiple non-adjacent sessions
+- **Temporal reasoning**: Answer questions about when things happened or how facts changed over time
+- **Knowledge update tracking**: Correctly use the most recent version of a fact when the user updated it across sessions
 
-Questions are grounded in realistic personal assistant scenarios: user preferences, biographical facts, task history, and scheduled events. Ground truth answers are human-verified.
+The benchmark is accessed via the [LongMemEval GitHub repository](https://github.com/xiaowu0162/LongMemEval). Evaluation uses exact match or LLM-as-judge scoring depending on question type.
 
-## Performance Landscape
+The "Oracle" condition deserves attention: it provides only the sessions containing the answer, effectively measuring what a perfect retriever would achieve. Gaps between Oracle and S/M scores quantify how much retrieval failure costs a given system.
 
-These numbers come from published papers and project READMEs, not independent third-party audits:
+## Key Numbers
 
-| System | Dataset | Accuracy | Source |
-|---|---|---|---|
-| GPT-4o full context | Oracle | 92.4% | [napkin README](../raw/repos/michaelliv-napkin.md) (self-reported) |
-| GPT-4o full context | S | 64% | Same |
-| napkin (BM25 on markdown) | S | 91.0% | Same (self-reported) |
-| napkin | M | 83.0% | Same (self-reported) |
-| Supermemory | LongMemEval | 81.6% (#1) | [Supermemory README](../raw/repos/supermemoryai-supermemory.md) (self-reported) |
-| Zep | LongMemEval | Baseline +18.5% accuracy, -90% latency | [Zep paper](../raw/papers/rasmussen-zep-a-temporal-knowledge-graph-architecture-for-a.md) (self-reported) |
-| MemGPT | DMR benchmark | 93.4% | Zep paper (self-reported) |
+Published benchmark scores from systems evaluated against LongMemEval (all self-reported by system authors):
 
-All scores are self-reported by the systems being evaluated. No independent replication is documented in available sources. The Zep paper uses LongMemEval alongside Deep Memory Retrieval (DMR) and positions the two as complementary: DMR tests single-hop fact recall, LongMemEval tests the multi-hop and temporal cases DMR misses.
+| System | Dataset | Accuracy |
+|---|---|---|
+| GPT-4o (full context) | Oracle | 92.4% |
+| GPT-4o (full context) | S | 64% |
+| napkin (BM25 on markdown) | Oracle | 92.0% |
+| napkin (BM25 on markdown) | S | 91.0% |
+| napkin (BM25 on markdown) | M | 83.0% |
+| Zep | S | ~18.5% improvement over baseline |
+| Supermemory | Overall | 81.6% (#1 claimed) |
 
-The napkin numbers are striking because they use no embeddings, no vector database, and no graphs -- just BM25 search on markdown files with progressive disclosure. If accurate, this challenges the assumption that production memory systems require semantic retrieval infrastructure.
+**Credibility note**: All figures above are self-reported. The ICLR acceptance establishes the benchmark methodology as peer-reviewed, but individual system scores come from each system's own evaluation runs. GPT-4o's sharp drop from 92.4% (Oracle) to 64% (S) is the benchmark's most cited finding and has face validity: it demonstrates the "lost in the middle" problem at scale. The napkin BM25 scores are notable because they suggest a simple lexical retrieval system outperforms semantic approaches on this benchmark, which warrants independent replication. Supermemory's "#1" claim is self-reported marketing copy without a linked comparison table.
 
-## Why It Matters
+## What LongMemEval Is Good At
 
-The benchmark exposes a specific gap in how memory systems are typically evaluated. Most prior evaluations (including DMR, which MemGPT popularized) test single-session retrieval: can you find the right fact from a single document or conversation? LongMemEval shifts the question to whether systems can track facts that evolve, combine information from sources months apart, and reason about temporal ordering.
+**Exposing retrieval degradation at scale.** The Oracle-to-S gap is the benchmark's strongest signal. A system that performs well on Oracle but degrades on S is failing at retrieval, not reasoning. This lets teams diagnose where their pipeline breaks.
 
-This distinction matters for production deployments. A customer service agent that correctly recalls facts within one conversation but fails to track that a user changed their address across sessions creates support problems. A personal assistant that can't reconcile contradictory preferences across sessions delivers worse-than-no-memory behavior.
+**Temporal reasoning coverage.** Most memory benchmarks ignore the problem of facts changing over time. LongMemEval's "knowledge update" category directly tests whether a system correctly uses the most recent value of a mutable fact rather than an earlier version.
 
-The context engineering literature confirms this gap. The [context engineering survey](../raw/deep/papers/mei-a-survey-of-context-engineering-for-large-language.md) identifies LongMemEval alongside MEMENTO and MADail-Bench as the primary memory evaluation frameworks but notes that "memory system evaluation is immature -- most benchmarks test single-session recall rather than the cross-session synthesis and temporal reasoning that production systems require."
+**Cross-session synthesis.** Questions requiring synthesis across non-adjacent sessions stress-test systems that treat each session independently, exposing architectures that lack any mechanism for cross-session state.
 
-## Relationship to Other Memory Benchmarks
+**Tiered difficulty.** The Oracle/S/M structure makes it possible to compare systems at different operating points without a single number obscuring where each system fails.
 
-**Deep Memory Retrieval (DMR)**: MemGPT's benchmark, focused on single-hop retrieval across one extended conversation. Easier than LongMemEval. Zep scores 94.8% on DMR vs 93.4% for MemGPT. The Zep paper argues DMR is insufficient for enterprise evaluation precisely because it doesn't test temporal or cross-session reasoning.
+## Critical Limitations
 
-**LoCoMo**: Tests fact recall across extended single conversations with sub-categories for single-hop, multi-hop, temporal, and adversarial questions. More granular than LongMemEval on question taxonomy but uses single-session histories rather than multi-session.
+**Synthetic conversation quality.** The histories are synthetically generated, which means they lack the noise, ambiguity, and topic drift characteristic of real long-term user conversations. A system optimized for LongMemEval may not generalize to messier real-world data where contradictions are implicit rather than explicit and facts are stated obliquely.
 
-**ConvoMem (Salesforce)**: Focuses on personalization and preference learning rather than fact recall. Supermemory claims #1 on all three.
+**Infrastructure assumption.** LongMemEval assumes the evaluation system has structured access to conversation histories as discrete sessions. Systems that ingest raw conversation streams without session boundaries need preprocessing before evaluation, and that preprocessing is not standardized across reported results. Different teams may segment sessions differently, making published scores non-comparable.
 
-**MEMENTO**: Referenced in the context engineering survey as a memory benchmark. Less publicly documented than LongMemEval or LoCoMo.
+**Coverage gaps.** The benchmark does not test multi-user memory (keeping one user's facts from contaminating another's), memory forgetting under privacy constraints, or memory across modalities. It also does not evaluate latency or cost, which matter at the M scale.
 
-## Limitations
+## When NOT to Use LongMemEval
 
-**Coverage gaps**: The benchmark tests personal assistant scenarios. Enterprise memory patterns -- entity relationship tracking, document knowledge bases, organizational context inheritance -- are outside scope. Zep explicitly notes it goes beyond LongMemEval to address enterprise use cases.
+**Short-session applications.** If your system operates within single conversations rather than across many sessions, LongMemEval scores are largely irrelevant. Single-session benchmarks or domain-specific evaluations will tell you more.
 
-**Answer evaluation**: Questions with factual ground truth (addresses, dates, names) are straightforward to score. Synthesis questions requiring judgment about preferences or intent are harder to score automatically. The benchmark likely uses LLM-as-judge for these cases, which introduces evaluator variance.
+**Non-conversational memory.** LongMemEval is built around dialogue histories. Document-level RAG, code repository search, or knowledge base Q&A have different retrieval characteristics that this benchmark does not capture.
 
-**Session distribution**: The S and M datasets have ~40 and ~500 sessions respectively, but the distribution of information density per session, recency of relevant facts, and noise level affects benchmark difficulty in ways systems can exploit differently.
+**Production latency comparison.** Zep reports a 90% latency reduction alongside accuracy gains, but LongMemEval provides no standardized latency measurement. Do not use this benchmark to choose between systems on speed grounds.
 
-**Static histories**: The benchmark uses fixed conversation histories. Production memory systems deal with ongoing ingestion, real-time contradiction detection, and memory that grows unboundedly. LongMemEval tests retrieval from a frozen corpus, which is easier than managing evolving memory.
-
-**Self-reported leaderboard dynamics**: Multiple systems now claim #1 on LongMemEval with different reported scores (Supermemory: 81.6%, napkin: 83-91% depending on dataset). Without a shared evaluation harness and standardized reporting, these numbers are not directly comparable.
-
-## When to Use LongMemEval
-
-Use LongMemEval when evaluating systems that need to maintain user context across multiple conversations over days or weeks. It's the right benchmark for personal assistants, long-running customer relationships, and any system where session persistence matters.
-
-Don't use it as the sole evaluation for:
-- Document knowledge base retrieval (use GAIA, NarrativeQA, or domain-specific RAG benchmarks instead)
-- Single-session long-context reasoning (use RULER or NIAH variants)
-- Enterprise multi-entity memory (LongMemEval's personal assistant framing doesn't cover organizational knowledge graphs)
-- Production readiness testing -- the static corpus and personal scenarios don't reflect the full complexity of deployed memory systems
+**Privacy-sensitive deployments.** The benchmark has no evaluation of memory isolation, data retention controls, or compliance behavior. These matter more than accuracy in regulated industries.
 
 ## Unresolved Questions
 
-The benchmark's evaluation protocol for open-ended synthesis questions isn't fully documented in available sources. Whether systems use the official evaluation harness or implement their own scoring affects comparability.
+**Benchmark construction details are partially opaque.** The question generation methodology, human validation process, and inter-annotator agreement are not fully documented in public materials. For LLM-as-judge scoring, the exact judge model and prompt are not standardized across system evaluations.
 
-No source documents how LongMemEval handles questions where multiple correct answers exist (e.g., "what are the user's preferences?" when preferences evolved over sessions).
+**No leaderboard governance.** There is no official maintained leaderboard. Scores circulate through system-specific papers and READMEs without a neutral third party validating experimental conditions. Two systems claiming "#1" (Supermemory and napkin) use different subsets of the benchmark under different conditions.
 
-The M dataset (~500 sessions) results are sparse. Only napkin reports M-scale numbers. Whether other systems simply can't process M-scale histories or chose not to benchmark at that scale is unclear.
+**Scaling beyond M.** The benchmark goes to ~500 sessions. Production systems for long-term personal assistants may accumulate thousands of sessions over years. Whether performance rankings hold at 5,000+ sessions is untested.
 
-## Related Work
+**The Oracle upper bound is lower than expected.** GPT-4o at 92.4% Oracle means even with perfect retrieval, about 8% of questions fail. The nature of those failures — model reasoning errors vs. question ambiguity vs. annotation issues — is not broken out.
 
-- [Agent Memory](../concepts/agent-memory.md) -- the broader memory taxonomy LongMemEval evaluates
-- [Long-Term Memory](../concepts/long-term-memory.md) -- concepts LongMemEval operationalizes as test questions
-- [Temporal Reasoning](../concepts/temporal-reasoning.md) -- the hardest question category in the benchmark
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) -- the primary retrieval mechanism most systems use to answer LongMemEval queries
-- [LoCoMo](../projects/locomo.md) -- complementary benchmark with more granular question taxonomy
-- [Zep](../projects/zep.md) -- temporal knowledge graph system that uses LongMemEval as a key evaluation
-- [Mem0](../projects/mem0.md) -- memory layer system evaluated against LongMemEval
-- [MemGPT](../projects/memgpt.md) -- established baseline, uses DMR as primary benchmark
-- [LLM-as-Judge](../concepts/llm-as-judge.md) -- likely evaluation mechanism for synthesis questions
+## Relationship to Related Work
+
+[LoCoMo](../projects/locomo.md) is the closest alternative benchmark, covering single-hop, multi-hop, temporal, and adversarial recall within extended conversations. Supermemory claims #1 on both. LongMemEval and LoCoMo overlap in intent but differ in construction: LoCoMo uses the LOCOMO dataset derived from real conversational logs rather than synthetic histories.
+
+[HotpotQA](../projects/hotpotqa.md) tests multi-hop reasoning over documents rather than conversational memory. Performance on HotpotQA does not predict LongMemEval performance because the retrieval surface is structurally different.
+
+The benchmark is a primary evaluation target for [Agent Memory](../concepts/agent-memory.md) systems and is directly relevant to [Long-Term Memory](../concepts/long-term-memory.md) architecture decisions. [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) systems are typically the baseline being challenged.
+
+Systems actively benchmarked against LongMemEval: [Zep](../projects/zep.md), [Supermemory](../projects/supermemory.md), [Mem0](../projects/mem0.md), [MemGPT](../projects/memgpt.md).
+
+## Alternatives
+
+**Use LoCoMo** when you want evaluation grounded in real conversational data rather than synthetic histories, or when adversarial and multi-hop categories are important for your application.
+
+**Use MEMENTO** when your system needs evaluation on memory management tasks beyond retrieval — for example, deciding what to store, when to forget, and how to handle contradictions. MEMENTO covers these behaviors; LongMemEval does not.
+
+**Use MADail-Bench** when evaluating multi-agent dialogue systems where memory is shared across agents rather than maintained per-user.
+
+**Build domain-specific evaluation** when your application has structured conversation patterns (customer support, medical intake, legal research) that synthetic benchmarks do not represent. LongMemEval scores will correlate poorly with production performance in narrow-domain high-stakes settings.
+
+
+## Related
+
+- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — part_of (0.6)

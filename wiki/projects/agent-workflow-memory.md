@@ -3,115 +3,165 @@ entity_id: agent-workflow-memory
 type: project
 bucket: agent-memory
 abstract: >-
-  Agent Workflow Memory induces reusable procedural sub-routines from task
-  execution traces and injects them into agent context, achieving 35.6% on
-  WebArena by transferring learned workflows across tasks without fine-tuning.
+  Agent Workflow Memory induces reusable procedural sub-routines from agent
+  execution traces and injects them as in-context exemplars, achieving 35.6%
+  success on WebArena without fine-tuning.
 sources:
-  - repos/zorazrw-agent-workflow-memory.md
   - deep/repos/bingreeky-memevolve.md
   - deep/repos/zorazrw-agent-workflow-memory.md
+  - repos/zorazrw-agent-workflow-memory.md
 related: []
-last_compiled: '2026-04-08T02:56:28.931Z'
+last_compiled: '2026-04-08T23:13:53.694Z'
 ---
-# Agent Workflow Memory (AWM)
+# Agent Workflow Memory
+
+**Type:** Research project / agent memory system
+**Source:** Carnegie Mellon University (Zhiruo Wang, Jiayuan Mao, Daniel Fried, Graham Neubig)
+**Paper:** arXiv:2409.07429 (September 2024)
+**Repo:** zorazrw/agent-workflow-memory | 415 stars, 48 forks | Apache-2.0
 
 ## What It Does
 
-AWM treats procedural knowledge as a distinct memory type worth storing and reusing. Rather than replaying raw past trajectories or retrieving similar episodes, it abstracts common sub-routines from task execution traces into "workflows" -- step-by-step templates with example-specific values replaced by placeholders like `{product-name}` or `{search-query}`. At inference time, relevant workflows are injected into the agent's context alongside concrete exemplars, giving the agent both high-level procedural guidance and specific action patterns.
+Agent Workflow Memory (AWM) teaches web-navigation agents to remember *how* to do things, not just *what* happened. The core idea: when an agent repeatedly solves similar tasks (log in, search for a product, fill a checkout form), it wastes context window space replaying redundant trajectories. AWM instead extracts abstract "workflows" — parameterized sub-routines with concrete values replaced by placeholders — and injects them as high-level procedural guidance at inference time.
 
-The key architectural choice: workflows live as plain text files (`workflow/{website}.txt`), one per website. No embedding databases, no vector indices, no fine-tuning. The agent's base LLM reads workflows as additional context in its prompt.
+This is [Procedural Memory](../concepts/procedural-memory.md) implemented through pure prompt engineering: no fine-tuning, no embedding databases, no vector retrieval. Workflows live in plain text files (`workflow/{website}.txt`), one per website. The whole system works with any API-accessible LLM.
 
-AWM runs in two modes. **Offline** mode induces workflows from ground-truth annotated training examples -- clean signal, but requires labeled data. **Online** mode induces from the agent's own execution trajectories as it runs, requiring no external data but bootstrapping from potentially imperfect behavior. The paper reports that combining both modes (AWMoff+on) actually underperformed either individually, suggesting the two induction sources create conflicting workflow formulations.
+## Architecture
 
-**Repository:** [zorazrw/agent-workflow-memory](https://github.com/zorazrw/agent-workflow-memory) | 415 stars, 48 forks (Apache-2.0)
+The codebase splits across two benchmark environments:
 
-## Core Mechanism
+```
+agent-workflow-memory/
+  mind2web/
+    pipeline.py           -- Offline/online orchestration loop
+    memory.py             -- Workflow loading + exemplar construction
+    offline_induction.py  -- Workflow generation from annotated training data
+    online_induction.py   -- Workflow generation from agent trajectories
+    workflow/retrieve.py  -- Website-scoped retrieval
+  webarena/
+    pipeline.py           -- Per-task online induction loop
+    induce_rule.py        -- Trajectory deduplication before LLM abstraction
+    induce_prompt.py      -- LLM-based workflow synthesis
+    run.py                -- BrowserGym-based agent execution
+    autoeval/             -- LLM judge for trajectory success
+```
 
-The pipeline has three phases: induce, retrieve, utilize.
+The three-phase loop that runs at inference:
 
-**Induction** (`offline_induction.py`, `online_induction.py`, `webarena/induce_prompt.py`): An LLM (GPT-4o, temperature 0.0) receives formatted task examples with a "# Summary Workflows" suffix and generates abstract workflow descriptions. The WebArena path runs deduplication first (`induce_rule.py`): trajectories are grouped by `intent_template_id`, deduplicated by abstract action signature (e.g., `click(12)_fill(5)_click(3)`), then passed to the LLM for abstraction. This deduplication step is important -- without it, the LLM receives redundant trajectories and produces redundant workflows.
+1. **Induce** — Extract abstract workflows from ground-truth examples (offline) or the agent's own past trajectories (online)
+2. **Retrieve** — Load the website-scoped workflow file; filter concrete exemplars by domain/subdomain/website specificity; trim to token budget
+3. **Utilize** — Inject as `system_prompt + workflow_memory + concrete_exemplars + current_query`
 
-For online learning, the WebArena pipeline (`webarena/pipeline.py`) updates workflows after every task:
+The formal model: **L(q, M+W, o) → a**, where L is the LLM, M is base action documentation, W is the induced workflow set, q is the task instruction, o is the current browser observation.
+
+## Core Mechanism: Workflow Induction
+
+**Offline induction** (`offline_induction.py`) processes ground-truth annotated examples, formats them with candidate element scores from `data/scores_all_data.pkl`, and sends them to GPT-4o at temperature 0.0. The response passes through `filter_workflows()` and gets written to `workflow/{website}.txt`.
+
+**Online induction** runs after each batch of tasks. In WebArena, the loop is per-task:
 
 ```python
 for tid in task_ids:
-    Popen(["python", "run.py", "--workflow_path", f"workflow/{website}.txt"])
-    Popen(["python", "-m", "autoeval.evaluate_trajectory", ...])
-    Popen(["python", "induce_prompt.py", "--result_dir", "results", ...])
+    Popen(["python", "run.py", ...])                         # inference
+    Popen(["python", "-m", "autoeval.evaluate_trajectory"]) # auto-eval
+    Popen(["python", "induce_prompt.py", ...])               # update workflows
 ```
 
-Each induction overwrites the previous workflow file. There's no versioning, no diff tracking, and no mechanism to compare quality across induction rounds.
+`induce_rule.py` performs trajectory deduplication before the LLM sees anything: group by `intent_template_id`, sample one representative per template, further deduplicate by abstract action sequence (`click(12)_fill(5)_click(3)`). This compression step matters — without it, the LLM spends tokens reconciling fifty near-identical checkout trajectories.
 
-**Retrieval** (`mind2web/memory.py`): For Mind2Web, the system selects concrete exemplars from `exemplars.json` by matching domain/subdomain/website hierarchy, sampling up to `retrieve_top_k`, and trimming to fit within `MAX_TOKENS[model]`. The entire workflow file for the relevant website is always included -- no per-workflow similarity filtering.
+The abstraction replaces concrete values with placeholders: `{product-name}`, `{search-query}`, `{destination-city}`. Abstractions are coarse by design — the LLM decides what to generalize.
 
-**Utilization**: The final prompt is `system_prompt + workflow_memory + concrete_exemplars + current_query`. The workflow acts as a procedural guide; the exemplars provide specific action patterns. Both are pure in-context injection.
+The **snowball effect**: simple workflows (log in) become building blocks for compound ones (purchase item = log in + search + add to cart + checkout). The paper documents this compositional growth.
 
-**The snowball effect** is the compositionality property: simple workflows ("log in to account") become building blocks for compound workflows ("purchase item" = log in + search + add to cart + checkout). This emerges naturally from online induction, as later trajectories that use learned workflows produce more complex patterns for the next induction round.
+## Key Numbers
 
-## Benchmarks
+| Benchmark | Method | Success Rate | Notes |
+|---|---|---|---|
+| WebArena | Baseline (BrowserGym) | 23.5% | — |
+| WebArena | SteP (human-engineered) | 33.0% | Hand-crafted workflows |
+| WebArena | **AWM** | **35.6%** | Self-reported |
+| Mind2Web Cross-Task | MindAct | 2.0% | — |
+| Mind2Web Cross-Task | **AWM** | **4.8%** | Self-reported |
+| Mind2Web Step Success | MindAct | 36.2% | — |
+| Mind2Web Step Success | **AWM** | **45.1%** | Self-reported |
 
-**WebArena (GPT-4):** 35.5% success rate vs. 23.5% BrowserGym baseline and 33.0% for SteP (human-engineered workflows). AWM also used fewer steps per task (5.9 vs. 7.9). Cross-template evaluation showed 33.2% success on non-overlapping task templates vs. 23.2% baseline, confirming generalization rather than template memorization. *Self-reported in the paper; no independent replication cited.*
+All results are self-reported in the paper. No independent third-party replication confirmed at time of writing. The WebArena 35.6% figure appears in the README leaderboard screenshot, not a separate evaluation infrastructure.
 
-**Mind2Web (GPT-4, Cross-Task):** 50.6% element accuracy, 45.1% step success, 4.8% task success vs. MindAct's 41.6% / 36.2% / 2.0%. *Self-reported.*
+Additional ablation findings from the paper:
 
-**Operational parameters:** ~40 queries to reach stable performance; average 7.3-7.4 workflows per website; 94% utilization rate on WebArena (94% of tasks used at least one workflow).
-
-The paper reports a 2.8 point improvement for LM-based induction over rule-based induction (45.1% vs. 43.4% step success), and a 2.9 point degradation when filtered HTML is included in workflows -- the irrelevant elements pollute the context.
+- LM-based induction beats rule-based by 2.8 points (45.1% vs 43.4% step success)
+- Including filtered HTML in workflows *hurt* by 2.9 points (context noise)
+- ~40 queries to build useful workflows; performance stabilizes thereafter
+- 94% of WebArena test tasks used at least one workflow (utilization rate 0.94)
+- Cross-template evaluation: 33.2% vs 23.2% for baselines — genuine generalization, not template memorization
 
 ## Strengths
 
-**No fine-tuning required.** AWM works with any API-accessible LLM. The entire memory mechanism runs through prompt engineering, making it deployable without training infrastructure.
+**Works without labeled data.** Online mode bootstraps from the agent's own experience. No training corpus required for a new website — just run some tasks and induce.
 
-**Efficient bootstrapping.** Meaningful performance gains within ~40 task executions. For deployment scenarios with limited data, this practical efficiency matters.
+**Outperforms hand-crafted workflows.** AWM beat SteP (human-engineered procedures) by 7.6 points on WebArena. Automated induction found patterns human designers missed.
 
-**Beats human-engineered workflows.** Outperforming SteP's hand-crafted workflow library by 7.6% suggests LLM-based induction discovers procedural patterns domain experts miss -- a nontrivial result given that hand-crafting is expensive and supposedly benefits from human insight.
+**Efficient.** 5.9 steps per task vs 7.9 for the baseline — the procedural guidance cuts redundant exploration.
 
-**Distinct memory type.** AWM cleanly separates procedural memory (how to do things) from episodic memory (what happened) and semantic memory (what is true). The workflow abstraction is a meaningful compression that episodic replay doesn't provide.
+**Composable.** The snowball effect means capability compounds: early simple workflows support later complex ones without additional engineering.
+
+**No infrastructure dependencies.** Plain text files, standard API calls. Drops into any Python environment.
 
 ## Critical Limitations
 
-**Action rigidity in dynamic environments.** This is the paper's own stated limitation: when a workflow specifies a fixed action sequence, the agent struggles to adapt when the environment presents unexpected UI states. Booking a flight with a predetermined click sequence breaks when a popup offers different airport options. The workflow becomes a liability when the environment deviates from the pattern it was induced from.
+**Concrete failure mode — action rigidity in dynamic environments.** The paper explicitly names this: "workflow actions lack flexibility for dynamic environments." A workflow for booking flights encodes a fixed action sequence. When a popup shows unexpected airport options, the agent tries to follow the workflow rather than handle the deviation. Fixed sequential structures fail when the UI presents unexpected states.
 
-**Unspoken infrastructure assumption: website-stable UI.** AWM's per-website workflow organization assumes that websites don't change their UI significantly between workflow induction and task execution. In practice, A/B tests, feature rollouts, and UI redesigns can invalidate learned workflows without any signal to the agent. The system has no mechanism to detect stale workflows or trigger re-induction. For enterprise deployment against rapidly changing web interfaces, this is a real operational risk.
+**Unspoken infrastructure assumption — GPT-4o availability.** Both induction modes call GPT-4o at temperature 0.0 for workflow generation. The code does not abstract the model choice — it's hardcoded. Running AWM without GPT-4o API access requires non-trivial code changes.
 
-## When Not to Use It
+## When NOT to Use It
 
-**Novel or one-off tasks.** AWM's value compounds across similar tasks -- the snowball effect requires repetition. If your agent handles highly diverse tasks with minimal overlap, workflow induction produces a thin library that rarely matches. The retrieval returns nothing useful, and the workflow memory adds prompt tokens with no benefit.
+**Novel websites with no prior task history.** AWM needs some executions before induction produces anything useful. Cold-start on an unfamiliar site yields no workflows and no benefit — the agent operates without the memory mechanism until it accumulates experience.
 
-**Adversarial or security-sensitive contexts.** Workflows induced from trajectories encode the paths the agent took, including any UI manipulation or social engineering attempts in the environment. If malicious actors can influence the tasks the agent sees, they can inject workflows encoding harmful action sequences.
+**Highly dynamic UIs.** If the website's DOM changes significantly between visits (A/B tests, personalization, session-specific content), workflows learned on one session may misguide the agent on the next. The fixed-sequence assumption breaks.
 
-**Strict context budget environments.** Injecting an entire website's workflow file plus concrete exemplars plus the current web page observation can hit context limits quickly. The code trims exemplars to fit but the workflow file itself always gets included. With complex pages and long workflow files, the observation that actually describes the current task state may be truncated.
+**Tasks requiring fine-grained retrieval across many websites.** Workflows are scoped per website in flat text files. If a task spans multiple sites, the retrieval granularity doesn't match. The website hierarchy also means entirely new domains have no workflow inheritance from structurally similar sites.
 
-**When offline+online combination is needed.** The paper's finding that AWMoff+on underperforms both individual modes is unexplained and unresolved. If you need both labeled training data and online experience to be incorporated, AWM's architecture doesn't handle this gracefully.
+**When you need workflow versioning or quality comparison.** AWM overwrites workflow files on each induction pass. No history, no A/B comparison, no mechanism to identify whether the update improved or degraded quality. If the most recent batch of trajectories was poor, the workflows degrade silently.
 
 ## Unresolved Questions
 
-**Why does combining offline and online modes hurt?** The paper reports AWMoff+on underperforms AWMoff and AWMon independently, but doesn't explain the mechanism. The most plausible hypothesis is that the two induction sources produce workflows with conflicting granularity or framing, and the agent can't reconcile them in context. But this is speculation -- the paper doesn't investigate.
+**Combining offline and online workflows hurts.** The paper reports that AWM_off+on *underperformed* both individual modes. The paper attributes this to "conflicts" between workflows from different induction sources but does not explain the mechanism or propose a resolution strategy.
 
-**Stale workflow detection.** There's no mechanism to identify when an induced workflow has become outdated. The system overwrites workflows on re-induction, but only when re-induction is triggered. Between induction rounds, stale workflows persist and may actively mislead the agent.
+**No workflow quality signal.** The auto-evaluator scores task outcomes, not workflow quality. A workflow derived from a successful trajectory may encode an inefficient path. There is no mechanism to compare two workflow formulations for the same sub-task.
 
-**Cost at scale.** Each task execution triggers an LLM call for induction. The paper doesn't report total API costs for the benchmark evaluations. For high-volume deployments, the per-task induction cost could dominate.
+**Divergence judgment.** When should the agent ignore a workflow and adapt? The paper reports slightly lower action F1 (57.3% vs 60.6%) in some conditions, suggesting workflow adherence can override correct task-specific judgment. No guidance on when deviation is appropriate.
 
-**Workflow quality evaluation.** There's no metric for workflow quality independent of downstream task performance. A bad workflow that happens to not be retrieved looks the same as a good workflow in the aggregate numbers.
+**Scaling to many websites.** The current design creates one file per website. At hundreds of websites, file management and retrieval become unwieldy. The paper does not address this.
+
+## Relationship to Adjacent Work
+
+[MemEvolve](../projects/memevolve.md) reimplements AWM as the `agent_workflow_memory` provider within its EvolveLab framework, then uses meta-evolution to generate architectures that outperform it. MemEvolve's paper reports improvements of 3.54–17.06% over AWM across benchmarks (self-reported). AWM functions as a strong baseline that automated architecture search surpasses — which validates the workflow memory concept while revealing room for improvement.
+
+The Hierarchical Memory Tree (HMT) paper (arXiv:2603.07024, 2026) extends AWM with a three-level hierarchy: Intent (standardized task goals), Stage (reusable semantic subgoals with pre/post conditions), Action (transferable element patterns). HMT demonstrates that AWM's flat per-website text files leave organizational structure on the table.
 
 ## Alternatives
 
-**[Episodic Memory](../concepts/episodic-memory.md):** Stores raw trajectory snapshots rather than abstractions. Use when task variety is too high for pattern abstraction, or when exact replay is more reliable than generalized procedures.
+| System | When to prefer it |
+|---|---|
+| [Voyager](../projects/voyager.md) | Minecraft / closed-world environments where skill libraries can be tested in isolation |
+| [Reflexion](../concepts/reflexion.md) | Short-horizon tasks where verbal self-reflection per episode is sufficient |
+| [MemEvolve](../projects/memevolve.md) | You want the memory architecture itself to evolve, not just its contents |
+| [Letta](../projects/letta.md) | You need multi-session persistent memory with explicit memory management APIs |
+| [LangGraph](../projects/langgraph.md) | You need workflow graphs as executable code, not in-context text templates |
 
-**[Voyager](../projects/voyager.md):** Stores skills as executable code rather than textual workflows. Use when tasks require computational precision (exact parameters, arithmetic) rather than UI navigation patterns where natural language abstraction is sufficient.
+Use AWM when: you have a web navigation agent, want procedural memory without infrastructure overhead, and can tolerate cold-start latency on new websites.
 
-**[MemEvolve](../projects/memevolve.md):** Generates entirely new memory provider architectures from trajectory analysis rather than tuning workflow content. MemEvolve's EvolveLab framework reimplements AWM as one of 12 baseline providers and reports that evolved architectures outperform it on benchmarks. Use MemEvolve when you have compute budget for automated architecture search and need to push past AWM's ceiling.
+## Sources
 
-**[Reflexion](../concepts/reflexion.md):** Stores verbal reflections on failures rather than successful procedures. Use when task success is rare and the signal worth learning from is in the failures.
+- [Deep implementation analysis](../raw/deep/repos/zorazrw-agent-workflow-memory.md)
+- [Repo summary](../raw/repos/zorazrw-agent-workflow-memory.md)
+- [MemEvolve analysis](../raw/deep/repos/bingreeky-memevolve.md) (positions AWM as baseline)
 
-**[CLAUDE.md](../concepts/claude-md.md):** Human-authored procedural instructions injected at context start. Use when domain experts can articulate the relevant procedures and you want to skip the induction step entirely. SteP (which AWM outperforms) is essentially this pattern.
+## Related Concepts
 
-**[AFlow](../projects/aflow.md):** Automated workflow search via code-represented agentic workflows with MCTS optimization. Use when you need systematically optimized workflow graphs rather than LLM-induced text templates.
-
-## Position in the Ecosystem
-
-AWM formalizes [Procedural Memory](../concepts/procedural-memory.md) as a distinct mechanism in the [Agent Memory](../concepts/agent-memory.md) stack. It sits between pure episodic replay (too specific) and semantic knowledge bases (too abstract), occupying the procedural middle ground. The workflow abstraction -- concrete trace to reusable template -- is the same operation humans perform when they move from "I did X this time" to "when you need to do Y, here's how."
-
-The paper's influence on subsequent work confirms the concept's value: HMT (2026) adds three-level hierarchy over flat workflow memory, and MemEvolve uses AWM as a baseline to surpass through automated architecture search. The core insight -- that procedural memory transfer is both possible and valuable for LLM agents -- has become foundational enough that newer systems compete against AWM as a reference point.
-
-[Source: deep/repos/zorazrw-agent-workflow-memory.md](../raw/deep/repos/zorazrw-agent-workflow-memory.md) | [Source: repos/zorazrw-agent-workflow-memory.md](../raw/repos/zorazrw-agent-workflow-memory.md)
+- [Procedural Memory](../concepts/procedural-memory.md)
+- [Agent Memory](../concepts/agent-memory.md)
+- [Episodic Memory](../concepts/episodic-memory.md)
+- [Self-Improving Agents](../concepts/self-improving-agents.md)
+- [Context Engineering](../concepts/context-engineering.md)
+- [Execution Traces](../concepts/execution-traces.md)

@@ -3,214 +3,223 @@ entity_id: progressive-disclosure
 type: approach
 bucket: context-engineering
 abstract: >-
-  Progressive disclosure in LLM agents surfaces context incrementally through
-  structured tiers (always-loaded metadata → on-demand detail → full content),
-  preventing context overload while maintaining access to deep knowledge when
-  needed.
+  Progressive disclosure is a context engineering pattern that loads information
+  to agents in layers — summary first, detail on demand — keeping context
+  windows lean while preserving access to deep knowledge.
 sources:
-  - repos/memodb-io-acontext.md
-  - repos/thedotmack-claude-mem.md
-  - repos/michaelliv-napkin.md
   - >-
     articles/google-cloud-community-why-i-stopped-installing-agent-skills-and-built-a.md
   - deep/repos/agenticnotetaking-arscontexta.md
-  - deep/repos/memodb-io-acontext.md
   - deep/repos/anthropics-skills.md
+  - deep/repos/memodb-io-acontext.md
   - deep/repos/michaelliv-napkin.md
+  - repos/memodb-io-acontext.md
+  - repos/michaelliv-napkin.md
+  - repos/thedotmack-claude-mem.md
 related:
   - claude-code
-  - anthropic
-  - agent-skills
   - openai
+  - anthropic
   - claude
   - agent-skills
-last_compiled: '2026-04-08T02:42:52.657Z'
+last_compiled: '2026-04-08T22:59:42.926Z'
 ---
 # Progressive Disclosure
 
 ## What It Is
 
-Progressive disclosure is a context engineering strategy borrowed from user interface design, adapted for the constraints of LLM context windows. The core idea: instead of loading all potentially relevant information upfront, an agent exposes knowledge in layers, loading each layer only when the previous one indicates it's needed.
+Progressive disclosure is a context engineering strategy where information is made available to agents in tiers rather than loaded all at once. The agent receives a compressed summary first, requests more specific detail when needed, and reads full content only if the detail proves insufficient. Each tier consumes tokens proportional to its specificity; the full cost is paid only when the task actually requires it.
 
-The strategy directly addresses a structural tension in agent design. Agents need access to rich, detailed knowledge to perform well on complex tasks, but context windows have hard token limits, performance degrades as context fills, and irrelevant context actively harms reasoning quality (the [Lost in the Middle](../concepts/lost-in-the-middle.md) problem). The naive solutions — load everything or load nothing — both fail. Progressive disclosure is the systematic alternative.
+The pattern originates in UX design, where it describes hiding interface complexity until users need it. In agent systems, the same logic applies to context windows: presenting everything upfront fills the budget with noise, degrades attention over long sequences, and burns tokens on information that never influences the output.
+
+This is a subconcept of [Context Engineering](../concepts/context-engineering.md) and [Context Management](../concepts/context-management.md). It directly addresses [Lost in the Middle](../concepts/lost-in-the-middle.md) effects and enables [Token Efficiency](../concepts/token-efficiency.md) at scale.
+
+---
 
 ## Why It Matters
 
-Context is the primary resource in LLM agent architecture. Unlike compute or memory in traditional systems, context cannot be extended cheaply: once the window fills, information must be evicted or compressed, and both operations lose fidelity. [Context Management](../concepts/context-management.md) at scale requires principled strategies for what to include and when.
+LLMs have two related attention problems. The first is finite context: models have hard token limits, and exceeding them means truncation or degraded performance. The second is degraded attention over long sequences: even within the limit, information buried in the middle of a long context is recalled less reliably than information at the edges (the Lost-in-the-Middle finding from Liu et al., 2023, independently validated across multiple models).
 
-Progressive disclosure matters because the alternative patterns each have hard failure modes:
+A naive solution — load only a small summary — fails when the task requires precise facts. Full context loading — load everything — fails at scale or when multiple skills and documents are needed simultaneously. Progressive disclosure is the resolution: guarantee access to full depth while paying for it only when earned.
 
-**Full context loading** collapses under scale. A system with 50 skills, each documented in 500 lines, cannot load all skill docs simultaneously. Even if the tokens fit, the model's attention degrades over long contexts, and irrelevant material actively interferes with retrieval of relevant material.
+For multi-agent systems and long-running tasks, this compounds. A single agent handling a complex software task might need documentation for five libraries, three architectural decision records, and two API references. Loading all of this upfront is prohibitive. Progressive disclosure lets the agent start from summaries, identify which two documents actually matter, and read those two in full.
 
-**On-demand loading without structure** produces oscillation. An agent that loads context only when it realizes it needs it tends to load too late (after committing to a path) or too eagerly (loading everything that might be relevant, collapsing into the full-context problem).
-
-**No persistent context** forces re-derivation. An agent that starts each turn from scratch cannot accumulate orientation — it cannot know what it doesn't know.
-
-Progressive disclosure threads between these: always-available metadata enables routing decisions, triggered intermediate layers provide working context, and deep resources load only when the task requires them.
+---
 
 ## How It Works
 
-### The Tier Structure
+### The Tier Pattern
 
-Every implementation of progressive disclosure defines tiers, though naming varies. The canonical structure has three to four levels:
+Every progressive disclosure implementation shares the same structure, though implementations vary in how many tiers they use and what they contain.
 
-**Tier 0 — Permanent metadata (~100–500 tokens, always loaded):** The minimum context the agent carries at all times. This is routing information: what capabilities exist, what domains are covered, where to look next. This tier must be small enough to be affordable in every session. Typical contents: skill names and descriptions, project orientation notes, capability inventories.
+**Tier 0 — Always resident (~100–500 tokens):** A brief description or name that lets the agent decide whether this resource is relevant at all. In [Agent Skills](../concepts/agent-skills.md), this is the YAML `name` and `description` frontmatter in a skill file — always available in the agent's context, never expanding until the agent decides to use the skill. In [CLAUDE.md](../concepts/claude-md.md), it is the pinned project context note loaded at session start. In napkin's architecture, it is the `NAPKIN.md` file and any project-level `_about.md` stubs.
 
-**Tier 1 — Activated summary (~1–5K tokens, loaded on relevance signal):** The working knowledge for a domain or task. Loaded when the tier-0 metadata indicates relevance. This tier handles most actual task execution. Typical contents: skill instructions, domain SOPs, architectural decisions, relevant procedures.
+**Tier 1 — Loaded on trigger (~1,000–2,000 tokens):** A structured summary of what a resource contains — enough to confirm relevance and navigate to the right detail. The anthropic/skills repository loads the full `SKILL.md` body only after the agent determines the skill's description matches the task. Napkin generates a TF-IDF keyword map per folder using a weighted scoring formula (headings 3×, filenames/frontmatter titles 2×, body text 1×), producing a navigable topic index without reading any full documents.
 
-**Tier 2 — Full resources (~5K–unlimited, loaded on demand):** Complete reference material, detailed documentation, full file contents. Loaded when tier-1 context is insufficient for the specific subtask. Typical contents: full API documentation, complete codebases, detailed reference schemas.
+**Tier 2 — Targeted retrieval (~2,000–5,000 tokens):** Search or filtered access to specific relevant content. For skill-based systems, this corresponds to reading specific reference files within a skill bundle. For file-based memory systems like napkin, this is BM25 keyword search returning ranked results with surrounding-line snippets — enough content to evaluate relevance without loading full files.
 
-**Tier 3 — Executable resources (never loaded into context):** Scripts, tools, and programs that can be invoked without being read. The key insight: deterministic operations should run as code, not as LLM instructions consuming context tokens.
+**Tier 3 — Full content (~5,000–20,000 tokens per file):** Complete document content, read only when the agent has confirmed this specific resource is necessary. Paid once, used fully.
 
-### Triggering Mechanisms
+The key invariant: each tier is only entered when the prior tier confirmed relevance. Skipping tiers in either direction is always possible — a highly confident routing from Tier 0 can jump straight to Tier 3; a Tier 2 search might reveal the answer is in a snippet without needing Tier 3 at all.
 
-How each tier triggers the next varies by implementation, and this variation reveals real design tradeoffs.
+---
 
-**Semantic description matching** (used by [Anthropic](../projects/anthropic.md)'s [Agent Skills](../concepts/agent-skills.md)): The model reads a natural-language description and decides whether to load a skill. The trigger is the LLM's own judgment. Elegant and flexible — no trigger rules to maintain — but fragile. Undertriggering (not loading a skill when it would help) is the dominant failure mode. The mitigation is writing descriptions that are "a little bit pushy," explicitly naming contexts and use cases rather than just stating what the skill does.
+### Implementation: Skills (Anthropic/skills)
 
-**Keyword/BM25 matching** (used by napkin's [Context Management](../concepts/context-management.md) via [BM25](../concepts/bm25.md)): Retrieval is lexical. The agent issues a search query and receives ranked results with snippets — enough to decide whether to load the full document. Deterministic and fast, but fails when vocabulary doesn't overlap between query and document. The napkin architecture compensates with backlink graph weighting: files with more incoming links rank higher, providing a connectivity signal that bridges vocabulary gaps.
+The [anthropics/skills](../projects/claude-code.md) repository is the canonical implementation for the skill-based variant of progressive disclosure. Skills are folders with a mandatory `SKILL.md` containing YAML frontmatter plus instructions.
 
-**Tool-call navigation** (used by acontext): The agent explicitly requests context through tool calls (`list_skills`, `get_skill`, `get_skill_file`). No automatic triggering — the agent decides what it needs through reasoning. Debuggable and transparent, but requires the agent to know what skills exist and to correctly identify relevant ones before loading them.
+The three-tier structure:
 
-**Hook-based injection** (used by Ars Contexta): Session lifecycle hooks inject tier-0 context automatically at session start. The `session-orient` hook runs a `tree` command and loads workspace structure, identity, and orientation context — the agent always starts oriented, not blank.
+1. **Metadata (~100 tokens, always in context):** The `name` and `description` fields live in the agent's `available_skills` list. This is the trigger — Claude decides whether to consult a skill based solely on this description, without loading any other content.
 
-### The Bundled Scripts Pattern
+2. **SKILL.md body (loaded on trigger, <5,000 tokens / ~500 lines recommended):** Full instructions for executing the skill. Contains enough detail to complete the task, organized so bundled resources are referenced but not pre-loaded.
 
-One underappreciated dimension of progressive disclosure is the treatment of executable resources. The [Agent Skills](../concepts/agent-skills.md) architecture distinguishes sharply: deterministic operations should be scripts, not instructions. A skill for PDF processing bundles Python scripts for form extraction, validation, and conversion. The SKILL.md tells the agent *when* to invoke each script; the script code never enters the context window.
+3. **Bundled resources (loaded on demand, unlimited):** Reference docs, scripts, asset libraries. Scripts execute without entering the context window. Reference files are read selectively based on SKILL.md instructions — e.g., the `claude-api` skill bundles docs for Python, TypeScript, Java, Go, Ruby, C#, PHP, and curl, but loads only the relevant language's reference when triggered.
 
-This extends the tier structure downward: below "loaded on demand" sits "invocable but never read." The tier-0 metadata might say "this skill has a validation script," tier-1 instructions say "run the validation script after every extraction," and the script itself executes in a subprocess. Zero context tokens consumed by code that could be thousands of lines.
+The `claude-api` skill's description demonstrates the specificity required for reliable tier-0 triggering:
 
-### Fresh Context per Phase
-
-A related pattern addresses context degradation over long agent runs. Rather than running a multi-phase pipeline in a single context window (where early-phase content persists and pollutes later phases), spawn fresh subagents per phase with precisely scoped context.
-
-Ars Contexta implements this with the `/ralph` orchestrator. Its 6Rs pipeline (Record → Reduce → Reflect → Reweave → Verify → Rethink) spawns a fresh subagent for each phase, passing state via structured handoff files in `ops/queue/`. Each phase gets a clean context window. The cost is token overhead for system prompt repetition; the benefit is that each phase operates with full model attention rather than degraded attention in a polluted window.
-
-The same pattern appears in acontext's Skill Learner Agent, which processes multiple distillation contexts by injecting new contexts as follow-up messages rather than loading all contexts simultaneously. Multi-turn batching with bounded iteration counts (`max_iterations` extended per context batch) balances responsiveness against context exhaustion.
-
-## Implementation Examples
-
-### Anthropic Agent Skills (Three-Tier SKILL.md)
-
-The reference implementation from [Anthropic](../projects/anthropic.md)'s [Agent Skills](../concepts/agent-skills.md). The `agentskills.io` spec formalizes three tiers with explicit token budgets:
-
-- Metadata (~100 tokens, permanent): YAML frontmatter `name` + `description`
-- Instructions (~5,000 tokens, on-trigger): SKILL.md body
-- Resources (unlimited, on-demand): Bundled scripts, reference docs, assets
-
-The claude-api skill demonstrates this at scale: 20+ reference files across 8 programming languages, loaded individually based on which language appears in the task context. The SKILL.md includes explicit trigger/no-trigger specifications:
-
-```
-TRIGGER when: code imports `anthropic`/`@anthropic-ai/sdk`
-DO NOT TRIGGER when: code imports `openai`/other AI SDK
+```yaml
+# Trigger when: code imports `anthropic`/`@anthropic-ai/sdk`/`claude_agent_sdk`
+# Do NOT trigger when: code imports `openai`/other AI SDK
 ```
 
-The `allowed-tools` frontmatter field (currently experimental) extends this by declaring pre-approved tools, enabling governance at the metadata tier rather than the instruction tier. [Source](../raw/deep/repos/anthropics-skills.md)
+This precision matters because triggering is purely semantic — the LLM reads the description and decides. Vague descriptions cause undertriggering; descriptions that are too broad cause spurious triggering. The `skill-creator` meta-skill addresses this with an empirical description optimizer: it runs 3× per query, splits test cases 60/40 train/test to avoid overfitting, and iterates up to 5 times. [Source](../raw/deep/repos/anthropics-skills.md)
 
-### Napkin (Four-Level Vault Navigation)
+---
 
-napkin formalizes four disclosure levels for a local markdown vault:
+### Implementation: File-Based Memory (napkin)
+
+Napkin's architecture implements progressive disclosure over markdown vaults without embedding models or vector databases. The four-level structure:
 
 | Level | Mechanism | Tokens | Content |
 |-------|-----------|--------|---------|
-| L0 | NAPKIN.md (always loaded) | ~200 | Project context, conventions |
-| L1 | `napkin overview` | ~1–2K | TF-IDF keyword map by directory |
-| L2 | `napkin search <query>` | ~2–5K | BM25 results with snippets |
-| L3 | `napkin read <file>` | ~5–20K | Full file content |
+| L0 | `NAPKIN.md` | ~200 | Project context, conventions, key decisions |
+| L1 | `overview` | ~1,000–2,000 | TF-IDF keyword map by folder + tag inventory |
+| L2 | `search` | ~2,000–5,000 | BM25 results with surrounding-line snippets |
+| L3 | `read` | ~5,000–20,000 | Full file content |
 
-The L1 overview uses weighted TF-IDF: headings get 3x weight, filenames and frontmatter titles get 2x, body text gets 1x. This produces a topic map from file structure without any LLM calls. The agent navigates from map to search to file, paying context tokens proportional to actual relevance.
+The L1 overview uses a TF-IDF calculation where each folder is treated as a document. After scoring, it selects top-K keywords per folder with bigram suppression (if a bigram appears in the output, its constituent unigrams are dropped). The result: a compact navigable map of what each folder contains, generated without any LLM calls.
 
-Benchmark results on LongMemEval-S (40 sessions per question, 500 questions total): 91% accuracy with this progressive disclosure approach vs. 86% for the best prior embedding-based system and 64% for GPT-4o with full context. The result is notable because BM25 is simpler and cheaper than embedding-based RAG, yet outperforms it on this benchmark. Self-reported by the napkin author; see [Source](../raw/deep/repos/michaelliv-napkin.md) for benchmark design details. [Source](../raw/repos/michaelliv-napkin.md)
+The L2 search uses MiniSearch (a JavaScript BM25 implementation) with a composite three-signal ranking:
 
-One specific design choice worth noting: search scores are hidden from agent output. If the agent sees numerical confidence scores, it anchors on the numbers rather than evaluating content quality from snippets. The score drives ordering invisibly; the agent makes relevance judgments from text.
+```
+composite = BM25_score + backlink_count × 0.5 + recency_normalized × 1.0
+```
 
-### Ars Contexta (Ten Kernel Primitives + Hook Injection)
+Crucially, search scores are **not** shown to the agent — only ordered results with content snippets. Visible confidence numbers cause anchoring bias; agents fixate on scores rather than evaluating content quality. The ranking drives ordering invisibly.
 
-Ars Contexta organizes progressive disclosure around ten "kernel primitives" — the minimum context every derived knowledge system must maintain. The `description` field in every note is explicitly identified as a progressive disclosure mechanism: it allows agents to understand a note's content without reading the full body. The author's phrase "reading right, not reading less" captures the intent: agents should be able to navigate to what they need, not skip things.
+On LongMemEval (ICLR 2025), this BM25-with-progressive-disclosure approach achieves 91% accuracy on the S-dataset (~40 sessions per question) versus 86% for the best prior embedding-based system and 64% for GPT-4o with full context loading. The M-dataset (500 sessions, ~1.5M tokens per question) reaches 83% versus 72% for the best prior system. These benchmarks are self-reported by the napkin project. [Source](../raw/deep/repos/michaelliv-napkin.md)
 
-The session-orient hook (running on SessionStart) injects workspace tree + agent identity + maintenance signals. This is tier-0 injection via lifecycle automation — the agent doesn't need to request orientation context because the hook provides it. [Source](../raw/deep/repos/agenticnotetaking-arscontexta.md)
+The abstention task (knowing when *not* to answer) scores only 50%, revealing a structural limitation: BM25 always returns ranked results, with no calibrated confidence threshold to signal "the answer is not in this knowledge base."
 
-### Acontext (Tool-Call Navigation with LLM-as-Judge Distillation)
+---
 
-Acontext explicitly rejects embedding-based retrieval in favor of tool-call navigation:
+### Implementation: Pipeline-Phase Disclosure (Ars Contexta)
 
-1. `list_skills` — see available skills in the learning space
-2. `get_skill` — list files within a skill
-3. `get_skill_file` — read specific file content
+Ars Contexta applies progressive disclosure at a different granularity: across pipeline stages rather than within a single retrieval call. The 6Rs processing pipeline (Record → Reduce → Reflect → Reweave → Verify → Rethink) spawns a fresh subagent context per phase. Each subagent receives only the context relevant to its phase — the Reduce agent gets the raw note and schema; the Reflect agent gets the reduced note and existing MOCs; the Reweave agent gets both.
 
-The SKILL.md acts as a manifest guiding navigation to the right data files. The three-stage learning pipeline (Task Extraction → Distillation → Skill Learner) uses a distillation phase that classifies completed tasks into SOPs, failure warnings, or factual content — structuring learnings before they reach the skill files. This keeps tier-1 content organized rather than accumulating unstructured notes. [Source](../raw/deep/repos/memodb-io-acontext.md)
+This implements progressive disclosure in the temporal dimension: no single context window accumulates everything. The rationale is that LLM quality degrades as context fills, so each phase runs in a clean window rather than a progressively more polluted one. The cost is multiplicative — 5+ subagent spawns to process a single note through the full pipeline. [Source](../raw/deep/repos/agenticnotetaking-arscontexta.md)
 
-## Practical Implications
+The same principle applies in acontext's Skill Learner Agent: it processes distilled contexts from a Redis queue via multi-turn batching, extending its token budget dynamically when new contexts arrive, rather than pre-loading all pending work into a single context window.
 
-### Description Quality is the Triggering Bottleneck
+---
 
-For semantic-trigger implementations, the description field is the highest-leverage point. A skill with a mediocre description will undertrigger — it exists but never gets used. Description optimization is not cosmetic work.
+### Implementation: Learning Systems (Acontext)
 
-The Agent Skills eval loop quantifies this: the description optimizer runs 20 queries × 3 runs each, splits 60/40 train/test to avoid overfitting, and iterates up to 5 times. Getting reliable trigger rates at 90%+ requires systematic measurement, not intuition.
+Acontext's approach to progressive disclosure focuses on the retrieval side of a write-back memory loop. Rather than embedding-based search, agents navigate skill files through three explicit tool calls:
 
-### Tier-0 Size Determines System Scalability
+1. `list_skills` — See what skill categories exist in the learning space
+2. `get_skill` — List files within a specific skill
+3. `get_skill_file` — Read specific file content
 
-Whatever goes in the permanent metadata tier gets paid for in every session. A system with 100 skills that puts 300 tokens of metadata per skill in permanent context costs 30K tokens per session before any work begins. This constrains how many skills can coexist and drives the requirement for tight, specific descriptions rather than verbose ones.
+Each `SKILL.md` acts as a manifest describing what data files the skill contains and when to read each one. The agent decides which files to read based on the manifest, not cosine similarity. This is deterministic, debuggable, and requires no embedding infrastructure. [Source](../raw/deep/repos/memodb-io-acontext.md)
 
-### Retrieval Method Shapes Knowledge Organization
+---
 
-The retrieval mechanism at tier-1/2 determines how knowledge should be structured:
+## Triggering: The Central Unsolved Problem
 
-- BM25 retrieval benefits from many small focused documents (better term concentration) over fewer large aggregated ones. The napkin benchmark uses per-round notes (~2.5K chars each) rather than full session logs (~15K chars) for exactly this reason.
-- Embedding retrieval benefits from semantic richness and handles vocabulary variation better.
-- Tool-call navigation benefits from clear manifest structure (well-organized SKILL.md files) and flat skill namespaces that don't require hierarchical traversal.
+Across implementations, triggering — the mechanism by which an agent decides to ascend from one tier to the next — is the most difficult part to get right.
 
-### Deterministic Operations Should Be Scripts
+**Semantic triggering** (used by anthropic/skills): The agent reads a description and decides whether to load more. This requires descriptions to be precisely scoped. The skill-creator repo notes that Claude "tends to not invoke skills when they would be useful" and recommends making descriptions "a little bit pushy" — including specific contexts and conditions. The failure mode: vague descriptions cause the agent to skip relevant skills; overly broad descriptions cause spurious loading.
 
-Any procedure that can be expressed as code should be code, not context. This is not just an efficiency concern — deterministic operations expressed as instructions accumulate in context across multi-step tasks, while scripts execute and exit without persisting.
+**Query-based triggering** (used by napkin, acontext): The agent issues an explicit search or tool call. This is more reliable than semantic description matching but requires the agent to know a search would be useful — which is not always obvious from the task description alone.
+
+**Automatic injection** (used by Ars Contexta, CLAUDE.md): Some tier-0 content is loaded unconditionally at session start via hooks or system prompt injection. The agent does not decide to load it — it is always present. This guarantees orientation but consumes tokens regardless of relevance.
+
+Most production systems combine all three: unconditional injection for orientation data, query-based search for targeted retrieval, and semantic matching for skill/tool selection.
+
+---
 
 ## Failure Modes
 
-**Undertriggering**: The skill exists but never activates. The mitigation is aggressive, specific descriptions and systematic trigger evaluation. Without measurement, undertriggering is invisible.
+**Undertriggering:** The agent does not ascend to the next tier despite needing the information. This is the most common failure in description-triggered systems. The agent decides from Tier 0 that a skill is not relevant, and never loads the instructions that would have improved its output.
 
-**Context budget exhaustion**: Loading multiple skills simultaneously across a complex task can exhaust context. No standard mechanism for skill-level token budgeting or priority-based unloading exists in current implementations.
+**Tier skip at cost:** Progressive disclosure assumes each tier is necessary to reach the next. Agents under context pressure may skip Tier 1 and Tier 2 and attempt to work from Tier 0 alone, producing answers that lack precision.
 
-**Navigation overhead**: Tool-call navigation (acontext's model) adds latency proportional to the number of tool calls required. Loading a skill file through `list_skills` → `get_skill` → `get_skill_file` requires 3 round trips. For latency-sensitive applications, this matters.
+**No confidence calibration:** BM25 and semantic description matching produce rankings, not calibrated probabilities. An agent cannot distinguish between "this skill is highly relevant" and "this skill is the least irrelevant thing available." Napkin's 50% abstention score on LongMemEval illustrates this — when no relevant information exists, the system still returns ranked results rather than signaling absence.
 
-**Vocabulary mismatch in BM25 retrieval**: BM25 requires term overlap between query and document. "Authentication" won't retrieve notes about "login" unless both terms appear. Backlink graph signals partially compensate, but semantic gaps remain.
+**Context budget exhaustion from cascading loads:** If multiple skills or files pass their tier-0 filters simultaneously, and all get loaded to Tier 1 or Tier 2, the combined token cost can exceed budget even though no single load was unreasonable.
 
-**Stale tier-0 metadata**: If the permanent metadata tier describes capabilities that have drifted from their actual implementations, routing decisions based on that metadata will be wrong. Keeping metadata current requires discipline.
+**Vocabulary mismatch in keyword-based retrieval:** BM25-based Tier 2 retrieval fails when query terminology does not overlap with document terminology. "Authentication" does not retrieve documents that use only "login" and "session." Embedding-based search handles this better at the cost of infrastructure; backlink signals partially compensate by connecting synonymous concepts through co-citation.
+
+**Stale tier-0 descriptions:** When a skill or document's content changes but its tier-0 description is not updated, the agent makes triggering decisions based on outdated metadata. This is especially problematic in live codebases where skill files evolve.
+
+---
+
+## Infrastructure Assumptions (Unspoken)
+
+Progressive disclosure assumes the agent can make tool calls between reasoning steps. In practice, this means:
+
+1. **The agent framework supports multi-turn tool use.** A single-shot completion model cannot implement progressive disclosure — it cannot decide mid-generation to request more information. ReAct-style or agentic frameworks are required.
+
+2. **Tool call latency is acceptable.** Each tier transition adds at minimum one round-trip. In interactive applications, a three-tier retrieval sequence (overview → search → read) introduces 3× the latency of full-context loading. The token savings are real, but so is the latency cost.
+
+3. **The underlying storage responds fast enough.** Progressive disclosure over files works at sub-second speeds for small vaults. At 10,000+ files, BM25 index rebuild (without caching) can take seconds. Tier-0 metadata must be read fast or pre-cached; Tier 3 full reads can tolerate more latency.
+
+4. **The agent can navigate from summaries.** If tier-0 and tier-1 content is poorly organized or misleadingly named, the agent cannot make correct triggering decisions regardless of the underlying retrieval quality. Taxonomy and naming discipline is a prerequisite for the pattern to work.
+
+---
 
 ## When Not to Use It
 
-Progressive disclosure adds navigation overhead. For short-lived agents with small, stable knowledge bases, loading everything at session start is simpler and sufficient. The strategy pays off when:
+**When the task always requires the full context.** Some tasks — detailed code review, full document rewriting, complex reasoning over a complete specification — need everything up front. Progressive disclosure adds overhead (additional tool calls, tier-0 routing decisions) without providing savings if every session ends in full-context loading anyway.
 
-- The knowledge base is large enough that full loading would consume significant context
-- Tasks vary enough that different tasks need different subsets of knowledge
-- Context window costs matter (e.g., long-running agents or high-volume deployments)
+**When latency matters more than token efficiency.** Tier-by-tier retrieval introduces sequential round-trips. In real-time or interactive systems with strict latency requirements, parallel full-context loading may be preferable even at higher token cost.
 
-For a simple tool-use agent with three documented capabilities, a flat system prompt describing all three is more reliable than a three-tier progressive disclosure architecture.
+**When the knowledge base is small and stable.** For a system with 20 well-defined documents, loading all tier-0 and tier-1 summaries simultaneously consumes only a few thousand tokens and eliminates the risk of undertriggering. Progressive disclosure is most valuable as knowledge base size grows.
+
+**When agents lack reliable self-assessment.** Progressive disclosure assumes agents can evaluate whether tier-0 information is sufficient. Agents that consistently underestimate their own information gaps — requesting too little and producing confident but incorrect answers — will perform worse under progressive disclosure than with full-context loading.
+
+---
+
+## Relationships to Adjacent Concepts
+
+- **[Context Compression](../concepts/context-compression.md):** Compression reduces tokens within a tier; progressive disclosure reduces which tiers are loaded. Complementary strategies.
+- **[Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md):** RAG systems typically implement progressive disclosure implicitly — retrieve first, then include retrieved chunks in context. Progressive disclosure makes the tiering structure explicit and multi-step.
+- **[Agent Skills](../concepts/agent-skills.md):** The anthropic/skills implementation is the most concrete application of progressive disclosure to capability loading.
+- **[Short-Term Memory](../concepts/short-term-memory.md):** The in-context window is the workspace within which progressive disclosure operates.
+- **[Semantic Search](../concepts/semantic-search.md):** One mechanism for tier-2 retrieval, complementary to BM25 for vocabulary gap coverage.
+- **[Procedural Memory](../concepts/procedural-memory.md):** Skills loaded via progressive disclosure often encode procedural knowledge — how to do something, not just what something is.
+
+---
 
 ## Unresolved Questions
 
-**Optimal tier boundaries**: Current implementations set tier sizes by convention (metadata at ~100 tokens, instructions at ~5K) rather than empirical optimization. Whether these boundaries are right for different model sizes, context lengths, and task types is not established.
+**Optimal tier count.** Napkin uses four tiers; anthropic/skills uses three; acontext uses three tool calls. No principled analysis exists of when additional tiers help versus when they add coordination overhead without retrieval benefit.
 
-**Trigger conflict resolution**: When multiple skills have overlapping descriptions and multiple could trigger for the same task, current implementations rely on LLM judgment for selection. No formal mechanism for priority ordering or conflict resolution exists.
+**Dynamic tier boundaries.** All current implementations use fixed tier sizes (e.g., Tier 1 ≤ 500 lines). Whether adaptive tier sizing — compressing Tier 1 summaries when context budget is tight, expanding them when it is ample — would improve performance is an open question.
 
-**Tier-0 update governance**: The permanent metadata tier is expensive to change because every agent using the system sees the update immediately. Who controls what goes in the permanent tier, and how changes are reviewed, is not addressed in any current implementation's documentation.
+**Triggering reliability at scale.** As skill libraries grow to hundreds of entries, semantic description matching may become less reliable (more false positives and false negatives). No systematic study of triggering accuracy as a function of library size has been published.
 
-**Cross-session learning of trigger patterns**: Current trigger optimization is a development-time activity. Whether trigger effectiveness can be monitored and improved in production, without human-in-the-loop eval cycles, remains open.
+**Cross-tier consistency.** If Tier 0 metadata and Tier 1 content diverge (due to updates), the agent may make routing decisions based on stale descriptions. No current implementation includes automated consistency validation across tiers.
 
-## Related Concepts
+**Cost attribution.** In systems where progressive disclosure is used by many agents simultaneously, attributing token costs to specific tiers (and therefore to specific routing decisions) is non-trivial. This makes optimization and debugging difficult.
 
-- [Context Engineering](../concepts/context-engineering.md) — The broader discipline within which progressive disclosure is one strategy
-- [Context Management](../concepts/context-management.md) — Operational management of context across agent lifecycles
-- [Context Compression](../concepts/context-compression.md) — Complementary strategy: reducing context size rather than deferring loading
-- [Agent Skills](../concepts/agent-skills.md) — The primary domain where progressive disclosure is systematically implemented
-- [Agent Memory](../concepts/agent-memory.md) — Memory architectures that use progressive disclosure for knowledge retrieval
-- [Lost in the Middle](../concepts/lost-in-the-middle.md) — The attention degradation problem that progressive disclosure partially addresses
-- [Retrieval-Augmented Generation](../concepts/retrieval-augmented-generation.md) — Alternative approach; progressive disclosure can be implemented with or without RAG
-- [CLAUDE.md](../concepts/claude-md.md) — A common tier-0 mechanism: permanent project context injected at session start
 
-## Projects Implementing This Pattern
+## Related
 
-- [Claude Code](../projects/claude-code.md) — Via the Agent Skills SKILL.md system
-- [Claude](../projects/claude.md) — Via Agent Skills on claude.ai
-- [Anthropic](../projects/anthropic.md) — Canonical three-tier specification at agentskills.io
-- [OpenAI](../projects/openai.md) — Analogous patterns in tool/function calling architectures
-- [Gemini CLI](../projects/gemini-cli.md) — Session context injection at startup
+- [Claude Code](../projects/claude-code.md) — implements (0.6)
+- [OpenAI](../projects/openai.md) — implements (0.4)
+- [Anthropic](../projects/anthropic.md) — implements (0.5)
+- [Claude](../projects/claude.md) — implements (0.5)
+- [Agent Skills](../concepts/agent-skills.md) — implements (0.7)
