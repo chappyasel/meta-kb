@@ -65,23 +65,19 @@ export async function computeConfigHash(
 }
 
 /**
- * Compute input hash for an entity — captures all inputs that affect its reference card.
- * If this changes, the entity's card needs regeneration.
+ * Compute input hash for an entity — captures inputs that reflect changed evidence.
+ * Only hashes bucket + source_refs. Description, aliases, and neighborIds are excluded
+ * because they change cosmetically across entity re-resolution without reflecting
+ * new evidence, causing cascading false-dirty detection.
  */
 export function computeEntityInputHash(entity: {
   id: string;
-  description: string;
   bucket: string;
-  aliases: string[];
   source_refs: string[];
-  neighborIds: string[];
 }): string {
   const input = [
-    entity.description,
     entity.bucket,
-    entity.aliases.sort().join(","),
     entity.source_refs.sort().join(","),
-    entity.neighborIds.sort().join(","),
   ].join("|");
   return hashString(input);
 }
@@ -105,6 +101,47 @@ export async function loadState(buildDir: string): Promise<IncrementalState | nu
 
 export async function saveState(buildDir: string, state: IncrementalState): Promise<void> {
   await writeFile(join(buildDir, "incremental-state.json"), JSON.stringify(state, null, 2));
+}
+
+// ─── Eval Cache Persistence ───────────────────────────────────────────
+
+import type { EvalCache } from "./types.js";
+
+export async function loadEvalCache(buildDir: string): Promise<EvalCache | null> {
+  const path = join(buildDir, "eval-cache.json");
+  if (!existsSync(path)) return null;
+  try {
+    const cache = JSON.parse(await readFile(path, "utf-8"));
+    if (cache.version !== 1) return null;
+    return cache;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveEvalCache(buildDir: string, cache: EvalCache): Promise<void> {
+  await writeFile(join(buildDir, "eval-cache.json"), JSON.stringify(cache, null, 2));
+}
+
+/**
+ * Determine if a cached eval entry can be carried forward.
+ * Only PASS verdicts on clean buckets with unchanged sources are reusable.
+ */
+export function canCarryForward(
+  entry: import("./types.js").EvalCacheEntry,
+  dirtyBuckets: Set<string> | null,
+  currentSourceHashes: Record<string, string>,
+): boolean {
+  // Never carry forward FAILs — the article may have been fixed
+  if (entry.verdict === "FAIL") return false;
+  // Full compile (no dirty tracking) → re-verify everything
+  if (dirtyBuckets === null) return false;
+  // If bucket is dirty, re-verify
+  if (dirtyBuckets.has(entry.bucket)) return false;
+  // If the source was modified or deleted, re-verify
+  const currentHash = currentSourceHashes[entry.source_ref];
+  if (!currentHash || currentHash !== entry.source_hash) return false;
+  return true;
 }
 
 // ─── Change Detection ──────────────────────────────────────────────────

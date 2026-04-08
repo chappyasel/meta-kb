@@ -47,6 +47,10 @@ import type {
   ClaimsFile,
   EvalResult,
   EvalReport,
+  EvalCacheEntry,
+  EvalCache,
+  ArticleDiff,
+  CompilationDiff,
 } from "./types.js";
 import {
   domain,
@@ -65,6 +69,9 @@ import {
   loadState,
   saveState,
   diffSources,
+  loadEvalCache,
+  saveEvalCache,
+  canCarryForward,
 } from "./incremental.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────
@@ -79,6 +86,7 @@ const TO_PASS = process.argv.find((a) => a.startsWith("--to-pass="))?.split("=")
 const DRY_RUN = process.argv.includes("--dry-run");
 const INCREMENTAL = process.argv.includes("--incremental");
 const STATUS_ONLY = process.argv.includes("--status");
+const NO_SAVE_STATE = process.argv.includes("--no-save-state");
 
 const HAIKU_CONCURRENCY = 20;
 const SONNET_CONCURRENCY = 5;
@@ -475,6 +483,206 @@ CRITICAL: When an entity from the "Existing Entities" section matches a mention,
 
   await writeFile(join(BUILD_DIR, "entities.json"), JSON.stringify(entities, null, 2));
   return entities;
+}
+
+/**
+ * Incremental entity resolution — bypasses Sonnet when all new mentions
+ * match existing entities by name/alias. Only calls Sonnet for genuinely
+ * unrecognized mentions.
+ */
+async function resolveEntitiesIncremental(
+  rawEntities: RawEntity[],
+  previousEntities: Entity[],
+  index: SourceIndex,
+  changeSet: ChangeSet,
+): Promise<Entity[]> {
+  passHeader("1b", "Incremental Entity Resolution",
+    `${previousEntities.length} existing, ${changeSet.changed.size} changed sources`);
+
+  // Step 1: Build name→entity lookup (canonical names take priority over aliases)
+  const nameToEntity = new Map<string, Entity>();
+  for (const entity of previousEntities) {
+    const key = entity.name.toLowerCase().trim();
+    if (!nameToEntity.has(key)) nameToEntity.set(key, entity);
+  }
+  for (const entity of previousEntities) {
+    for (const alias of entity.aliases) {
+      const key = alias.toLowerCase().trim();
+      if (!nameToEntity.has(key)) nameToEntity.set(key, entity);
+    }
+  }
+  console.log(`  Built lookup: ${nameToEntity.size} names → ${previousEntities.length} entities`);
+
+  // Step 2: Filter to new mentions only (from changed/added sources)
+  const newMentions = rawEntities.filter((r) => changeSet.changed.has(r.source_ref));
+  console.log(`  ${newMentions.length} raw mentions from ${changeSet.changed.size} changed sources`);
+
+  // Step 3: Match new mentions against existing entities
+  const matchedUpdates = new Map<string, Set<string>>(); // entityId → new source_refs
+  const unmatchedMentions: RawEntity[] = [];
+
+  for (const mention of newMentions) {
+    const key = mention.name.toLowerCase().trim();
+    const matched = nameToEntity.get(key);
+    if (matched) {
+      const refs = matchedUpdates.get(matched.id) ?? new Set<string>();
+      refs.add(mention.source_ref);
+      matchedUpdates.set(matched.id, refs);
+    } else {
+      unmatchedMentions.push(mention);
+    }
+  }
+
+  const uniqueUnmatched = new Map<string, RawEntity[]>();
+  for (const m of unmatchedMentions) {
+    const key = m.name.toLowerCase().trim();
+    const list = uniqueUnmatched.get(key) ?? [];
+    list.push(m);
+    uniqueUnmatched.set(key, list);
+  }
+
+  console.log(`  Matched: ${newMentions.length - unmatchedMentions.length} mentions → ${matchedUpdates.size} entities`);
+  console.log(`  Unmatched: ${unmatchedMentions.length} mentions (${uniqueUnmatched.size} unique names)`);
+
+  // Step 4: Deep-copy previous entities and apply matched updates
+  const entities: Entity[] = previousEntities.map((e) => ({
+    ...e,
+    source_refs: [...e.source_refs],
+    aliases: [...e.aliases],
+  }));
+
+  let addedRefs = 0;
+  for (const entity of entities) {
+    const newRefs = matchedUpdates.get(entity.id);
+    if (newRefs) {
+      const existing = new Set(entity.source_refs);
+      for (const ref of newRefs) {
+        if (!existing.has(ref)) {
+          entity.source_refs.push(ref);
+          addedRefs++;
+        }
+      }
+    }
+  }
+  console.log(`  Added ${addedRefs} source_refs across ${matchedUpdates.size} entities`);
+
+  // Step 5: Remove deleted source_refs
+  if (changeSet.deleted.size > 0) {
+    let removed = 0;
+    for (const entity of entities) {
+      const before = entity.source_refs.length;
+      entity.source_refs = entity.source_refs.filter((ref) => !changeSet.deleted.has(ref));
+      removed += before - entity.source_refs.length;
+    }
+    if (removed > 0) console.log(`  Removed ${removed} source_refs from deleted sources`);
+  }
+
+  // Step 6: Resolve unmatched mentions via Sonnet (if any)
+  if (uniqueUnmatched.size > 0) {
+    console.log(`  Resolving ${uniqueUnmatched.size} unmatched names via Sonnet...`);
+
+    const mentionList = [...uniqueUnmatched.entries()]
+      .map(([name, mentions]) =>
+        `  "${name}" (${mentions.length}x, types: ${[...new Set(mentions.map((m) => m.type))].join("/")}, sources: ${[...new Set(mentions.map((m) => m.source_ref))].length})`,
+      )
+      .join("\n");
+
+    const anchorSection = `\n\n## Existing Entities (do NOT recreate)\n\n${entities
+      .map((e) => `- id: "${e.id}", name: "${e.name}", type: ${e.type}, bucket: ${e.bucket}, aliases: [${e.aliases.join(", ")}]`)
+      .join("\n")}`;
+
+    try {
+      const { object } = await generateObject({
+        model: getProvider()("claude-sonnet-4-6"),
+        schema: resolvedEntitiesSchema,
+        system: `You are resolving NEW entity mentions into canonical entities for a knowledge base about ${domain.topic}.
+
+Taxonomy buckets: ${BUCKET_IDS.join(", ")}.
+
+These are mentions that could NOT be matched to any existing entity. For each:
+1. If it's a genuinely new entity worth tracking: create it with a new unique slug ID.
+2. If it's actually a variant of an existing entity (misspelling, abbreviation): output it with that existing entity's ID.
+3. If it's too generic or trivial: skip it entirely.
+
+CRITICAL: Do NOT recreate entities from the existing list. Only output truly new entities or confirmed matches to existing entity IDs.`,
+        prompt: `Unmatched mentions:\n${mentionList}${anchorSection}`,
+      });
+
+      const existingIds = new Set(entities.map((e) => e.id));
+      let newCount = 0;
+
+      for (const resolved of object.entities) {
+        if (existingIds.has(resolved.id)) {
+          // Sonnet matched to existing entity — add source_refs
+          const entity = entities.find((e) => e.id === resolved.id)!;
+          const allNames = [resolved.name, ...resolved.aliases, ...resolved.merged_from].map((n) => n.toLowerCase().trim());
+          for (const mention of unmatchedMentions) {
+            if (allNames.includes(mention.name.toLowerCase().trim())) {
+              if (!entity.source_refs.includes(mention.source_ref)) {
+                entity.source_refs.push(mention.source_ref);
+              }
+            }
+          }
+        } else {
+          // Genuinely new entity
+          const allNames = [resolved.name, ...resolved.aliases, ...resolved.merged_from].map((n) => n.toLowerCase().trim());
+          const sourceRefs = new Set<string>();
+          for (const raw of rawEntities) {
+            if (allNames.includes(raw.name.toLowerCase().trim())) {
+              sourceRefs.add(raw.source_ref);
+            }
+          }
+
+          const maxRelevance = [...sourceRefs]
+            .map((ref) => index.sources.find((s) => s.path === ref)?.relevance ?? 0)
+            .reduce((a, b) => Math.max(a, b), 0);
+
+          entities.push({
+            id: resolved.id || slugify(resolved.name),
+            name: resolved.name,
+            type: resolved.type,
+            bucket: resolved.bucket,
+            description: resolved.description,
+            source_refs: [...sourceRefs],
+            aliases: resolved.aliases,
+            article_level: sourceRefs.size >= FULL_ARTICLE_THRESHOLD_REFS && maxRelevance >= FULL_ARTICLE_THRESHOLD_RELEVANCE ? "full" : "stub",
+            relevance_composite: maxRelevance,
+          });
+          newCount++;
+        }
+      }
+      console.log(`  Sonnet resolved: ${newCount} new entities, ${object.entities.length - newCount} matched to existing`);
+    } catch (err) {
+      console.warn(`  ${cl.yellow("⚠")} Failed to resolve unmatched mentions: ${err}`);
+    }
+  } else {
+    console.log(`  ${cl.green("✓")} All mentions matched existing entities — skipped Sonnet entirely`);
+  }
+
+  // Step 7: Recompute article_level for all entities
+  for (const entity of entities) {
+    const maxRelevance = entity.source_refs
+      .map((ref) => index.sources.find((s) => s.path === ref)?.relevance ?? 0)
+      .reduce((a, b) => Math.max(a, b), 0);
+    entity.relevance_composite = maxRelevance;
+    entity.article_level =
+      entity.source_refs.length >= FULL_ARTICLE_THRESHOLD_REFS && maxRelevance >= FULL_ARTICLE_THRESHOLD_RELEVANCE
+        ? "full"
+        : "stub";
+  }
+
+  // Remove entities with zero source_refs
+  const filtered = entities.filter((e) => e.source_refs.length > 0);
+  if (filtered.length < entities.length) {
+    console.log(`  Removed ${entities.length - filtered.length} entities with no remaining sources`);
+  }
+
+  const full = filtered.filter((e) => e.article_level === "full").length;
+  const stub = filtered.filter((e) => e.article_level === "stub").length;
+  console.log(`  ${cl.green("✓")} Incremental resolution: ${filtered.length} entities (${full} full, ${stub} stub)`);
+
+  await writeFile(join(BUILD_DIR, "entities.json"), JSON.stringify(filtered, null, 2));
+  return filtered;
 }
 
 // ─── Pass 2: Graph Construction ─────────────────────────────────────────
@@ -1669,8 +1877,11 @@ async function generateChangelog(entities: Entity[], graph: KnowledgeGraph): Pro
   const now = new Date().toISOString().split("T")[0];
   const full = entities.filter((e) => e.article_level === "full").length;
   const stub = entities.filter((e) => e.article_level === "stub").length;
+  const isInitial = !existsSync(join(WIKI_DIR, "CHANGELOG.md"));
 
-  const entry = `## ${now} — Initial Compilation
+  const label = isInitial ? "Initial Compilation" : "Recompilation";
+
+  let entry = `## ${now} — ${label}
 
 - **Sources:** ${(await readdir(join(RAW_DIR, "tweets"))).length + (await readdir(join(RAW_DIR, "repos"))).length + (await readdir(join(RAW_DIR, "papers"))).length + (await readdir(join(RAW_DIR, "articles"))).length} raw sources compiled
 - **Entities:** ${entities.length} total (${full} full articles, ${stub} stubs)
@@ -1679,8 +1890,48 @@ async function generateChangelog(entities: Entity[], graph: KnowledgeGraph): Pro
 - **Reference cards:** ${full} project/concept profiles
 `;
 
-  const changelog = `# Changelog\n\nCompilation history for the ${domain.name} wiki.\n\n${entry}`;
-  await writeFile(join(WIKI_DIR, "CHANGELOG.md"), changelog);
+  // Append compilation diff summary if available
+  const diffPath = join(BUILD_DIR, "compilation-diff.json");
+  if (existsSync(diffPath)) {
+    try {
+      const diff: CompilationDiff = JSON.parse(await readFile(diffPath, "utf-8"));
+      if (diff.articles.length > 0) {
+        entry += `\n### Changes\n`;
+        for (const d of diff.articles) {
+          const delta = d.word_count_after - d.word_count_before;
+          const sign = delta >= 0 ? "+" : "";
+          const parts: string[] = [`${sign}${delta} words`];
+          if (d.sections_changed.length > 0) parts.push(`${d.sections_changed.length} sections changed`);
+          if (d.sections_added.length > 0) parts.push(`${d.sections_added.length} sections added`);
+          if (d.citations_added.length > 0) parts.push(`${d.citations_added.length} new citations`);
+          entry += `- ${d.bucket}: ${parts.join(", ")}\n`;
+        }
+      }
+      if (diff.cards_added.length > 0) {
+        entry += `- Cards added: ${diff.cards_added.join(", ")}\n`;
+      }
+      if (diff.cards_removed.length > 0) {
+        entry += `- Cards removed: ${diff.cards_removed.join(", ")}\n`;
+      }
+    } catch { /* skip if unreadable */ }
+  }
+
+  if (isInitial) {
+    const changelog = `# Changelog\n\nCompilation history for the ${domain.name} wiki.\n\n${entry}`;
+    await writeFile(join(WIKI_DIR, "CHANGELOG.md"), changelog);
+  } else {
+    // Prepend new entry after the header
+    const existing = await readFile(join(WIKI_DIR, "CHANGELOG.md"), "utf-8");
+    const headerEnd = existing.indexOf("\n\n##");
+    if (headerEnd >= 0) {
+      const header = existing.slice(0, headerEnd);
+      const rest = existing.slice(headerEnd + 2); // skip the \n\n
+      await writeFile(join(WIKI_DIR, "CHANGELOG.md"), `${header}\n\n${entry}\n${rest}`);
+    } else {
+      // No existing entries, just append
+      await writeFile(join(WIKI_DIR, "CHANGELOG.md"), existing.trimEnd() + "\n\n" + entry);
+    }
+  }
   console.log("  ✓ CHANGELOG.md written");
 }
 
@@ -1706,51 +1957,89 @@ Rules:
 - Being about the same topic is NOT sufficient — the source must contain the specific evidence.
 - Reasonable paraphrasing is a PASS. Semantic equivalence counts. Only FAIL when the evidence is genuinely missing or contradicted.`;
 
-async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalReport> {
+async function runSelfEval(
+  claims: Claim[],
+  index: SourceIndex,
+  dirtyBuckets: Set<string> | null = null,
+  currentSourceHashes: Record<string, string> = {},
+): Promise<EvalReport> {
   passHeader("7", "Self-Eval", "Sonnet × " + EVAL_SAMPLE_SIZE + ", parallel");
 
   // Filter to claims with at least one source_ref
   const verifiable = claims.filter((c) => c.source_refs.length > 0);
   console.log(`  ${verifiable.length}/${claims.length} claims have source refs (verifiable)`);
 
-  // Stratified sampling: proportional by claim type
+  // ─── Incremental: load eval cache and partition claims ──────────────
+  const evalCache = await loadEvalCache(BUILD_DIR);
+  const currentConfigHash = await computeConfigHash(
+    ROOT,
+    { refs: FULL_ARTICLE_THRESHOLD_REFS, relevance: FULL_ARTICLE_THRESHOLD_RELEVANCE },
+    ["claude-haiku-4-5", "claude-sonnet-4-6"],
+  );
+  const cacheValid = evalCache && evalCache.config_hash === currentConfigHash;
+
+  const carriedForward: EvalResult[] = [];
+  const needsVerification: Claim[] = [];
+
+  for (const claim of verifiable) {
+    const cached = cacheValid ? evalCache!.entries[claim.content_hash] : undefined;
+    if (cached && canCarryForward(cached, dirtyBuckets, currentSourceHashes)) {
+      carriedForward.push({
+        claim_id: claim.id,
+        verdict: cached.verdict,
+        reason: `[cached] ${cached.reason}`,
+      });
+    } else {
+      needsVerification.push(claim);
+    }
+  }
+
+  if (carriedForward.length > 0) {
+    console.log(`  ${cl.green("↻")} ${carriedForward.length} claims carried forward from eval cache`);
+  }
+  console.log(`  ${needsVerification.length} claims need verification`);
+
+  // Stratified sampling from needs-verification pool only
   const byType = new Map<string, Claim[]>();
-  for (const c of verifiable) {
+  for (const c of needsVerification) {
     const arr = byType.get(c.type) ?? [];
     arr.push(c);
     byType.set(c.type, arr);
   }
 
   const sampled: Claim[] = [];
-  const targetSize = Math.min(EVAL_SAMPLE_SIZE, verifiable.length);
+  const targetSize = Math.min(EVAL_SAMPLE_SIZE, needsVerification.length);
 
-  for (const [type, typeClaims] of byType) {
-    const proportion = typeClaims.length / verifiable.length;
-    const count = Math.max(1, Math.round(proportion * targetSize));
-    // Shuffle and take count
-    const shuffled = [...typeClaims].sort(() => Math.random() - 0.5);
-    sampled.push(...shuffled.slice(0, count));
+  if (targetSize > 0) {
+    for (const [type, typeClaims] of byType) {
+      const proportion = typeClaims.length / needsVerification.length;
+      const count = Math.max(1, Math.round(proportion * targetSize));
+      const shuffled = [...typeClaims].sort(() => Math.random() - 0.5);
+      sampled.push(...shuffled.slice(0, count));
+    }
+    while (sampled.length > targetSize) sampled.pop();
   }
 
-  // Trim to target size if proportional rounding overallocated
-  while (sampled.length > targetSize) sampled.pop();
+  console.log(`  Sampling ${sampled.length} claims for LLM verification (${[...byType.entries()].map(([t]) => `${t}: ${sampled.filter((s) => s.type === t).length}`).join(", ")})`);
 
-  console.log(`  Sampling ${sampled.length} claims (${[...byType.entries()].map(([t, c]) => `${t}: ${sampled.filter((s) => s.type === t).length}`).join(", ")})`);
-
-  // Verify each claim against its first source
+  // ─── Verify each sampled claim against its first source ─────────────
   const limit = pLimit(SONNET_CONCURRENCY);
-  const results: EvalResult[] = [];
+  const freshResults: EvalResult[] = [];
+  const newCacheEntries: Record<string, EvalCacheEntry> = {};
   let completed = 0;
   const passStart = Date.now();
 
+  // Track which source was actually verified (for cache)
+  interface VerifiedInfo { claim: Claim; sourceRef: string; sourceHash: string }
+  const verifiedSources: Map<string, VerifiedInfo> = new Map();
+  const failedToVerify = new Set<string>(); // content_hashes that threw during verification
+
   const verifyTasks = sampled.map((claim) =>
     limit(async () => {
-      // Find the source in the index
       const sourceRef = claim.source_refs[0];
       const source = index.sources.find((s) => s.path === sourceRef);
 
       if (!source) {
-        // Source not found in index — skip, don't count as FAIL
         completed++;
         return;
       }
@@ -1779,10 +2068,16 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
             });
 
             if (deepResult.verdict === "PASS") {
-              results.push({
+              freshResults.push({
                 claim_id: claim.id,
                 verdict: "PASS",
                 reason: `[deep/ fallback] ${deepResult.reason}`,
+              });
+              // Record the actual verified source (deep/ variant)
+              verifiedSources.set(claim.id, {
+                claim,
+                sourceRef: deepRef,
+                sourceHash: currentSourceHashes[deepRef] ?? "",
               });
               completed++;
               process.stdout.write(`\r  ${progressBar(completed, sampled.length)} ${elapsed(passStart)}`);
@@ -1791,14 +2086,20 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
           }
         }
 
-        results.push({
+        freshResults.push({
           claim_id: claim.id,
           verdict: object.verdict,
           reason: object.reason,
         });
+        // Record the primary source as verified
+        verifiedSources.set(claim.id, {
+          claim,
+          sourceRef,
+          sourceHash: currentSourceHashes[sourceRef] ?? "",
+        });
       } catch (err) {
         console.warn(`  ${cl.yellow("⚠")} Failed to verify ${claim.id}: ${err}`);
-        // Skip on error, don't count as FAIL
+        failedToVerify.add(claim.content_hash);
       }
 
       completed++;
@@ -1809,29 +2110,79 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
   await Promise.all(verifyTasks);
   process.stdout.write("\n");
 
-  // Aggregate results
-  const passed = results.filter((r) => r.verdict === "PASS").length;
-  const failed = results.filter((r) => r.verdict === "FAIL").length;
-  const accuracy = results.length > 0 ? passed / results.length : 0;
+  // ─── Build eval cache entries from fresh results ────────────────────
+  for (const result of freshResults) {
+    const info = verifiedSources.get(result.claim_id);
+    if (!info) continue;
+    newCacheEntries[info.claim.content_hash] = {
+      claim_content_hash: info.claim.content_hash,
+      verdict: result.verdict,
+      reason: result.reason.replace(/^\[deep\/ fallback\] /, "").replace(/^\[cached\] /, ""),
+      source_ref: info.sourceRef,
+      source_hash: info.sourceHash,
+      verified_at: new Date().toISOString(),
+      bucket: info.claim.article_ref,
+    };
+  }
 
-  // Breakdown by type
+  // Merge: keep valid cached entries, overwrite with fresh results
+  // Exclude claims that failed to verify (don't silently preserve stale verdicts)
+  const mergedCacheEntries: Record<string, EvalCacheEntry> = {};
+  if (cacheValid) {
+    for (const [hash, entry] of Object.entries(evalCache!.entries)) {
+      if (canCarryForward(entry, dirtyBuckets, currentSourceHashes) && !failedToVerify.has(hash)) {
+        mergedCacheEntries[hash] = entry;
+      }
+    }
+  }
+  Object.assign(mergedCacheEntries, newCacheEntries);
+
+  // Save updated eval cache
+  if (!DRY_RUN) {
+    const updatedCache: EvalCache = {
+      version: 1,
+      config_hash: currentConfigHash,
+      entries: mergedCacheEntries,
+    };
+    await saveEvalCache(BUILD_DIR, updatedCache);
+    console.log(`  ${cl.green("✓")} Saved eval cache (${Object.keys(mergedCacheEntries).length} entries)`);
+  }
+
+  // ─── Aggregate: merge carried-forward + fresh results ───────────────
+  const allResults = [...carriedForward, ...freshResults];
+  const passed = allResults.filter((r) => r.verdict === "PASS").length;
+  const failed = allResults.filter((r) => r.verdict === "FAIL").length;
+  const accuracy = allResults.length > 0 ? passed / allResults.length : 0;
+
+  // Breakdown by type (using all evaluated claims)
+  const allEvaluatedClaims = [
+    ...sampled,
+    ...verifiable.filter((c) => carriedForward.some((cf) => cf.claim_id === c.id)),
+  ];
+  const allByType = new Map<string, Claim[]>();
+  for (const c of allEvaluatedClaims) {
+    const arr = allByType.get(c.type) ?? [];
+    arr.push(c);
+    allByType.set(c.type, arr);
+  }
+
   const byTypeReport: Record<string, { sampled: number; passed: number }> = {};
-  for (const [type] of byType) {
-    const typeSampled = results.filter((r) => {
-      const claim = sampled.find((s) => s.id === r.claim_id);
+  for (const [type] of allByType) {
+    const typeResults = allResults.filter((r) => {
+      const claim = allEvaluatedClaims.find((s) => s.id === r.claim_id);
       return claim?.type === type;
     });
     byTypeReport[type] = {
-      sampled: typeSampled.length,
-      passed: typeSampled.filter((r) => r.verdict === "PASS").length,
+      sampled: typeResults.length,
+      passed: typeResults.filter((r) => r.verdict === "PASS").length,
     };
   }
 
   // Breakdown by bucket
   const byBucketReport: Record<string, { sampled: number; passed: number }> = {};
   for (const bucket of Object.keys(BUCKET_TITLES)) {
-    const bucketResults = results.filter((r) => {
-      const claim = sampled.find((s) => s.id === r.claim_id);
+    const bucketResults = allResults.filter((r) => {
+      const claim = allEvaluatedClaims.find((s) => s.id === r.claim_id);
       return claim?.article_ref === bucket;
     });
     if (bucketResults.length > 0) {
@@ -1843,15 +2194,16 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
   }
 
   // Build failure details
-  const failures = results
+  const failures = allResults
     .filter((r) => r.verdict === "FAIL")
     .map((r) => {
-      const claim = sampled.find((s) => s.id === r.claim_id)!;
+      const claim = allEvaluatedClaims.find((s) => s.id === r.claim_id)!;
+      const info = verifiedSources.get(r.claim_id);
       return {
         claim_id: r.claim_id,
         claim: claim.content,
         article_ref: claim.article_ref,
-        source_ref: claim.source_refs[0],
+        source_ref: info?.sourceRef ?? claim.source_refs[0],
         reason: r.reason,
       };
     });
@@ -1860,9 +2212,11 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
     version: 1,
     compiled_at: new Date().toISOString(),
     total_claims: claims.length,
-    sample_size: results.length,
+    sample_size: freshResults.length,
+    carried_forward: carriedForward.length,
+    total_evaluated: allResults.length,
     accuracy: Math.round(accuracy * 1000) / 1000,
-    results,
+    results: allResults,
     failures,
     by_type: byTypeReport,
     by_bucket: byBucketReport,
@@ -1874,12 +2228,14 @@ async function runSelfEval(claims: Claim[], index: SourceIndex): Promise<EvalRep
   const changelogPath = join(WIKI_DIR, "CHANGELOG.md");
   if (existsSync(changelogPath)) {
     const existing = await readFile(changelogPath, "utf-8");
-    const evalLine = `- **Self-eval:** ${results.length} claims sampled, ${passed} passed (${(accuracy * 100).toFixed(1)}% accuracy). Failures: ${failed}.`;
+    const cacheNote = carriedForward.length > 0 ? ` (${carriedForward.length} cached, ${freshResults.length} verified)` : "";
+    const evalLine = `- **Self-eval:** ${allResults.length} claims evaluated${cacheNote}, ${passed} passed (${(accuracy * 100).toFixed(1)}% accuracy). Failures: ${failed}.`;
     await writeFile(changelogPath, existing.trimEnd() + "\n" + evalLine + "\n");
   }
 
   const accColor = accuracy >= 0.8 ? cl.green : accuracy >= 0.6 ? cl.yellow : cl.red;
-  console.log(`  ${cl.green("✓")} Self-eval: ${cl.bold(`${passed}/${results.length}`)} passed ${accColor(`(${(accuracy * 100).toFixed(1)}%)`)} ${elapsed(passStart)}`);
+  const cacheInfo = carriedForward.length > 0 ? ` (${carriedForward.length} cached + ${freshResults.length} verified)` : "";
+  console.log(`  ${cl.green("✓")} Self-eval: ${cl.bold(`${passed}/${allResults.length}`)} passed ${accColor(`(${(accuracy * 100).toFixed(1)}%)`)}${cacheInfo} ${elapsed(passStart)}`);
   if (failures.length > 0) {
     console.log(`  ${cl.red("✗")} ${failures.length} failures:`);
     for (const f of failures.slice(0, 5)) {
@@ -2100,6 +2456,172 @@ function computeStalenessRisk(newestDate: string): "low" | "medium" | "high" {
   return "high";
 }
 
+// ─── Article Diff Utilities ───────────────────────────────────────────
+
+interface ArticleSnapshot {
+  sections: Map<string, string>; // heading -> content
+  sources: string[]; // from frontmatter
+  entities: string[]; // from frontmatter (related or entities)
+  wordCount: number;
+}
+
+function snapshotArticle(content: string): ArticleSnapshot {
+  const parsed = matter(content);
+  const body = parsed.content;
+  const fm = parsed.data as Record<string, unknown>;
+
+  // Parse sections by ## headings
+  const sections = new Map<string, string>();
+  const sectionRegex = /^## (.+)$/gm;
+  let lastHeading = "";
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = sectionRegex.exec(body)) !== null) {
+    if (lastHeading) {
+      sections.set(lastHeading, body.slice(lastIndex, match.index).trim());
+    }
+    lastHeading = match[1];
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastHeading) {
+    sections.set(lastHeading, body.slice(lastIndex).trim());
+  }
+
+  return {
+    sections,
+    sources: (fm.sources as string[]) ?? [],
+    entities: (fm.entities as string[]) ?? (fm.related as string[]) ?? [],
+    wordCount: body.split(/\s+/).filter(Boolean).length,
+  };
+}
+
+function diffArticle(bucket: string, before: ArticleSnapshot, after: ArticleSnapshot): ArticleDiff {
+  const beforeHeadings = new Set(before.sections.keys());
+  const afterHeadings = new Set(after.sections.keys());
+
+  const sectionsAdded = [...afterHeadings].filter((h) => !beforeHeadings.has(h));
+  const sectionsRemoved = [...beforeHeadings].filter((h) => !afterHeadings.has(h));
+  const sectionsChanged = [...afterHeadings].filter(
+    (h) => beforeHeadings.has(h) && before.sections.get(h) !== after.sections.get(h),
+  );
+
+  const beforeSources = new Set(before.sources);
+  const afterSources = new Set(after.sources);
+  const citationsAdded = [...afterSources].filter((s) => !beforeSources.has(s));
+  const citationsRemoved = [...beforeSources].filter((s) => !afterSources.has(s));
+
+  const beforeEntities = new Set(before.entities);
+  const afterEntities = new Set(after.entities);
+  const entitiesAdded = [...afterEntities].filter((e) => !beforeEntities.has(e));
+  const entitiesRemoved = [...beforeEntities].filter((e) => !afterEntities.has(e));
+
+  return {
+    bucket,
+    word_count_before: before.wordCount,
+    word_count_after: after.wordCount,
+    sections_added: sectionsAdded,
+    sections_removed: sectionsRemoved,
+    sections_changed: sectionsChanged,
+    citations_added: citationsAdded,
+    citations_removed: citationsRemoved,
+    entities_added: entitiesAdded,
+    entities_removed: entitiesRemoved,
+  };
+}
+
+// ─── Shared Dirty Bucket Computation ──────────────────────────────────
+
+const CHANGE_BOOST = 1.5;
+const DEEP_BOOST = 1.0;
+
+function computeDirtyBuckets(
+  index: SourceIndex,
+  changeSet: ChangeSet,
+  prevSourceIndex: Record<string, string[]>,
+  prevSynthesisSources: Record<string, Set<string>>,
+): { dirtyBuckets: Set<string>; top25Cutoff: Record<string, number> } {
+  // Compute per-bucket top-25 relevance cutoff
+  const top25Cutoff: Record<string, number> = {};
+  for (const [bucket, bSources] of Object.entries(index.byBucket)) {
+    const sorted = (bSources as ParsedSource[])
+      .map((s) => s.relevance + (s.path.includes("/deep/") ? DEEP_BOOST : 0))
+      .sort((a, b) => b - a);
+    top25Cutoff[bucket] = sorted.length >= 25 ? sorted[24] : 0;
+  }
+
+  const dirtyBuckets = new Set<string>();
+
+  // Added/changed sources: gate on relevance
+  for (const srcPath of changeSet.changed) {
+    const src = index.sources.find((s) => s.path === srcPath);
+    if (!src) continue;
+    const effectiveRel = src.relevance + CHANGE_BOOST + (src.path.includes("/deep/") ? DEEP_BOOST : 0);
+    for (const bucket of tagsToBuckets(src.frontmatter.tags ?? [])) {
+      if (effectiveRel >= (top25Cutoff[bucket] ?? 0)) {
+        dirtyBuckets.add(bucket);
+      }
+    }
+  }
+
+  // Deleted sources: use old tags (source gone from current index)
+  for (const srcPath of changeSet.deleted) {
+    const tags = prevSourceIndex[srcPath] ?? [];
+    for (const bucket of tagsToBuckets(tags)) {
+      if (prevSynthesisSources[bucket]?.has(srcPath)) {
+        dirtyBuckets.add(bucket);
+      }
+    }
+  }
+
+  // Modified sources: use current tags (source still exists, may have been re-tagged)
+  for (const srcPath of changeSet.modified) {
+    const src = index.sources.find((s) => s.path === srcPath);
+    const tags = src?.frontmatter.tags ?? prevSourceIndex[srcPath] ?? [];
+    for (const bucket of tagsToBuckets(tags)) {
+      if (prevSynthesisSources[bucket]?.has(srcPath)) {
+        dirtyBuckets.add(bucket);
+      }
+    }
+  }
+
+  return { dirtyBuckets, top25Cutoff };
+}
+
+/**
+ * Load previous synthesis article source lists from wiki frontmatter.
+ * Returns a map of bucket → Set of source paths cited in the synthesis article.
+ */
+async function loadPrevSynthesisSources(wikiDir: string): Promise<Record<string, Set<string>>> {
+  const result: Record<string, Set<string>> = {};
+  for (const bucket of Object.keys(BUCKET_TITLES)) {
+    const articlePath = join(wikiDir, `${bucket}.md`);
+    if (existsSync(articlePath)) {
+      try {
+        const raw = await readFile(articlePath, "utf-8");
+        const { data } = matter(raw);
+        const sources = ((data as Record<string, unknown>).sources as string[]) ?? [];
+        result[bucket] = new Set(sources);
+      } catch { /* skip */ }
+    }
+  }
+  return result;
+}
+
+/**
+ * Load previous source index for deleted-source tag lookup.
+ */
+async function loadPrevSourceIndex(): Promise<Record<string, string[]>> {
+  const result: Record<string, string[]> = {};
+  try {
+    const prevIndex = await loadBuildArtifact<{ sources: Array<{ path: string; frontmatter: { tags: string[] } }> }>("source-index.json");
+    for (const src of prevIndex.sources) {
+      result[src.path] = src.frontmatter.tags ?? [];
+    }
+  } catch { /* no previous index */ }
+  return result;
+}
+
 function shouldRunPass(pass: string): boolean {
   const order = ["0", "1a", "1b", "2", "3a", "3a.5", "3b", "3c", "4", "5", "6", "7", "8"];
   const idx = order.indexOf(pass);
@@ -2246,18 +2768,13 @@ async function showStatus(): Promise<void> {
     }
   }
 
-  // Dirty buckets
-  const dirtyBuckets = new Set<string>();
-  for (const srcPath of [...cs.changed, ...cs.deleted]) {
-    const src = index.sources.find((s) => s.path === srcPath);
-    const tags = src?.frontmatter.tags ?? [];
-    for (const bucket of tagsToBuckets(tags)) {
-      dirtyBuckets.add(bucket);
-    }
-  }
+  // Dirty buckets (relevance-gated) — uses shared function
+  const prevSourceIdx = await loadPrevSourceIndex();
+  const prevSynthSources = await loadPrevSynthesisSources(WIKI_DIR);
+  const { dirtyBuckets } = computeDirtyBuckets(index, cs, prevSourceIdx, prevSynthSources);
   const cleanBuckets = BUCKET_IDS.filter((b: string) => !dirtyBuckets.has(b));
 
-  console.log(`\n  Dirty buckets: ${[...dirtyBuckets].map((b) => cl.yellow(b)).join(", ") || cl.green("none")}`);
+  console.log(`\n  Dirty buckets (relevance-gated): ${[...dirtyBuckets].map((b) => cl.yellow(b)).join(", ") || cl.green("none")}`);
   if (cleanBuckets.length > 0) {
     console.log(`  Clean buckets: ${cleanBuckets.map((b: string) => cl.green(b)).join(", ")}`);
   }
@@ -2374,17 +2891,36 @@ async function main() {
 
   // Pass 1b
   if (shouldRunPass("1b")) {
-    // In incremental mode, anchor previous entity IDs to prevent volatility
-    let anchorEntities: Entity[] | undefined;
-    if (isIncremental && prevState) {
+    if (isIncremental && prevState && changeSet && !changeSet.isClean) {
+      // Incremental: try deterministic name matching first
       try {
-        anchorEntities = await loadBuildArtifact<Entity[]>("entities.json");
-        console.log(`  Loading ${anchorEntities.length} previous entities as anchors`);
+        const previousEntities = await loadBuildArtifact<Entity[]>("entities.json");
+        const changeRatio = changeSet.changed.size / index.sources.length;
+        if (changeRatio > 0.20) {
+          console.log(`  [Incremental: ${(changeRatio * 100).toFixed(0)}% sources changed — falling back to full resolution]`);
+          entities = await resolveEntities(rawEntities, index, previousEntities);
+        } else {
+          entities = await resolveEntitiesIncremental(rawEntities, previousEntities, index, changeSet);
+        }
       } catch {
         // No previous entities — resolve from scratch
+        entities = await resolveEntities(rawEntities, index);
       }
+    } else if (isIncremental && changeSet?.isClean) {
+      // No changes — load previous entities directly
+      entities = await loadBuildArtifact("entities.json");
+      console.log(`\n  [Skipped Pass 1b — no source changes, loaded ${entities.length} entities]`);
+    } else {
+      // Full resolution (first compile, --from-pass, or forced full run)
+      let anchorEntities: Entity[] | undefined;
+      if (isIncremental && prevState) {
+        try {
+          anchorEntities = await loadBuildArtifact<Entity[]>("entities.json");
+          console.log(`  Loading ${anchorEntities.length} previous entities as anchors`);
+        } catch { /* resolve from scratch */ }
+      }
+      entities = await resolveEntities(rawEntities, index, anchorEntities);
     }
-    entities = await resolveEntities(rawEntities, index, anchorEntities);
   } else {
     entities = await loadBuildArtifact("entities.json");
     console.log(`\n  [Skipped Pass 1b — loaded ${entities.length} entities from disk]`);
@@ -2392,7 +2928,31 @@ async function main() {
 
   // Pass 2
   if (shouldRunPass("2")) {
-    graph = await buildGraph(entities, index);
+    if (isIncremental && prevState && changeSet && !changeSet.isClean) {
+      // Check if any new entities were created (structural change requiring graph rebuild)
+      const prevEntityIds = new Set(prevState.previous_entity_ids);
+      const newEntityIds = entities.filter((e) => !prevEntityIds.has(e.id)).map((e) => e.id);
+      if (newEntityIds.length === 0) {
+        // No structural changes — reuse previous graph with updated nodes
+        try {
+          const prevGraph = await loadBuildArtifact<KnowledgeGraph>("graph.json");
+          graph = {
+            ...prevGraph,
+            nodes: entities.map((e) => ({ id: e.id, name: e.name, type: e.type, bucket: e.bucket })),
+            compiled_at: new Date().toISOString(),
+          };
+          await writeFile(join(BUILD_DIR, "graph.json"), JSON.stringify(graph, null, 2));
+          console.log(`\n  [Skipped Pass 2 — no new entities, reused ${graph.edges.length} edges]`);
+        } catch {
+          graph = await buildGraph(entities, index);
+        }
+      } else {
+        console.log(`  [Incremental: ${newEntityIds.length} new entities — rebuilding graph]`);
+        graph = await buildGraph(entities, index);
+      }
+    } else {
+      graph = await buildGraph(entities, index);
+    }
   } else {
     graph = await loadBuildArtifact("graph.json");
     console.log(`\n  [Skipped Pass 2 — loaded graph with ${graph.nodes.length} nodes, ${graph.edges.length} edges]`);
@@ -2432,21 +2992,42 @@ async function main() {
   let dirtyEntityIds: Set<string> | null = null;
 
   if (isIncremental && changeSet && !changeSet.isClean) {
-    // Dirty buckets: buckets containing any changed/new/deleted source
-    dirtyBuckets = new Set<string>();
-    for (const srcPath of [...changeSet.changed, ...changeSet.deleted]) {
+    // ─── Relevance-gated dirty bucket detection ───────────────────────
+    const prevSourceIndex = await loadPrevSourceIndex();
+    const prevSynthesisSources = await loadPrevSynthesisSources(WIKI_DIR);
+
+    if (Object.keys(prevSourceIndex).length === 0 && changeSet.deleted.size > 0) {
+      console.warn(`  ${cl.yellow("⚠")} No previous source index — deleted sources cannot be tracked`);
+    }
+
+    const { dirtyBuckets: computedDirty, top25Cutoff } = computeDirtyBuckets(
+      index, changeSet, prevSourceIndex, prevSynthesisSources,
+    );
+    dirtyBuckets = computedDirty;
+
+    console.log(`  [Incremental: top-25 cutoffs: ${Object.entries(top25Cutoff).map(([b, c]) => `${b}=${c.toFixed(1)}`).join(", ")}]`);
+
+    // Log which sources dirtied which buckets
+    for (const srcPath of changeSet.changed) {
       const src = index.sources.find((s) => s.path === srcPath);
-      const tags = src?.frontmatter.tags ?? [];
-      for (const bucket of tagsToBuckets(tags)) {
-        dirtyBuckets.add(bucket);
+      if (!src) continue;
+      const effectiveRel = src.relevance + CHANGE_BOOST + (src.path.includes("/deep/") ? DEEP_BOOST : 0);
+      for (const bucket of tagsToBuckets(src.frontmatter.tags ?? [])) {
+        if (effectiveRel >= (top25Cutoff[bucket] ?? 0)) {
+          console.log(`  ${cl.dim(`  ${srcPath} (rel=${src.relevance}+${CHANGE_BOOST}=${effectiveRel.toFixed(1)}) → dirtied ${bucket} (cutoff ${(top25Cutoff[bucket] ?? 0).toFixed(1)})`)}`);
+        }
       }
     }
-    // Also dirty if entities in that bucket changed
+
+    // New entities: only dirty if backed by changed sources
     if (prevState) {
       const prevEntitySet = new Set(prevState.previous_entity_ids);
       for (const e of entities) {
         if (!prevEntitySet.has(e.id)) {
-          dirtyBuckets.add(e.bucket); // New entity -> dirty bucket
+          const hasChangedSource = e.source_refs.some((ref) => changeSet.changed.has(ref));
+          if (hasChangedSource) {
+            dirtyBuckets.add(e.bucket);
+          }
         }
       }
     }
@@ -2456,16 +3037,10 @@ async function main() {
     dirtyEntityIds = new Set<string>();
     for (const e of entities) {
       if (e.article_level !== "full") continue;
-      const neighborIds = graph.edges
-        .filter((edge) => edge.source === e.id || edge.target === e.id)
-        .map((edge) => (edge.source === e.id ? edge.target : edge.source));
       const hash = computeEntityInputHash({
         id: e.id,
-        description: e.description,
         bucket: e.bucket,
-        aliases: e.aliases,
         source_refs: e.source_refs,
-        neighborIds,
       });
       const prevHash = prevState?.entity_input_hashes[e.id];
       if (!prevHash || prevHash !== hash) {
@@ -2473,6 +3048,40 @@ async function main() {
       }
     }
     console.log(`  [Incremental: ${dirtyEntityIds.size} dirty entities of ${entities.filter((e) => e.article_level === "full").length} full]`);
+
+    // Write dirty-buckets.json for hybrid skill mode
+    if (!DRY_RUN) {
+      await writeFile(
+        join(BUILD_DIR, "dirty-buckets.json"),
+        JSON.stringify({
+          buckets: [...dirtyBuckets],
+          entities: [...dirtyEntityIds],
+        }, null, 2),
+      );
+    }
+  }
+
+  // Snapshot synthesis articles before regeneration (for output diffing)
+  const articleSnapshots = new Map<string, ArticleSnapshot>();
+  for (const bucket of Object.keys(BUCKET_TITLES)) {
+    const articlePath = join(WIKI_DIR, `${bucket}.md`);
+    if (existsSync(articlePath)) {
+      try {
+        const content = await readFile(articlePath, "utf-8");
+        articleSnapshots.set(bucket, snapshotArticle(content));
+      } catch { /* skip if unreadable */ }
+    }
+  }
+
+  // Track existing cards for diff
+  const existingCardIds = new Set<string>();
+  for (const dir of ["projects", "concepts"]) {
+    const cardDir = join(WIKI_DIR, dir);
+    if (existsSync(cardDir)) {
+      for (const file of await readdir(cardDir)) {
+        if (file.endsWith(".md")) existingCardIds.add(file.replace(".md", ""));
+      }
+    }
   }
 
   // Pass 3a
@@ -2523,6 +3132,75 @@ async function main() {
     await Promise.all(parallel);
   }
 
+  // Compute compilation diff (after synthesis articles and cards are written)
+  if (!DRY_RUN) {
+    const articleDiffs: ArticleDiff[] = [];
+    for (const bucket of Object.keys(BUCKET_TITLES)) {
+      const articlePath = join(WIKI_DIR, `${bucket}.md`);
+      if (!existsSync(articlePath)) continue;
+      try {
+        const afterContent = await readFile(articlePath, "utf-8");
+        const afterSnapshot = snapshotArticle(afterContent);
+        const beforeSnapshot = articleSnapshots.get(bucket);
+        if (beforeSnapshot) {
+          const diff = diffArticle(bucket, beforeSnapshot, afterSnapshot);
+          // Only include if something actually changed
+          if (
+            diff.sections_added.length > 0 || diff.sections_removed.length > 0 ||
+            diff.sections_changed.length > 0 || diff.citations_added.length > 0 ||
+            diff.citations_removed.length > 0 || diff.entities_added.length > 0 ||
+            diff.entities_removed.length > 0 ||
+            diff.word_count_before !== diff.word_count_after
+          ) {
+            articleDiffs.push(diff);
+          }
+        } else {
+          // New article (no prior snapshot)
+          articleDiffs.push({
+            bucket,
+            word_count_before: 0,
+            word_count_after: afterSnapshot.wordCount,
+            sections_added: [...afterSnapshot.sections.keys()],
+            sections_removed: [],
+            sections_changed: [],
+            citations_added: afterSnapshot.sources,
+            citations_removed: [],
+            entities_added: afterSnapshot.entities,
+            entities_removed: [],
+          });
+        }
+      } catch { /* skip */ }
+    }
+
+    // Track card changes
+    const currentCardIds = new Set<string>();
+    for (const dir of ["projects", "concepts"]) {
+      const cardDir = join(WIKI_DIR, dir);
+      if (existsSync(cardDir)) {
+        for (const file of await readdir(cardDir)) {
+          if (file.endsWith(".md")) currentCardIds.add(file.replace(".md", ""));
+        }
+      }
+    }
+    const cardsAdded = [...currentCardIds].filter((id) => !existingCardIds.has(id));
+    const cardsRemoved = [...existingCardIds].filter((id) => !currentCardIds.has(id));
+    const cardsRegenerated = dirtyEntityIds ? [...dirtyEntityIds].filter((id) => existingCardIds.has(id) && currentCardIds.has(id)) : [];
+
+    const compilationDiff: CompilationDiff = {
+      version: 1,
+      compiled_at: new Date().toISOString(),
+      articles: articleDiffs,
+      cards_added: cardsAdded,
+      cards_removed: cardsRemoved,
+      cards_regenerated: cardsRegenerated,
+    };
+    await writeFile(join(BUILD_DIR, "compilation-diff.json"), JSON.stringify(compilationDiff, null, 2));
+
+    if (articleDiffs.length > 0 || cardsAdded.length > 0 || cardsRemoved.length > 0) {
+      console.log(`  ${cl.green("✓")} Compilation diff: ${articleDiffs.length} articles changed, ${cardsAdded.length} cards added, ${cardsRemoved.length} removed`);
+    }
+  }
+
   // Pass 4 runs after 3b/3c (indexes link to reference cards which must exist on disk)
   if (shouldRunPass("4")) {
     const skipFieldMap = isIncremental && dirtyBuckets !== null && dirtyBuckets.size === 0;
@@ -2553,9 +3231,16 @@ async function main() {
     await generateChangelog(entities, graph);
   }
 
+  // Compute source hashes before Pass 7 (needed for eval cache — read-only, safe in dry-run)
+  const sourceHashes: Record<string, string> = {};
+  for (const src of index.sources) {
+    const fullPath = join(ROOT, "raw", src.path);
+    sourceHashes[src.path] = await hashFile(fullPath);
+  }
+
   // Pass 7
   if (shouldRunPass("7")) {
-    await runSelfEval(claims, index);
+    await runSelfEval(claims, index, dirtyBuckets ?? null, sourceHashes);
   }
 
   // Pass 8
@@ -2566,27 +3251,16 @@ async function main() {
   // Auto-patch README.md stats
   await patchReadmeStats(index, entities, graph, claims);
 
-  // Save incremental state for next run
-  if (!DRY_RUN) {
-    const sourceHashes: Record<string, string> = {};
-    for (const src of index.sources) {
-      const fullPath = join(ROOT, "raw", src.path);
-      sourceHashes[src.path] = await hashFile(fullPath);
-    }
+  // Save incremental state for next run (skip if --no-save-state for hybrid skill mode)
+  if (!DRY_RUN && !NO_SAVE_STATE) {
 
     // Compute entity input hashes (for Phase 3 dirty entity tracking)
     const entityInputHashes: Record<string, string> = {};
     for (const e of entities) {
-      const neighborIds = graph.edges
-        .filter((edge) => edge.source === e.id || edge.target === e.id)
-        .map((edge) => (edge.source === e.id ? edge.target : edge.source));
       entityInputHashes[e.id] = computeEntityInputHash({
         id: e.id,
-        description: e.description,
         bucket: e.bucket,
-        aliases: e.aliases,
         source_refs: e.source_refs,
-        neighborIds,
       });
     }
 
