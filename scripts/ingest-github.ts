@@ -41,6 +41,8 @@ export interface IngestOptions {
   minRelevance?: number;
   /** Skip relevance scoring (for explicitly requested repos). */
   skipRelevanceCheck?: boolean;
+  /** Force re-ingest even if already seen/exists. */
+  force?: boolean;
 }
 
 // ─── Main ingestion ─────────────────────────────────────────────────────
@@ -55,6 +57,7 @@ export async function ingestGithubRepo(
     minStars = DEFAULT_MIN_STARS,
     minRelevance = DEFAULT_MIN_RELEVANCE,
     skipRelevanceCheck = false,
+    force = false,
   } = opts;
   const seen = opts.seen ?? (await loadSeen());
   const written: string[] = [];
@@ -65,7 +68,7 @@ export async function ingestGithubRepo(
     return written;
   }
 
-  if (markSeen(seen, repoUrl)) {
+  if (markSeen(seen, repoUrl, force)) {
     console.log(`  skip (already seen): ${ownerRepo}`);
     return written;
   }
@@ -136,7 +139,7 @@ export async function ingestGithubRepo(
 
   const body = buildRepoBody(metadata, readme, relevance);
   const slug = slugify(`${metadata.owner}-${metadata.name}`);
-  const filePath = await writeRawSource("repos", slug, frontmatter, body);
+  const filePath = await writeRawSource("repos", slug, frontmatter, body, force);
   written.push(filePath);
 
   // Awesome-list detection + recursive ingestion

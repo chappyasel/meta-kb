@@ -10,11 +10,12 @@ export async function writeRawSource(
   slug: string,
   frontmatter: RawSourceFrontmatter,
   bodyMarkdown: string,
+  force = false,
 ): Promise<string> {
   const filePath = path.join("raw", dir, `${slug}.md`);
 
-  // Never overwrite existing files
-  if (existsSync(filePath)) {
+  // Never overwrite existing files (unless force re-ingest)
+  if (!force && existsSync(filePath)) {
     console.log(`  skip (file exists): ${filePath}`);
     return filePath;
   }

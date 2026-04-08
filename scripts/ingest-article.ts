@@ -128,18 +128,20 @@ function extractMetaTag(html: string, name: string): string | null {
 
 interface IngestOptions {
   seen?: Set<string>;
+  force?: boolean;
 }
 
 export async function ingestArticles(
   urls: string[],
   opts: IngestOptions = {},
 ): Promise<string[]> {
+  const { force = false } = opts;
   const seen = opts.seen ?? (await loadSeen());
   const written: string[] = [];
 
   for (const url of urls) {
     try {
-      if (seen.has(normalizeUrl(url))) {
+      if (!force && seen.has(normalizeUrl(url))) {
         console.log(`  skip (already seen): ${url}`);
         continue;
       }
@@ -153,7 +155,7 @@ export async function ingestArticles(
           const articleId = extractArticleId(url);
           const tweetUrl = (opts as any).tweetUrl as string | undefined;
           const article = await fetchXArticle(articleId, tweetUrl);
-          markSeen(seen, url);
+          markSeen(seen, url, force);
           const { key_insight, tags } = await generateInsightAndTags(article.bodyText, "article");
           const frontmatter: RawSourceFrontmatter = {
             url,
@@ -165,7 +167,7 @@ export async function ingestArticles(
           };
           const slug = slugify(`x-${article.authorHandle}-${article.title.slice(0, 50)}`);
           const body = `## ${article.title}\n\n**Author:** ${article.author} (@${article.authorHandle})\n\n${article.bodyText}`;
-          const filePath = await writeRawSource("articles", slug, frontmatter, body);
+          const filePath = await writeRawSource("articles", slug, frontmatter, body, force);
           written.push(filePath);
         } catch (err) {
           console.warn(`  ⚠ X article extraction failed: ${err}`);
@@ -175,7 +177,7 @@ export async function ingestArticles(
 
       const meta = await fetchArticle(url);
 
-      markSeen(seen, url);
+      markSeen(seen, url, force);
 
       const { key_insight, tags } = await generateInsightAndTags(
         meta.content,
@@ -193,7 +195,7 @@ export async function ingestArticles(
 
       const body = buildArticleBody(meta);
       const slug = slugify(`${meta.siteName}-${meta.title.slice(0, 50)}`);
-      const filePath = await writeRawSource("articles", slug, frontmatter, body);
+      const filePath = await writeRawSource("articles", slug, frontmatter, body, force);
       written.push(filePath);
 
       // Auto-chain: extract GitHub URLs and ingest repos

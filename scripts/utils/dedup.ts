@@ -64,9 +64,9 @@ export async function saveSeen(seen: Set<string>): Promise<void> {
 }
 
 /** Returns true if already seen (skip it). Adds to set either way. */
-export function markSeen(seen: Set<string>, url: string): boolean {
+export function markSeen(seen: Set<string>, url: string, force = false): boolean {
   const normalized = normalizeUrl(url);
-  if (seen.has(normalized)) return true;
+  if (!force && seen.has(normalized)) return true;
   seen.add(normalized);
   return false;
 }

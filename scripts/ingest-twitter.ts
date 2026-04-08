@@ -349,13 +349,14 @@ function mergeThreads(
 interface IngestOptions {
   depth?: number;
   seen?: Set<string>;
+  force?: boolean;
 }
 
 export async function ingestTweets(
   urls: string[],
   opts: IngestOptions = {},
 ): Promise<string[]> {
-  const { depth = 1 } = opts;
+  const { depth = 1, force = false } = opts;
   const seen = opts.seen ?? (await loadSeen());
   const written: string[] = [];
 
@@ -394,7 +395,7 @@ export async function ingestTweets(
       if (!isHighEngagement(engagement) && githubUrls.length === 0) continue;
     }
 
-    if (markSeen(seen, tweetUrl)) continue;
+    if (markSeen(seen, tweetUrl, force)) continue;
 
     const handle = getAuthorHandle(tweet);
     console.log(`  processing tweet by @${handle} (${engagement.likes} likes)`);
@@ -478,7 +479,7 @@ export async function ingestTweets(
     const body = articleContent
       ? buildTweetBody(tweet, text, engagement, images, threadTexts) + `\n\n---\n\n## ${articleTitle}\n\n${articleContent}`
       : buildTweetBody(tweet, text, engagement, images, threadTexts);
-    const filePath = await writeRawSource("tweets", slug, frontmatter, body);
+    const filePath = await writeRawSource("tweets", slug, frontmatter, body, force);
     written.push(filePath);
 
     // Auto-chain: extract expanded URLs from Apify entities and ingest linked content
