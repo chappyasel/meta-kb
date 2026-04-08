@@ -2,17 +2,17 @@
 name: incremental-compile
 description: >
   Incrementally recompiles changed parts of the wiki after new sources are
-  ingested. Detects source changes via content hashing, identifies dirty
-  buckets and entities, regenerates only affected synthesis articles and
-  reference cards, and updates indexes. Use when sources were recently
-  ingested and the wiki needs updating without a full recompilation.
+  ingested. The skill handles change detection, LLM-powered impact analysis,
+  and user confirmation. All compilation is delegated to the script pipeline
+  (bun run compile --incremental), which handles entity extraction, resolution
+  with anchoring, synthesis with evidence registry, reference cards, claims,
+  self-eval, and state saving.
 ---
 
 # Incremental Compile
 
-Recompile only what changed. Read `config/domain.ts` for the domain topic
-and taxonomy. Read `build/incremental-state.json` for the previous
-compilation state. Output goes to `wiki/`.
+Recompile only what changed. The skill's job is judgment and presentation.
+The script's job is compilation.
 
 If no `build/incremental-state.json` exists, fall back to the full
 `compile-wiki` skill instead.
@@ -20,166 +20,130 @@ If no `build/incremental-state.json` exists, fall back to the full
 ## Pipeline Overview
 
 ```
-Phase 0: Change detection   (you do this — diff source hashes)
-Phase 1: Impact analysis     (you do this — reason about what changed)
-Phase 2: Selective synthesis  (subagents for dirty buckets only)
-Phase 3: Selective cards      (subagents for dirty entities only)
-Phase 4: Indexes + field map  (always indexes, conditionally field-map)
-Phase 5: Claims + state save  (claims for dirty buckets, save state)
+Phase 0: Change detection      (run bun run compile --status)
+Phase 1: Impact analysis       (you reason about changes, ask user to confirm)
+Phase 2: Script compilation    (run bun run compile --incremental)
+Phase 3: Present results       (read compilation-diff.json, eval-report.json)
 ```
 
 ## Phase 0: Change Detection
 
-1. Read `build/incremental-state.json`. If missing, stop and use `compile-wiki` instead.
+Run the script's status command:
 
-2. Read `config/domain.ts`. Compute whether the domain config changed since
-   last compilation (compare bucket definitions, topic, audience). If the
-   domain config changed materially, stop and use `compile-wiki` for a full run.
+```bash
+bun run compile --status
+```
 
-3. Scan all `.md` files in `raw/{tweets,repos,papers,articles}/` and
-   `raw/deep/{repos,papers}/`. For each, compute a SHA-256 of the file contents.
+Read the output to understand:
+- How many sources were added/modified/deleted
+- Which buckets are dirty (relevance-gated: low-relevance sources don't dirty buckets)
+- Whether the config changed (requires full recompilation)
 
-4. Diff current hashes against `incremental-state.json.source_hashes`:
-   - **Added**: path exists on disk but not in state
-   - **Modified**: path exists in both but hash differs
-   - **Deleted**: path exists in state but not on disk
+Also read each new/modified source's frontmatter (`key_insight`, `tags`,
+`relevance_scores.composite`) for impact reasoning in Phase 1.
 
-5. If nothing changed, report "Wiki is current" and stop.
-
-6. Report the change summary:
-   ```
-   Incremental compilation:
-     Added:    articles/gustycube-...md (relevance 7.5)
-     Added:    repos/gustycube-membrane.md (relevance 8.0)
-     Deleted:  (none)
-     Modified: (none)
-   ```
+If the status says "Wiki is current", report that and stop.
 
 ## Phase 1: Impact Analysis
 
-This is where the skill adds value over the script — you can reason about
-the changes, not just hash-diff.
+This is the skill's primary value-add over the script.
 
 1. **Read each new/modified source** (frontmatter + first 2K chars of body).
 
-2. **Compute dirty buckets**: For each changed source, map its `tags` to
-   taxonomy buckets (a source can match multiple buckets). A bucket is dirty
-   if any of its sources changed.
-
-3. **Assess impact per dirty bucket**: Read the existing `wiki/{bucket}.md`
+2. **Assess impact per dirty bucket**: Read the existing `wiki/{bucket}.md`
    synthesis article abstract. Consider:
    - Does the new source add a genuinely new perspective?
    - Does it contradict existing claims? (Check key_insight against article)
-   - Is it high enough relevance to enter the top 25 for this bucket?
+   - Is it high enough relevance to matter?
 
-4. **Report findings to the user** before proceeding:
+3. **Report findings to the user** before proceeding:
    ```
    Impact analysis:
-     agent-memory: DIRTY — new contrarian source challenges flat-file memory
-     knowledge-substrate: DIRTY — new project (Membrane) with novel architecture
-     context-engineering: DIRTY — tagged but low impact (no contradiction)
-     agent-architecture: CLEAN
-     multi-agent-systems: DIRTY — new coordination patterns from CORAL
-     self-improving: DIRTY — tagged but marginal relevance
+     knowledge-substrate: DIRTY — new project (Dash) with 6-layer context system
+     self-improving: DIRTY — SEAL paper introduces in-weight self-adaptation
+     agent-memory: CLEAN (new sources below top-25 cutoff)
+     ...
    
-   Contradictions detected:
-     - Existing: "BM25 on markdown achieves 91% accuracy"
-     - New source: "flat-file markdown creates ~48% poisoned retrieval"
-     → These describe different evaluation contexts but should both appear
+   Contradictions detected: (none / list specifics)
+   Estimated dirty entities: ~15
    
    Proceed with recompilation? (Y to continue, N to abort)
    ```
 
-5. **Identify dirty entities**: Compare current entity state against
-   `incremental-state.json.entity_input_hashes`. An entity is dirty if its
-   description, bucket, aliases, source_refs, or graph neighbors changed.
-   New entities (not in previous state) are always dirty.
+4. **Handle edge cases**:
+   - If >50% of sources changed, suggest full recompilation instead
+   - If sources were deleted, note which entities might lose full-article status
+   - If config changed, explain that full recompilation is required
 
-6. **Handle deletions**: If sources were deleted, check if any entities lose
-   enough source_refs to drop below the full-article threshold (3+ refs,
-   7.0+ max relevance). List entities that would be demoted and ask the user
-   before deleting their wiki pages.
+## Phase 2: Script Compilation
 
-## Phase 2: Selective Synthesis (Parallel)
-
-For each **dirty bucket only**, launch a subagent:
-
-> "Use the compile-synthesis skill to write a synthesis article for the
-> {bucket} bucket. Sources for this bucket: {list paths + key_insights}.
-> **Important**: These new/changed sources were just added and should be
-> prominently featured: {list changed source paths + key_insights}.
-> Write output to wiki/{bucket}.md."
-
-For **clean buckets**, do nothing — their existing synthesis articles are current.
-
-After all dirty-bucket subagents complete, verify `wiki/{bucket}.md` exists
-for each dirty bucket.
-
-## Phase 3: Selective Cards (Parallel)
-
-For each **dirty entity only**, launch subagents in batches (5-10 at a time):
-
-> "Use the compile-cards skill to write a reference card for {entity name}
-> ({type}, {bucket}). Top sources: {paths}. Write to
-> wiki/projects/{slug}.md or wiki/concepts/{slug}.md."
-
-For **new entities** that cross the full-article threshold (3+ source refs,
-7.0+ max relevance), generate new cards.
-
-For entities that **lost full-article status** due to source deletion
-(confirmed by user in Phase 1), delete their wiki page.
-
-## Phase 4: Indexes + Field Map
-
-**Always run indexes** (cheap, no LLM):
-
-> "Use the compile-index skill to generate wiki/ROOT.md, wiki/indexes/,
-> wiki/comparisons/landscape.md, and wiki/README.md from the compiled
-> articles in wiki/."
-
-**Conditionally run field-map**: Only if any synthesis article changed in
-Phase 2. If no synthesis articles were regenerated, the field map is current.
-
-> "Use the compile-field-map skill to write wiki/field-map.md. Read
-> config/domain.ts for bucket definitions."
-
-## Phase 5: Claims + State Save
-
-**Extract claims from dirty buckets only**:
-
-> "Use the compile-claims skill to extract claims from these synthesis
-> articles: {list dirty bucket .md paths}. Merge with existing claims from
-> build/claims.json for clean buckets. Write updated build/claims.json and
-> build/eval-report.json."
-
-**Save incremental state**: After all phases complete, run the script pipeline
-to update the state file:
+After user confirmation, run a single script call:
 
 ```bash
-bun run scripts/save-incremental-state.ts
+bun run compile --incremental
 ```
 
-If this script doesn't exist, manually construct and write
-`build/incremental-state.json` with the schema from
-[references/state-schema.md](references/state-schema.md).
+This handles everything:
+- **Pass 0:** Load and index all raw sources
+- **Pass 1a:** Incremental entity extraction (only changed sources)
+- **Pass 1b:** Entity resolution with ID anchoring (prevents slug churn)
+- **Pass 2:** Graph construction
+- **Pass 3a:** Synthesis articles for dirty buckets (with evidence registry + source boosting)
+- **Pass 3a.5:** Blind review of synthesis articles
+- **Pass 3b:** Reference cards for dirty entities only
+- **Pass 3c:** Claims extraction (dirty buckets only, merges with clean)
+- **Pass 4:** Field map + indexes
+- **Pass 5:** Mermaid diagrams + backlinks
+- **Pass 6:** Changelog (appends, includes compilation diff)
+- **Pass 7:** Self-eval with incremental eval cache
+- **Pass 8:** Auto-fix failed claims
+- **State save:** Updates `build/incremental-state.json`
+
+Dirty detection is relevance-gated: sources must beat the per-bucket
+top-25 cutoff (with +1.5 boost for changed sources) to dirty a bucket.
+Entity dirtiness is based on changed source_refs, not cosmetic re-resolution.
+
+## Phase 3: Present Results
+
+After compilation completes, read and present:
+
+1. **`build/compilation-diff.json`** — Which synthesis articles changed,
+   word count deltas, sections added/removed, new citations.
+
+2. **`build/eval-report.json`** — Self-eval accuracy. How many claims were
+   verified vs carried forward from cache. Any failures.
+
+3. **`build/lessons.md`** — Unfixable patterns flagged for human review.
+
+Present a concise summary:
+```
+Compilation complete:
+  - 2 synthesis articles updated (knowledge-substrate, self-improving)
+  - 12 reference cards regenerated, 3 new cards added
+  - Self-eval: 28/30 passed (93.3%), 2 carried forward from cache
+  - 1 unfixable claim flagged in build/lessons.md
+```
+
+Suggest follow-ups if relevant:
+- "Consider deep-researching {project} for stronger source coverage"
+- "The self-improving article has {N} unsupported claims — review build/eval-report.json"
 
 ## Fallback: When to Use Full Compilation
 
 Use `compile-wiki` instead of this skill when:
 - `build/incremental-state.json` doesn't exist (first compilation)
 - Domain config (`config/domain.ts`) changed materially
-- More than 50% of sources changed (incremental overhead exceeds savings)
+- More than 50% of sources changed
 - The user explicitly requests a full recompilation
 - You detect systemic issues (many stale claims, low eval accuracy)
 
 ## Quality Rules
 
-All the same quality rules from `compile-wiki` apply:
-- See `.claude/skills/compile-wiki/references/quality.md` for citation rules
-- Read and follow `.claude/skills/stop-slop/SKILL.md`
-- If `build/lessons.md` exists, read it and pass lessons to subagents
+The script handles all quality enforcement:
+- Evidence registry prevents cross-article duplication
+- Source boosting (+1.5) ensures new sources enter synthesis articles
+- Blind review (Pass 3a.5) catches unsupported claims
+- Self-eval (Pass 7) verifies claims against sources
+- Auto-fix (Pass 8) repairs citation errors
 
-## Regression Prevention
-
-Never silently delete an entity's wiki page. If an entity would be demoted
-from full to stub, warn the user and ask for confirmation before deleting.
+If `build/lessons.md` exists, the script reads it automatically.

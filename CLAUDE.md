@@ -39,24 +39,43 @@ bun run compile --to-pass=2        # just rebuild entities + graph (passes 0-2)
 bun run compile --wiki-dir=wiki-v3 --build-dir=build-v3  # alternate output dir
 ```
 
-**Incremental mode** (`--incremental`): Detects new/modified/deleted sources via content hashing,
-skips entity extraction for unchanged sources (Pass 1a), only regenerates synthesis articles and
-reference cards for affected buckets/entities, and preserves existing claims for clean buckets.
+**Incremental mode** (`--incremental`): Three levels of incrementality:
+- **Pass 1a**: Only extracts entities from changed sources, merges with cached mentions.
+- **Pass 1b**: Deterministic name/alias matching against existing entities (no LLM). Only calls
+  Sonnet for genuinely unrecognized mentions. Falls back to full resolution if >20% sources changed.
+- **Pass 2**: Reuses previous graph if no new entities were created.
+- **Pass 3a**: Relevance-gated dirty buckets — sources must beat the per-bucket top-25 cutoff
+  (with +1.5 boost) to dirty a bucket. Low-relevance sources don't trigger recompilation.
+- **Pass 3b**: Only regenerates cards for entities whose source_refs actually changed.
+- **Pass 7**: Eval cache carries forward PASS verdicts for clean-bucket claims with unchanged sources.
+
 Forces full recompilation if `config/domain.ts` or compilation thresholds change. State is saved
-to `build/incremental-state.json` after every compilation (full or incremental).
+to `build/incremental-state.json` after every compilation.
+
+Additional flags:
+- `--no-save-state` — Skip writing `incremental-state.json` (for partial runs)
+- `--to-pass=N` / `--from-pass=N` — Run specific pass ranges
+
+### Path C: Skill-guided (recommended for incremental)
+
+Use the `incremental-compile` skill. The skill handles analysis and user confirmation,
+then delegates all compilation to `bun run compile --incremental` as a single call.
+The script handles synthesis (with evidence registry + source boosting), cards, claims,
+self-eval, and state saving.
 
 ### Other commands
 
 ```bash
 bun install                        # install dependencies
 bun run ingest <url1> [url2] ...   # ingest sources (auto-detects platform)
+bun run ingest --force <url>       # re-ingest and re-score (overwrites existing)
 bun run ingest:twitter [urls...]   # platform-specific ingestion
 bun run ingest:github [urls...]    # supports --min-stars N --min-relevance N
 bun run ingest:arxiv [urls...]
 bun run ingest:article [urls...]
 bun run rescore                    # score unscored sources for relevance
 bun run rescore --force            # re-score everything
-bun test                           # run incremental compilation tests (28 tests, 0 LLM calls)
+bun test                           # run incremental compilation tests (46 tests, 0 LLM calls)
 ```
 
 ### Agent Skills
@@ -66,7 +85,8 @@ The skill graph in `.claude/skills/` provides agent-native compilation:
 | Skill | Purpose |
 |-------|---------|
 | `compile-wiki` | Full compilation orchestrator (6 phases, spawns subagents) |
-| `incremental-compile` | Incremental recompilation (detects changes, selective synthesis) |
+| `incremental-compile` | Hybrid incremental recompilation (skill + script, recommended) |
+| `compile-status` | Show pending changes + LLM-powered impact analysis (no compilation) |
 | `compile-synthesis` | Writes one synthesis article per bucket |
 | `compile-cards` | Writes reference cards for entities |
 | `compile-field-map` | Writes the field-map.md overview |

@@ -40,20 +40,31 @@ Used to detect added, modified, and deleted sources. A source is:
 - **Deleted** if its path exists in this map but not on disk
 
 ### `entity_input_hashes`
-Maps entity IDs (e.g. `mem0`, `graphiti`) to a hash of all inputs that
-affect their reference card:
+Maps entity IDs (e.g. `mem0`, `graphiti`) to a hash of the inputs that
+reflect changed evidence:
 
 ```
-SHA-256(description + "|" + bucket + "|" + aliases.sort().join(",") + "|" +
-        source_refs.sort().join(",") + "|" + neighbor_ids.sort().join(","))
+SHA-256(bucket + "|" + source_refs.sort().join(","))
 ```
+
+Only `bucket` and `source_refs` are hashed. Description, aliases, and
+neighborIds are excluded because they change cosmetically across entity
+re-resolution without reflecting new evidence, causing cascading
+false-dirty detection (e.g., 131/131 entities dirty when only 7 sources
+changed).
 
 An entity is dirty (needs card regeneration) if its input hash changed or
 if it doesn't appear in this map (new entity).
 
 ### `previous_entity_ids`
-List of all entity IDs from the last compilation. Used to detect removed
-entities whose wiki pages should be deleted.
+List of all entity IDs from the last compilation. Serves two purposes:
+1. **Deleted entity detection**: Entities in this list but not in the current
+   compilation have been removed — their wiki pages should be deleted.
+2. **Entity ID anchoring** (Pass 1b): These IDs are sent to Sonnet during
+   entity resolution as "existing entities." When a raw mention matches a
+   previous entity, Sonnet reuses the exact ID instead of generating a new
+   slug. This prevents entity ID churn across compilations (e.g., `mem0`
+   stays `mem0` instead of becoming `mem0ai` in a later run).
 
 ### `synthesis_hashes`
 Maps bucket IDs (e.g. `agent-memory`) to SHA-256 of the synthesis article
