@@ -29,6 +29,8 @@ export interface RawSourceFrontmatter {
   language?: string;
   license?: string;
   maturity?: string; // "production" | "beta" | "alpha" | "concept" | "archived"
+  // Discovery provenance (added by curation pipeline)
+  discovered_via?: string; // e.g. "curate:twitter/home", "curate:twitter/search:MCP server framework", "curate:github/new"
   // Relevance scores (added by ingestion scoring)
   relevance_scores?: {
     topic_relevance: number;

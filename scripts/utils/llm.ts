@@ -149,6 +149,65 @@ export async function scoreRelevance(
   }
 }
 
+// ─── Smoke Test (lightweight Haiku pre-filter) ─────────────────────────
+
+const smokeSchema = z.object({
+  topic_relevance: z.number().describe(
+    "0-10: How directly does this relate to the topic areas?",
+  ),
+  practitioner_value: z.number().describe(
+    `0-10: How useful for ${domain.audience}?`,
+  ),
+  novelty: z.number().describe(
+    "0-10: Does this introduce a new idea or approach?",
+  ),
+  signal_quality: z.number().describe(
+    "0-10: Is the content substantive enough to extract insights?",
+  ),
+  reason: z.string().describe("1 sentence explaining the scores"),
+});
+
+const SMOKE_SYSTEM_PROMPT = `You are a fast relevance screener for "${domain.name}", covering ${domain.topic}.
+
+Topic areas: ${domain.buckets.map((b) => `${b.name} (${b.description})`).join("; ")}
+
+${domain.scoring.primaryPillars}
+
+NOT in scope: ${domain.scoring.outOfScope.join(", ")}
+
+Score quickly on 4 dimensions (0-10 each). Be strict — only high-signal, substantive content should score above 5.`;
+
+export type SmokeScore = z.infer<typeof smokeSchema> & { composite: number };
+
+export async function smokeTest(
+  content: string,
+  sourceType: RawSourceType,
+): Promise<SmokeScore | null> {
+  try {
+    const truncated = content.slice(0, 3000);
+    const { object } = await generateObject({
+      model: getProvider()("claude-haiku-4-5"),
+      schema: smokeSchema,
+      system: SMOKE_SYSTEM_PROMPT,
+      prompt: `Source type: ${sourceType}\n\n${truncated}`,
+    });
+
+    const composite =
+      0.4 * object.topic_relevance +
+      0.3 * object.practitioner_value +
+      0.15 * object.novelty +
+      0.15 * object.signal_quality;
+
+    return {
+      ...object,
+      composite: Math.round(composite * 10) / 10,
+    };
+  } catch (err) {
+    console.warn(`  smoke test failed: ${err}`);
+    return null;
+  }
+}
+
 // ─── Fallbacks (only used when generateObject fails entirely) ───────────
 
 function fallbackInsight(content: string): string {

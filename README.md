@@ -39,7 +39,7 @@ Inspired by [Andrej Karpathy's tweet](https://x.com/karpathy/status/203980565952
 
 ![Compilation demo](wiki/images/compile-demo.gif)
 
-**How it was built:** [METHODOLOGY.md](METHODOLOGY.md) | [System Design](DESIGN.md)
+**How it was built:** [METHODOLOGY.md](docs/METHODOLOGY.md) | [System Design](docs/DESIGN.md)
 
 ## Fork this for your own topic
 
@@ -123,7 +123,7 @@ Both paths produce the same output structure. Run both for a comparison diff bet
 - [ ] **Claims-first migration** — invert pipeline to raw → claims → articles for better attribution accuracy and reliable incremental recompilation
 - [ ] **Temporal claim decay** — auto-expire time-sensitive claims (star counts, benchmarks) and flag articles for refresh
 
-See [DESIGN.md](DESIGN.md) for the full architectural vision and evaluation findings.
+See [DESIGN.md](docs/DESIGN.md) for the full architectural vision and evaluation findings.
 
 ## License
 

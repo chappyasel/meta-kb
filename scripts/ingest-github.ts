@@ -18,7 +18,7 @@ import {
 } from "./utils/github-api.js";
 import { extractOwnerRepo } from "./utils/url-extract.js";
 import { generateInsightAndTags, scoreRelevance, type RelevanceScore } from "./utils/llm.js";
-import { writeRawSource, appendDiscoveredUrl } from "./utils/markdown-writer.js";
+import { writeRawSource, appendDiscoveredUrl, type WriteOptions } from "./utils/markdown-writer.js";
 import { slugify } from "./utils/slugify.js";
 import { loadSeen, saveSeen, markSeen } from "./utils/dedup.js";
 import { loadSourceUrls } from "./utils/config.js";
@@ -139,7 +139,13 @@ export async function ingestGithubRepo(
 
   const body = buildRepoBody(metadata, readme, relevance);
   const slug = slugify(`${metadata.owner}-${metadata.name}`);
-  const filePath = await writeRawSource("repos", slug, frontmatter, body, force);
+  // Auto-chain (parentSource set) → auto-reject low relevance; manual → prompt user
+  const writeOpts: import("./utils/markdown-writer.js").WriteOptions = {
+    ...(parentSource ? { lowRelevance: "auto-reject" as const } : {}),
+    force,
+  };
+  const filePath = await writeRawSource("repos", slug, frontmatter, body, writeOpts);
+  if (!filePath) return written; // rejected by quality gate
   written.push(filePath);
 
   // Awesome-list detection + recursive ingestion
