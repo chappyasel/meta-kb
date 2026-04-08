@@ -11,7 +11,7 @@
 
 import { Defuddle } from "defuddle/node";
 import { generateInsightAndTags } from "./utils/llm.js";
-import { writeRawSource } from "./utils/markdown-writer.js";
+import { writeRawSource, type WriteOptions } from "./utils/markdown-writer.js";
 import { slugify } from "./utils/slugify.js";
 import { extractGithubUrls } from "./utils/url-extract.js";
 import { loadSeen, saveSeen, markSeen, normalizeUrl } from "./utils/dedup.js";
@@ -128,6 +128,7 @@ function extractMetaTag(html: string, name: string): string | null {
 
 interface IngestOptions {
   seen?: Set<string>;
+  writeOptions?: WriteOptions;
 }
 
 export async function ingestArticles(
@@ -135,6 +136,7 @@ export async function ingestArticles(
   opts: IngestOptions = {},
 ): Promise<string[]> {
   const seen = opts.seen ?? (await loadSeen());
+  const writeOpts = opts.writeOptions ?? {};
   const written: string[] = [];
 
   for (const url of urls) {
@@ -165,8 +167,8 @@ export async function ingestArticles(
           };
           const slug = slugify(`x-${article.authorHandle}-${article.title.slice(0, 50)}`);
           const body = `## ${article.title}\n\n**Author:** ${article.author} (@${article.authorHandle})\n\n${article.bodyText}`;
-          const filePath = await writeRawSource("articles", slug, frontmatter, body);
-          written.push(filePath);
+          const filePath = await writeRawSource("articles", slug, frontmatter, body, writeOpts);
+          if (filePath) written.push(filePath);
         } catch (err) {
           console.warn(`  ⚠ X article extraction failed: ${err}`);
         }
@@ -193,8 +195,8 @@ export async function ingestArticles(
 
       const body = buildArticleBody(meta);
       const slug = slugify(`${meta.siteName}-${meta.title.slice(0, 50)}`);
-      const filePath = await writeRawSource("articles", slug, frontmatter, body);
-      written.push(filePath);
+      const filePath = await writeRawSource("articles", slug, frontmatter, body, writeOpts);
+      if (filePath) written.push(filePath);
 
       // Auto-chain: extract GitHub URLs and ingest repos
       const githubUrls = extractGithubUrls(meta.content);

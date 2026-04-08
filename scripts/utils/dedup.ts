@@ -68,5 +68,6 @@ export function markSeen(seen: Set<string>, url: string): boolean {
   const normalized = normalizeUrl(url);
   if (seen.has(normalized)) return true;
   seen.add(normalized);
+
   return false;
 }
