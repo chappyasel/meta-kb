@@ -362,7 +362,7 @@ export async function ingestTweets(
 
   // Build startUrls for Apify (check only, don't mark as seen yet)
   const startUrls = urls
-    .filter((u) => !seen.has(normalizeUrl(u)))
+    .filter((u) => force || !seen.has(normalizeUrl(u)))
     .map((url) => ({ url }));
 
   if (startUrls.length === 0) {
@@ -479,7 +479,7 @@ export async function ingestTweets(
     const body = articleContent
       ? buildTweetBody(tweet, text, engagement, images, threadTexts) + `\n\n---\n\n## ${articleTitle}\n\n${articleContent}`
       : buildTweetBody(tweet, text, engagement, images, threadTexts);
-    const filePath = await writeRawSource("tweets", slug, frontmatter, body, force);
+    const filePath = await writeRawSource("tweets", slug, frontmatter, body, { force });
     written.push(filePath);
 
     // Auto-chain: extract expanded URLs from Apify entities and ingest linked content
@@ -622,17 +622,19 @@ function buildTweetBody(
 // ─── CLI entry point ────────────────────────────────────────────────────
 
 async function main() {
-  let urls = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const force = args.includes("--force");
+  let urls = args.filter((a) => !a.startsWith("--"));
 
   if (urls.length === 0) {
     urls = await loadSourceUrls("tweet_urls");
     console.log(`loaded ${urls.length} tweet URLs from config/sources.json`);
   }
 
-  console.log(`\n=== Twitter Ingestion: ${urls.length} tweets ===\n`);
+  console.log(`\n=== Twitter Ingestion: ${urls.length} tweets${force ? " (force)" : ""} ===\n`);
 
   const seen = await loadSeen();
-  const written = await ingestTweets(urls, { seen });
+  const written = await ingestTweets(urls, { seen, force });
   await saveSeen(seen);
 
   console.log(`\n=== Done: ${written.length} files written ===`);
